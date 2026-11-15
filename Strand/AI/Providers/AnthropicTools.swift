@@ -27,7 +27,6 @@ extension AnthropicClient: ToolCallingClient {
         let toolSpecs = tools.map { $0.anthropicSpec }
         // The evidence chain (P6): every tool name actually called, in call order, across every round.
         var calledTools: [String] = []
-        await Self.beginUsageTurn()
 
         for _ in 0..<Self.maxToolRounds {
             // `system` rides as a cacheable block array: tools + prompt are re-sent on every round below,
@@ -47,10 +46,9 @@ extension AnthropicClient: ToolCallingClient {
             req.setValue("application/json", forHTTPHeaderField: "content-type")
             req.httpBody = try JSONSerialization.data(withJSONObject: body)
 
+            // `performRequest` records the usage of every request that is not a stream, so this loop
+            // must not record it a second time.
             let json = try await performRequest(req, session: session)
-            if let usage = json["usage"] as? [String: Any] {
-                await Self.recordUsage(Self.parseUsage(usage))
-            }
             guard let content = json["content"] as? [[String: Any]] else { throw AICoachError.decode }
 
             // Not a tool request → this is the final answer: concatenate its text blocks.

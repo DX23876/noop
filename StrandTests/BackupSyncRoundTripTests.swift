@@ -97,6 +97,68 @@ final class BackupSyncRoundTripTests: XCTestCase {
         XCTAssertEqual(defaults.string(forKey: "units.distance"), "metric")
     }
 
+    /// The coach's own entry travels in the same archive and is STAGED by a restore, never applied into
+    /// the running app: every coach store still holds its pre-restore state in memory and would write
+    /// it back over whatever a restore had just put in place (`CoachBackup`).
+    func testACoachEntryIsStagedByARestoreRatherThanApplied() throws {
+        let sourceDB = tmp.appendingPathComponent("source.sqlite")
+        try makeNoopDatabase(at: sourceDB, deviceRows: ["my-whoop"])
+
+        let coachSource = try freshDefaults()
+        coachSource.set("Smith", forKey: "coach.identity")
+        let coachDir = tmp.appendingPathComponent("coach-source", isDirectory: true)
+        let payload = try XCTUnwrap(CoachBackup.snapshot(defaults: coachSource, supportDirectory: coachDir))
+
+        let backup = tmp.appendingPathComponent("with-coach.noopbak")
+        try DataBackup.writeBackupForTesting(databaseAt: sourceDB, to: backup, coachJSON: payload)
+
+        let coachTarget = tmp.appendingPathComponent("coach-target", isDirectory: true)
+        try FileManager.default.createDirectory(at: coachTarget, withIntermediateDirectories: true)
+        let liveDB = tmp.appendingPathComponent("live.sqlite")
+        let result = DataBackup.restore(from: backup, toDatabaseAt: liveDB.path,
+                                        settingsDefaults: try freshDefaults(),
+                                        coachSupportDirectory: coachTarget)
+
+        guard case .imported = result else { return XCTFail("Restore should succeed, got \(result)") }
+        XCTAssertEqual(try deviceRows(in: liveDB), ["my-whoop"], "the database half still round-trips")
+
+        let staged = coachTarget.appendingPathComponent(CoachBackup.stagedFileName)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: staged.path),
+                      "the coach payload waits for the next launch")
+
+        let applied = try freshDefaults()
+        XCTAssertTrue(CoachBackup.applyStagedRestoreIfPresent(defaults: applied,
+                                                              supportDirectory: coachTarget))
+        XCTAssertEqual(applied.string(forKey: "coach.identity"), "Smith")
+    }
+
+    /// A backup written by upstream, or by a build from before the entry existed, carries no coach
+    /// entry. It must leave the coach alone rather than clear it, and it must clear a payload that was
+    /// still waiting, so an older coach state cannot land on top of this newer restore.
+    func testABackupWithoutACoachEntryLeavesTheCoachAloneAndClearsAWaitingPayload() throws {
+        let sourceDB = tmp.appendingPathComponent("source.sqlite")
+        try makeNoopDatabase(at: sourceDB, deviceRows: ["my-whoop"])
+        let backup = tmp.appendingPathComponent("no-coach.noopbak")
+        try DataBackup.writeBackupForTesting(databaseAt: sourceDB, to: backup)
+
+        let coachTarget = tmp.appendingPathComponent("coach-target", isDirectory: true)
+        try FileManager.default.createDirectory(at: coachTarget, withIntermediateDirectories: true)
+        let older = try freshDefaults()
+        older.set("Older", forKey: "coach.identity")
+        CoachBackup.stage(try XCTUnwrap(CoachBackup.snapshot(defaults: older, supportDirectory: coachTarget)),
+                          supportDirectory: coachTarget)
+
+        let liveDB = tmp.appendingPathComponent("live.sqlite")
+        let result = DataBackup.restore(from: backup, toDatabaseAt: liveDB.path,
+                                        settingsDefaults: try freshDefaults(),
+                                        coachSupportDirectory: coachTarget)
+
+        guard case .imported = result else { return XCTFail("Restore should succeed, got \(result)") }
+        XCTAssertFalse(FileManager.default.fileExists(
+            atPath: coachTarget.appendingPathComponent(CoachBackup.stagedFileName).path),
+                       "the waiting payload is dropped by a restore that carries no coach entry")
+    }
+
     func testLegacySingleEntryZipStillRestoresAndAppliesNoSettings() throws {
         // A pre-#1000 backup: DB entry only (writeBackupForTesting with settings nil).
         let sourceDB = tmp.appendingPathComponent("source.sqlite")

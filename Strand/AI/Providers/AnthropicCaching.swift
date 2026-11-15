@@ -35,13 +35,10 @@ extension AnthropicClient {
         )
     }
 
-    /// Hand one round's counts to the on-device log. Hops to the main actor because the log drives UI.
+    /// Hand one round's counts to the on-device log, which sorts it into the question's counters or the
+    /// background ones by `CoachUsageAttribution`. Still here, and still needed, because the streaming
+    /// path does not pass through `performRequest`, where every other request is counted.
     static func recordUsage(_ round: CoachUsageLog.Round) async {
-        await MainActor.run { CoachUsageLog.shared.record(round) }
-    }
-
-    /// Reset the counters at the start of a question, so the diagnostic reports this turn's rounds only.
-    static func beginUsageTurn() async {
-        await MainActor.run { CoachUsageLog.shared.beginTurn() }
+        await CoachUsageLog.recordFromProvider(round)
     }
 }

@@ -1289,3 +1289,81 @@ was ported piece by piece rather than merged. Four pieces, three taken whole and
 
 Analysis migration required: no. No scoring, no analysis window, no stored derived value and no provenance
 changes; the catalogue count and the journal documents are the same values, read more cheaply.
+
+### 2026-11-15 — What the coach's own state costs, keeps and loses, from `claude/ai-coach-baustellen-b783e2`
+
+Three of that branch's six gaps, ported against today's `main` rather than merged: its base is 1 635
+commits back and its first commit moves 3 248 lines. Each was checked against main first, and one of the
+six turned out to be closed already, differently (the prompt editor's getter returns the base prompt here,
+not the assembled one, so nothing freezes the live clauses into an override).
+
+- **Every request counts its tokens, in `performRequest`.** Counting sat in the Anthropic tool loop and
+  the OpenAI-shaped stream only, so Gemini was free, and with it the brief, the check-in, the weekly
+  review, every card read and every call to the cheap model. It now happens once, where every request
+  without a stream already passes, and the shape of the `usage` object decides how to read it
+  (`input_tokens`, `prompt_tokens`, `usageMetadata`) rather than which provider we believe we are talking
+  to, because the gateways front several vendors behind one endpoint. A reply with no usage reports
+  nothing rather than a zero round. The Anthropic tool loop stopped recording its own usage in the same
+  change, or the same tokens would be counted twice.
+- **Whose tokens they are is the caller's fact, not the provider's.** `cheapComplete` and a plain
+  question both end in `provider.client.send`, so a flag threaded through the provider protocols would
+  be a lie at the point it is read. `CoachUsageAttribution` is a task-local that `CoachUsageLog
+  .countingAQuestion` sets around the three places a question actually leaves the app, and the provider
+  loops no longer open a turn of their own: the brief used to reset what the last question had cost
+  simply by going through the same loop. Background work raises the session and day totals, which are
+  about money, and never touches `lastTurn`, which answers one question only. The default is
+  `background`, so an unmarked path can never claim to be the wearer's question.
+- **One Keychain slot per provider.** #P4 chose a single slot plus a marker saying whose key it was, and
+  that choice is reversed here: the vault deletes before it inserts, so comparing two providers destroyed
+  the first one's key every time, with no way to get it back. The account now names the provider, an
+  existing key moves into its owner's slot once on launch (the marker's provider, or the selected one for
+  a key saved before the marker existed; never guessed from the key's text, never discarded), and
+  "Forget saved key" stays per provider with a separate sweeping action beside it, because forgetting one
+  no longer happens to forget the others.
+- **The coach travels in the `.noopbak`.** It carried the database and the whitelisted settings and
+  nothing of the coach, so a device change restored every row and lost who the coach was, how it spoke,
+  the facts it had remembered, the plan book, the digests of past conversations and every consent. It now
+  rides as its own entry, `coach.json`, never as new keys in `settings.json`: that file is a
+  cross-platform whitelist and the backup has to keep moving between this fork and ryanbr/noop in both
+  directions, where an unknown ENTRY is skipped and an unknown KEY would be a disagreement about a shared
+  file. The archive gained a generic `extraJSON` for that in `StrandCore`, so the core knows nothing
+  about coaches. Keys, the Custom base URL, the model choices, the scheduling stamps, the usage counters,
+  this device's layout and the chat messages themselves stay out; the thread DIGESTS travel, the
+  transcripts do not. The master switch stays out too, which is what makes carrying the consents safe:
+  a restore cannot switch on a coach the wearer has not switched on. No key travels in both the coach
+  entry and `GoalBackupBundle`, and a test holds the two lists disjoint.
+- **A restore stages the coach entry; the next launch applies it.** Writing it into a running app would
+  lose it: every coach store still holds its pre-restore state in memory and writes its whole blob on
+  the next edit. Staged, it lands at the same moment the restored database does, and it holds for every
+  store added later without each one having to know restores exist. A backup with no coach entry clears
+  a payload that was still waiting, rather than letting an older coach state land on top of a newer
+  restore, and leaves the local coach alone.
+- **The role models follow the provider, and a failed background call says so.** A switch corrected the
+  chat model and left `memoryModel`, `cardModel` and `deepModel` pointing at the old provider's ids,
+  which every background request was then refused for; `cheapComplete` returns nil on any failure, so
+  chat summaries, fact distillation, card reads and the tool routing outside English and German simply
+  stopped, for good, with nothing saying so. They are cleared like the chat model, and the last failure
+  is kept and shown quietly under the role models: the model it was sent to, the provider's own words and
+  when. Not the cause, which a rejected id, an expired key and a rate limit all reach that line as.
+- **A superseded question no longer cleans up after its successor.** `startSend` cancels the previous
+  turn, but cancellation is cooperative: the old turn ran on to its next suspension point and then turned
+  off the spinner the new turn had just turned on, discarded the new turn's pending charts, cleared its
+  deep flag and showed its own failure as if the live question had failed. Each turn now carries an id
+  and touches shared state only while it still holds `liveTurnID`. The resolver is under test rather than
+  the count of its gated call sites.
+
+**Not ported: the sensitive-journal classifier (the branch's fifth gap), and the file split.**
+`CoachSensitiveJournalPolicy` is a word-prefix list, and the branch replaced its unlisted cases with a
+cheap-model judgement. Main's own documentation for that list says the opposite in as many words: "This
+is deliberately a local list and not a model call: asking a provider whether a label is sensitive would
+send it the label" — and the labels it has to judge are exactly the ones whose privacy is in question.
+The branch's own follow-up commit (never send a list-positive label out for review) is evidence it ran
+into the same wall. So the choice belongs to the owner, not to a port, and it is left open with two
+honest options: send the unlisted labels to the cheap model, accepting that egress; or judge them on
+device with the local embedding model, which the Apple side already ships, and which would need the
+macOS half of `claude/semantic-memory-audit-ec0d27` first. The list meanwhile covers six languages, not
+the eighteen words the branch found. `AICoach.swift` is 4 910 lines and wants splitting, but as a pure
+move on today's file, not as the branch's 3 248-line rearrangement with the fixes inside it.
+
+Analysis migration required: no. No scoring, no analysis window, no stored derived value and no
+provenance changes.

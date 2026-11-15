@@ -25,7 +25,6 @@ extension AnthropicClient: StreamingToolClient {
         var fullText = ""
         // The evidence chain (P6): every tool name actually called, in call order, across every round.
         var calledTools: [String] = []
-        await Self.beginUsageTurn()
 
         for _ in 0..<Self.maxToolRounds {
             // `system` rides as a cacheable block array: tools + prompt are re-sent on every round below,

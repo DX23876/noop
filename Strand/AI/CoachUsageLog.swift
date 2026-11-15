@@ -1,6 +1,23 @@
 import Foundation
 import StrandCore
 
+/// Whose tokens a request is spending: the question the wearer just asked, or work the app does on its
+/// own (the brief, the check-in, the weekly review, a card read, every call to the cheap model).
+///
+/// A task-local rather than a parameter threaded through the provider protocols, because the SAME
+/// provider function serves both — `cheapComplete` and a plain question both end in
+/// `provider.client.send` — so the provider genuinely cannot know, and only the caller can. This rides
+/// the async call tree from `CoachUsageLog.countingAQuestion` down to `performRequest` without every
+/// protocol in between having to carry a flag it has no opinion about.
+///
+/// The default is `background` on purpose. An unmarked path then counts toward the money totals and
+/// never claims to be what the last question cost, which is the error that matters less.
+enum CoachUsageAttribution {
+    enum Kind: Sendable { case question, background }
+
+    @TaskLocal static var current: Kind = .background
+}
+
 /// Per-turn token accounting for the coach's own API calls. On-device only: these counters are read from
 /// the provider's reply, shown in Coach settings, and never stored or sent anywhere.
 ///
@@ -100,6 +117,15 @@ final class CoachUsageLog: ObservableObject {
         persistDayTotal()
     }
 
+    /// Tokens the app spent on its own work: the brief, the check-in, the weekly review, a card read,
+    /// every call to the cheap model. They belong in the session and day totals, which are about money,
+    /// and never in `lastTurn`, which answers one question only: what did the question I just asked cost.
+    func recordBackground(_ round: Round) {
+        sessionTotal.accumulate(round)
+        dayTotal.accumulate(round)
+        persistDayTotal()
+    }
+
     // MARK: - Day-total persistence
 
     /// Reset the day total to empty if the stored day key is stale (a new logical day started since the
@@ -144,15 +170,26 @@ final class CoachUsageLog: ObservableObject {
 
     // MARK: - Provider-neutral entry points
 
-    /// Reset the counters at the start of a question, from any actor. Anthropic reaches the log through
-    /// its own `AnthropicClient.beginUsageTurn`; these exist so the OpenAI-shaped providers don't have to
-    /// call a helper named after a provider they aren't.
-    nonisolated static func beginTurnFromProvider() async {
+    /// Count the wearer's question, and run its egress inside the window in which rounds belong to it.
+    ///
+    /// ONE place decides what a question is, which is the point. The provider loops used to call
+    /// `beginTurn` themselves, so the brief and the check-in — which go through the very same loops —
+    /// opened a turn of their own and reset what the last question had cost, while a plain send opened
+    /// none at all and quietly appended its rounds to the turn before it.
+    nonisolated static func countingAQuestion<T>(_ body: () async throws -> T) async rethrows -> T {
         await MainActor.run { shared.beginTurn() }
+        return try await CoachUsageAttribution.$current.withValue(.question) { try await body() }
     }
 
+    /// Hand one round to the log from any actor, to whichever set of counters it belongs. A provider
+    /// never has to know which that is: `CoachUsageAttribution` carries it down from the caller.
     nonisolated static func recordFromProvider(_ round: Round) async {
-        await MainActor.run { shared.record(round) }
+        switch CoachUsageAttribution.current {
+        case .question:
+            await MainActor.run { shared.record(round) }
+        case .background:
+            await MainActor.run { shared.recordBackground(round) }
+        }
     }
 
     // MARK: - Diagnostic text

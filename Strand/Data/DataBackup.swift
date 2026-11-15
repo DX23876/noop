@@ -194,10 +194,13 @@ enum DataBackup {
         verifyWrittenBackup(at: url) == .intact
     }
 
-    private static func writeVerifiedBackupZip(dbURL: URL, to dest: URL, settingsJSON: Data?) throws {
+    private static func writeVerifiedBackupZip(dbURL: URL, to dest: URL, settingsJSON: Data?,
+                                               coachJSON: Data? = CoachBackup.snapshot()) throws {
         do {
             try BackupArchive.writeVerified(dbURL: dbURL, to: dest, settingsJSON: settingsJSON,
-                                            manifestJSON: currentManifestJSON(), scratchRoot: NoopScratch.directory())
+                                            manifestJSON: currentManifestJSON(),
+                                            extraJSON: coachJSON.map { [CoachBackup.entryName: $0] } ?? [:],
+                                            scratchRoot: NoopScratch.directory())
         } catch let error as BackupArchive.WriteError {
             switch error {
             case .integrity(let complaint): throw ExportIntegrityFailure(complaint: complaint)
@@ -222,8 +225,10 @@ enum DataBackup {
         return BackupArchive.manifestJSON(appVersion: version, appBuild: build, platform: "apple")
     }
 
-    private static func writeBackupZip(dbURL: URL, to dest: URL, settingsJSON: Data?, manifestJSON: Data) throws {
+    private static func writeBackupZip(dbURL: URL, to dest: URL, settingsJSON: Data?, manifestJSON: Data,
+                                       coachJSON: Data? = nil) throws {
         try BackupArchive.writeZip(dbURL: dbURL, to: dest, settingsJSON: settingsJSON, manifestJSON: manifestJSON,
+                                   extraJSON: coachJSON.map { [CoachBackup.entryName: $0] } ?? [:],
                                    scratchRoot: NoopScratch.directory())
     }
 
@@ -284,12 +289,14 @@ enum DataBackup {
     /// legacy single-entry ZIP — tests cover both shapes. Not used by app code; production goes
     /// through `writeBackup(checkpoint:to:)`.
     static func writeBackupForTesting(databaseAt dbURL: URL, to dest: URL,
-                                      settings: [String: Any]? = nil) throws {
+                                      settings: [String: Any]? = nil,
+                                      coachJSON: Data? = nil) throws {
         let fm = FileManager.default
         if fm.fileExists(atPath: dest.path) { try fm.removeItem(at: dest) }
         try writeBackupZip(dbURL: dbURL, to: dest,
                            settingsJSON: settings.flatMap { BackupSettings.encode($0) },
-                           manifestJSON: currentManifestJSON())
+                           manifestJSON: currentManifestJSON(),
+                           coachJSON: coachJSON)
     }
 
     // MARK: - Import
@@ -356,14 +363,27 @@ enum DataBackup {
     /// runner's real domain).
     static func restore(from pickedSource: URL, toDatabaseAt dbPath: String,
                         settingsDefaults: UserDefaults = .standard,
+                        coachSupportDirectory: URL? = CoachBackup.applicationSupportDirectory(),
                         allowOversize: Bool = false) -> BackupResult {
+        // The coach's own entry is not applied here. It is STAGED, and the next launch applies it
+        // before a coach store exists that would write its pre-restore state back over it
+        // (`CoachBackup`). Nil means the archive carried none, which clears an earlier staged payload
+        // rather than letting it land on top of the database this restore just put in place.
+        var coachPayload: Data?
         let outcome = BackupArchive.restore(
             from: pickedSource, toDatabaseAt: dbPath, scratchRoot: NoopScratch.directory(),
             allowOversize: allowOversize,
             willReplaceDatabase: { if LiveStoreReplacement.isLiveStore(dbPath) { LiveStoreReplacement.markReplaced() } },
+            wantedExtraEntries: [CoachBackup.entryName],
+            applyExtraEntry: { name, data in
+                if name == CoachBackup.entryName { coachPayload = data }
+            },
             applySettings: { applyRestoredSettings($0, to: settingsDefaults) })
         switch outcome {
         case .imported(let sidecar):
+            // Only once the swap has landed, on the same terms as the settings entry: a failed or
+            // rolled-back restore leaves both the database and the coach as they were.
+            CoachBackup.stage(coachPayload, supportDirectory: coachSupportDirectory)
             // #57 debug: record when a restore swapped the DB, so the export can correlate a restore with a
             // later write stall (a restore not followed by a relaunch is the #57 failure).
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: "backup.lastRestoreAt")

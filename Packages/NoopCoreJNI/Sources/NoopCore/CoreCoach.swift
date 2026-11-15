@@ -295,7 +295,13 @@ enum CoreCoach {
             coach.customConnected = connected
         }
         let key = args["key"] as? String ?? ""
-        if key.isEmpty { AIKeyStore.clear() } else { AIKeyStore.save(key, owner: coach.provider.rawValue) }
+        // Per provider on both platforms now: an empty key forgets THIS provider's, and the others keep
+        // theirs, rather than every key sharing one slot where saving one destroyed the last.
+        if key.isEmpty {
+            AIKeyStore.clear(owner: coach.provider.rawValue)
+        } else {
+            AIKeyStore.save(key, owner: coach.provider.rawValue)
+        }
         // The Hevy key Android keeps in its own secure store, so the coach's Hevy tools see a connection as on iOS.
         if let hevy = args["hevyKey"] as? String {
             if hevy.isEmpty { HevyCredentials.clear() } else { HevyCredentials.save(hevy) }

@@ -15,6 +15,11 @@ public enum BackupArchive {
     /// strap history passes 2 GiB (fork, 2026-11-01).
     public static let maxSQLiteBytes: Int64 = 5_368_709_120
     static let maxSettingsBytes: Int64 = 1_048_576
+    /// Ceiling for one of the FURTHER optional JSON entries a caller may add (`extraJSON`), measured on
+    /// the decompressed stream like every cap here. Larger than `settings.json`, which is a short
+    /// whitelist, because such an entry carries a feature's own state (the coach's remembered facts,
+    /// goals and plans); small enough that a zip bomb dressed as one cannot expand into anything.
+    static let maxExtraEntryBytes: Int64 = 8_388_608
 
     /// The smallest a real database entry can be: SQLite's own file header is exactly this long, so
     /// anything shorter cannot be a database whatever else it looks like.
@@ -70,12 +75,13 @@ public enum BackupArchive {
     /// write is deleted rather than left masquerading as a good snapshot; a write that cannot be read back is left
     /// in place, since failing to look is no evidence against it.
     public static func writeVerified(dbURL: URL, to dest: URL, settingsJSON: Data?, manifestJSON: Data,
+                                     extraJSON: [String: Data] = [:],
                                      scratchRoot: URL) throws {
         if let complaint = DatabaseIntegrity.quickCheckFailure(atPath: dbURL.path) {
             throw WriteError.integrity(complaint: complaint)
         }
         try writeZip(dbURL: dbURL, to: dest, settingsJSON: settingsJSON, manifestJSON: manifestJSON,
-                     scratchRoot: scratchRoot)
+                     extraJSON: extraJSON, scratchRoot: scratchRoot)
         switch verifyWritten(at: dest) {
         case .intact:
             break
@@ -87,7 +93,13 @@ public enum BackupArchive {
         }
     }
 
+    /// `extraJSON` carries FURTHER optional entries, by entry name, for state that belongs to one
+    /// platform's own feature rather than to the cross-platform whitelist. The core stays out of what
+    /// they mean: it writes the bytes it is handed, after `settings.json` and before the manifest, and
+    /// a reader that does not know an entry skips it. That is what keeps a `.noopbak` moving between
+    /// this fork and upstream in both directions, which adding keys to `settings.json` would not.
     public static func writeZip(dbURL: URL, to dest: URL, settingsJSON: Data?, manifestJSON: Data,
+                                extraJSON: [String: Data] = [:],
                                 scratchRoot: URL) throws {
         let archive = try Archive(url: dest, accessMode: .create)
         try archive.addEntry(with: entryName, fileURL: dbURL, compressionMethod: .deflate)
@@ -99,6 +111,14 @@ public enum BackupArchive {
             try settingsJSON.write(to: tmpJSON)
             defer { try? fm.removeItem(at: tmpJSON) }
             try archive.addEntry(with: BackupSettings.entryName, fileURL: tmpJSON, compressionMethod: .deflate)
+        }
+        // Sorted, so one state produces one archive whatever order the dictionary came in.
+        for name in extraJSON.keys.sorted() {
+            guard let json = extraJSON[name], !json.isEmpty else { continue }
+            let tmpExtra = scratchRoot.appendingPathComponent("extra-\(UUID().uuidString).json")
+            try json.write(to: tmpExtra)
+            defer { try? fm.removeItem(at: tmpExtra) }
+            try archive.addEntry(with: name, fileURL: tmpExtra, compressionMethod: .deflate)
         }
         // #1410: manifest LAST (after the DB + optional settings) and ALWAYS written — even a legacy
         // nil-settings backup states which build produced it.
@@ -159,6 +179,8 @@ public enum BackupArchive {
                                adoptRoomStore: ((_ roomFile: URL, _ destination: URL) throws -> Void)? = nil,
                                prepareStagedDatabase: ((URL, Data?) throws -> Void)? = nil,
                                willReplaceDatabase: (() -> Void)? = nil,
+                               wantedExtraEntries: Set<String> = [],
+                               applyExtraEntry: ((String, Data) -> Void)? = nil,
                                applySettings: (Data) -> Void) -> RestoreOutcome {
         // If the picked file is a .noopbak ZIP, extract the SQLite entry to a temp dir first.
         // Legacy plain-SQLite files fall straight through. The extracted dir is cleaned up below.
@@ -171,7 +193,8 @@ public enum BackupArchive {
             do {
                 if fm.fileExists(atPath: tmpExtract.path) { try fm.removeItem(at: tmpExtract) }
                 try fm.createDirectory(at: tmpExtract, withIntermediateDirectories: true)
-                try extractBackupZip(at: pickedSource, into: tmpExtract, allowOversize: allowOversize)
+                try extractBackupZip(at: pickedSource, into: tmpExtract, allowOversize: allowOversize,
+                                     wantedExtraEntries: wantedExtraEntries)
             } catch let err as BackupArchiveError {
                 try? fm.removeItem(at: tmpExtract)
                 // Reported as its own case, not a generic failure: this one is RECOVERABLE, and the caller
@@ -354,6 +377,16 @@ public enum BackupArchive {
             if let extractedDir {
                 let settingsURL = extractedDir.appendingPathComponent(BackupSettings.entryName)
                 if let data = try? Data(contentsOf: settingsURL) { applySettings(data) }
+                // The further entries the caller asked for, on the same terms and at the same moment:
+                // only after the swap landed, in a fixed order, and absent ones simply do not arrive.
+                // A backup written by upstream, or by a build from before such an entry existed, has
+                // none, and the caller is told nothing rather than told to clear anything.
+                if let applyExtraEntry {
+                    for name in wantedExtraEntries.sorted() {
+                        let url = extractedDir.appendingPathComponent(name)
+                        if let data = try? Data(contentsOf: url) { applyExtraEntry(name, data) }
+                    }
+                }
             }
             return .imported(sidecar: sidecar)
         } catch {
@@ -466,7 +499,8 @@ public enum BackupArchive {
     /// Unknown files are ignored, and each accepted entry is streamed through an uncompressed-size cap
     /// before it lands on disk.
     private static func extractBackupZip(at zipURL: URL, into destDir: URL,
-                                         allowOversize: Bool = false) throws {
+                                         allowOversize: Bool = false,
+                                         wantedExtraEntries: Set<String> = []) throws {
         let archive = try Archive(url: zipURL, accessMode: .read)
         for entry in archive where entry.type == .file {
             let name = (entry.path as NSString).lastPathComponent
@@ -476,6 +510,8 @@ public enum BackupArchive {
                 limit = allowOversize ? Int64.max : maxSQLiteBytes
             case BackupSettings.entryName:
                 limit = maxSettingsBytes
+            case let name where wantedExtraEntries.contains(name):
+                limit = maxExtraEntryBytes
             default:
                 continue
             }

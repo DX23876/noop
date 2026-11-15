@@ -36,4 +36,13 @@ struct KeychainVault: SecretVault {
     }
 }
 
+#if DEBUG
+/// Test seam. Key handling is worth covering — one slot per provider, the move out of the slot they all
+/// shared — and none of that may touch the wearer's real Keychain while a test runs. Nil in every
+/// ordinary run, and the `#else` below means the seam does not exist at all in a release build.
+nonisolated(unsafe) var secretVaultOverride: (any SecretVault)?
+
+func secretVault() -> any SecretVault { secretVaultOverride ?? KeychainVault() }
+#else
 func secretVault() -> any SecretVault { KeychainVault() }
+#endif

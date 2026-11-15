@@ -21,8 +21,41 @@ final class CoachModelRoleTests: XCTestCase {
     override func tearDown() {
         UserDefaults.standard.removeObject(forKey: "ai.memoryModel")
         UserDefaults.standard.removeObject(forKey: "ai.cardModel")
+        UserDefaults.standard.removeObject(forKey: "ai.deepModel")
         UserDefaults.standard.removeObject(forKey: "ai.model")
         super.tearDown()
+    }
+
+    // MARK: - The role models follow the provider
+
+    /// A switch corrected the chat model and left the role overrides pointing at the old provider's
+    /// ids, which every background request was then refused for, silently: `cheapComplete` returns nil
+    /// on any failure, so summaries, fact distillation and card reads just stopped happening.
+    func testSwitchingProviderClearsRoleModelsThatBelongedToTheOldOne() {
+        let engine = makeEngine()
+        engine.provider = .anthropic
+        engine.memoryModel = "claude-haiku-4-5"
+        engine.cardModel = "claude-haiku-4-5"
+        engine.deepModel = "claude-opus-4-6"
+
+        engine.provider = .openAI
+
+        XCTAssertEqual(engine.memoryModel, "", "an Anthropic id is not a model OpenAI will answer for")
+        XCTAssertEqual(engine.cardModel, "")
+        XCTAssertEqual(engine.deepModel, "")
+        // Cleared, not translated: the role then resolves to the new provider's own cheap model.
+        XCTAssertEqual(engine.model(for: .summary), AIProvider.openAI.cheapModel)
+    }
+
+    /// A role model the new provider does offer is the wearer's own choice and stays.
+    func testSwitchingProviderKeepsARoleModelTheNewProviderOffers() {
+        let engine = makeEngine()
+        engine.provider = .anthropic
+        engine.memoryModel = AIProvider.openAI.cheapModel
+
+        engine.provider = .openAI
+
+        XCTAssertEqual(engine.memoryModel, AIProvider.openAI.cheapModel)
     }
 
     // MARK: - 5.6: strong default coaching model, not a mini/flash one

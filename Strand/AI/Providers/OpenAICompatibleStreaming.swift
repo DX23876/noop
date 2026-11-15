@@ -112,10 +112,6 @@ extension OpenAICompatibleStreamingClient {
         // Decided at most once per conversation: if round 1 needs the modern param shape, so will every
         // later round (same model, same server) — mirrors the non-streaming tool loop.
         var modernParams = false
-        // Token accounting was Anthropic-only, so OpenRouter and OpenAI users had no idea what a turn
-        // cost. That gap matters most exactly here, where the user picks the model (and its price).
-        await CoachUsageLog.beginTurnFromProvider()
-
         for _ in 0..<Self.maxStreamToolRounds {
             let round = try await streamRound(
                 key: key, model: model, wire: wire, tools: toolSpecs,

@@ -32,6 +32,8 @@ struct CoachSettingsView: View {
     /// Confirmation gate before `clearKey()` — a deliberately separate, harder-to-reach action from
     /// Disconnect (#P4 4.3), since it actually deletes the Keychain key.
     @State private var showForgetKeyConfirm = false
+    /// The same gate for the sweeping version, which removes every provider's key at once.
+    @State private var showForgetAllKeysConfirm = false
     /// Presents the "How Coach works" transparency page (#P6 6.2).
     @State private var showCoachInfo = false
     @State private var customModel: Bool = false
@@ -552,6 +554,15 @@ struct CoachSettingsView: View {
                     accessibility: "Closer-look model",
                     emptyLabel: "Off — no closer-look option"
                 )
+                // Quiet, and only what was observed: which model, the provider's own words, and when.
+                // These calls return nothing on failure, so without this line the work above simply
+                // stopped happening and nothing said so.
+                if let failure = coach.lastBackgroundFailure {
+                    Text("Last background call failed: \(failure.model) — \(failure.reason)")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }
@@ -1879,6 +1890,33 @@ struct CoachSettingsView: View {
                     Button("Cancel", role: .cancel) {}
                 } message: {
                     Text("You'll need to paste it again to reconnect. This is different from Disconnect, which keeps the key.")
+                }
+            }
+            // Only where another provider actually has a key. Each provider owns its Keychain slot, so
+            // forgetting the one above leaves the others in place; this is the way to get rid of all
+            // of them, and it says so rather than hiding behind the button above.
+            if coach.hasKeyForAnotherProvider {
+                Button(role: .destructive) {
+                    showForgetAllKeysConfirm = true
+                } label: {
+                    Text("Forget every provider's key")
+                        .font(StrandFont.footnote)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .accessibilityHint("Deletes every stored provider key from the Keychain.")
+                .confirmationDialog(
+                    "Forget every provider's key?",
+                    isPresented: $showForgetAllKeysConfirm,
+                    titleVisibility: .visible
+                ) {
+                    Button("Forget all keys", role: .destructive) {
+                        coach.clearAllKeys()
+                        keyDraft = ""
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("Every key you have saved is deleted. You'll need to paste one again to reconnect.")
                 }
             }
         }

@@ -5,6 +5,11 @@ import UserNotifications
 @main
 struct StrandApp: App {
     init() {
+        // A restore stages the coach's own backup entry and the next launch applies it — here, before
+        // any coach store exists whose in-memory state would be written back over it (`CoachBackup`).
+        // Idempotent and silent: with nothing staged this does nothing at all.
+        CoachBackup.applyStagedRestoreIfPresent()
+
         // One-time migration off the retired card/button/both Coach-entry picker onto the three
         // independent entry toggles (banner/header-icon/floating-button). No-op after the first launch
         // that has them. Must run before any Today/RootTabView reads its @AppStorage default.

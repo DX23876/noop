@@ -174,47 +174,85 @@ struct ChatMessage: Identifiable, Equatable, Codable {
 
 // MARK: - Secure key storage (Keychain)
 
-/// The user's API key in the platform's secret store (`SecretVault`, the Keychain on Apple), under a fixed
-/// service so the key never lands in UserDefaults, a plist, or on disk in the clear.
+/// The user's API keys in the platform's secret store (`SecretVault`, the Keychain on Apple), under a
+/// fixed service so a key never lands in UserDefaults, a plist, or on disk in the clear.
+///
+/// **One slot per provider, since 2026-11-15.** Every key used to share a single slot plus a marker
+/// saying whose it was, which #P4 chose deliberately to avoid a multi-provider key architecture. The
+/// cost of that choice only showed later: the vault deletes before it inserts, so comparing two
+/// providers destroyed the first one's key every time, and the second key arrived with no way to get
+/// the first back. A slot per provider is the same vault, the same accessibility and the same
+/// delete-then-add; only the account name now says which provider the key belongs to.
 enum AIKeyStore {
     private static let service = "com.noop.aicoach"
-    private static let account = "api-key"
 
-    /// UserDefaults key recording which provider the stored API key belongs to, so one provider's key
-    /// is never sent to another provider's endpoint (above all the arbitrary user-typed Custom URL).
+    /// The single slot every provider shared before the change. Still read, so an existing install
+    /// keeps its key; emptied by `migrateLegacyKey` once that key sits in its owner's slot.
+    private static let legacyAccount = "api-key"
+
+    /// UserDefaults key recording which provider the LEGACY key belonged to. Only the migration reads
+    /// it now: with a slot per provider, which provider a key belongs to is where it is stored.
     private static let ownerKey = "ai.keyProvider"
 
-    /// The provider the stored key was saved for, or nil for a legacy key saved before this tracking.
-    static var ownerProvider: String? { UserDefaults.standard.string(forKey: ownerKey) }
+    /// The slot of one provider. Prefixed with the old account name so an install that is rolled back
+    /// finds no foreign key in the slot it reads.
+    private static func account(for owner: String) -> String { "\(legacyAccount).\(owner)" }
 
-    /// Store (or replace) the API key for `owner`. Empty/whitespace input is treated as a clear.
-    /// Returns true once the key is in the Keychain (or was cleared); false if the Keychain write
-    /// failed, in which case the owner marker is left untouched so it never points at a key that
-    /// isn't actually stored (#872). The live `read()`/`hasKey` gating already reads the real
-    /// Keychain, so this is defensive tidying of the discarded write result, not a behaviour change.
+    /// Store (or replace) `owner`'s API key. Empty or whitespace input is treated as a clear of that
+    /// one provider. Returns true once the key is in the Keychain (or was cleared), false if the write
+    /// failed, so the caller can say so instead of proceeding as if a key were stored (#872).
     @discardableResult
     static func save(_ key: String, owner: String) -> Bool {
         let trimmed = key.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { clear(); return true }
+        guard !trimmed.isEmpty else { clear(owner: owner); return true }
         guard let data = trimmed.data(using: .utf8) else { return false }
-
-        guard secretVault().write(data, service: service, account: account) else { return false }
-        UserDefaults.standard.set(owner, forKey: ownerKey)
-        return true
+        return secretVault().write(data, service: service, account: account(for: owner))
     }
 
-    /// Read the stored API key, or nil if none is set.
-    static func read() -> String? {
+    /// `owner`'s stored key, or nil when that provider has none. Another provider's key is never
+    /// returned: that is the whole point of the slots, and it is what stops a key reaching an endpoint
+    /// it was not meant for, above all the arbitrary user-typed Custom URL.
+    static func read(owner: String) -> String? {
+        key(inAccount: account(for: owner))
+    }
+
+    /// Remove one provider's stored key.
+    static func clear(owner: String) {
+        secretVault().delete(service: service, account: account(for: owner))
+    }
+
+    /// Remove every provider's stored key, and the legacy slot with them. The wearer's own "forget all
+    /// of them" action: with a slot per provider, clearing the one in front of you no longer happens to
+    /// clear the others as a side effect, so the sweeping version has to be asked for explicitly.
+    static func clearAll() {
+        for provider in AIProvider.allCases { clear(owner: provider.rawValue) }
+        secretVault().delete(service: service, account: legacyAccount)
+        UserDefaults.standard.removeObject(forKey: ownerKey)
+    }
+
+    /// Move a key from the shared slot into its owner's slot, once, on launch.
+    ///
+    /// The owner is the marker's provider where there is one. Where there is none (a key saved before
+    /// that marker existed) it goes to the provider that is selected right now, which is the one the
+    /// wearer has been sending it to: `storedKeyBelongsToCurrentProvider` has been treating an
+    /// ownerless key as belonging to whichever cloud provider was chosen. Nothing is guessed from the
+    /// key's own text, and nothing is thrown away: the legacy slot is only emptied after the new slot
+    /// has the key.
+    static func migrateLegacyKey(currentProvider: String) {
+        guard let legacy = key(inAccount: legacyAccount) else { return }
+        let owner = UserDefaults.standard.string(forKey: ownerKey) ?? currentProvider
+        if read(owner: owner) == nil {
+            guard save(legacy, owner: owner) else { return }
+        }
+        secretVault().delete(service: service, account: legacyAccount)
+        UserDefaults.standard.removeObject(forKey: ownerKey)
+    }
+
+    private static func key(inAccount account: String) -> String? {
         guard let data = secretVault().read(service: service, account: account),
               let str = String(data: data, encoding: .utf8),
               !str.isEmpty else { return nil }
         return str
-    }
-
-    /// Remove any stored API key.
-    static func clear() {
-        secretVault().delete(service: service, account: account)
-        UserDefaults.standard.removeObject(forKey: ownerKey)
     }
 }
 
@@ -401,9 +439,35 @@ final class AICoachEngine: ObservableObject {
             if !provider.modelOptions.contains(model) {
                 model = provider.defaultModel
             }
+            // The role models are overrides too, and they were NOT corrected here. An id left over
+            // from the old provider was rejected by every request the background roles make, and
+            // `cheapComplete` returns nil on any failure, so chat summaries, fact distillation, card
+            // reads and the tool routing outside English and German simply stopped, for good, with
+            // nothing anywhere saying so. Cleared rather than translated, which makes `model(for:)`
+            // fall back to this provider's own cheap model.
+            if !memoryModel.isEmpty, !provider.modelOptions.contains(memoryModel) { memoryModel = "" }
+            if !cardModel.isEmpty, !provider.modelOptions.contains(cardModel) { cardModel = "" }
+            if !deepModel.isEmpty, !provider.modelOptions.contains(deepModel) { deepModel = "" }
+            // A failure recorded against the old provider's model says nothing about this one.
+            lastBackgroundFailure = nil
             resetConnectionTest()   // the previous verdict described a different provider
         }
     }
+    /// What a background call last failed with: the model it was sent to, the provider's own message,
+    /// and when. Nil until one fails, and cleared by the next one that succeeds.
+    ///
+    /// It reports only what it observed. The model id is what the wearer can act on, the message is the
+    /// provider's verbatim, and the cause is not guessed at: a rejected id, an expired key and a rate
+    /// limit all arrive here, and nothing in this app can tell which from the outside. Before this, all
+    /// three were a silent nil and the work just stopped happening.
+    struct BackgroundFailure: Equatable {
+        let model: String
+        let reason: String
+        let at: Date
+    }
+
+    @Published private(set) var lastBackgroundFailure: BackgroundFailure?
+
     @Published var model: String {
         didSet {
             UserDefaults.standard.set(model, forKey: Self.modelKey)
@@ -968,6 +1032,9 @@ final class AICoachEngine: ObservableObject {
         let storedProvider = UserDefaults.standard.string(forKey: Self.providerKey)
             .flatMap(AIProvider.init(rawValue:)) ?? .openAI
         self.provider = storedProvider
+        // One slot per provider arrived after installs already had a key in the shared one. Moving it
+        // here, before anything reads a key, means `hasKey` and `resolvedKey` never see the gap.
+        AIKeyStore.migrateLegacyKey(currentProvider: storedProvider.rawValue)
 
         let storedModel = UserDefaults.standard.string(forKey: Self.modelKey)
         // A persisted custom id is honoured even if it's not in the built-in list.
@@ -1187,13 +1254,42 @@ final class AICoachEngine: ObservableObject {
     /// directly, so `stop()` can cancel it.
     func startSend(_ text: String) {
         sendTask?.cancel()
+        // The superseded turn no longer owns the spinner and will not clear it (`liveTurnID`), so
+        // cancelling clears it here. The new turn turns it back on a moment later.
+        sending = false
+        let turn = beginTurn()
         sendTask = Task { [weak self] in
-            await self?.send(text)
+            await self?.send(text, turn: turn)
             // Always clears — including on error, cancellation and Stop. A deep turn that failed must
-            // not leave the next ordinary question silently routed to the expensive model.
-            self?.deepTurn = false
+            // not leave the next ordinary question silently routed to the expensive model. Only while
+            // this turn is still the live one: a superseded turn finishing late would otherwise disarm
+            // the deep flag of the question that replaced it.
+            if self?.isLiveTurn(turn) == true { self?.deepTurn = false }
         }
     }
+
+    /// The question being answered right now.
+    ///
+    /// A second question supersedes the first. `startSend` cancels it, but cancellation is cooperative:
+    /// the superseded turn keeps running to its next suspension point and then does its own cleanup,
+    /// which until now turned off the spinner the new turn had just turned on, discarded the new turn's
+    /// pending charts, cleared its deep flag, and showed its own failure as if the live question had
+    /// failed. So each turn carries an id and touches shared state only while it still holds this one.
+    private var liveTurnID = UUID()
+
+    /// Take over as the live turn, and say which one that is.
+    ///
+    /// Internal rather than private so the rule itself is under test. Counting the gated call sites
+    /// would pass while a fourth one resolved the question's identity by itself, which is exactly the
+    /// weak version of this test the house rules warn about.
+    func beginTurn() -> UUID {
+        let id = UUID()
+        liveTurnID = id
+        return id
+    }
+
+    /// Whether `turn` is still the question the app is answering.
+    func isLiveTurn(_ turn: UUID) -> Bool { liveTurnID == turn }
 
     /// Stop an in-flight reply. Whatever streamed so far stays in the transcript; no error is shown.
     func stop() {
@@ -1298,17 +1394,15 @@ final class AICoachEngine: ObservableObject {
 
     // MARK: Key management
 
-    /// Whether a Keychain key exists AND belongs to the CURRENTLY SELECTED provider (a legacy ownerless
-    /// key counts as belonging to any cloud provider, matching `resolvedKey`'s rule below — the two must
-    /// never disagree). There is only ever ONE stored key at a time (a single Keychain slot, not one per
-    /// provider — #P4 explicitly avoids a multi-provider key architecture), so switching to a provider
-    /// that isn't the key's owner correctly reads as "no key here yet", not a stale leftover connection.
+    /// Whether the selected provider has a key of its own.
+    ///
+    /// Since each provider owns its Keychain slot (`AIKeyStore`), this is simply whether that slot holds
+    /// something, and ownership cannot be in question any more: there is no marker to disagree with, and
+    /// `resolvedKey` below reads the same slot. Switching to a provider you have not given a key still
+    /// reads as "no key here yet" rather than as a stale connection, exactly as before, and switching
+    /// back now finds the first key where it was left.
     private var storedKeyBelongsToCurrentProvider: Bool {
-        guard AIKeyStore.read() != nil else { return false }
-        let owner = AIKeyStore.ownerProvider
-        if owner == provider.rawValue { return true }
-        if owner == nil && provider != .custom { return true }
-        return false
+        AIKeyStore.read(owner: provider.rawValue) != nil
     }
 
     /// True when a key is present in the Keychain **for the currently selected provider**. Ownership-
@@ -1328,7 +1422,7 @@ final class AICoachEngine: ObservableObject {
     /// `explicitlyDisconnected` beyond what `isConfigured`/callers already gate on — `resolvedKey` is
     /// only ever reached once a send has been allowed to proceed.
     private var resolvedKey: String? {
-        guard storedKeyBelongsToCurrentProvider, let k = AIKeyStore.read() else {
+        guard let k = AIKeyStore.read(owner: provider.rawValue) else {
             return provider == .custom ? "" : nil
         }
         return k
@@ -1399,9 +1493,27 @@ final class AICoachEngine: ObservableObject {
         // `ensureOpenRouterCapabilities()`. Local Custom servers still refresh on Connect.
     }
 
-    /// Forget the stored key.
+    /// Whether any provider other than the selected one still has a key stored. Gates the sweeping
+    /// action below, so it is only offered where it would actually remove something the single
+    /// "Forget saved key" leaves behind.
+    var hasKeyForAnotherProvider: Bool {
+        AIProvider.allCases.contains { $0 != provider && AIKeyStore.read(owner: $0.rawValue) != nil }
+    }
+
+    /// Forget every provider's key. Since each provider owns its slot, forgetting the one in front of
+    /// you no longer happens to remove the others, so the sweeping version is its own action rather
+    /// than a side effect nobody asked for.
+    func clearAllKeys() {
+        AIKeyStore.clearAll()
+        messages = []
+        conversationDay = nil
+        objectWillChange.send()
+    }
+
+    /// Forget the selected provider's key. The other providers keep theirs, which is the point of the
+    /// slots; `clearAllKeys()` is the sweeping version, and it has to be asked for.
     func clearKey() {
-        AIKeyStore.clear()
+        AIKeyStore.clear(owner: provider.rawValue)
         // Same reasoning as `disconnect`: clearing the key returns the user to the setup screen, and
         // Kotlin empties the transcript when it does. Leaving it meant a "clear my key" on Apple removed
         // the credential and kept the conversation.
@@ -1655,7 +1767,10 @@ final class AICoachEngine: ObservableObject {
     /// Send a question: append it, build the metrics context, call the chosen provider with the
     /// system prompt + context + running history, parse the reply, append it. Never throws/crashes;
     /// failures land in `errorText`.
-    func send(_ userText: String) async {
+    /// `turn` is the id `startSend` took out for this question. A direct caller passes none and takes
+    /// the live turn over itself, which is what asking a question means.
+    func send(_ userText: String, turn requestedTurn: UUID? = nil) async {
+        let turn = requestedTurn ?? beginTurn()
         let trimmed = userText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { errorText = AICoachError.emptyQuestion.errorDescription; return }
         // The master switch, checked at the EGRESS rather than only on the routes in: a wearer can be
@@ -1687,7 +1802,9 @@ final class AICoachEngine: ObservableObject {
         // out before its message was built must not be attributed to this one.
         memoryWrites = []
         sending = true
-        defer { sending = false }
+        // Only while this turn is the live one. A superseded turn running its own cleanup here is what
+        // turned the spinner off under the question that had replaced it.
+        defer { if isLiveTurn(turn) { sending = false } }
 
         // Before deciding whether tools are live: on OpenRouter that answer is per-model and we may not
         // know it yet. Silent no-op for every other provider, and after the first successful probe.
@@ -1772,18 +1889,23 @@ final class AICoachEngine: ObservableObject {
             appendMessage(ChatMessage(id: replyId, role: .assistant, text: "", date: startedAt,
                                       localContextUsed: localContextUsed))
             do {
-                let reply = try await streamer.streamWithTools(
-                    key: key,
-                    model: requestModel,
-                    systemPrompt: requestSystemPrompt,
-                    messages: wire,
-                    tools: requestTools,
-                    runTool: { [weak self] name, input in
-                        await self?.runCoachTool(name, input: input, allowedTools: Set(requestTools)) ?? ""
-                    },
-                    onDelta: { [weak self] delta in self?.appendDelta(delta, to: replyId) },
-                    session: session
-                )
+                // The window in which a request's tokens belong to THIS question. One place decides
+                // that, here, because every provider function below also serves the brief, the
+                // check-in and the cheap model (`CoachUsageAttribution`).
+                let reply = try await CoachUsageLog.countingAQuestion {
+                    try await streamer.streamWithTools(
+                        key: key,
+                        model: requestModel,
+                        systemPrompt: requestSystemPrompt,
+                        messages: wire,
+                        tools: requestTools,
+                        runTool: { [weak self] name, input in
+                            await self?.runCoachTool(name, input: input, allowedTools: Set(requestTools)) ?? ""
+                        },
+                        onDelta: { [weak self] delta in self?.appendDelta(delta, to: replyId) },
+                        session: session
+                    )
+                }
                 // Attach the evidence chain (P6) now that streaming is done — `appendDelta` only
                 // accumulated text as it arrived, it never carries `toolsUsed`.
                 if let idx = messages.firstIndex(where: { $0.id == replyId }), messages[idx].text.isEmpty {
@@ -1803,23 +1925,32 @@ final class AICoachEngine: ObservableObject {
                 }
                 flushPendingArtifacts(ifStillOn: requestConversationID)
             } catch let e as AICoachError {
-                removeAssistantIfEmpty(replyId); discardPendingCharts(); setError(e)
+                // Its own empty bubble goes either way; the shared state only while it is still live.
+                // A superseded turn's failure is not the live question's failure, and its charts are
+                // not the live question's charts.
+                removeAssistantIfEmpty(replyId)
+                if isLiveTurn(turn) { discardPendingCharts(); setError(e) }
             } catch {
                 // A user-initiated Stop cancels the task; keep whatever streamed so far, show no error.
                 if Self.isCancellation(error) {
                     flushPendingArtifacts(ifStillOn: requestConversationID)
                 } else {
-                    removeAssistantIfEmpty(replyId); discardPendingCharts()
-                    setError(error)
+                    removeAssistantIfEmpty(replyId)
+                    if isLiveTurn(turn) { discardPendingCharts(); setError(error) }
                 }
             }
             return
         }
 
         do {
-            let reply = try await callProvider(key: key, messages: wire, tools: requestTools,
-                                               systemPrompt: requestSystemPrompt)
+            let reply = try await CoachUsageLog.countingAQuestion {
+                try await callProvider(key: key, messages: wire, tools: requestTools,
+                                       systemPrompt: requestSystemPrompt)
+            }
             let clean = reply.text.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Superseded: the reply belongs to a question nobody is waiting for any more. It is dropped
+            // without touching the live turn's pending charts, which are not this turn's to discard.
+            guard isLiveTurn(turn) else { return }
             guard activeConversationID == requestConversationID else { discardPendingCharts(); return }
             appendMessage(ChatMessage(role: .assistant,
                                       text: clean.isEmpty ? String(localized: "(no reply)") : clean,
@@ -1828,8 +1959,10 @@ final class AICoachEngine: ObservableObject {
             flushPendingCharts()
             flushPendingCards()
         } catch let e as AICoachError {
+            guard isLiveTurn(turn) else { return }
             discardPendingCharts(); setError(e)
         } catch {
+            guard isLiveTurn(turn) else { return }
             discardPendingCharts()
             if !Self.isCancellation(error) {
                 setError(error)
@@ -4523,22 +4656,42 @@ final class AICoachEngine: ObservableObject {
     /// private key. Returns nil on ANY failure — this work is best-effort and never surfaces an error.
     func cheapComplete(system: String, user: String, role: CoachModelRole = .summary) async -> String? {
         guard let key = resolvedKey else { return nil }
+        let id = model(for: role)
         do {
-            return try await provider.client.send(
-                key: key, model: model(for: role), systemPrompt: system,
+            let text = try await provider.client.send(
+                key: key, model: id, systemPrompt: system,
                 messages: [(role: .user, content: user)], session: session
             )
-        } catch { return nil }
+            lastBackgroundFailure = nil
+            return text
+        } catch {
+            noteBackgroundFailure(model: id, error: error)
+            return nil
+        }
+    }
+
+    /// Keep what a background call failed with, so it is not only a nil nobody sees. Pure bookkeeping:
+    /// it changes no behaviour, and a failed background call still leaves the wearer's own question
+    /// alone.
+    private func noteBackgroundFailure(model id: String, error: Error) {
+        let reason = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        lastBackgroundFailure = BackgroundFailure(model: id, reason: reason, at: Date())
     }
 
     /// A one-off completion with the CHAT model (the strong one), for choices whose mistakes last, such as which
     /// BLS food a product's missing nutrients are borrowed from. Nil on any failure.
     func strongComplete(system: String, user: String) async -> String? {
         guard let key = resolvedKey else { return nil }
+        let id = model(for: .chat)
         do {
-            return try await provider.client.send(key: key, model: model(for: .chat), systemPrompt: system,
-                                                  messages: [(role: .user, content: user)], session: session)
-        } catch { return nil }
+            let text = try await provider.client.send(key: key, model: id, systemPrompt: system,
+                                                      messages: [(role: .user, content: user)], session: session)
+            lastBackgroundFailure = nil
+            return text
+        } catch {
+            noteBackgroundFailure(model: id, error: error)
+            return nil
+        }
     }
 
     /// Whether the chosen provider sends a picture to the cheap model (food photos).
@@ -4548,11 +4701,17 @@ final class AICoachEngine: ObservableObject {
     func cheapCompleteWithImage(system: String, text: String, imageBase64: String, mimeType: String,
                                 role: CoachModelRole = .cardAnalysis) async -> String? {
         guard let key = resolvedKey, provider.client.readsImages else { return nil }
+        let id = model(for: role)
         do {
-            return try await provider.client.sendWithImage(
-                key: key, model: model(for: role), systemPrompt: system, text: text,
+            let reply = try await provider.client.sendWithImage(
+                key: key, model: id, systemPrompt: system, text: text,
                 imageBase64: imageBase64, mimeType: mimeType, session: session)
-        } catch { return nil }
+            lastBackgroundFailure = nil
+            return reply
+        } catch {
+            noteBackgroundFailure(model: id, error: error)
+            return nil
+        }
     }
 
     /// Write a generated summary back onto a conversation (called by `MemoryMaintainer`). `conversations`
@@ -4778,19 +4937,25 @@ final class AICoachEngine: ObservableObject {
         guard CoachFeaturePrefs.isEnabled, acceptsPhotos, !sending, let key = resolvedKey else { return }
         clearError()
         appendMessage(ChatMessage(role: .user, text: question + "\n\n" + String(localized: "(photo attached)")))
+        // A photo is a question too, so it takes the live turn (after the guard above, so a refused one
+        // supersedes nothing). A text question asked meanwhile replaces it, and this one must then stop
+        // touching the spinner, the error row and the transcript (`liveTurnID`).
+        let turn = beginTurn()
         sending = true
-        defer { sending = false }
+        defer { if isLiveTurn(turn) { sending = false } }
         let context = dataConsent ? await buildFullContext() : ""
         let wire = Self.wirePairs(from: windowedMessages(), context: context)
         var reply = ""
         do {
-            try await streamProvider(key: key, messages: wire, inlineImage: pngBase64) { reply += $0 }
+            try await CoachUsageLog.countingAQuestion {
+                try await streamProvider(key: key, messages: wire, inlineImage: pngBase64) { reply += $0 }
+            }
             let clean = reply.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !clean.isEmpty { appendMessage(ChatMessage(role: .assistant, text: clean)) }
+            if isLiveTurn(turn), !clean.isEmpty { appendMessage(ChatMessage(role: .assistant, text: clean)) }
         } catch let e as AICoachError {
-            setError(e)
+            if isLiveTurn(turn) { setError(e) }
         } catch {
-            if !Self.isCancellation(error) { setError(error) }
+            if isLiveTurn(turn), !Self.isCancellation(error) { setError(error) }
         }
     }
 

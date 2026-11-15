@@ -435,6 +435,44 @@ extension AIProviderClient {
 // MARK: - Shared HTTP helpers
 
 /// Execute a request, map HTTP status codes to `AICoachError`, return the decoded JSON object.
+/// One round's token counts from a provider's reply, or nil when the reply carries none.
+///
+/// Dispatched on the SHAPE of the usage object, never on which provider we believe we are talking to:
+/// the gateways front several vendors behind one endpoint, and a guess by provider would either count
+/// nothing or count the same tokens twice. Anthropic names its fields `input_tokens`, every
+/// OpenAI-shaped body `prompt_tokens`, and Gemini wraps its own under `usageMetadata`.
+///
+/// A reply with no usage at all reports nothing rather than a zero round: "the provider told us nothing"
+/// and "this cost nothing" are different answers, and only one of them is ours to make up. The model
+/// catalogues and the key-info endpoint pass through here too and carry no usage, so they fall out here.
+func coachUsageRound(from response: [String: Any]) -> CoachUsageLog.Round? {
+    if let usage = response["usage"] as? [String: Any] {
+        if usage["input_tokens"] != nil { return AnthropicClient.parseUsage(usage) }
+        if usage["prompt_tokens"] != nil { return OpenAIClient.parseOpenAIUsage(usage) }
+    }
+    if let metadata = response["usageMetadata"] as? [String: Any] {
+        return parseGeminiUsage(metadata)
+    }
+    return nil
+}
+
+/// Token counts from Gemini's `usageMetadata`.
+///
+/// `promptTokenCount` INCLUDES whatever its implicit cache served, the way OpenAI's `prompt_tokens`
+/// does, so the cached part is subtracted out and a `Round` keeps meaning the same thing whatever
+/// produced it. There is no cache-WRITE count to report: Gemini bills implicit cache hits and the
+/// explicit cache is a separate API this app does not use, so the field stays zero rather than guessed.
+func parseGeminiUsage(_ metadata: [String: Any]) -> CoachUsageLog.Round {
+    let prompt = metadata["promptTokenCount"] as? Int ?? 0
+    let cached = metadata["cachedContentTokenCount"] as? Int ?? 0
+    return CoachUsageLog.Round(
+        inputTokens: max(0, prompt - cached),
+        cacheReadTokens: cached,
+        cacheWriteTokens: 0,
+        outputTokens: metadata["candidatesTokenCount"] as? Int ?? 0
+    )
+}
+
 func performRequest(_ req: URLRequest, session: URLSession) async throws -> [String: Any] {
     let data: Data
     let response: URLResponse
@@ -453,6 +491,15 @@ func performRequest(_ req: URLRequest, session: URLSession) async throws -> [Str
     case 200...299:
         guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw AICoachError.decode
+        }
+
+        // Every request without a stream passes through here, which is why the counting lives here and
+        // not in each provider: it used to sit in the Anthropic tool loop and the OpenAI-shaped stream
+        // only, so Gemini was free, and so were the brief, the check-in, the weekly review, every card
+        // read and every call to the cheap model. Whose tokens these are is decided by
+        // `CoachUsageAttribution`, not here.
+        if let round = coachUsageRound(from: obj) {
+            await CoachUsageLog.recordFromProvider(round)
         }
 
         return obj

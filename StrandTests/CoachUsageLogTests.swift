@@ -193,4 +193,75 @@ final class CoachUsageLogTests: XCTestCase {
                        "beginTurn is once per QUESTION, so two questions must add exactly two, " +
                        "regardless of how many rounds record() was called with")
     }
+
+    // MARK: - Which reply shape carried the counts
+
+    /// Dispatched on the shape of the usage object, because the gateways front several vendors behind one
+    /// endpoint and a guess by provider would count nothing or count twice.
+    func testTheAnthropicShapeIsRecognisedByItsOwnFieldNames() throws {
+        let round = try XCTUnwrap(coachUsageRound(from: ["usage": [
+            "input_tokens": 120, "cache_read_input_tokens": 3_800, "output_tokens": 240
+        ]]))
+        XCTAssertEqual(round.inputTokens, 120)
+        XCTAssertEqual(round.cacheReadTokens, 3_800)
+        XCTAssertEqual(round.outputTokens, 240)
+    }
+
+    func testTheOpenAIShapeSubtractsItsCachedTokens() throws {
+        let round = try XCTUnwrap(coachUsageRound(from: ["usage": [
+            "prompt_tokens": 1_000,
+            "prompt_tokens_details": ["cached_tokens": 400],
+            "completion_tokens": 50
+        ]]))
+        XCTAssertEqual(round.inputTokens, 600, "prompt_tokens includes the cached part")
+        XCTAssertEqual(round.cacheReadTokens, 400)
+        XCTAssertEqual(round.outputTokens, 50)
+    }
+
+    /// Gemini was counted as free before this: its usage lives under `usageMetadata`, which neither of
+    /// the two shapes above matches.
+    func testGeminiMetadataIsCountedAtAll() throws {
+        let round = try XCTUnwrap(coachUsageRound(from: ["usageMetadata": [
+            "promptTokenCount": 900, "cachedContentTokenCount": 300,
+            "candidatesTokenCount": 120, "totalTokenCount": 1_020
+        ]]))
+        XCTAssertEqual(round.inputTokens, 600)
+        XCTAssertEqual(round.cacheReadTokens, 300)
+        XCTAssertEqual(round.cacheWriteTokens, 0, "Gemini reports no cache-write count, so none is made up")
+        XCTAssertEqual(round.outputTokens, 120)
+    }
+
+    /// The model catalogues and the key-info endpoint pass through the same function. "Nothing was
+    /// reported" is not "this cost nothing", so they must produce no round rather than a zero one.
+    func testAReplyWithoutUsageProducesNoRound() {
+        XCTAssertNil(coachUsageRound(from: ["data": [["id": "anthropic/claude-sonnet-4.6"]]]))
+        XCTAssertNil(coachUsageRound(from: [:]))
+    }
+
+    // MARK: - Whose tokens these are
+
+    /// Background work is about money, so it belongs in the session and day totals. It is not a question,
+    /// so it must leave `lastTurn` alone: that line answers what the question just asked cost, and the
+    /// brief landing on top of it was how a turn's cost got overwritten by work nobody asked for.
+    @MainActor
+    func testBackgroundWorkCountsTowardTheTotalsButNotTowardTheLastQuestion() {
+        let log = CoachUsageLog.shared
+        log.beginTurn()
+        log.record(.init(inputTokens: 500, outputTokens: 60))
+        let question = log.lastTurn
+        let sessionBefore = log.sessionTotal.inputTokens
+        let questionsBefore = log.sessionQuestionCount
+
+        log.recordBackground(.init(inputTokens: 7_000, outputTokens: 900))
+
+        XCTAssertEqual(log.lastTurn, question, "the last question's cost must still read as its own")
+        XCTAssertEqual(log.sessionTotal.inputTokens, sessionBefore + 7_000)
+        XCTAssertEqual(log.sessionQuestionCount, questionsBefore,
+                       "background work is not a question and must not be counted as one")
+    }
+
+    /// The default is `background`, so a path nobody marked cannot claim to be the wearer's question.
+    func testAnUnmarkedPathCountsAsBackground() {
+        XCTAssertEqual(CoachUsageAttribution.current, .background)
+    }
 }
