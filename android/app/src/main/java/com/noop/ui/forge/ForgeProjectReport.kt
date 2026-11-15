@@ -1,0 +1,453 @@
+package com.noop.ui.forge
+
+import android.util.Base64
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.dp
+import com.noop.R
+import com.noop.core.SwiftCore
+import com.noop.ui.LogExport
+import com.noop.ui.MASTER_REPORT_MODE
+import com.noop.ui.buildPending
+import com.noop.ui.AppViewModel
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.BugReport
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
+
+/**
+ * Reporting a problem from inside the app, and following what became of it. The Apple twin is
+ * `ProjectReportViews.swift`, and both are thin: every rule lives in the core behind `project.report`,
+ * `project.thread`, `project.reply` and `project.withdraw`, so the two platforms cannot drift on what
+ * a code is, what a status means, or when something counts as new.
+ *
+ * The order is the promise, the same on both: write, see the log you are about to attach, send, get
+ * the code, follow the thread. The log step is the review gate the Test Centre has always used; a log
+ * carries device details and sometimes more, so the only honest way to send one is to show it first.
+ */
+
+/** One remembered report, as the core hands it over. */
+internal data class MyReport(val code: String, val title: String, val status: String)
+
+private fun parseReports(json: String?): List<MyReport> {
+    val array = runCatching { JSONObject(json ?: "").optJSONArray("reports") }.getOrNull()
+        ?: JSONArray()
+    return (0 until array.length()).mapNotNull { index ->
+        val row = array.optJSONObject(index) ?: return@mapNotNull null
+        val code = row.optString("code")
+        if (code.isEmpty()) null
+        else MyReport(code, row.optString("title"), row.optString("seenStatus", "arrived"))
+    }
+}
+
+@Composable
+internal fun statusText(status: String): String = stringResource(
+    when (status) {
+        "read" -> R.string.project_report_status_read
+        "working" -> R.string.project_report_status_working
+        "fixed" -> R.string.project_report_status_fixed
+        "notPlanned" -> R.string.project_report_status_not_planned
+        else -> R.string.project_report_status_arrived
+    }
+)
+
+/**
+ * The way in and what this device has reported. First on the Problems page: somebody who opens it
+ * because something is broken should not have to read everyone else's problems to find out where to
+ * say so.
+ */
+@Composable
+internal fun ProjectReportSection(canWrite: Boolean, viewModel: AppViewModel) {
+    if (!canWrite) return
+    var mine by remember { mutableStateOf(emptyList<MyReport>()) }
+    var composing by remember { mutableStateOf(false) }
+    var openCode by remember { mutableStateOf<String?>(null) }
+    var typing by remember { mutableStateOf(false) }
+    var typed by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+
+    suspend fun reload() {
+        mine = parseReports(withContext(Dispatchers.IO) { SwiftCore.call("project.reports", "{}") })
+    }
+    LaunchedEffect(composing, openCode) { reload() }
+
+    val code = openCode
+    when {
+        code != null -> ThreadScreen(code, onBack = { openCode = null },
+                                     onGone = { openCode = null; scope.launch { reload() } })
+        composing -> ReportForm(viewModel, onDone = { composing = false })
+        else -> {
+            SectionHeader(stringResource(R.string.project_report_broken))
+            ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
+                HubRow(androidx.compose.material.icons.Icons.Rounded.BugReport,
+                       ForgeTokens.Color.systemTeal.resolve(),
+                       stringResource(R.string.project_report_open),
+                       stringResource(R.string.project_report_open_detail)) { composing = true }
+            }
+
+            SectionHeader(stringResource(R.string.project_report_mine))
+            ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+                if (mine.isEmpty()) {
+                    Text(stringResource(R.string.project_report_mine_note),
+                         style = Forge.type.caption, color = Forge.colors.textSecondary)
+                } else {
+                    mine.forEach { report ->
+                        Column(
+                            Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
+                                .clickable(role = Role.Button) { openCode = report.code },
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            Text(report.title, style = Forge.type.body, color = Forge.colors.text)
+                            Text(statusText(report.status), style = Forge.type.caption,
+                                 color = Forge.colors.textTertiary)
+                        }
+                    }
+                }
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
+                        .clickable(role = Role.Button) { typing = true },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(stringResource(R.string.project_report_have_code),
+                         style = Forge.type.body, color = Forge.colors.accent)
+                }
+            }
+        }
+    }
+
+    if (typing) {
+        AlertDialog(
+            onDismissRequest = { typing = false; typed = "" },
+            title = { Text(stringResource(R.string.project_report_have_code)) },
+            text = {
+                OutlinedTextField(value = typed, onValueChange = { typed = it.uppercase() },
+                                  placeholder = { Text(stringResource(R.string.project_report_code_example)) })
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    // Nothing is verified here: the thread screen asks the service, and a code that
+                    // means nothing answers exactly like one that was withdrawn.
+                    openCode = typed.trim()
+                    typing = false
+                    typed = ""
+                }) { Text(stringResource(R.string.forge_roadmap_send)) }
+            },
+        )
+    }
+}
+
+/** What happened, whether questions may come back, and whether the log rides along. */
+@Composable
+private fun ReportForm(viewModel: AppViewModel, onDone: () -> Unit) {
+    val context = LocalContext.current
+    var draft by remember { mutableStateOf("") }
+    var wantsThread by remember { mutableStateOf(true) }
+    var attachLog by remember { mutableStateOf(true) }
+    var sending by remember { mutableStateOf(false) }
+    var failed by remember { mutableStateOf(false) }
+    var code by remember { mutableStateOf<String?>(null) }
+    var sentWithoutThread by remember { mutableStateOf(false) }
+    var staged by remember { mutableStateOf<com.noop.ui.PendingReport?>(null) }
+    val scope = rememberCoroutineScope()
+
+    suspend fun send(log: ByteArray?) {
+        sending = true
+        failed = false
+        val answer = withContext(Dispatchers.IO) {
+            SwiftCore.call("project.report", JSONObject().put("text", draft)
+                .put("thread", wantsThread).toString())
+        }
+        val root = runCatching { JSONObject(answer ?: "") }.getOrNull()
+        if (root?.optBoolean("ok") == true) {
+            val handed = root.optString("code").takeIf { it.isNotEmpty() }
+            if (handed != null) {
+                // The log goes second: without a code there is nowhere to put it, and a report that
+                // arrived without its log is still a report.
+                if (log != null) {
+                    withContext(Dispatchers.IO) {
+                        SwiftCore.call("project.reportLog", JSONObject().put("code", handed)
+                            .put("data", Base64.encodeToString(log, Base64.NO_WRAP)).toString())
+                    }
+                }
+                code = handed
+            } else {
+                sentWithoutThread = true
+            }
+        } else {
+            failed = true
+        }
+        sending = false
+    }
+
+    val handed = code
+    if (handed != null) {
+        SectionHeader(stringResource(R.string.project_report_sent))
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+            Text(stringResource(R.string.project_report_keep_code), style = Forge.type.body,
+                 color = Forge.colors.textSecondary)
+            Text(handed, style = Forge.type.title2, color = Forge.colors.text)
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
+                    .clickable(role = Role.Button) { onDone() },
+                verticalAlignment = Alignment.CenterVertically,
+            ) { Text(stringResource(R.string.forge_roadmap_show_less), style = Forge.type.body,
+                     color = Forge.colors.accent) }
+        }
+        return
+    }
+    if (sentWithoutThread) {
+        SectionHeader(stringResource(R.string.project_report_sent))
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+            Text(stringResource(R.string.project_report_no_thread_sent), style = Forge.type.body,
+                 color = Forge.colors.textSecondary)
+        }
+        return
+    }
+
+    SectionHeader(stringResource(R.string.project_report_what))
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+        OutlinedTextField(
+            value = draft, onValueChange = { if (it.length <= MAX_REPORT) draft = it },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text(stringResource(R.string.project_report_hint)) },
+            textStyle = Forge.type.body, maxLines = 8,
+        )
+        Text(stringResource(R.string.forge_roadmap_chars_left, MAX_REPORT - draft.length),
+             style = Forge.type.caption, color = Forge.colors.textTertiary)
+    }
+
+    SectionHeader(stringResource(R.string.project_report_how))
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+        ToggleRow(stringResource(R.string.project_report_thread),
+                  stringResource(R.string.project_report_thread_detail), wantsThread) { wantsThread = it }
+        ToggleRow(stringResource(R.string.project_report_log),
+                  stringResource(R.string.project_report_log_detail), attachLog) { attachLog = it }
+    }
+    if (!wantsThread) {
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+            Text(stringResource(R.string.project_report_no_thread_note), style = Forge.type.body,
+                 color = Forge.colors.textSecondary)
+        }
+    }
+
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
+                .clickable(enabled = draft.isNotBlank() && !sending, role = Role.Button) {
+                    scope.launch {
+                        if (!attachLog) { send(null); return@launch }
+                        // With a log: build it, show it, and send only on an explicit press.
+                        val pending = buildPending(context, MASTER_REPORT_MODE,
+                                                   viewModel.ble.exportLogText(), viewModel)
+                        staged = pending
+                    }
+                },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(stringResource(if (sending) R.string.project_report_sending
+                                else R.string.project_report_send),
+                 style = Forge.type.body,
+                 color = if (draft.isNotBlank() && !sending) Forge.colors.accent
+                         else Forge.colors.textTertiary)
+        }
+        if (failed) {
+            Text(stringResource(R.string.project_report_failed), style = Forge.type.caption,
+                 color = Forge.colors.textSecondary)
+        }
+    }
+
+    val pending = staged
+    if (pending != null) {
+        AlertDialog(
+            onDismissRequest = { staged = null },
+            title = { Text(stringResource(R.string.project_report_review_title)) },
+            text = {
+                Text(pending.gate.previewText,
+                     style = Forge.type.caption, color = Forge.colors.textSecondary,
+                     modifier = Modifier.verticalScroll(rememberScrollState()))
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    staged = null
+                    scope.launch {
+                        send(withContext(Dispatchers.IO) { LogExport.zipEntries(pending.entries) })
+                    }
+                }) { Text(stringResource(R.string.project_report_review_with)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { staged = null; scope.launch { send(null) } }) {
+                    Text(stringResource(R.string.project_report_review_without))
+                }
+            },
+        )
+    }
+}
+
+/** One report: where it stands, what was said, the way to answer, and the way to take it back. */
+@Composable
+private fun ThreadScreen(code: String, onBack: () -> Unit, onGone: () -> Unit) {
+    var status by remember { mutableStateOf("arrived") }
+    var fixedIn by remember { mutableStateOf<String?>(null) }
+    var publicNumber by remember { mutableStateOf(0) }
+    var messages by remember { mutableStateOf(emptyList<Triple<Boolean, String, String>>()) }
+    var loaded by remember { mutableStateOf(false) }
+    var draft by remember { mutableStateOf("") }
+    var sending by remember { mutableStateOf(false) }
+    var confirming by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    suspend fun reload() {
+        val answer = withContext(Dispatchers.IO) {
+            SwiftCore.call("project.thread", JSONObject().put("code", code).toString())
+        }
+        val root = runCatching { JSONObject(answer ?: "") }.getOrNull()
+        if (root?.optBoolean("ok") == true) {
+            status = root.optString("status", "arrived")
+            fixedIn = root.optString("fixedIn").takeIf { it.isNotEmpty() && it != "null" }
+            publicNumber = root.optInt("publicNumber", 0)
+            val array = root.optJSONArray("messages") ?: JSONArray()
+            messages = (0 until array.length()).mapNotNull { index ->
+                val row = array.optJSONObject(index) ?: return@mapNotNull null
+                Triple(row.optBoolean("mine"), row.optString("text"), row.optString("at"))
+            }
+        }
+        loaded = true
+    }
+    LaunchedEffect(code) { reload() }
+
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
+            .clickable(role = Role.Button) { onBack() },
+        verticalAlignment = Alignment.CenterVertically,
+    ) { Text(stringResource(R.string.forge_roadmap_show_less), style = Forge.type.body,
+             color = Forge.colors.accent) }
+
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+        Text(statusText(status), style = Forge.type.headline, color = Forge.colors.text)
+        fixedIn?.let {
+            Text(stringResource(R.string.project_report_fixed_in, it), style = Forge.type.body,
+                 color = Forge.colors.textSecondary)
+        }
+        if (publicNumber > 0) {
+            Text(stringResource(R.string.project_report_public, publicNumber),
+                 style = Forge.type.caption, color = Forge.colors.textTertiary)
+        }
+        Text(code, style = Forge.type.caption, color = Forge.colors.textTertiary)
+    }
+
+    SectionHeader(stringResource(R.string.project_report_conversation))
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+        if (messages.isEmpty() && loaded) {
+            Text(stringResource(R.string.project_report_nothing_said), style = Forge.type.body,
+                 color = Forge.colors.textSecondary)
+        }
+        messages.forEach { (mine, text, _) ->
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(stringResource(if (mine) R.string.project_report_you
+                                    else R.string.project_report_developer),
+                     style = Forge.type.caption, color = Forge.colors.textTertiary)
+                Text(text, style = Forge.type.body, color = Forge.colors.text)
+            }
+        }
+    }
+
+    SectionHeader(stringResource(R.string.project_report_answer))
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+        OutlinedTextField(
+            value = draft, onValueChange = { if (it.length <= MAX_REPLY) draft = it },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text(stringResource(R.string.project_report_answer_hint)) },
+            textStyle = Forge.type.body, maxLines = 6,
+        )
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
+                .clickable(enabled = draft.isNotBlank() && !sending, role = Role.Button) {
+                    scope.launch {
+                        sending = true
+                        val answer = withContext(Dispatchers.IO) {
+                            SwiftCore.call("project.reply", JSONObject().put("code", code)
+                                .put("text", draft).toString())
+                        }
+                        if (runCatching { JSONObject(answer ?: "") }.getOrNull()
+                                ?.optBoolean("ok") == true) {
+                            draft = ""
+                            reload()
+                        }
+                        sending = false
+                    }
+                },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(stringResource(if (sending) R.string.project_report_sending
+                                else R.string.project_report_send),
+                 style = Forge.type.body,
+                 color = if (draft.isNotBlank() && !sending) Forge.colors.accent
+                         else Forge.colors.textTertiary)
+        }
+    }
+
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
+                .clickable(role = Role.Button) { confirming = true },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(stringResource(R.string.project_report_withdraw), style = Forge.type.body,
+                 color = ForgeTokens.Color.systemRed.resolve())
+        }
+    }
+
+    if (confirming) {
+        AlertDialog(
+            onDismissRequest = { confirming = false },
+            title = { Text(stringResource(R.string.project_report_withdraw)) },
+            text = { Text(stringResource(R.string.project_report_withdraw_note)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirming = false
+                    scope.launch {
+                        val answer = withContext(Dispatchers.IO) {
+                            SwiftCore.call("project.withdraw", JSONObject().put("code", code).toString())
+                        }
+                        if (runCatching { JSONObject(answer ?: "") }.getOrNull()
+                                ?.optBoolean("ok") == true) onGone()
+                    }
+                }) { Text(stringResource(R.string.project_report_withdraw)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirming = false }) {
+                    Text(stringResource(R.string.project_report_review_without))
+                }
+            },
+        )
+    }
+}
+
+private const val MAX_REPORT = 2000
+private const val MAX_REPLY = 1000

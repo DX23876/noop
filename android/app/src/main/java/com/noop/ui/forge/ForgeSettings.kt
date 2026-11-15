@@ -718,6 +718,7 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
             ProblemsSection(
                 onOpenTestCentre = { onOpen(ForgeSettingsSub.TestCentre) },
                 onOpenTracker = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(ISSUES_URL))) },
+                viewModel = viewModel,
             )
         }
         ForgeSettingsSub.ProjectWishes -> SettingsColumn {

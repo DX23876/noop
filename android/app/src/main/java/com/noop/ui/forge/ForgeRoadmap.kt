@@ -375,9 +375,13 @@ internal fun RoadmapPlanSection() {
 
 /** What was reported, what is being worked on, what was fixed, what will not be done. */
 @Composable
-internal fun ProblemsSection(onOpenTestCentre: () -> Unit, onOpenTracker: () -> Unit) {
+internal fun ProblemsSection(onOpenTestCentre: () -> Unit, onOpenTracker: () -> Unit,
+                             viewModel: com.noop.ui.AppViewModel) {
     val (page, _) = rememberProjectPage()
     ProjectScene(R.drawable.scene_problems)
+    // First on the page: somebody who opens this because something is broken should not have to read
+    // everyone else's problems to find out where to say so.
+    ProjectReportSection(page.canWrite, viewModel)
 
     if (page.reported.isEmpty()) {
         SectionHeader(stringResource(R.string.forge_roadmap_reported))

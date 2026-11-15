@@ -81,6 +81,16 @@ enum CoreProject {
                 publicNumber: thread.publicNumber, isNew: isNew,
                 messages: thread.messages.map { Message(mine: $0.mine, text: $0.text,
                                                         at: $0.at.map(Wire.iso)) }))
+        case "project.reportLog":
+            // The bytes come over as base64 because the bridge carries JSON. The app has already shown
+            // the wearer exactly what is in this bundle; the core never builds or opens it.
+            let page = await store.cached()
+            guard let encoded = args["data"] as? String,
+                  let data = Data(base64Encoded: encoded) else { return #"{"ok":false}"# }
+            let result = await ProjectService(service: page.service)
+                .sendLog(code: args["code"] as? String ?? "", data: data)
+            if case .sent = result { return #"{"ok":true}"# }
+            return #"{"ok":false}"#
         case "project.reply":
             let page = await store.cached()
             let result = await ProjectService(service: page.service)

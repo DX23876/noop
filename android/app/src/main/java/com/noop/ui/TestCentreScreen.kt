@@ -544,7 +544,7 @@ private fun DeveloperToggleRow(
  *  hand TestReportFlow.run the same list it reviews. [modeInactive] (#1002): the selected profile's test
  *  mode is not on at report time, so the bundle carries no capture for the very thing being reported -
  *  the review dialog warns off it (the #812 capture_check only grades ACTIVE modes, so it can't). */
-private class PendingReport(
+internal class PendingReport(
     val profile: TestDomain,
     val title: String,
     val entries: List<Pair<String, ByteArray>>,
@@ -554,7 +554,7 @@ private class PendingReport(
 
 /** The "whole app" report profile for the section-3 manual Report button. MASTER is not a registry mode
  *  (it has no wear-and-capture flow), so the deep-link self-applies the test:all label via this. */
-private val MASTER_REPORT_MODE = TestMode(
+internal val MASTER_REPORT_MODE = TestMode(
     domain = TestDomain.MASTER, title = uiString(R.string.l10n_test_centre_screen_bug_report_5a7ee5ac), blurb = "", icon = "ic_bug",
     priority = com.noop.testcentre.TestPriority.HIGH, captures = emptyList(),
     questionnaire = emptyList(), liveReadout = emptyList(),
@@ -564,7 +564,7 @@ private val MASTER_REPORT_MODE = TestMode(
 /** Assemble the redacted, capped bundle for a profile and wrap it in the review gate. Suspend (#1002):
  *  the storage probe reads the store, so the callers launch it on the UI scope; the dialog presents off
  *  the same `pendingReport` state a beat after the tap. */
-private suspend fun buildPending(
+internal suspend fun buildPending(
     context: android.content.Context,
     mode: TestMode,
     // Stays a STRING: TestBundleAssembler renders a report file, the one consumer that genuinely wants the
