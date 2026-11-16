@@ -825,6 +825,14 @@ struct StrengthView: View {
                             .font(StrandFont.caption)
                     }
                 }
+                // The answer is taken back off the bars when the store refuses it, so without this line
+                // the tap would read as having done nothing at all.
+                if model.feedbackRefused {
+                    Text("That answer was not saved. Try it again.")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
         }
     }

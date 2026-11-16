@@ -92,6 +92,9 @@ final class StrengthModel: ObservableObject {
     @Published private(set) var typicalSession: [HevyMuscleGroup: Double] = [:]
     @Published private(set) var ratedShare: Double = 0
     @Published private(set) var feedback: [MuscleRecovery.Observation] = []
+    /// The last answer did not reach the store. On screen for as long as that is true, because an answer
+    /// that was quietly dropped is one the wearer thinks they have given.
+    @Published private(set) var feedbackRefused = false
     @Published private(set) var tauByGroup: [HevyMuscleGroup: Double] = [:]
 
     // MARK: - The selected week
@@ -338,13 +341,30 @@ final class StrengthModel: ObservableObject {
     // MARK: - Feedback
 
     /// Record how a muscle feels, refit its time constant, and persist the answer.
-    func record(_ feeling: MuscleRecovery.Feeling, for group: HevyMuscleGroup, repo: Repository) async {
+    ///
+    /// The answer goes on screen first, because the bars should move under the thumb that gave it. That
+    /// is only honest while the store keeps it: a write it refuses (a busy timeout under a long
+    /// backfill, a full disk) used to leave the answer standing until the next launch, when it was
+    /// simply gone. So a refusal takes it back off and says so. `save` is the seam the test refuses
+    /// through; in the app it is the store.
+    func record(_ feeling: MuscleRecovery.Feeling, for group: HevyMuscleGroup, repo: Repository,
+                save: ((MuscleRecoveryFeedback) async -> Bool)? = nil) async {
         let ts = Int(Date().timeIntervalSince1970)
         feedback.append(MuscleRecovery.Observation(group: group, ts: ts, feeling: feeling))
         await refitTau()
-        guard let store = await repo.storeHandle() else { return }
-        try? await store.saveMuscleRecoveryFeedback(
-            MuscleRecoveryFeedback(muscleGroup: group, ts: ts, feeling: feeling.rawValue))
+        let row = MuscleRecoveryFeedback(muscleGroup: group, ts: ts, feeling: feeling.rawValue)
+        let kept: Bool
+        if let save {
+            kept = await save(row)
+        } else if let store = await repo.storeHandle() {
+            kept = (try? await store.saveMuscleRecoveryFeedback(row)) != nil
+        } else {
+            kept = false
+        }
+        feedbackRefused = !kept
+        guard !kept else { return }
+        feedback.removeAll { $0.group == group && $0.ts == ts }
+        await refitTau()
     }
 
     /// Refit every muscle's time constant from the answers on hand, then recompute what is outstanding.
