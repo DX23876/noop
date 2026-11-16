@@ -7026,6 +7026,7 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="project_report_nothing_said">Ancora nulla. Se arriva una domanda, compare qui.</string>
     <string name="project_report_checking">Controllo…</string>
     <string name="project_report_unchecked">Non è stato possibile controllare adesso. È l\'ultimo stato noto.</string>
+    <string name="project_report_sharing_off">L\'invio da questo dispositivo è spento, quindi non si può controllare. È l\'ultimo stato noto.</string>
     <string name="project_report_reply_failed">Non è partito. Il tuo testo è ancora qui, riprova più tardi.</string>
     <string name="project_report_withdraw_failed">Non è partito. La segnalazione è ancora lì, e anche il suo registro.</string>
     <string name="project_report_no_thread_note">Senza domande di ritorno non viene memorizzato nulla su questa segnalazione, quindi non possono accompagnarla né un registro né un\'immagine, e nessuno può chiederti il dettaglio che l\'avrebbe resa risolvibile. Scrivi tutto quello che puoi.</string>

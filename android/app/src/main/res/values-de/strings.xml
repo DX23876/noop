@@ -7074,6 +7074,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="project_report_nothing_said">Noch nichts gesagt. Kommt eine Rückfrage, steht sie hier.</string>
     <string name="project_report_checking">Wird geprüft …</string>
     <string name="project_report_unchecked">Das konnte gerade nicht geprüft werden. Es ist der letzte bekannte Stand.</string>
+    <string name="project_report_sharing_off">Das Senden von diesem Gerät ist aus, also kann das nicht geprüft werden. Es ist der letzte bekannte Stand.</string>
     <string name="project_report_reply_failed">Das ging nicht raus. Dein Text steht noch da, versuch es später nochmal.</string>
     <string name="project_report_withdraw_failed">Das ging nicht raus. Die Meldung ist noch da und ihr Log auch.</string>
     <string name="project_report_no_thread_note">Ohne Rückfragen wird zu dieser Meldung nichts gespeichert. Es kann also auch kein Log und kein Bild mitgehen und niemand kann nach dem Detail fragen, das sie behebbar gemacht hätte. Schreib also so viel du kannst.</string>

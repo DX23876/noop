@@ -678,6 +678,13 @@ struct ProjectThreadView: View {
                 Text("Checking…")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
+            } else if !ProjectSharing.standard.isOn {
+                // Not the same as unreachable, and saying so would blame the network for a switch
+                // the wearer threw themselves.
+                Text("Sending from this device is switched off, so this cannot be checked. It is what was last known.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             } else if !reached {
                 Text("This could not be checked just now. It is what was last known.")
                     .font(StrandFont.caption)
@@ -714,7 +721,14 @@ struct ProjectThreadView: View {
         }
     }
 
+    @ViewBuilder
     private var replyCard: some View {
+        if ProjectSharing.standard.isOn {
+            answerBox
+        }
+    }
+
+    private var answerBox: some View {
         ForgeListGroup("Answer") {
             TextField("Anything you can add", text: $draft, axis: .vertical)
                 .lineLimit(1...6)

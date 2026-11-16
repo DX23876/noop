@@ -435,6 +435,9 @@ private fun ThreadScreen(code: String, seen: String?, onBack: () -> Unit, onGone
     var messages by remember { mutableStateOf(emptyList<Triple<Boolean, String, String>>()) }
     var loaded by remember { mutableStateOf(false) }
     var reached by remember { mutableStateOf(true) }
+    // Switched off is not the same as unreachable, and saying "could not be checked" would blame the
+    // network for a switch the wearer threw themselves.
+    var sharingOn by remember { mutableStateOf(true) }
     var draft by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
     var replyFailed by remember { mutableStateOf(false) }
@@ -462,7 +465,13 @@ private fun ThreadScreen(code: String, seen: String?, onBack: () -> Unit, onGone
         }
         loaded = true
     }
-    LaunchedEffect(code) { reload() }
+    LaunchedEffect(code) {
+        sharingOn = runCatching {
+            JSONObject(withContext(Dispatchers.IO) { SwiftCore.call("project.sharing", "{}") } ?: "")
+                .optBoolean("on", true)
+        }.getOrDefault(true)
+        reload()
+    }
 
     Row(
         Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
@@ -477,6 +486,9 @@ private fun ThreadScreen(code: String, seen: String?, onBack: () -> Unit, onGone
         }
         if (!loaded) {
             Text(stringResource(R.string.project_report_checking), style = Forge.type.caption,
+                 color = Forge.colors.textTertiary)
+        } else if (!sharingOn) {
+            Text(stringResource(R.string.project_report_sharing_off), style = Forge.type.caption,
                  color = Forge.colors.textTertiary)
         } else if (!reached) {
             Text(stringResource(R.string.project_report_unchecked), style = Forge.type.caption,
@@ -509,47 +521,49 @@ private fun ThreadScreen(code: String, seen: String?, onBack: () -> Unit, onGone
         }
     }
 
-    SectionHeader(stringResource(R.string.project_report_answer))
-    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
-        OutlinedTextField(
-            value = draft, onValueChange = { if (it.length <= MAX_REPLY) draft = it },
-            modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(stringResource(R.string.project_report_answer_hint)) },
-            textStyle = Forge.type.body, maxLines = 6,
-        )
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
-                .clickable(enabled = draft.isNotBlank() && !sending, role = Role.Button) {
-                    scope.launch {
-                        sending = true
-                        val answer = withContext(Dispatchers.IO) {
-                            SwiftCore.call("project.reply", JSONObject().put("code", code)
-                                .put("text", draft).toString())
+    if (sharingOn) {
+        SectionHeader(stringResource(R.string.project_report_answer))
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+            OutlinedTextField(
+                value = draft, onValueChange = { if (it.length <= MAX_REPLY) draft = it },
+                modifier = Modifier.fillMaxWidth(),
+                placeholder = { Text(stringResource(R.string.project_report_answer_hint)) },
+                textStyle = Forge.type.body, maxLines = 6,
+            )
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
+                    .clickable(enabled = draft.isNotBlank() && !sending, role = Role.Button) {
+                        scope.launch {
+                            sending = true
+                            val answer = withContext(Dispatchers.IO) {
+                                SwiftCore.call("project.reply", JSONObject().put("code", code)
+                                    .put("text", draft).toString())
+                            }
+                            if (runCatching { JSONObject(answer ?: "") }.getOrNull()
+                                    ?.optBoolean("ok") == true) {
+                                draft = ""
+                                replyFailed = false
+                                reload()
+                            } else {
+                                // The text stays in the field: it is the only copy of it.
+                                replyFailed = true
+                            }
+                            sending = false
                         }
-                        if (runCatching { JSONObject(answer ?: "") }.getOrNull()
-                                ?.optBoolean("ok") == true) {
-                            draft = ""
-                            replyFailed = false
-                            reload()
-                        } else {
-                            // The text stays in the field: it is the only copy of it.
-                            replyFailed = true
-                        }
-                        sending = false
-                    }
-                },
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(stringResource(if (sending) R.string.project_report_sending
-                                else R.string.project_report_send),
-                 style = Forge.type.body,
-                 color = if (draft.isNotBlank() && !sending) Forge.colors.accent
-                         else Forge.colors.textTertiary)
-        }
-        if (replyFailed) {
-            Text(stringResource(R.string.project_report_reply_failed), style = Forge.type.caption,
-                 color = Forge.colors.textSecondary)
-        }
+                    },
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(if (sending) R.string.project_report_sending
+                                    else R.string.project_report_send),
+                     style = Forge.type.body,
+                     color = if (draft.isNotBlank() && !sending) Forge.colors.accent
+                             else Forge.colors.textTertiary)
+            }
+            if (replyFailed) {
+                Text(stringResource(R.string.project_report_reply_failed), style = Forge.type.caption,
+                     color = Forge.colors.textSecondary)
+            }
+    }
     }
 
     ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {

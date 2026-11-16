@@ -7098,6 +7098,7 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="project_report_nothing_said">Nothing said yet. If a question comes, it appears here.</string>
     <string name="project_report_checking">Checking…</string>
     <string name="project_report_unchecked">This could not be checked just now. It is what was last known.</string>
+    <string name="project_report_sharing_off">Sending from this device is switched off, so this cannot be checked. It is what was last known.</string>
     <string name="project_report_reply_failed">That did not go out. Your text is still here; try again later.</string>
     <string name="project_report_withdraw_failed">That did not go out. The report is still there, and so is its log.</string>
     <string name="project_report_no_thread_note">Without questions back nothing is stored about this report, so no log and no picture can travel with it, and nobody can ask you for the detail that would have made it fixable. Say as much as you can in the text.</string>

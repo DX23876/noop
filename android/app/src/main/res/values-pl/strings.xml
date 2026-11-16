@@ -7078,6 +7078,7 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="project_report_nothing_said">Jeszcze nic nie powiedziano. Jeśli przyjdzie pytanie, pojawi się tutaj.</string>
     <string name="project_report_checking">Sprawdzanie…</string>
     <string name="project_report_unchecked">Nie udało się tego teraz sprawdzić. To ostatni znany stan.</string>
+    <string name="project_report_sharing_off">Wysyłanie z tego urządzenia jest wyłączone, więc nie można tego sprawdzić. To ostatni znany stan.</string>
     <string name="project_report_reply_failed">To nie wyszło. Twój tekst nadal tu jest, spróbuj później.</string>
     <string name="project_report_withdraw_failed">To nie wyszło. Zgłoszenie nadal istnieje, a jego dziennik też.</string>
     <string name="project_report_no_thread_note">Bez pytań zwrotnych nic o tym zgłoszeniu nie jest zapisywane, więc nie może do niego dołączyć ani dziennik, ani obraz, i nikt nie może zapytać o szczegół, który pozwoliłby to naprawić. Napisz w tekście tyle, ile możesz.</string>

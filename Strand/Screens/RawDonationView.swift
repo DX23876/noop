@@ -17,6 +17,10 @@ struct RawDonationView: View {
     @State private var settings = RawDonationSettings.standard
     @State private var sending: String?
     @State private var failed: String?
+    /// The recording about to be deleted. Deleting one throws away a workout's worth of motion that
+    /// cannot be recorded again, and it sat as a single tap beside Send, in the quietest colour of
+    /// the three. Withdrawing a report asks first for the same reason.
+    @State private var deleting: PendingDonation?
     @State private var revision = 0
 
     /// The sports a strap-worn recording is actually useful for: the arm repeats a cadence a detector
@@ -52,6 +56,18 @@ struct RawDonationView: View {
         }
         .task {
             service = await ProjectPageStore(directory: RoadmapModel.cacheDirectory).cached().service
+        }
+        .confirmationDialog("Delete this recording?",
+                            isPresented: Binding(get: { deleting != nil },
+                                                 set: { if !$0 { deleting = nil } }),
+                            titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                if let donation = deleting { recorder.forget(donation) }
+                deleting = nil
+            }
+            Button("Keep it", role: .cancel) { deleting = nil }
+        } message: {
+            Text("The motion in it is gone, and that workout cannot be recorded again.")
         }
     }
 
@@ -161,10 +177,10 @@ struct RawDonationView: View {
                                     .foregroundStyle(StrandPalette.accent)
                                     .disabled(sending != nil)
                             }
-                            Button("Delete", role: .destructive) { recorder.forget(donation) }
+                            Button("Delete", role: .destructive) { deleting = donation }
                                 .buttonStyle(.plain)
                                 .font(StrandFont.subhead)
-                                .foregroundStyle(StrandPalette.textSecondary)
+                                .foregroundStyle(StrandPalette.statusCritical)
                             Spacer(minLength: 0)
                             if sending == donation.id {
                                 ProgressView().controlSize(.small)
