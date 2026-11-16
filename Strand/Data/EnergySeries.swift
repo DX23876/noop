@@ -329,10 +329,24 @@ extension Repository {
             return
         }
         if old != nil, old?.energyKcal == row.energyKcal {
-            if let carried { try? await store.setWorkoutEnergySource(carried, for: key) }
+            if let carried, (try? await store.setWorkoutEnergySource(carried, for: key)) == nil {
+                Repository.noteLostEnergyProvenance(key: key)
+            }
             return
         }
-        try? await store.setWorkoutEnergySource(.entered, for: key)
+        // A figure with no recorded source is re-priced later by the legacy correction when it looks
+        // computed, so losing this write silently replaces a number the wearer typed. Nothing here can
+        // put it right, and the save itself did land, so it is said rather than fixed.
+        if (try? await store.setWorkoutEnergySource(.entered, for: key)) == nil {
+            Repository.noteLostEnergyProvenance(key: key)
+        }
+    }
+
+    /// One line, because the consequence lands days later and in another screen: an entered figure that
+    /// no longer says it was entered is a candidate for the legacy re-pricing pass.
+    static func noteLostEnergyProvenance(key: WorkoutKey) {
+        NSLog("EnergySeries: the store refused the energy source for \(key.startTs); "
+              + "that figure now reads as having no recorded source")
     }
 
     /// The versioned correction of stored session figures NOOP computed with Keytel (AI-13 to AI-15).
