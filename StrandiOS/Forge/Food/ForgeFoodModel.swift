@@ -434,10 +434,17 @@ final class ForgeFoodModel {
     }
 
     /// Marks the shown day as completely logged, or takes it back; only marked days count toward the real burn.
+    ///
+    /// The mark follows the STORE, not the tap. It used to be set either way, so a write the store
+    /// refused left the day looking marked while the burn kept counting it as incomplete, and the
+    /// disagreement only showed on the next read.
     func setDayComplete(_ complete: Bool, repo: Repository) async {
         guard let store = await repo.storeHandle() else { return }
-        try? await store.setFoodDayComplete(day, complete)
-        dayComplete = complete
+        if (try? await store.setFoodDayComplete(day, complete)) != nil {
+            dayComplete = complete
+        } else {
+            dayComplete = ((try? await store.foodCompleteDays(from: day, to: day)) ?? []).contains(day)
+        }
         await loadTracker(repo: repo, store: store)
         resolvePlan()
     }
