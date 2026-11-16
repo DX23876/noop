@@ -32,6 +32,9 @@ struct LiftSessionView: View {
     @State private var confirmingDiscard = false
     @State private var sessionRpeText = ""
     @State private var saving = false
+    /// The store refused the session. The sheet stays open with every set still on it, because the
+    /// hour of work on this screen exists nowhere else.
+    @State private var saveRefused = false
     /// The two questions finishing can ask. Nil until answered: saving waits for an answer rather than
     /// deciding for the user.
     @State private var unfinishedChoice: UnfinishedChoice?
@@ -690,6 +693,12 @@ struct LiftSessionView: View {
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
                 }
+                if saveRefused {
+                    Text("The session was not saved. Your sets are still here; try Save again.")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.statusWarningForeground)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
                 // A way OUT that records nothing. Until this existed, the only route off this screen
                 // saved. A session started by a mis-tap, or to try something out, had to be saved and
@@ -860,7 +869,7 @@ struct LiftSessionView: View {
             programName: session.programName,
             sessionRpe: LiftFormat.number(sessionRpeText),
             note: session.programName)
-        _ = try? await store.upsertLiftSessions([row])
+        let keptSession = (try? await store.upsertLiftSessions([row])) != nil
 
         // `ord` is COMPLETION order, which with out-of-order work is not the plan's order — and it
         // is the order that actually happened, which is what a session should read back as. Sets
@@ -878,7 +887,18 @@ struct LiftSessionView: View {
                 isWarmup: s.isWarmup, startTs: s.startTs, endTs: s.endTs,
                 restSec: s.restSec, note: nil)
         }
-        _ = try? await store.upsertLiftSets(rows)
+        var keptSets = false
+        if keptSession { keptSets = (try? await store.upsertLiftSets(rows)) != nil }
+        // Nothing follows a refused write: not the manual workout, and not the dismissal. An hour of
+        // sets typed into this screen is the most expensive thing in the app to lose, and the screen
+        // used to close on it without a word. A session row without its sets is swept up again, so a
+        // half-written session cannot survive the refusal either.
+        guard keptSets else {
+            if keptSession { _ = try? await store.deleteLiftSession(id: sessionId) }
+            saveRefused = true
+            return
+        }
+        saveRefused = false
         await writeProgram(store: store, plan: engine.plan, sets: finished)
 
         // Through the SAME path a manual workout takes, so it inherits overlap dedup, the engine's
