@@ -159,7 +159,9 @@ enum FileExport {
     /// meta.json) are produced by the assembler; existing on-disk files (raw-capture, screenshot) are
     /// read into Data by the assembler. EVERY entry must already be redacted by the caller (section 5.3).
     /// Equatable so the assembler cap can assert an undersized bundle is returned untouched (section 5.4).
-    struct BundleEntry: Equatable { let name: String; let data: Data }
+    /// Sendable so a bundle can be zipped off the main actor: deflating a two-megabyte strap log is
+    /// long enough to be felt, and the Android twin has always done it on its IO dispatcher.
+    struct BundleEntry: Equatable, Sendable { let name: String; let data: Data }
 
     /// Zip `entries` into a single staged `.zip` under the temporary directory and return its URL, or nil
     /// if there are no entries. Pure file IO, no UI, so it is unit-testable. Uses ZIPFoundation's `Archive`

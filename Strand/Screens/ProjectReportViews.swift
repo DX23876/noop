@@ -217,8 +217,12 @@ struct ReportProblemView: View {
                                     set: { if !$0 { model.staged = nil } })) {
             if let gate = model.staged {
                 ReportLogReviewSheet(gate: gate) { confirmed in
+                    let entries = gate.entries
                     model.staged = nil
-                    Task { await model.send(log: confirmed ? ReportProblemView.zip(gate.entries) : nil) }
+                    Task {
+                        let log = confirmed ? await ReportProblemView.zipOffMain(entries) : nil
+                        await model.send(log: log)
+                    }
                 }
             }
         }
@@ -366,7 +370,10 @@ struct ReportProblemView: View {
             let picture = model.picture.map {
                 [FileExport.BundleEntry(name: "picture.jpg", data: $0)]
             }
-            Task { await model.send(log: picture.flatMap(ReportProblemView.zip)) }
+            Task {
+                let log = picture == nil ? nil : await ReportProblemView.zipOffMain(picture!)
+                await model.send(log: log)
+            }
             return
         }
         model.isPreparing = true
@@ -435,6 +442,13 @@ struct ReportProblemView: View {
         guard let url = FileExport.zipData(entries: entries, baseName: "noop-report") else { return nil }
         defer { try? FileManager.default.removeItem(at: url) }
         return try? Data(contentsOf: url)
+    }
+
+    /// The same work, off the main actor. Deflating a two-megabyte log and reading it back is long
+    /// enough to be felt on the press, and both callers were `Task { }` inside a view, which inherits
+    /// the main actor. The Android twin wraps the same call in `Dispatchers.IO`.
+    static func zipOffMain(_ entries: [FileExport.BundleEntry]) async -> Data? {
+        await Task.detached(priority: .userInitiated) { ReportProblemView.zip(entries) }.value
     }
 }
 
