@@ -6999,6 +6999,7 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="project_report_log_detail">Vedi esattamente cosa contiene prima che venga inviato qualcosa</string>
     <string name="project_report_send">Invia</string>
     <string name="project_report_sending">Invio…</string>
+    <string name="project_report_preparing">Preparazione…</string>
     <string name="project_report_failed">Non è stato inviato. Riprova più tardi.</string>
     <string name="project_report_sent">Inviato</string>
     <string name="project_report_keep_code">Conserva questo codice. È l\'unico modo per tornare a questa segnalazione e funziona su qualsiasi dispositivo.</string>

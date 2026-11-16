@@ -7004,6 +7004,7 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="project_report_log_detail">Вы увидите, что именно в нём, прежде чем что-то уйдёт</string>
     <string name="project_report_send">Отправить</string>
     <string name="project_report_sending">Отправка…</string>
+    <string name="project_report_preparing">Подготовка…</string>
     <string name="project_report_failed">Это не ушло. Попробуйте позже.</string>
     <string name="project_report_sent">Отправлено</string>
     <string name="project_report_keep_code">Сохраните этот код. Это единственный путь обратно к сообщению, и он работает на любом устройстве.</string>

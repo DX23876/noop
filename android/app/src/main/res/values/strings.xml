@@ -7071,6 +7071,7 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="project_report_log_detail">You see exactly what it contains before anything is sent</string>
     <string name="project_report_send">Send</string>
     <string name="project_report_sending">Sending…</string>
+    <string name="project_report_preparing">Preparing…</string>
     <string name="project_report_failed">That did not go out. Try again later.</string>
     <string name="project_report_sent">Sent</string>
     <string name="project_report_keep_code">Keep this code. It is the only way back to this report, and it works on any device.</string>

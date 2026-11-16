@@ -7030,6 +7030,7 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="project_report_log_detail">Vous voyez exactement ce qu\'il contient avant tout envoi</string>
     <string name="project_report_send">Envoyer</string>
     <string name="project_report_sending">Envoi…</string>
+    <string name="project_report_preparing">Préparation…</string>
     <string name="project_report_failed">Cela n\'est pas parti. Réessayez plus tard.</string>
     <string name="project_report_sent">Envoyé</string>
     <string name="project_report_keep_code">Conservez ce code. C\'est le seul chemin de retour vers ce signalement, et il fonctionne sur n\'importe quel appareil.</string>

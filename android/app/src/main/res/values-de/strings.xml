@@ -7047,6 +7047,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="project_report_log_detail">Du siehst genau, was darin steht, bevor etwas gesendet wird</string>
     <string name="project_report_send">Senden</string>
     <string name="project_report_sending">Wird gesendet…</string>
+    <string name="project_report_preparing">Wird vorbereitet …</string>
     <string name="project_report_failed">Das ist nicht rausgegangen. Versuch es später nochmal.</string>
     <string name="project_report_sent">Gesendet</string>
     <string name="project_report_keep_code">Bewahre diesen Code auf. Er ist der einzige Weg zurück zu dieser Meldung, und er funktioniert auf jedem Gerät.</string>

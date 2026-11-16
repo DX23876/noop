@@ -71,6 +71,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.roundToInt
 
 /**
@@ -564,6 +565,9 @@ internal val MASTER_REPORT_MODE = TestMode(
 /** Assemble the redacted, capped bundle for a profile and wrap it in the review gate. Suspend (#1002):
  *  the storage probe reads the store, so the callers launch it on the UI scope; the dialog presents off
  *  the same `pendingReport` state a beat after the tap. */
+/** How long the row counts may take before the report goes out with the sizes alone. */
+internal const val STORAGE_PROBE_MILLIS = 6_000L
+
 internal suspend fun buildPending(
     context: android.content.Context,
     mode: TestMode,
@@ -584,11 +588,18 @@ internal suspend fun buildPending(
         val f = java.io.File(dbPath.path + suffix)
         if (f.exists()) dbBytes += f.length()
     }
-    val rows = vm.repo.storageRowCounts()
+    // Two different costs under one heading. The file sizes above are stat calls. Counting rows walks
+    // every accumulating table, waveform blobs included, which on a store with years of history is
+    // minutes on the phone, and this is now a tap in a bug report rather than a Test Centre visit: the
+    // Apple twin (`ReportProblemView.storageWithinReach`) races the same work against six seconds and
+    // keeps the sizes whatever happens. What is not read stays absent, which is what meta.json already
+    // means by a missing number: not measured, never a claim that it is empty.
+    val rows = withTimeoutOrNull(STORAGE_PROBE_MILLIS) { vm.repo.storageRowCounts() } ?: emptyMap()
     // #1911: bytes beside the counts, reusing the counts just read rather than a second COUNT(*) pass over
     // thirteen tables - each is a full scan on the large stores this report is pulled from.
-    val rowBytes = com.noop.data.StorageFootprint(
-        com.noop.data.WhoopDatabase.get(context)).byteEstimates(rows)
+    val rowBytes = if (rows.isEmpty()) emptyMap() else withTimeoutOrNull(STORAGE_PROBE_MILLIS) {
+        com.noop.data.StorageFootprint(com.noop.data.WhoopDatabase.get(context)).byteEstimates(rows)
+    } ?: emptyMap()
     var rawBytes = 0L
     for (name in listOf(
         com.noop.ble.WhoopBleClient.WHOOP5_CAPTURE_FILE,

@@ -7000,6 +7000,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="project_report_log_detail">在发送任何内容之前，你会看到它的全部内容</string>
     <string name="project_report_send">发送</string>
     <string name="project_report_sending">正在发送…</string>
+    <string name="project_report_preparing">正在准备…</string>
     <string name="project_report_failed">没有发送成功。请稍后再试。</string>
     <string name="project_report_sent">已发送</string>
     <string name="project_report_keep_code">请保存这个代码。它是回到这条报告的唯一途径，在任何设备上都有效。</string>

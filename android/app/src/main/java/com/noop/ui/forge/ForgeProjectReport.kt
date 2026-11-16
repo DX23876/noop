@@ -201,6 +201,10 @@ private fun ReportForm(viewModel: AppViewModel, onDone: () -> Unit) {
     var wantsThread by remember { mutableStateOf(true) }
     var attachLog by remember { mutableStateOf(true) }
     var sending by remember { mutableStateOf(false) }
+    // Building the log reads the strap archive and probes the store, which takes seconds. Without a
+    // state of its own the button said "Send" throughout, so a second tap built a second bundle and
+    // opened a second sheet over the first. The Apple twin calls this `isPreparing`.
+    var preparing by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
     var code by remember { mutableStateOf<String?>(null) }
     var sentWithoutThread by remember { mutableStateOf(false) }
@@ -349,7 +353,8 @@ private fun ReportForm(viewModel: AppViewModel, onDone: () -> Unit) {
     ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
         Row(
             Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
-                .clickable(enabled = draft.isNotBlank() && !sending, role = Role.Button) {
+                .clickable(enabled = draft.isNotBlank() && !sending && !preparing,
+                           role = Role.Button) {
                     scope.launch {
                         if (!attachLog) {
                             // A picture without a log is still worth sending.
@@ -360,17 +365,26 @@ private fun ReportForm(viewModel: AppViewModel, onDone: () -> Unit) {
                             return@launch
                         }
                         // With a log: build it, show it, and send only on an explicit press.
-                        val pending = buildPending(context, MASTER_REPORT_MODE,
-                                                   viewModel.ble.exportLogText(), viewModel)
-                        staged = pending
+                        preparing = true
+                        staged = runCatching {
+                            buildPending(context, MASTER_REPORT_MODE,
+                                         viewModel.ble.exportLogText(), viewModel)
+                        }.getOrNull()
+                        preparing = false
+                        // Nothing to show means nothing to attach. The report still goes, rather
+                        // than opening an empty sheet over a bundle that is not there.
+                        if (staged == null) send(null)
                     }
                 },
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(stringResource(if (sending) R.string.project_report_sending
-                                else R.string.project_report_send),
+            Text(stringResource(when {
+                     preparing -> R.string.project_report_preparing
+                     sending -> R.string.project_report_sending
+                     else -> R.string.project_report_send
+                 }),
                  style = Forge.type.body,
-                 color = if (draft.isNotBlank() && !sending) Forge.colors.accent
+                 color = if (draft.isNotBlank() && !sending && !preparing) Forge.colors.accent
                          else Forge.colors.textTertiary)
         }
         if (failed) {

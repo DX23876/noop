@@ -7051,6 +7051,7 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="project_report_log_detail">Widzisz dokładnie, co zawiera, zanim cokolwiek zostanie wysłane</string>
     <string name="project_report_send">Wyślij</string>
     <string name="project_report_sending">Wysyłanie…</string>
+    <string name="project_report_preparing">Przygotowywanie…</string>
     <string name="project_report_failed">To nie zostało wysłane. Spróbuj później.</string>
     <string name="project_report_sent">Wysłano</string>
     <string name="project_report_keep_code">Zachowaj ten kod. To jedyna droga powrotna do tego zgłoszenia i działa na każdym urządzeniu.</string>

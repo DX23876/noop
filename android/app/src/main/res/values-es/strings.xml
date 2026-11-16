@@ -7031,6 +7031,7 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="project_report_log_detail">Ves exactamente lo que contiene antes de enviar nada</string>
     <string name="project_report_send">Enviar</string>
     <string name="project_report_sending">Enviando…</string>
+    <string name="project_report_preparing">Preparando…</string>
     <string name="project_report_failed">No se pudo enviar. Inténtalo más tarde.</string>
     <string name="project_report_sent">Enviado</string>
     <string name="project_report_keep_code">Guarda este código. Es la única forma de volver a este informe y funciona en cualquier dispositivo.</string>

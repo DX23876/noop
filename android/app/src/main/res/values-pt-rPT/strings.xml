@@ -7023,6 +7023,7 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="project_report_log_detail">Vê exatamente o que contém antes de ser enviado</string>
     <string name="project_report_send">Enviar</string>
     <string name="project_report_sending">A enviar…</string>
+    <string name="project_report_preparing">A preparar…</string>
     <string name="project_report_failed">Isto não foi enviado. Tente mais tarde.</string>
     <string name="project_report_sent">Enviado</string>
     <string name="project_report_keep_code">Guarde este código. É a única forma de voltar a esta comunicação e funciona em qualquer dispositivo.</string>
