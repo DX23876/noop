@@ -234,11 +234,15 @@ struct LiftProgramImportSheet: View {
         defer { importing = false }
 
         let now = Int(Date().timeIntervalSince1970)
+        // Counted, because "imported" is a claim about the store. Every write here was made with try?
+        // and the sheet closed either way, so an import the store refused looked exactly like one that
+        // worked: the sheet gone and no programs anywhere.
+        var imported = 0
         for program in result.programs {
             let programId = UUID().uuidString
-            _ = try? await store.upsertLiftPrograms([LiftProgramRow(
+            guard (try? await store.upsertLiftPrograms([LiftProgramRow(
                 id: programId, deviceId: repo.deviceId, name: program.name, note: program.note,
-                createdAt: now, updatedAt: now, archived: false)])
+                createdAt: now, updatedAt: now, archived: false)])) != nil else { continue }
 
             let items = program.lines.enumerated().map { index, line in
                 LiftProgramItemRow(
@@ -251,7 +255,12 @@ struct LiftProgramImportSheet: View {
                     targetWeightKg: line.targetWeightKg,
                     restSec: line.restSec, note: line.note)
             }
-            _ = try? await store.replaceLiftProgramItems(programId: programId, items: items)
+            guard (try? await store.replaceLiftProgramItems(programId: programId, items: items)) != nil else {
+                // A program without its lines is not an imported program, so it does not stay behind.
+                _ = try? await store.deleteLiftProgram(id: programId)
+                continue
+            }
+            imported += 1
 
             // Remember the exercises too, with the classification the sheet gave them, so the
             // picker offers them next time and the per-muscle rollup resolves the same name the
@@ -267,6 +276,13 @@ struct LiftProgramImportSheet: View {
             _ = try? await store.upsertLiftExercises(exercises)
         }
 
+        guard imported == result.programs.count else {
+            failure = imported == 0
+                ? String(localized: "Nothing could be imported. The file is still here; try again.")
+                : String(localized: "Only \(imported) of \(result.programs.count) programs could be imported.")
+            await onImported()
+            return
+        }
         await onImported()
         dismiss()
     }
