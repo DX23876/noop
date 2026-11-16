@@ -7047,6 +7047,10 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="project_report_review_with">Enviar com o registo</string>
     <string name="project_report_review_without">Sem o registo</string>
     <string name="project_report_nothing_said">Ainda não foi dito nada. Se chegar uma pergunta, aparece aqui.</string>
+    <string name="project_report_checking">A verificar…</string>
+    <string name="project_report_unchecked">Isto não pôde ser verificado agora. É o último estado conhecido.</string>
+    <string name="project_report_reply_failed">Isso não seguiu. O seu texto continua aqui; tente mais tarde.</string>
+    <string name="project_report_withdraw_failed">Isso não seguiu. A comunicação continua lá, e o registo dela também.</string>
     <string name="project_report_no_thread_note">Sem perguntas de volta nada é guardado sobre esta comunicação, por isso não pode seguir com ela nenhum registo nem nenhuma imagem, e ninguém lhe pode pedir o detalhe que a tornaria resolúvel. Diga o máximo que puder no texto.</string>
     <string name="project_report_withdraw_note">O registo é eliminado e o código deixa de funcionar. O que já foi corrigido continua corrigido.</string>
     <string name="report_notice_title">A sua comunicação</string>

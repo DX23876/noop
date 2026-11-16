@@ -113,7 +113,8 @@ internal fun ProjectReportSection(canWrite: Boolean, viewModel: AppViewModel) {
 
     val code = openCode
     when {
-        code != null -> ThreadScreen(code, onBack = { openCode = null },
+        code != null -> ThreadScreen(code, mine.firstOrNull { it.code == code }?.status,
+                                     onBack = { openCode = null },
                                      onGone = { openCode = null; scope.launch { reload() } })
         composing -> ReportForm(viewModel, onDone = { composing = false })
         else -> {
@@ -410,14 +411,20 @@ private fun ReportForm(viewModel: AppViewModel, onDone: () -> Unit) {
 
 /** One report: where it stands, what was said, the way to answer, and the way to take it back. */
 @Composable
-private fun ThreadScreen(code: String, onBack: () -> Unit, onGone: () -> Unit) {
-    var status by remember { mutableStateOf("arrived") }
+private fun ThreadScreen(code: String, seen: String?, onBack: () -> Unit, onGone: () -> Unit) {
+    // The last status this device was told, until the service says otherwise. Starting at "arrived"
+    // meant an unreachable service printed "nobody has looked at it yet" over a report that was
+    // fixed weeks ago: a line stating what it had not observed.
+    var status by remember { mutableStateOf(seen) }
     var fixedIn by remember { mutableStateOf<String?>(null) }
     var publicNumber by remember { mutableStateOf(0) }
     var messages by remember { mutableStateOf(emptyList<Triple<Boolean, String, String>>()) }
     var loaded by remember { mutableStateOf(false) }
+    var reached by remember { mutableStateOf(true) }
     var draft by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
+    var replyFailed by remember { mutableStateOf(false) }
+    var withdrawFailed by remember { mutableStateOf(false) }
     var confirming by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
@@ -435,6 +442,9 @@ private fun ThreadScreen(code: String, onBack: () -> Unit, onGone: () -> Unit) {
                 val row = array.optJSONObject(index) ?: return@mapNotNull null
                 Triple(row.optBoolean("mine"), row.optString("text"), row.optString("at"))
             }
+            reached = true
+        } else {
+            reached = false
         }
         loaded = true
     }
@@ -448,7 +458,16 @@ private fun ThreadScreen(code: String, onBack: () -> Unit, onGone: () -> Unit) {
              color = Forge.colors.accent) }
 
     ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
-        Text(statusText(status), style = Forge.type.headline, color = Forge.colors.text)
+        status?.let {
+            Text(statusText(it), style = Forge.type.headline, color = Forge.colors.text)
+        }
+        if (!loaded) {
+            Text(stringResource(R.string.project_report_checking), style = Forge.type.caption,
+                 color = Forge.colors.textTertiary)
+        } else if (!reached) {
+            Text(stringResource(R.string.project_report_unchecked), style = Forge.type.caption,
+                 color = Forge.colors.textTertiary)
+        }
         fixedIn?.let {
             Text(stringResource(R.string.project_report_fixed_in, it), style = Forge.type.body,
                  color = Forge.colors.textSecondary)
@@ -496,7 +515,11 @@ private fun ThreadScreen(code: String, onBack: () -> Unit, onGone: () -> Unit) {
                         if (runCatching { JSONObject(answer ?: "") }.getOrNull()
                                 ?.optBoolean("ok") == true) {
                             draft = ""
+                            replyFailed = false
                             reload()
+                        } else {
+                            // The text stays in the field: it is the only copy of it.
+                            replyFailed = true
                         }
                         sending = false
                     }
@@ -509,6 +532,10 @@ private fun ThreadScreen(code: String, onBack: () -> Unit, onGone: () -> Unit) {
                  color = if (draft.isNotBlank() && !sending) Forge.colors.accent
                          else Forge.colors.textTertiary)
         }
+        if (replyFailed) {
+            Text(stringResource(R.string.project_report_reply_failed), style = Forge.type.caption,
+                 color = Forge.colors.textSecondary)
+        }
     }
 
     ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
@@ -519,6 +546,10 @@ private fun ThreadScreen(code: String, onBack: () -> Unit, onGone: () -> Unit) {
         ) {
             Text(stringResource(R.string.project_report_withdraw), style = Forge.type.body,
                  color = ForgeTokens.Color.systemRed.resolve())
+        }
+        if (withdrawFailed) {
+            Text(stringResource(R.string.project_report_withdraw_failed), style = Forge.type.caption,
+                 color = Forge.colors.textSecondary)
         }
     }
 
@@ -535,7 +566,7 @@ private fun ThreadScreen(code: String, onBack: () -> Unit, onGone: () -> Unit) {
                             SwiftCore.call("project.withdraw", JSONObject().put("code", code).toString())
                         }
                         if (runCatching { JSONObject(answer ?: "") }.getOrNull()
-                                ?.optBoolean("ok") == true) onGone()
+                                ?.optBoolean("ok") == true) onGone() else withdrawFailed = true
                     }
                 }) { Text(stringResource(R.string.project_report_withdraw)) }
             },

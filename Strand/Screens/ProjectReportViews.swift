@@ -112,9 +112,16 @@ final class ProjectReportModel: ObservableObject {
     }
 
     /// Taking a report back: the log is deleted on the service, then it leaves this device's list.
-    func withdraw(code: String) async {
-        guard let service else { return }
-        if case .sent = await service.withdraw(code: code) { forget(code: code) }
+    /// Returns whether the service agreed. It has to: the row is only gone if the log is gone, and a
+    /// screen that closes on a refusal tells somebody their report was withdrawn when it was not.
+    @discardableResult
+    func withdraw(code: String) async -> Bool {
+        guard let service else { return false }
+        if case .sent = await service.withdraw(code: code) {
+            forget(code: code)
+            return true
+        }
+        return false
     }
 
     func thread(code: String) async -> ProjectThread? {
@@ -600,8 +607,13 @@ struct ProjectThreadView: View {
 
     @State private var thread: ProjectThread?
     @State private var loaded = false
+    /// Whether the last look actually reached the service. Without it the status card states the
+    /// remembered word in the same voice as a fresh one, which is more than it can attribute.
+    @State private var reached = true
     @State private var draft = ""
     @State private var sending = false
+    @State private var replyFailed = false
+    @State private var withdrawFailed = false
     @State private var showingWithdraw = false
     @Environment(\.dismiss) private var dismiss
 
@@ -622,7 +634,9 @@ struct ProjectThreadView: View {
         .confirmationDialog("Withdraw this report?", isPresented: $showingWithdraw,
                             titleVisibility: .visible) {
             Button("Withdraw", role: .destructive) {
-                Task { await model.withdraw(code: entry.code); dismiss() }
+                Task {
+                    if await model.withdraw(code: entry.code) { dismiss() } else { withdrawFailed = true }
+                }
             }
             Button("Keep it", role: .cancel) { }
         } message: {
@@ -650,6 +664,11 @@ struct ProjectThreadView: View {
                 Text("Checking…")
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textTertiary)
+            } else if !reached {
+                Text("This could not be checked just now. It is what was last known.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
@@ -690,14 +709,24 @@ struct ProjectThreadView: View {
             ForgeActionRow(title: sending ? "Sending…" : "Send") {
                 Task {
                     sending = true
+                    replyFailed = false
                     if await model.reply(code: entry.code, text: draft) {
                         draft = ""
                         await reload()
+                    } else {
+                        // The text stays in the field: it is the only copy of it.
+                        replyFailed = true
                     }
                     sending = false
                 }
             }
             .disabled(sending || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            if replyFailed {
+                Text("That did not go out. Your text is still here; try again later.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -712,11 +741,22 @@ struct ProjectThreadView: View {
             ForgeActionRow(title: "Withdraw this report", role: .destructive) {
                 showingWithdraw = true
             }
+            if withdrawFailed {
+                Text("That did not go out. The report is still there, and so is its log.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
     private func reload() async {
-        thread = await model.thread(code: entry.code)
+        if let fresh = await model.thread(code: entry.code) {
+            thread = fresh
+            reached = true
+        } else {
+            reached = false
+        }
         loaded = true
     }
 

@@ -125,12 +125,14 @@ object ReportAnswerNotifier {
         runCatching {
             val mgr = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             if (mgr.getNotificationChannel(CHANNEL_ID) != null) return
+            // The same two strings the switch in Settings carries, so the channel in the system's
+            // own list cannot say something else, and neither is left in English.
             mgr.createNotificationChannel(
                 NotificationChannel(
-                    CHANNEL_ID, "Answers to your reports",
+                    CHANNEL_ID, context.getString(R.string.report_notice_switch),
                     NotificationManager.IMPORTANCE_DEFAULT,
                 ).apply {
-                    description = "A notice when a problem you reported is answered or fixed."
+                    description = context.getString(R.string.report_notice_switch_detail)
                 },
             )
         }

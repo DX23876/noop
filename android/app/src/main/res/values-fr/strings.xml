@@ -7054,6 +7054,10 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="project_report_review_with">Envoyer avec le journal</string>
     <string name="project_report_review_without">Sans le journal</string>
     <string name="project_report_nothing_said">Rien n\'a encore été dit. Si une question arrive, elle s\'affiche ici.</string>
+    <string name="project_report_checking">Vérification…</string>
+    <string name="project_report_unchecked">Cela n\'a pas pu être vérifié à l\'instant. C\'est le dernier état connu.</string>
+    <string name="project_report_reply_failed">Cela n\'est pas parti. Votre texte est toujours là ; réessayez plus tard.</string>
+    <string name="project_report_withdraw_failed">Cela n\'est pas parti. Le signalement est toujours là, et son journal aussi.</string>
     <string name="project_report_no_thread_note">Sans questions en retour, rien n\'est conservé sur ce signalement : ni journal ni image ne peuvent l\'accompagner, et personne ne peut vous demander le détail qui l\'aurait rendu réparable. Dites-en autant que possible dans le texte.</string>
     <string name="project_report_withdraw_note">Le journal est supprimé et le code cesse de fonctionner. Ce qui est déjà corrigé le reste.</string>
     <string name="report_notice_title">Votre signalement</string>

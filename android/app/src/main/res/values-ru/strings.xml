@@ -7028,6 +7028,10 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="project_report_review_with">Отправить с журналом</string>
     <string name="project_report_review_without">Без журнала</string>
     <string name="project_report_nothing_said">Пока ничего не сказано. Если придёт вопрос, он появится здесь.</string>
+    <string name="project_report_checking">Проверка…</string>
+    <string name="project_report_unchecked">Сейчас это не удалось проверить. Это последнее известное состояние.</string>
+    <string name="project_report_reply_failed">Это не ушло. Ваш текст остался здесь, попробуйте позже.</string>
+    <string name="project_report_withdraw_failed">Это не ушло. Сообщение на месте, и его журнал тоже.</string>
     <string name="project_report_no_thread_note">Без обратных вопросов об этом сообщении ничего не сохраняется, поэтому ни журнал, ни изображение не могут отправиться вместе с ним, и никто не сможет спросить деталь, которая помогла бы это исправить. Опишите как можно подробнее.</string>
     <string name="project_report_withdraw_note">Журнал удаляется, а код перестаёт работать. Что уже исправлено, остаётся исправленным.</string>
     <string name="report_notice_title">Ваше сообщение</string>
