@@ -200,6 +200,12 @@ struct ReportProblemView: View {
             opened = true
             model.startFresh()
         }
+        .onChangeCompat(of: model.wantsThread) { wants in
+            // Switching questions off takes the log and the picture with it, visibly, rather than
+            // leaving them on the screen to be dropped at the end.
+            model.attachLog = wants
+            if !wants { model.picture = nil }
+        }
         .sheet(isPresented: Binding(get: { model.staged != nil },
                                     set: { if !$0 { model.staged = nil } })) {
             if let gate = model.staged {
@@ -223,21 +229,26 @@ struct ReportProblemView: View {
                     .foregroundStyle(StrandPalette.textTertiary)
             }
 
-            pictureCard
+            // A log and a picture are both filed under the code, and without questions back there is
+            // no code. So they are not offered then: the earlier screen took them, showed the whole
+            // bundle, and dropped it on send, which is the one thing this file promises not to do.
+            if model.wantsThread { pictureCard }
 
             ForgeListGroup("How it is sent") {
                 ForgeToggleRow(title: "Allow questions back",
                                subtitle: "You get a code, and a notification when there is an answer",
                                isOn: $model.wantsThread)
-                Divider().overlay(StrandPalette.hairline)
-                ForgeToggleRow(title: "Attach my log",
-                               subtitle: "You see exactly what it contains before anything is sent",
-                               isOn: $model.attachLog)
+                if model.wantsThread {
+                    Divider().overlay(StrandPalette.hairline)
+                    ForgeToggleRow(title: "Attach my log",
+                                   subtitle: "You see exactly what it contains before anything is sent",
+                                   isOn: $model.attachLog)
+                }
             }
 
             if !model.wantsThread {
                 ForgeListGroup {
-                    Text("Without questions back nothing is stored about this report, and nobody can ask you for the detail that would have made it fixable. Say as much as you can in the text.")
+                    Text("Without questions back nothing is stored about this report, so no log and no picture can travel with it, and nobody can ask you for the detail that would have made it fixable. Say as much as you can in the text.")
                         .font(StrandFont.subhead)
                         .foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)

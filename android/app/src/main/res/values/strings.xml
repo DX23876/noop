@@ -7095,7 +7095,7 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="project_report_review_with">Send with the log</string>
     <string name="project_report_review_without">Without the log</string>
     <string name="project_report_nothing_said">Nothing said yet. If a question comes, it appears here.</string>
-    <string name="project_report_no_thread_note">Without questions back nothing is stored about this report, and nobody can ask you for the detail that would have made it fixable. Say as much as you can in the text.</string>
+    <string name="project_report_no_thread_note">Without questions back nothing is stored about this report, so no log and no picture can travel with it, and nobody can ask you for the detail that would have made it fixable. Say as much as you can in the text.</string>
     <string name="project_report_withdraw_note">The log is deleted and the code stops working. What was already fixed stays fixed.</string>
     <string name="project_report_code_example" translatable="false">ABCD-EFGH-JKLM-NPQR</string>
     <string name="report_notice_title">Your report</string>

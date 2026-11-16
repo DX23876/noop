@@ -7023,7 +7023,7 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="project_report_review_with">Invia con il registro</string>
     <string name="project_report_review_without">Senza il registro</string>
     <string name="project_report_nothing_said">Ancora nulla. Se arriva una domanda, compare qui.</string>
-    <string name="project_report_no_thread_note">Senza domande di ritorno non viene memorizzato nulla su questa segnalazione e nessuno può chiederti il dettaglio che l\'avrebbe resa risolvibile. Scrivi tutto quello che puoi.</string>
+    <string name="project_report_no_thread_note">Senza domande di ritorno non viene memorizzato nulla su questa segnalazione, quindi non possono accompagnarla né un registro né un\'immagine, e nessuno può chiederti il dettaglio che l\'avrebbe resa risolvibile. Scrivi tutto quello che puoi.</string>
     <string name="project_report_withdraw_note">Il registro viene eliminato e il codice smette di funzionare. Ciò che è già risolto resta risolto.</string>
     <string name="report_notice_title">La tua segnalazione</string>
     <string name="report_notice_answered">Lo sviluppatore ti ha risposto.</string>

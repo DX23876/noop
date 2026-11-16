@@ -7071,7 +7071,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="project_report_review_with">Mit Protokoll senden</string>
     <string name="project_report_review_without">Ohne Protokoll</string>
     <string name="project_report_nothing_said">Noch nichts gesagt. Kommt eine Rückfrage, steht sie hier.</string>
-    <string name="project_report_no_thread_note">Ohne Rückfragen wird zu dieser Meldung nichts gespeichert, und niemand kann nach dem Detail fragen, das sie behebbar gemacht hätte. Schreib also so viel du kannst.</string>
+    <string name="project_report_no_thread_note">Ohne Rückfragen wird zu dieser Meldung nichts gespeichert. Es kann also auch kein Log und kein Bild mitgehen und niemand kann nach dem Detail fragen, das sie behebbar gemacht hätte. Schreib also so viel du kannst.</string>
     <string name="project_report_withdraw_note">Das Protokoll wird gelöscht und der Code funktioniert nicht mehr. Was schon behoben ist, bleibt behoben.</string>
     <string name="report_notice_title">Deine Meldung</string>
     <string name="report_notice_answered">Der Entwickler hat dir geantwortet.</string>

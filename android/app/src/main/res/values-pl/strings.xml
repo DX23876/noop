@@ -7075,7 +7075,7 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="project_report_review_with">Wyślij z dziennikiem</string>
     <string name="project_report_review_without">Bez dziennika</string>
     <string name="project_report_nothing_said">Jeszcze nic nie powiedziano. Jeśli przyjdzie pytanie, pojawi się tutaj.</string>
-    <string name="project_report_no_thread_note">Bez pytań zwrotnych nic o tym zgłoszeniu nie jest zapisywane i nikt nie może zapytać o szczegół, który pozwoliłby to naprawić. Napisz w tekście tyle, ile możesz.</string>
+    <string name="project_report_no_thread_note">Bez pytań zwrotnych nic o tym zgłoszeniu nie jest zapisywane, więc nie może do niego dołączyć ani dziennik, ani obraz, i nikt nie może zapytać o szczegół, który pozwoliłby to naprawić. Napisz w tekście tyle, ile możesz.</string>
     <string name="project_report_withdraw_note">Dziennik zostaje usunięty, a kod przestaje działać. To, co już naprawiono, zostaje naprawione.</string>
     <string name="report_notice_title">Twoje zgłoszenie</string>
     <string name="report_notice_answered">Deweloper ci odpowiedział.</string>

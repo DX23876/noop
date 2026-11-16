@@ -7024,7 +7024,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="project_report_review_with">带日志发送</string>
     <string name="project_report_review_without">不带日志</string>
     <string name="project_report_nothing_said">还没有任何对话。如果有问题，会出现在这里。</string>
-    <string name="project_report_no_thread_note">不允许回问时，这条报告不会保存任何信息，也没有人能向你索取那个关键细节。请在正文里尽量写清楚。</string>
+    <string name="project_report_no_thread_note">不允许回问时，这条报告不会保存任何信息，所以日志和图片都无法随它一起发出，也没有人能向你索取那个关键细节。请在正文里尽量写清楚。</string>
     <string name="project_report_withdraw_note">日志会被删除，代码也会失效。已经修复的仍然是修复的。</string>
     <string name="report_notice_title">你的报告</string>
     <string name="report_notice_answered">开发者回复了你。</string>

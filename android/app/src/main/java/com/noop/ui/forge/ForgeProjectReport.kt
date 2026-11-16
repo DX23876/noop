@@ -281,51 +281,62 @@ private fun ReportForm(viewModel: AppViewModel, onDone: () -> Unit) {
              style = Forge.type.caption, color = Forge.colors.textTertiary)
     }
 
-    SectionHeader(stringResource(R.string.project_report_picture))
-    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
-        val shot = picture
-        if (shot != null) {
-            val bitmap = remember(shot) { BitmapFactory.decodeByteArray(shot, 0, shot.size) }
-            if (bitmap != null) {
-                Image(
-                    bitmap = bitmap.asImageBitmap(), contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.fillMaxWidth().height(180.dp),
-                )
-            }
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
-                    .clickable(role = Role.Button) { picture = null },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(stringResource(R.string.project_report_picture_remove),
-                     style = Forge.type.body, color = ForgeTokens.Color.systemRed.resolve())
-            }
-        } else {
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
-                    .clickable(role = Role.Button) {
-                        pick.launch(PickVisualMediaRequest(
-                            ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    },
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text(stringResource(R.string.project_report_picture_add),
-                         style = Forge.type.body, color = Forge.colors.accent)
-                    Text(stringResource(R.string.project_report_picture_detail),
-                         style = Forge.type.caption, color = Forge.colors.textSecondary)
+    // A log and a picture are both filed under the code, and without questions back there is no
+    // code. So neither is offered then, rather than being taken and dropped at the end.
+    if (wantsThread) {
+        SectionHeader(stringResource(R.string.project_report_picture))
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+            val shot = picture
+            if (shot != null) {
+                val bitmap = remember(shot) { BitmapFactory.decodeByteArray(shot, 0, shot.size) }
+                if (bitmap != null) {
+                    Image(
+                        bitmap = bitmap.asImageBitmap(), contentDescription = null,
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxWidth().height(180.dp),
+                    )
+                }
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
+                        .clickable(role = Role.Button) { picture = null },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(stringResource(R.string.project_report_picture_remove),
+                         style = Forge.type.body, color = ForgeTokens.Color.systemRed.resolve())
+                }
+            } else {
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
+                        .clickable(role = Role.Button) {
+                            pick.launch(PickVisualMediaRequest(
+                                ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(stringResource(R.string.project_report_picture_add),
+                             style = Forge.type.body, color = Forge.colors.accent)
+                        Text(stringResource(R.string.project_report_picture_detail),
+                             style = Forge.type.caption, color = Forge.colors.textSecondary)
+                    }
                 }
             }
-        }
+    }
+
     }
 
     SectionHeader(stringResource(R.string.project_report_how))
     ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
         ToggleRow(stringResource(R.string.project_report_thread),
-                  stringResource(R.string.project_report_thread_detail), wantsThread) { wantsThread = it }
-        ToggleRow(stringResource(R.string.project_report_log),
-                  stringResource(R.string.project_report_log_detail), attachLog) { attachLog = it }
+                  stringResource(R.string.project_report_thread_detail), wantsThread) {
+            wantsThread = it
+            attachLog = it
+            if (!it) picture = null
+        }
+        if (wantsThread) {
+            ToggleRow(stringResource(R.string.project_report_log),
+                      stringResource(R.string.project_report_log_detail), attachLog) { attachLog = it }
+        }
     }
     if (!wantsThread) {
         ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
