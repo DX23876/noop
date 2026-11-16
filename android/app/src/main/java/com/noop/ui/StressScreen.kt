@@ -338,7 +338,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.StressContent(
             modifier = Modifier.staggeredAppear(1),
             verticalArrangement = Arrangement.spacedBy(Metrics.gap),
         ) {
-            SectionHeader(stringResource(R.string.forge_st_today), overline = "Markers", trailing = "vs 30-day baseline")
+            SectionHeader(stringResource(R.string.forge_st_today), overline = stringResource(R.string.forge_st_markers), trailing = stringResource(R.string.forge_st_vs_baseline))
             StressTiles(model)
         }
     }
@@ -612,7 +612,7 @@ private fun StressDaytimeSection(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader(stringResource(R.string.forge_st_timeline), overline = "Intraday", trailing = timelineTrailing(day))
+        SectionHeader(stringResource(R.string.forge_st_timeline), overline = stringResource(R.string.forge_st_intraday), trailing = timelineTrailing(day))
 
         NoopCard(tint = Palette.stressColor) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -1438,7 +1438,7 @@ private fun StressTrendSection(model: StressModel, modifier: Modifier = Modifier
     val dayLabels = remember(points) { points.map { shortDayLabel(it.day) } }
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader(stringResource(R.string.forge_st_trend), overline = "History", trailing = range.label)
+        SectionHeader(stringResource(R.string.forge_st_trend), overline = stringResource(R.string.forge_st_history), trailing = range.label)
         if (points.size >= 2) {
             val avg = values.average()
             NoopCard(tint = Palette.stressColor) {
@@ -1589,7 +1589,7 @@ private fun androidx.compose.foundation.layout.RowScope.BandLegend(range: String
 @Composable
 private fun StressDaytimeLoading(modifier: Modifier = Modifier) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader(stringResource(R.string.forge_st_timeline), overline = "Intraday")
+        SectionHeader(stringResource(R.string.forge_st_timeline), overline = stringResource(R.string.forge_st_intraday))
         NoopCard(tint = Palette.stressColor) {
             Box(
                 modifier = Modifier

@@ -313,7 +313,7 @@ private fun AgreementLine(point: FusedMetricPoint, onCompare: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            StatePill("Sources differ", tone = StrandTone.Warning)
+            StatePill(stringResource(R.string.forge_fr_sources_differ), tone = StrandTone.Warning)
             Text(
                 conflictSummary(point),
                 style = NoopType.footnote,
@@ -355,7 +355,8 @@ private fun ConflictCompareDialog(row: FusedRow, onDismiss: () -> Unit) {
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(Metrics.gap),
             ) {
-                SectionHeader(title = row.label, overline = "Sources differ")
+                SectionHeader(title = row.label,
+                              overline = stringResource(R.string.forge_fr_sources_differ))
                 Text(
                     uiString(R.string.l10n_fused_record_screen_your_bands_report_different_numbers_here_03d20d81),
                     style = NoopType.subhead,

@@ -281,7 +281,11 @@ ANDROID_DIRS = [
 ANDROID_CALL_PATTERN = re.compile(r"\b(?:Text|Snackbar|TopAppBar|setContentTitle|setContentText"
                                   r"|SectionHeader|ToggleRow|LinkRow|SettingRow|SettingsCard"
                                   r"|PageTitle|Hosted)\s*\(")
-ANDROID_KWARG_PATTERN = re.compile(r"\b(?:title|label|text|contentDescription|placeholder)\s*=\s*")
+# `overline` and `trailing` are the two lines a `SectionHeader` carries beside its title. Adding
+# them is not tidiness: with only the titles translated, a German phone showed a German heading
+# over an English overline, which reads worse than leaving both alone.
+ANDROID_KWARG_PATTERN = re.compile(
+    r"\b(?:title|label|text|contentDescription|placeholder|overline|trailing)\s*=\s*")
 
 # `contentDescription = <expr>` is UI accessibility text wherever it is ASSIGNED. Unlike the general
 # kwargs it most often sits inside a `Modifier.semantics { }` lambda, whose `{` is NOT an argument

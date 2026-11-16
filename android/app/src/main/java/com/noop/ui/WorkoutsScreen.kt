@@ -1017,7 +1017,7 @@ private fun BreakdownSection(groups: List<SportGroup>, rows: List<WorkoutRow>) {
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         SectionHeader(
             title = uiString(R.string.l10n_workouts_screen_activity_breakdown_214431d6),
-            overline = "By sport",
+            overline = stringResource(R.string.forge_wo_by_sport),
             trailing = "${groups.size} sport${if (groups.size == 1) "" else "s"}",
         )
         // This sport's own sessions, so each card can carry an HR-zone mini-bar.
@@ -1182,7 +1182,7 @@ private fun SessionsSection(
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.weight(1f)) {
-                SectionHeader(title = uiString(R.string.l10n_workouts_screen_all_sessions_03bc4eb4), overline = "Log", trailing = "${rows.size} total")
+                SectionHeader(title = uiString(R.string.l10n_workouts_screen_all_sessions_03bc4eb4), overline = stringResource(R.string.forge_log_title), trailing = "${rows.size} total")
             }
             if (anySelectable) SelectPill(selectionMode, onToggleSelectMode)
         }
@@ -1922,7 +1922,7 @@ private fun RecoveryTrendChart(
 private fun SessionEffortCard(strain: Double, effortScale: EffortScale) {
     val shown = UnitFormatter.effortValue(strain, effortScale)
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.space8)) {
-        SectionHeader(stringResource(R.string.forge_wo_effort), overline = "This session")
+        SectionHeader(stringResource(R.string.forge_wo_effort), overline = stringResource(R.string.forge_wo_this_session))
         NoopCard(tint = Palette.effortColor) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

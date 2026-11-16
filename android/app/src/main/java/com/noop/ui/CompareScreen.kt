@@ -488,7 +488,7 @@ fun CompareScreen(vm: AppViewModel) {
         // ── Metric picker section (chips + range control)
         item {
         Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-            SectionHeader(stringResource(R.string.forge_cmp_metrics), overline = "Overlay 2-4 signals")
+            SectionHeader(stringResource(R.string.forge_cmp_metrics), overline = stringResource(R.string.forge_cmp_overline))
             NoopCard {
                 Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
                     SegmentedPillControl(

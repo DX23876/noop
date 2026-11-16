@@ -631,7 +631,7 @@ internal fun computeActivityCosts(
 @Composable
 private fun ActivityCostSection(costs: List<com.noop.analytics.ActivityCost>) {
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader(stringResource(R.string.forge_in_activity_cost), overline = "What each activity costs your recovery")
+        SectionHeader(stringResource(R.string.forge_in_activity_cost), overline = stringResource(R.string.forge_in_cost_overline))
         if (costs.isEmpty()) {
             NoopCard {
                 Text(
@@ -942,8 +942,8 @@ private fun ExperimentSection(
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         SectionHeader(
             stringResource(R.string.forge_in_personal_experiment),
-            overline = "N-of-1 protocol",
-            trailing = snapshot?.phaseLabel ?: "Setup",
+            overline = stringResource(R.string.forge_in_protocol),
+            trailing = snapshot?.phaseLabel ?: stringResource(R.string.forge_in_setup),
         )
         NoopCard {
             if (snapshot != null) {
@@ -1448,7 +1448,7 @@ private fun saveExperimentInt(context: Context, key: String, value: Int) {
 @Composable
 private fun RelationshipsSection(rels: List<Relationship>) {
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader(stringResource(R.string.forge_in_metric_relationships), overline = "Pearson r")
+        SectionHeader(stringResource(R.string.forge_in_metric_relationships), overline = stringResource(R.string.forge_in_pearson))
 
         if (rels.isEmpty()) {
             NoopCard {

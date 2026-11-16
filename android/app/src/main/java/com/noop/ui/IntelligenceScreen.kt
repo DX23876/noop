@@ -179,7 +179,7 @@ private fun ForecastCard(f: RecoveryForecast) {
     val charge = f.charge.roundToInt()
     val band = f.band.roundToInt()
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader(stringResource(R.string.forge_il_tomorrow_charge), overline = "Evening forecast", trailing = "Estimate")
+        SectionHeader(stringResource(R.string.forge_il_tomorrow_charge), overline = stringResource(R.string.forge_il_forecast), trailing = stringResource(R.string.forge_th_estimate))
         NoopCard(padding = 20.dp) {
             Column(
                 modifier = Modifier.fillMaxWidth(),

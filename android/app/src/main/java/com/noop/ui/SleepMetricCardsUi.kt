@@ -134,7 +134,7 @@ private fun MetricGrid(m: SleepModel, onMetricClick: (String) -> Unit = {}) {
     )
 
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader(stringResource(R.string.l10n_sleep_screen_night_detail_8f271bcf), overline = "Metrics", trailing = "vs typical")
+        SectionHeader(stringResource(R.string.l10n_sleep_screen_night_detail_8f271bcf), overline = stringResource(R.string.forge_sl_metrics), trailing = stringResource(R.string.forge_sl_vs_typical_short))
 
         // Sleep Debt is the actionable summary for the section, so it leads at the full
         // two-column width. The remaining six peer metrics keep the established 2 × 3 grid.
@@ -175,7 +175,7 @@ private fun MetricGrid(m: SleepModel, onMetricClick: (String) -> Unit = {}) {
 internal fun SleepDebtLedgerHostCard(m: SleepModel) {
     val ledger = m.sleepDebtLedger
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader(stringResource(R.string.l10n_sleep_screen_sleep_debt_ledger_8cc9a992), overline = "Last 14 nights", trailing = "tonight's target")
+        SectionHeader(stringResource(R.string.l10n_sleep_screen_sleep_debt_ledger_8cc9a992), overline = stringResource(R.string.forge_sd_last14), trailing = stringResource(R.string.forge_sl_tonight_target))
         NoopCard(padding = Metrics.cardPadding, tint = Palette.restColor) {
             if (ledger.nightCount == 0) {
                 Text(
@@ -283,7 +283,7 @@ private fun DebtDeltaBars(ledger: SleepDebtLedger) {
 internal fun StagesVsTypicalHostCard(m: SleepModel) {
     val s = m.stages
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader(stringResource(R.string.l10n_sleep_screen_stages_vs_typical_28463f24), overline = "Selected night", trailing = "marker = your mean")
+        SectionHeader(stringResource(R.string.l10n_sleep_screen_stages_vs_typical_28463f24), overline = stringResource(R.string.forge_sl_selected_night), trailing = stringResource(R.string.forge_sl_marker_mean))
         NoopCard(tint = Palette.restColor) {
             Column(verticalArrangement = Arrangement.spacedBy(Metrics.space14)) {
                 StageRow("Deep", last = s.deep, typical = m.typicalDeepMin, color = Palette.sleepDeep)
@@ -381,7 +381,7 @@ private fun DrawScope.drawRoundRectFill(color: Color, frac: Float) {
 internal fun AsleepDurationHostCard(hours: List<Double>, dates: List<String>) {
     val avg = hours.sleepAverageOrNull()
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader(stringResource(R.string.l10n_sleep_screen_asleep_duration_3638413f), overline = "Sleep", trailing = "Last 14 days")
+        SectionHeader(stringResource(R.string.l10n_sleep_screen_asleep_duration_3638413f), overline = stringResource(R.string.nav_sleep), trailing = stringResource(R.string.forge_sp_last14))
         SleepChartCard(
             title = uiString(R.string.l10n_sleep_screen_hours_asleep_06f68993),
             subtitle = "Per night, trailing 14 days",
@@ -424,7 +424,7 @@ internal fun DurationTrend(m: SleepModel) {
     val pts = m.trendHours
     val avg = pts.sleepAverageOrNull()
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader(stringResource(R.string.forge_sl_trend), overline = "Sleep", trailing = "Last 14 days")
+        SectionHeader(stringResource(R.string.forge_sl_trend), overline = stringResource(R.string.nav_sleep), trailing = stringResource(R.string.forge_sp_last14))
         SleepChartCard(
             title = uiString(R.string.l10n_sleep_screen_hours_asleep_06f68993),
             subtitle = "Per night, trailing 14 days",

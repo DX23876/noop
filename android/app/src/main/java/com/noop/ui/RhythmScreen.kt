@@ -472,7 +472,7 @@ private fun PoincarePlot(
 @Composable
 private fun StatsCard(headline: RhythmScreener.WindowResult?) {
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader(title = uiString(R.string.l10n_rhythm_screen_the_numbers_7b3cbf64), overline = "Descriptive stats")
+        SectionHeader(title = uiString(R.string.l10n_rhythm_screen_the_numbers_7b3cbf64), overline = stringResource(R.string.forge_rh_descriptive))
         Row(horizontalArrangement = Arrangement.spacedBy(Metrics.gap)) {
             StatTile(
                 label = uiString(R.string.l10n_rhythm_screen_short_axis_66a0b7bf), value = fmt(headline?.sd1, "%.0f"),
