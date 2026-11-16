@@ -760,3 +760,27 @@ class AndroidForkComponentScanning(unittest.TestCase):
         missing = [name for name in pattern.findall(settings.read_text(encoding="utf-8"))
                    if not ia.ANDROID_CALL_PATTERN.search(name + "(")]
         self.assertEqual(missing, [], "components whose copy the audit cannot see")
+
+
+class LocalizedStringResourceScanning(unittest.TestCase):
+    """Copy returned as `LocalizedStringResource`.
+
+    The sanctioned type, and still invisible: the catalog entry behind it only appears when somebody
+    builds in Xcode, so a case added between builds ships English. `SettingsSearchCatalog` returns
+    every page subtitle this way, and the Project page's one stood in English under a German heading
+    on the Settings screen while this gate was green.
+    """
+
+    def found(self, text: str) -> list[str]:
+        return [lit for _, lit in ia.swift_returned_copy_literals(text)]
+
+    def test_a_returned_resource_is_copy(self):
+        src = ('var subtitle: LocalizedStringResource {\n'
+               '    switch self {\n'
+               '    case .roadmap: return "The plan and what is broken"\n'
+               '    }\n}')
+        self.assertEqual(self.found(src), ["The plan and what is broken"])
+
+    def test_a_returned_string_is_still_copy(self):
+        src = 'var title: String {\n    return "Project"\n}'
+        self.assertEqual(self.found(src), ["Project"])

@@ -698,8 +698,12 @@ SWIFT_CALL_START_PATTERN = re.compile(
 # Deliberately narrow. It matches only property names that ARE copy (label, title,
 # caption, subtitle) and only literals that are returned, so the many String
 # helpers that build keys, symbol names, trace tokens and log lines stay out.
+# `LocalizedStringResource` is beside `String` here for the same reason: it IS the sanctioned type,
+# but a literal returned as one still needs a catalog entry to render in anything but English, and the
+# entry only appears when somebody builds in Xcode. The settings search catalogue returns its page
+# subtitles this way, and the Project page's one shipped as English under a German heading.
 SWIFT_COPY_PROPERTY_PATTERN = re.compile(
-    r"\bvar\s+\w*(?:label|title|caption|subtitle)\w*\s*:\s*String\s*\{",
+    r"\bvar\s+\w*(?:label|title|caption|subtitle)\w*\s*:\s*(?:String|LocalizedStringResource)\s*\{",
     re.IGNORECASE,
 )
 
