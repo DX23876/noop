@@ -488,7 +488,7 @@ fun CompareScreen(vm: AppViewModel) {
         // ── Metric picker section (chips + range control)
         item {
         Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-            SectionHeader("Metrics", overline = "Overlay 2-4 signals")
+            SectionHeader(stringResource(R.string.forge_cmp_metrics), overline = "Overlay 2-4 signals")
             NoopCard {
                 Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
                     SegmentedPillControl(
@@ -797,7 +797,7 @@ private fun OverlaySection(
     anyWidened: Boolean,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader("Overlay", overline = range.phrase, trailing = "${series.size} series")
+        SectionHeader(stringResource(R.string.forge_cmp_overlay), overline = range.phrase, trailing = "${series.size} series")
         // Anchor the overlay card to the brand-green chrome world; each line keeps its own categorical
         // series colour so the overlaid lines stay distinguishable against the wash.
         NoopCard(tint = Palette.accent) {
@@ -1256,7 +1256,7 @@ private fun CorrelationSection(series: List<CompareSeries>, range: CompareRange)
 
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         SectionHeader(
-            "How They Move Together",
+            stringResource(R.string.forge_cmp_together),
             overline = "Pearson r · ${range.phrase}",
             trailing = if (pairs.isEmpty()) null else "${pairs.size} pairs",
         )

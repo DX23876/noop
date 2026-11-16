@@ -99,7 +99,7 @@ fun MindSection(vm: AppViewModel) {
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader("Mind", overline = "Mood check-in")
+        SectionHeader(stringResource(R.string.forge_mind_title), overline = "Mood check-in")
 
         NoopCard {
             Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {

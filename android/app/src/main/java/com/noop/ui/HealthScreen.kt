@@ -287,7 +287,7 @@ private fun SyncStatusSection(vm: AppViewModel, onSyncNow: () -> Unit) {
     val canSync = live.connected && live.bonded && live.historyReady && !live.backfilling
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         SectionHeader(
-            "Sync",
+            stringResource(R.string.forge_hl_sync),
             overline = "Strap history",
             trailing = if (live.connected) (if (live.bonded) "Connected" else "Pairing…") else "Offline",
         )
@@ -390,7 +390,7 @@ private fun RecordsAndSourcesSection(
     onOpenFusedRecord: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader("Records & sources", overline = "On this phone")
+        SectionHeader(stringResource(R.string.forge_hl_records), overline = "On this phone")
         RecordRow(
             icon = Icons.AutoMirrored.Filled.MenuBook,
             tint = Palette.metricCyan,
@@ -497,7 +497,7 @@ private fun SkinTempSuiteSection(
     onTurnOffCycle: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader("Skin Temperature", overline = "From your nightly readings")
+        SectionHeader(stringResource(R.string.l10n_health_screen_skin_temperature_f59127f6), overline = "From your nightly readings")
 
         // Illness heads-up first when it has something to say (it's the most time-sensitive card).
         signals?.illness?.let { illness ->
@@ -555,7 +555,7 @@ private fun HealthContributorsSection(day: DailyMetric?) {
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.weight(1f)) {
-                SectionHeader("Contributors", overline = "Recovery")
+                SectionHeader(stringResource(R.string.forge_hl_contributors), overline = "Recovery")
             }
             StatePill(
                 title = if (solid) "SOLID" else uiString(R.string.cx_calibrating),
@@ -713,7 +713,7 @@ private fun FitnessAgeSection(vm: AppViewModel, days: List<DailyMetric>, profile
     var showChecklist by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader("Fitness Age", overline = "Weekly", trailing = "± 5 yr")
+        SectionHeader(stringResource(R.string.l10n_health_screen_fitness_age_12383b4a), overline = "Weekly", trailing = "± 5 yr")
         val value = fitnessAge
         if (value != null) {
             FitnessAgeHero(
@@ -815,7 +815,7 @@ private fun VitalitySection(vm: AppViewModel, days: List<DailyMetric>, profile: 
     val v = vitality; val ba = bodyAge
     if (v != null && ba != null) {
         Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-            SectionHeader("Vitality", overline = "Weekly", trailing = "Body Age ${ba.roundToInt()}")
+            SectionHeader(stringResource(R.string.l10n_health_screen_vitality_be320b06), overline = "Weekly", trailing = "Body Age ${ba.roundToInt()}")
             VitalityHero(vitality = v, bodyAge = ba, chronoAge = profile.age, contributions = contributions)
         }
     }

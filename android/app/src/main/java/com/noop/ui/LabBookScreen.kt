@@ -405,7 +405,7 @@ private fun MarkerDetailSheet(
             )
 
             // Trend (descriptive arithmetic, never interpretation).
-            SectionHeader("Trend", overline = "your readings over time")
+            SectionHeader(stringResource(R.string.forge_lb_trend), overline = "your readings over time")
             NoopCard(tint = Palette.metricCyan) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     val nums = numeric.mapNotNull { it.value }
@@ -424,7 +424,7 @@ private fun MarkerDetailSheet(
 
             // Compare with a signal (reuses the Pearson idiom + restrained copy).
             if (numeric.isNotEmpty()) {
-                SectionHeader("Compare with a signal", overline = "side by side · ${window.phrase} before each reading")
+                SectionHeader(stringResource(R.string.forge_lb_compare), overline = "side by side · ${window.phrase} before each reading")
                 NoopCard {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -450,7 +450,7 @@ private fun MarkerDetailSheet(
             }
 
             // History table.
-            SectionHeader("History", overline = "every reading you've entered")
+            SectionHeader(stringResource(R.string.forge_lb_history), overline = "every reading you've entered")
             NoopCard {
                 Column {
                     val reversed = readings.reversed()

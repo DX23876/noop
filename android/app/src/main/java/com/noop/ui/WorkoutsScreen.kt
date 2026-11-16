@@ -1922,7 +1922,7 @@ private fun RecoveryTrendChart(
 private fun SessionEffortCard(strain: Double, effortScale: EffortScale) {
     val shown = UnitFormatter.effortValue(strain, effortScale)
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.space8)) {
-        SectionHeader("Effort", overline = "This session")
+        SectionHeader(stringResource(R.string.forge_wo_effort), overline = "This session")
         NoopCard(tint = Palette.effortColor) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

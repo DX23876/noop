@@ -710,3 +710,45 @@ class CommentsAndPreviewsAreNotCopy(unittest.TestCase):
     def test_a_subtitle_is_copy_and_a_diagnostic_detail_is_not(self):
         self.assertEqual(self.found('Row(title: t, subtitle: "You get a code")'), ["You get a code"])
         self.assertEqual(self.found('trace(rejected(detail: "buckets=\\(n) need=24"))'), [])
+
+
+class AndroidForkComponentScanning(unittest.TestCase):
+    """The Compose call shapes this fork writes its screens in.
+
+    The mirror of `ForkComponentScanning` above, and it was the same hole: `ANDROID_CALL_PATTERN`
+    knew `Text(` and Compose's own slots, while every Forge screen writes its headings as
+    `SectionHeader("Night detail", …)`. Thirty-two headings on Health, Sleep, Stress, Insights,
+    Compare and Workouts were therefore hardcoded English on every device, with the gate green.
+    """
+
+    def found(self, text: str) -> list[str]:
+        masked = ia._mask_comments(text)
+        out = []
+        for match in ia.ANDROID_CALL_PATTERN.finditer(masked):
+            open_paren = match.end() - 1
+            end = ia._argument_span_end(masked, open_paren + 1)
+            out += [lit for _, lit in ia._extract_literals(masked, open_paren + 1, end)]
+        return out
+
+    def test_a_section_heading_is_copy(self):
+        self.assertEqual(self.found('SectionHeader("Night detail", overline = "Metrics")'),
+                         ["Night detail"])
+
+    def test_a_toggle_row_title_is_copy(self):
+        self.assertEqual(self.found('ToggleRow("Allow questions back", null, on) { }'),
+                         ["Allow questions back"])
+
+    def test_a_resource_lookup_is_not_a_literal(self):
+        self.assertEqual(self.found('SectionHeader(stringResource(R.string.forge_st_today))'), [])
+
+    # MARK: PRODUCT source — the list has to keep up with the components
+
+    def test_every_copy_first_composable_is_in_the_pattern(self):
+        """A new row component whose first argument is a `String` and that is not listed re-opens it."""
+        settings = ROOT / "android/app/src/main/java/com/noop/ui/forge/ForgeSettings.kt"
+        if not settings.exists():
+            self.skipTest("no android tree here")
+        pattern = re.compile(r"^internal fun (\w+)\(\s*(?:\w+:\s*)?(?:title|label)\s*:\s*String", re.M)
+        missing = [name for name in pattern.findall(settings.read_text(encoding="utf-8"))
+                   if not ia.ANDROID_CALL_PATTERN.search(name + "(")]
+        self.assertEqual(missing, [], "components whose copy the audit cannot see")

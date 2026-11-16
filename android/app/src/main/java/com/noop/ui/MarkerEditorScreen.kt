@@ -156,7 +156,7 @@ fun MarkerEditorScreen(
             )
 
             // --- Marker picker ---
-            SectionHeader("Marker", overline = "what are you logging?")
+            SectionHeader(stringResource(R.string.forge_mk_marker), overline = "what are you logging?")
             NoopCard {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     when {
@@ -201,7 +201,7 @@ fun MarkerEditorScreen(
 
             // --- Reading inputs ---
             if (selection != null || addingCustom) {
-                SectionHeader("Reading", overline = "your number, date and any note")
+                SectionHeader(stringResource(R.string.forge_mk_reading), overline = "your number, date and any note")
                 NoopCard {
                     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         if (isBloodPressure) {

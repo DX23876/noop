@@ -273,7 +273,14 @@ ANDROID_DIRS = [
 # `Snackbar(`/`TopAppBar(` do not currently appear anywhere in this codebase;
 # kept for whatever future call sites use them, since `Text(` always does
 # take its content as the first argument here.
-ANDROID_CALL_PATTERN = re.compile(r"\b(?:Text|Snackbar|TopAppBar|setContentTitle|setContentText)\s*\(")
+# The Compose constructors whose FIRST argument is copy. The second group is this fork's own:
+# `SectionHeader("Night detail", …)` is how every Forge screen writes its section titles, and
+# none of them was visible here, so 32 headings on Health, Sleep, Stress, Insights, Compare and
+# Workouts shipped in English on every device while this gate printed OK. Only components whose
+# first argument is the copy are listed, because that is all `record` reads.
+ANDROID_CALL_PATTERN = re.compile(r"\b(?:Text|Snackbar|TopAppBar|setContentTitle|setContentText"
+                                  r"|SectionHeader|ToggleRow|LinkRow|SettingRow|SettingsCard"
+                                  r"|PageTitle|Hosted)\s*\(")
 ANDROID_KWARG_PATTERN = re.compile(r"\b(?:title|label|text|contentDescription|placeholder)\s*=\s*")
 
 # `contentDescription = <expr>` is UI accessibility text wherever it is ASSIGNED. Unlike the general
