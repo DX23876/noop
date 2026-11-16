@@ -55,6 +55,12 @@ class PublishReportsTest(unittest.TestCase):
         self.assertEqual(pub.reported_text("Alone, no thread\n\nSent without a thread: …"),
                          "Alone, no thread")
 
+    def test_a_quoted_code_line_does_not_cut_the_report_short(self):
+        body = ("The alarm screen shows\nCode: 1234\nwhere it should show a time\n\n"
+                "Code: 46HG-TGYN-F8UZ-DRT4\nLanguage: de")
+        self.assertEqual(pub.reported_text(body),
+                         "The alarm screen shows\nCode: 1234\nwhere it should show a time")
+
     def test_a_proposal_carries_the_relay_marker_so_the_reporter_never_sees_it(self):
         comment = pub.proposal_comment("Live heart rate stops after a reconnect", "It stops. Always.")
         self.assertTrue(comment.startswith(pub.RELAY_MARKER),

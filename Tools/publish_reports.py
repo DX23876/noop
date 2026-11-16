@@ -116,8 +116,17 @@ def parse_draft(raw: str) -> tuple[str, str]:
 
 
 def reported_text(body: str) -> str:
-    """The report as written, without the lines the relay appended."""
-    cut = re.search(r"\nCode: |\nSent without a thread|\nPublic: #", body or "")
+    """The report as written, without the lines the relay appended.
+
+    The code line is matched by its full shape, not by its first two words: a reporter writing
+    "Code: 1234" about something they saw in the app had their own report cut off there, and what
+    then reached the model was half of what they sent.
+    """
+    cut = re.search(r"\nCode: [23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}"
+                    r"(?:-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}){3}\s*$"
+                    r"|\nCode: [23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}"
+                    r"(?:-[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4}){3}\n"
+                    r"|\nSent without a thread|\nPublic: #", body or "", re.M)
     return (body[: cut.start()] if cut else (body or "")).strip()
 
 
