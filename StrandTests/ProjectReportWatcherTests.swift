@@ -84,7 +84,7 @@ final class ProjectReportWatcherTests: XCTestCase {
         reports.add(.init(code: "WDYD-9TJP-2BAW-WM52", title: "Something", sent: Date()))
         let calls = Counter()
         let changes = await ProjectReportWatcher.checkIfDue(
-            service: service(thread(status: "fixed", messages: []), calls: calls),
+            service: { self.service(thread(status: "fixed", messages: []), calls: calls) },
             store: reports, defaults: suite)
         XCTAssertTrue(changes.isEmpty)
         XCTAssertEqual(calls.value, 0)
@@ -98,18 +98,18 @@ final class ProjectReportWatcherTests: XCTestCase {
         let now = Date()
 
         _ = await ProjectReportWatcher.checkIfDue(
-            service: service(thread(status: "arrived", messages: []), calls: calls),
+            service: { self.service(thread(status: "arrived", messages: []), calls: calls) },
             store: reports, defaults: suite, now: now)
         let afterFirst = calls.value
         XCTAssertGreaterThan(afterFirst, 0)
 
         _ = await ProjectReportWatcher.checkIfDue(
-            service: service(thread(status: "fixed", messages: []), calls: calls),
+            service: { self.service(thread(status: "fixed", messages: []), calls: calls) },
             store: reports, defaults: suite, now: now.addingTimeInterval(60 * 60))
         XCTAssertEqual(calls.value, afterFirst, "an hour later it does not ask again")
 
         _ = await ProjectReportWatcher.checkIfDue(
-            service: service(thread(status: "fixed", messages: []), calls: calls),
+            service: { self.service(thread(status: "fixed", messages: []), calls: calls) },
             store: reports, defaults: suite, now: now.addingTimeInterval(7 * 60 * 60))
         XCTAssertGreaterThan(calls.value, afterFirst, "seven hours later it does")
     }
@@ -118,10 +118,43 @@ final class ProjectReportWatcherTests: XCTestCase {
         let suite = defaults()
         let calls = Counter()
         let changes = await ProjectReportWatcher.checkIfDue(
-            service: service(thread(status: "fixed", messages: []), calls: calls),
+            service: { self.service(thread(status: "fixed", messages: []), calls: calls) },
             store: store(suite), defaults: suite)
         XCTAssertTrue(changes.isEmpty)
         XCTAssertEqual(calls.value, 0, "a device that reported nothing never calls the service")
+    }
+
+    /// Rule 3 is about the cost of looking, and resolving the service is part of that cost: it reads
+    /// the cached project page off disk. A device that has reported nothing must not pay it on every
+    /// single foreground only for the result to be thrown away.
+    func testNothingIsEvenResolvedWhenThereIsNothingToAskAbout() async {
+        let suite = defaults()
+        let built = Counter()
+        func resolve() -> ProjectService {
+            built.increment()
+            return service(thread(status: "fixed", messages: []))
+        }
+
+        _ = await ProjectReportWatcher.checkIfDue(service: { resolve() },
+                                                  store: store(suite), defaults: suite)
+        XCTAssertEqual(built.value, 0, "no reports: nothing to resolve")
+
+        ProjectReportWatcher.setOn(false, defaults: suite)
+        let reports = store(suite)
+        reports.add(.init(code: "WDYD-9TJP-2BAW-WM52", title: "Something", sent: Date()))
+        _ = await ProjectReportWatcher.checkIfDue(service: { resolve() },
+                                                  store: reports, defaults: suite)
+        XCTAssertEqual(built.value, 0, "switched off: nothing to resolve either")
+
+        ProjectReportWatcher.setOn(true, defaults: suite)
+        let now = Date()
+        _ = await ProjectReportWatcher.checkIfDue(service: { resolve() },
+                                                  store: reports, defaults: suite, now: now)
+        XCTAssertEqual(built.value, 1)
+        _ = await ProjectReportWatcher.checkIfDue(service: { resolve() }, store: reports,
+                                                  defaults: suite,
+                                                  now: now.addingTimeInterval(60 * 60))
+        XCTAssertEqual(built.value, 1, "inside the six hours it is not resolved again")
     }
 
     func testAReportThatIsOverIsNotAskedAfterAgain() async {

@@ -51,14 +51,21 @@ enum ProjectReportWatcher {
     }
 
     /// Look, unless it has been looked at recently. `force` is the thread screen, which looks anyway.
-    static func checkIfDue(service: ProjectService?, store: ProjectReportStore = .standard,
+    ///
+    /// The service arrives as a closure rather than a value, and that is the point of rule 3: on a
+    /// device that has reported nothing, or within the six hours, nothing is resolved at all. Handed a
+    /// ready-made service, the caller had already read the cached page off disk on every single
+    /// foreground to build one this would then throw away.
+    static func checkIfDue(service: () async -> ProjectService?,
+                           store: ProjectReportStore = .standard,
                            defaults: UserDefaults = .standard, now: Date = Date(),
                            force: Bool = false) async -> [Change] {
-        guard isOn(defaults), let service else { return [] }
+        guard isOn(defaults), !store.all().isEmpty else { return [] }
         if !force {
             let last = defaults.object(forKey: lastCheckDefault) as? Date ?? .distantPast
             guard now.timeIntervalSince(last) >= interval else { return [] }
         }
+        guard let service = await service() else { return [] }
         defaults.set(now, forKey: lastCheckDefault)
         return await check(service: service, store: store)
     }
