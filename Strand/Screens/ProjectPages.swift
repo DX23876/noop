@@ -388,7 +388,8 @@ struct ProjectWishesView: View {
                     SuggestionCard(suggestion: suggestion,
                                    voted: model.myVotes.contains(suggestion.id),
                                    count: model.counts[suggestion.id],
-                                   canVote: model.canWrite) {
+                                   canVote: model.canWrite,
+                                   failed: model.voteFailed == suggestion.id) {
                         Task { await model.vote(suggestion) }
                     }
                 }

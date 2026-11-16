@@ -29,6 +29,9 @@ final class RoadmapModel: ObservableObject {
     @Published var isSending = false
     @Published var sentConfirmation = false
     @Published var sendFailed = false
+    /// The wish whose thumb did not go out, if any. Without it a refused vote was a thumb that simply
+    /// did not move: indistinguishable from a tap the screen never received.
+    @Published var voteFailed: String?
 
     private let store: ProjectPageStore
     private let keys: ProjectDeviceKeyStore
@@ -46,8 +49,12 @@ final class RoadmapModel: ObservableObject {
     func vote(_ suggestion: ProjectSuggestion) async {
         guard let service else { return }
         let wants = !myVotes.contains(suggestion.id)
+        voteFailed = nil
         let result = await service.vote(id: suggestion.id, on: wants)
-        guard case .sent(let count) = result else { return }
+        guard case .sent(let count) = result else {
+            voteFailed = suggestion.id
+            return
+        }
         myVotes = keys.votedItems()
         if let count { counts[suggestion.id] = count }
     }
@@ -225,6 +232,9 @@ struct SuggestionCard: View {
     let voted: Bool
     let count: Int?
     let canVote: Bool
+    /// True when this card's own thumb was refused. One card at a time: the model remembers the last
+    /// one, because a line under every card would outlive the attempt it belongs to.
+    var failed = false
     let toggle: () -> Void
 
     var body: some View {
@@ -273,6 +283,11 @@ struct SuggestionCard: View {
                         .buttonStyle(.plain)
                         .accessibilityLabel(voted ? Text("Remove your vote") : Text("Vote for this"))
                     }
+                }
+                if failed {
+                    Text("That did not go out. Try again later.")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
                 }
             }
         }

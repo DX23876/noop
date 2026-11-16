@@ -562,12 +562,12 @@ internal val MASTER_REPORT_MODE = TestMode(
     capture = com.noop.testcentre.CaptureKind.Toggle, includesScreenshot = false, requires5MG = false,
 )
 
-/** Assemble the redacted, capped bundle for a profile and wrap it in the review gate. Suspend (#1002):
- *  the storage probe reads the store, so the callers launch it on the UI scope; the dialog presents off
- *  the same `pendingReport` state a beat after the tap. */
 /** How long the row counts may take before the report goes out with the sizes alone. */
 internal const val STORAGE_PROBE_MILLIS = 6_000L
 
+/** Assemble the redacted, capped bundle for a profile and wrap it in the review gate. Suspend (#1002):
+ *  the storage probe reads the store, so the callers launch it on the UI scope; the dialog presents off
+ *  the same `pendingReport` state a beat after the tap. */
 internal suspend fun buildPending(
     context: android.content.Context,
     mode: TestMode,

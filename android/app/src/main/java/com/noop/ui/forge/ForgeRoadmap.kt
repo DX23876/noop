@@ -427,6 +427,9 @@ internal fun WishesSection() {
     var sending by remember { mutableStateOf(false) }
     // 0 nothing said yet, 1 arrived, 2 did not go out.
     var sentState by remember { mutableIntStateOf(0) }
+    // The wish whose thumb did not go out. Without it a refused vote was a thumb that simply did not
+    // move, which is what a tap the screen never received looks like.
+    var voteFailed by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(page.canWrite, page.voted) {
@@ -487,8 +490,9 @@ internal fun WishesSection() {
         SectionHeader(stringResource(R.string.forge_roadmap_suggestions))
         page.suggestions.forEach { suggestion ->
             SuggestionCard(suggestion, page.voted.contains(suggestion.id), counts[suggestion.id],
-                           page.canWrite) { wants ->
+                           page.canWrite, voteFailed == suggestion.id) { wants ->
                 scope.launch {
+                    voteFailed = null
                     val answer = withContext(Dispatchers.IO) {
                         SwiftCore.call("project.vote",
                                        JSONObject().put("id", suggestion.id).put("on", wants).toString())
@@ -501,6 +505,8 @@ internal fun WishesSection() {
                         if (root.has("count") && !root.isNull("count")) {
                             counts = counts + (suggestion.id to root.optInt("count"))
                         }
+                    } else {
+                        voteFailed = suggestion.id
                     }
                 }
             }
@@ -510,7 +516,8 @@ internal fun WishesSection() {
 
 @Composable
 private fun SuggestionCard(suggestion: RoadmapSuggestion, voted: Boolean, count: Int?,
-                           canVote: Boolean, onVote: (Boolean) -> Unit) {
+                           canVote: Boolean, failed: Boolean = false,
+                           onVote: (Boolean) -> Unit) {
     ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
         Text(suggestion.title, style = Forge.type.headline.copy(fontWeight = FontWeight.SemiBold),
              color = Forge.colors.text)
@@ -542,6 +549,10 @@ private fun SuggestionCard(suggestion: RoadmapSuggestion, voted: Boolean, count:
                     }
                 }
             }
+        }
+        if (failed) {
+            Text(stringResource(R.string.forge_roadmap_send_failed), style = Forge.type.caption,
+                 color = Forge.colors.textSecondary)
         }
     }
 }
