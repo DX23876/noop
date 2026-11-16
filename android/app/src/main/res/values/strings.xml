@@ -3130,6 +3130,7 @@
     <string name="forge_training_finish">Finish</string>
     <string name="forge_training_discard">Discard workout</string>
     <string name="forge_training_finish_empty">Mark at least one set as done to save the workout.</string>
+    <string name="forge_training_not_saved">That change was not saved. Try it again.</string>
     <string name="forge_training_finish_clock">Your device clock reads earlier than this workout\'s start, so it has no length yet. Check the date and time, then save again.</string>
     <string name="forge_training_finish_gone">This workout is no longer open. It was either saved already or ended somewhere else.</string>
     <string name="forge_training_finish_failed">The workout could not be saved. Nothing was lost; try again, and if it keeps failing, share your strap log.</string>

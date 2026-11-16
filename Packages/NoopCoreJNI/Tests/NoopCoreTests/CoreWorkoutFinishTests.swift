@@ -53,6 +53,41 @@ final class CoreWorkoutFinishTests: XCTestCase {
         XCTAssertEqual(result.outcome, .clockWentBackwards)
     }
 
+    /// The report this file is named after, in the shape it actually reaches people: every set ticked on
+    /// the screen and "mark at least one set as done" on the finish (Discord, 2026-11-16; a tester on
+    /// 2026-11-14 whose routine "finished once and then never again").
+    ///
+    /// A tick travels through `changeDraft`, which saves the draft and hands it back. When the save is
+    /// refused, the screen still receives the ticked draft and draws it, while the store keeps the old
+    /// one, and the finish reads the store. So the two can disagree, and nothing says so. A store that
+    /// rejects writes is the honest way to produce it: on a phone it is a busy timeout under a long
+    /// backfill write, or a full disk.
+    func testATickTheStoreRefusedIsNotHandedBackAsSaved() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("refused-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
+        let path = dir.appendingPathComponent("s.sqlite").path
+        let store = try await WhoopStore(path: path)
+        let now = Int(Date().timeIntervalSince1970)
+        let base = draft(completed: false, startedAt: now - 600)
+        try await store.saveWorkoutDraft(base)
+
+        let refusing = try WhoopStore.readOnly(path: path)
+        let exercise = try XCTUnwrap(base.exercises.first)
+        let set = try XCTUnwrap(exercise.sets.first)
+        let answer = await CoreTraining.changeDraft(store: refusing, args: [
+            "change": "set", "exercise": exercise.id.uuidString, "set": set.id.uuidString, "done": true])
+
+        XCTAssertNil(answer, "a tick the store refused must not come back as a saved draft")
+
+        // What the wearer meets next, and what the screen must never contradict.
+        let kept = try await refusing.workoutDraft()
+        XCTAssertEqual(kept?.exercises.first?.sets.first?.isCompleted, false,
+                       "the store kept the untouched draft, which is why the finish refuses")
+        let finish = await CoreTraining.finishDraft(store: refusing, sessionRPE: nil)
+        XCTAssertEqual(finish.outcome, .noCompletedWork)
+    }
+
     /// The bridge hands the host the reason, not just a yes/no.
     func testTheBridgeCarriesTheReason() async throws {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("finish-\(UUID().uuidString)")

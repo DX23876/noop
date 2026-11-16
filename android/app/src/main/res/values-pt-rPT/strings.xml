@@ -3093,6 +3093,7 @@
     <string name="forge_training_finish">Terminar</string>
     <string name="forge_training_discard">Descartar treino</string>
     <string name="forge_training_finish_empty">Marca pelo menos uma série como feita para guardar o treino.</string>
+    <string name="forge_training_not_saved">Essa alteração não foi guardada. Tente outra vez.</string>
     <string name="forge_training_finish_clock">O relógio do teu dispositivo está antes do início deste treino, por isso ainda não tem duração. Verifica a data e a hora e guarda outra vez.</string>
     <string name="forge_training_finish_gone">Este treino já não está aberto. Ou foi guardado antes ou terminou noutro sítio.</string>
     <string name="forge_training_finish_failed">Não foi possível guardar o treino. Não se perdeu nada; tenta de novo e, se continuar a falhar, partilha o registo da pulseira.</string>

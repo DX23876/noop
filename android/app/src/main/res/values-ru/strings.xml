@@ -2996,6 +2996,7 @@
     <string name="forge_training_finish">Завершить</string>
     <string name="forge_training_discard">Отменить тренировку</string>
     <string name="forge_training_finish_empty">Отметьте хотя бы один подход, чтобы сохранить тренировку.</string>
+    <string name="forge_training_not_saved">Это изменение не сохранилось. Попробуйте ещё раз.</string>
     <string name="forge_training_finish_clock">Часы устройства идут раньше начала этой тренировки, поэтому у неё пока нет длительности. Проверьте дату и время и сохраните снова.</string>
     <string name="forge_training_finish_gone">Эта тренировка больше не открыта. Она уже сохранена или завершена в другом месте.</string>
     <string name="forge_training_finish_failed">Не удалось сохранить тренировку. Ничего не потеряно: попробуйте ещё раз, а если не выходит, пришлите журнал браслета.</string>

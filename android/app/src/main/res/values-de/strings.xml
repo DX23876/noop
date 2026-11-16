@@ -3114,6 +3114,7 @@
     <string name="forge_training_finish">Beenden</string>
     <string name="forge_training_discard">Training verwerfen</string>
     <string name="forge_training_finish_empty">Hake mindestens einen Satz ab, um das Training zu speichern.</string>
+    <string name="forge_training_not_saved">Diese Änderung wurde nicht gespeichert. Versuch es nochmal.</string>
     <string name="forge_training_finish_clock">Die Uhr deines Geräts steht vor dem Beginn dieses Trainings, es hat also noch keine Dauer. Prüfe Datum und Uhrzeit und speichere erneut.</string>
     <string name="forge_training_finish_gone">Dieses Training ist nicht mehr offen. Es wurde entweder schon gespeichert oder an anderer Stelle beendet.</string>
     <string name="forge_training_finish_failed">Das Training konnte nicht gespeichert werden. Nichts ist verloren, versuche es erneut, und wenn es weiter fehlschlägt, teile deinen Strap-Log.</string>

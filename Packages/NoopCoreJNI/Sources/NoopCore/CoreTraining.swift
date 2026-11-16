@@ -598,7 +598,13 @@ public enum CoreTraining {
             return draft
         }
         draft.updatedAt = Int(Date().timeIntervalSince1970)
-        _ = try? await store.saveWorkoutDraft(draft)
+        // Nil when the store refused the write, like the three other saves in this file. Handing the
+        // changed draft back regardless is what let a screen draw a tick the store never kept: the
+        // finish reads the store, found nothing completed, and sent the wearer back to tick sets that
+        // were already ticked (Discord 2026-11-16, and the tester whose routine "finished once and
+        // then never again"). The caller redraws from the draft it has, so a refused change now simply
+        // does not appear, and the screen says why.
+        guard (try? await store.saveWorkoutDraft(draft)) != nil else { return nil }
         return draft
     }
 

@@ -1007,16 +1007,34 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
     var layout by remember { mutableStateOf(com.noop.ui.NoopPrefs.of(context).getString(WORKOUT_LAYOUT, "list") ?: "list") }
     var effortRequest by remember { mutableStateOf<Pair<String, CoreTraining.DraftSet>?>(null) }
     LaunchedEffect(Unit) { draft = core(context) { CoreTraining.draft() } }
-    fun change(block: () -> CoreTraining.Draft?) = scope.launch { core(context, block)?.let { draft = it } }
+    // The page's one line of passing news: why a strap double-tap did nothing
+    // (`NativeWorkoutSessionModel.strapDoubleTap`), and that a change was not saved. Tapping it clears it.
+    var strapNotice by remember { mutableStateOf<String?>(null) }
+    /**
+     * One change to the draft, through the core, which answers with the draft it SAVED. A nil answer is
+     * therefore not nothing: the store refused the write (a busy timeout under a long backfill, a full
+     * disk), or the draft is gone. Drawing the change anyway is what produced the report this screen is
+     * known for: every set green and "mark at least one set as done" on the finish, because the finish
+     * reads the store. So the screen keeps what the store has and says that the change did not take.
+     */
+    fun change(block: () -> CoreTraining.Draft?) = scope.launch {
+        val saved = core(context, block)
+        if (saved != null) {
+            draft = saved
+            return@launch
+        }
+        strapNotice = context.getString(R.string.forge_training_not_saved)
+        (context.applicationContext as NoopApplication).ble
+            .externalLog("Training: a change did not take — no draft, or the store refused the write")
+    }
     // Ticking a set off starts its rest: the exercise's own, or the warm-up rest after a warm-up.
     fun startRest(exercise: CoreTraining.DraftExercise, set: CoreTraining.DraftSet) {
         val seconds = if (set.warmup) exercise.warmupRestSeconds else exercise.restSeconds
         rest = if (seconds > 0) RunningRest(set.id, System.currentTimeMillis() + seconds * 1000L) else null
     }
 
-    // A strap double-tap logs the next prepared set (`NativeWorkoutSessionModel.strapDoubleTap`); the core picks
-    // the set, this page keeps the knock window, the confirming buzz and the notice when nothing was logged.
-    var strapNotice by remember { mutableStateOf<String?>(null) }
+    // A strap double-tap logs the next prepared set (`NativeWorkoutSessionModel.strapDoubleTap`); the core
+    // picks the set, this page keeps the knock window and the confirming buzz.
     var lastStrapStepAt by remember { mutableStateOf(0L) }
     fun strapTap() = scope.launch {
         val host = strap ?: return@launch

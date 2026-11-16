@@ -3069,6 +3069,7 @@
     <string name="forge_training_finish">Termina</string>
     <string name="forge_training_discard">Scarta allenamento</string>
     <string name="forge_training_finish_empty">Segna almeno una serie come fatta per salvare l’allenamento.</string>
+    <string name="forge_training_not_saved">Questa modifica non è stata salvata. Riprova.</string>
     <string name="forge_training_finish_clock">L\'orologio del dispositivo è indietro rispetto all\'inizio di questo allenamento, che quindi non ha ancora una durata. Controlla data e ora e salva di nuovo.</string>
     <string name="forge_training_finish_gone">Questo allenamento non è più aperto. È già stato salvato oppure è finito altrove.</string>
     <string name="forge_training_finish_failed">Non è stato possibile salvare l\'allenamento. Non si è perso nulla: riprova e, se continua a fallire, condividi il log della fascia.</string>
