@@ -538,14 +538,23 @@ struct MyReportsSection: View {
                     NavigationLink {
                         ProjectThreadView(model: model, entry: entry)
                     } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(entry.title)
-                                .font(StrandFont.subhead)
-                                .foregroundStyle(StrandPalette.textPrimary)
-                                .fixedSize(horizontal: false, vertical: true)
-                            Text(ProjectThreadView.statusText(entry.seenStatus))
-                                .font(StrandFont.caption)
+                        // The chevron every other row on these pages has. Without it this one was the
+                        // only thing on the screen that opened something and did not say so.
+                        HStack(spacing: NoopMetrics.space2) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(entry.title)
+                                    .font(StrandFont.subhead)
+                                    .foregroundStyle(StrandPalette.textPrimary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Text(ProjectThreadView.statusText(entry.seenStatus))
+                                    .font(StrandFont.caption)
+                                    .foregroundStyle(StrandPalette.textTertiary)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right")
+                                .font(StrandFont.caption.weight(.semibold))
                                 .foregroundStyle(StrandPalette.textTertiary)
+                                .accessibilityHidden(true)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .contentShape(Rectangle())
