@@ -665,7 +665,7 @@ SWIFT_CALL_START_PATTERN = re.compile(
     r"\b(?:Text|Button|Label|Toggle|Menu|Picker|ProgressView|SectionHeader"
     r"|ForgeListGroup|ForgeLinkRow|ForgeActionRow|ForgeActionLabel|ForgeToggleRow|ForgeFactRow"
     r"|ForgeValueTile|ForgeEffectRow|ForgeFilterChip|ForgeTileRow|ForgeSectionHeading|ScreenScaffold"
-    r"|ComingSoon|DataPendingNote"
+    r"|ComingSoon|DataPendingNote|TextField|SecureField"
     r")\s*\("
     r"|"
     r"\.(?:navigationTitle|confirmationDialog|alert|accessibilityLabel|help)\s*\("
@@ -820,11 +820,18 @@ def swift_string_literals(text: str):
 # `detail:` is deliberately NOT here: in this codebase it is the word for a diagnostic payload
 # (`CircadianTrace.rejectedLine(detail:)`, `OuraSyncProgress(detail:)`), and reporting those as
 # untranslated copy would put lines nobody reads into the baseline beside lines somebody does.
-COPY_ARGUMENT_PATTERN = re.compile(r"\b(?:subtitle|note|caption|footnote):\s*\"")
+COPY_ARGUMENT_PATTERN = re.compile(r"\b(?:subtitle|note|caption|footnote|line|blurb):\s*\"")
 
 
 def swift_copy_argument_literals(text: str):
-    """Yield (offset, literal) for a literal handed to a copy-named argument."""
+    """Yield (offset, literal) for a literal handed to a copy-named argument.
+
+    Reads the literal directly after the colon and no further. A conditioned subtitle
+    (`subtitle: canWrite ? "The long way…" : "A redacted file…"`) is therefore still invisible here;
+    reading the whole argument span instead was tried and pulled in half of `CoachSemanticMemory`,
+    where `text:` and `note:` build prompts rather than copy. Narrow and silent beats wide and noisy:
+    the ternary case is listed in the project pages' own test instead.
+    """
     for match in COPY_ARGUMENT_PATTERN.finditer(text):
         i = match.end() - 1
         j = _skip_swift_string_literal(text, i)

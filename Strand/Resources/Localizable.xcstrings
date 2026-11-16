@@ -672626,6 +672626,1053 @@
         }
       }
     },
+    "What is reported, what is fixed" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was gemeldet ist und was behoben ist"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qué se ha informado y qué se ha solucionado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce qui est signalé et ce qui est corrigé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cosa è segnalato e cosa è risolto"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Co zgłoszono i co naprawiono"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O que foi comunicado e o que foi corrigido"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Что сообщили и что исправили"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已报告的，以及已修复的"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已報告的，以及已修復的"
+          }
+        }
+      }
+    },
+    "Ask for something, or back what others asked for" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etwas wünschen oder unterstützen, was andere sich wünschen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pide algo o apoya lo que otros han pedido"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demandez quelque chose, ou soutenez ce que d'autres ont demandé"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiedi qualcosa, o sostieni ciò che altri hanno chiesto"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Poproś o coś albo poprzyj to, o co poprosili inni"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Peça algo, ou apoie o que outros pediram"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Попросите что-то или поддержите чужое пожелание"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提出一个心愿，或者支持别人的心愿"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提出一個心願，或者支持別人的心願"
+          }
+        }
+      }
+    },
+    "Teach the app to recognise your sports" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der App beibringen, deine Sportarten zu erkennen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enseña a la app a reconocer tus deportes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Apprenez à l'app à reconnaître vos sports"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Insegna all'app a riconoscere i tuoi sport"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Naucz aplikację rozpoznawać twoje sporty"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ensine a aplicação a reconhecer os seus desportos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Научите приложение узнавать ваши виды спорта"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "教这个应用认出你的运动项目"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "教這個應用認出你的運動項目"
+          }
+        }
+      }
+    },
+    "What would you like NOOP to do?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was soll NOOP können?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Qué te gustaría que NOOP hiciera?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Que voudriez-vous que NOOP fasse ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cosa vorresti che NOOP facesse?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Co NOOP mógłby robić?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O que gostaria que o NOOP fizesse?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Что NOOP мог бы уметь?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你希望 NOOP 能做什么？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你希望 NOOP 能做什麼？"
+          }
+        }
+      }
+    },
+    "What went wrong, and what did you expect?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was ist schiefgegangen und was hast du erwartet?"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿Qué ha fallado y qué esperabas?"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qu'est-ce qui n'a pas marché, et à quoi vous attendiez-vous ?"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cosa è andato storto e cosa ti aspettavi?"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Co poszło nie tak i czego się spodziewałeś?"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O que correu mal e o que esperava?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Что пошло не так и чего вы ожидали?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出了什么问题，你本来预期是什么？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出了什麼問題，你本來預期是什麼？"
+          }
+        }
+      }
+    },
+    "Anything you can add" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alles, was du ergänzen kannst"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cualquier cosa que puedas añadir"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tout ce que vous pouvez ajouter"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tutto quello che puoi aggiungere"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wszystko, co możesz dodać"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tudo o que possa acrescentar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Всё, что можете добавить"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你能补充的任何信息"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你能補充的任何資訊"
+          }
+        }
+      }
+    },
+    "It goes to a private list only the developer reads. Not to the public repository, and not to the other people using NOOP." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es geht auf eine private Liste, die nur der Entwickler liest. Nicht ins öffentliche Repository und nicht zu den anderen Leuten, die NOOP benutzen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Va a una lista privada que solo lee el desarrollador. No al repositorio público ni a las demás personas que usan NOOP."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cela va sur une liste privée que seul le développeur lit. Pas dans le dépôt public, et pas vers les autres personnes qui utilisent NOOP."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Va in un elenco privato che legge solo lo sviluppatore. Non nel repository pubblico e non alle altre persone che usano NOOP."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trafia na prywatną listę, którą czyta tylko twórca. Nie do publicznego repozytorium ani do innych osób używających NOOP."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vai para uma lista privada que só o desenvolvedor lê. Não para o repositório público nem para as outras pessoas que usam o NOOP."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это попадает в частный список, который читает только разработчик. Не в публичный репозиторий и не к другим людям, которые пользуются NOOP."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它会进到一个只有开发者能看的私有清单。不会进公开仓库，也不会给其他使用 NOOP 的人。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它會進到一個只有開發者能看的私有清單。不會進公開倉庫，也不會給其他使用 NOOP 的人。"
+          }
+        }
+      }
+    },
+    "What is sent is the text you type. No name, no device, nothing about your body or your training." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gesendet wird der Text, den du tippst. Kein Name, kein Gerät, nichts über deinen Körper oder dein Training."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se envía el texto que escribes. Sin nombre, sin dispositivo, nada sobre tu cuerpo ni tu entrenamiento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce qui part, c'est le texte que vous tapez. Pas de nom, pas d'appareil, rien sur votre corps ni votre entraînement."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Viene inviato il testo che scrivi. Nessun nome, nessun dispositivo, niente sul tuo corpo o sul tuo allenamento."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wysyłany jest tekst, który wpiszesz. Żadnego imienia, żadnego urządzenia, nic o twoim ciele ani treningu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O que segue é o texto que escreve. Sem nome, sem dispositivo, nada sobre o seu corpo ou o seu treino."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отправляется тот текст, который вы напишете. Ни имени, ни устройства, ничего о вашем теле или тренировках."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发出去的就是你写的文字。没有名字，没有设备信息，也没有任何关于你身体或训练的内容。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "發出去的就是你寫的文字。沒有名字，沒有裝置資訊，也沒有任何關於你身體或訓練的內容。"
+          }
+        }
+      }
+    },
+    "A filter reads it first. It merges a wish somebody already asked for, and holds anything unclear for the developer instead of publishing it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ein Filter liest es zuerst. Er führt einen Wunsch zusammen, den jemand schon geäußert hat, und hält alles Unklare für den Entwickler zurück, statt es zu veröffentlichen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un filtro lo lee primero. Fusiona un deseo que alguien ya ha pedido y retiene lo que no está claro para el desarrollador en vez de publicarlo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un filtre le lit d'abord. Il fusionne un souhait que quelqu'un a déjà formulé et garde ce qui n'est pas clair pour le développeur au lieu de le publier."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un filtro lo legge per primo. Unisce un desiderio che qualcuno ha già chiesto e trattiene per lo sviluppatore quello che non è chiaro, invece di pubblicarlo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Najpierw czyta to filtr. Łączy życzenie, o które ktoś już poprosił, a wszystko niejasne zatrzymuje dla twórcy zamiast publikować."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um filtro lê-o primeiro. Junta um desejo que alguém já pediu e retém para o desenvolvedor o que não está claro, em vez de o publicar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сначала его читает фильтр. Он объединяет пожелание, о котором уже просили, а всё неясное придерживает для разработчика вместо публикации."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先由一个筛选器读过。它会把别人已经提过的心愿合并，不清楚的则留给开发者，而不是直接发布。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "先由一個篩選器讀過。它會把別人已經提過的心願合併，不清楚的則留給開發者，而不是直接發布。"
+          }
+        }
+      }
+    },
+    "Published wishes appear below, with the developer's answer, and anyone can back one with a thumb." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veröffentlichte Wünsche stehen unten, mit der Antwort des Entwicklers, und jeder kann einen mit dem Daumen unterstützen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los deseos publicados aparecen abajo, con la respuesta del desarrollador, y cualquiera puede apoyar uno con el pulgar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les souhaits publiés figurent plus bas, avec la réponse du développeur, et chacun peut en soutenir un d'un pouce."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I desideri pubblicati stanno più sotto, con la risposta dello sviluppatore, e chiunque può sostenerne uno con il pollice."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opublikowane życzenia są niżej, wraz z odpowiedzią twórcy, i każdy może poprzeć któreś kciukiem."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os desejos publicados aparecem abaixo, com a resposta do desenvolvedor, e qualquer pessoa pode apoiar um com o polegar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Опубликованные пожелания стоят ниже, вместе с ответом разработчика, и любой может поддержать одно из них пальцем вверх."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已发布的心愿在下面，附带开发者的回复，任何人都可以点赞支持。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已發布的心願在下面，附帶開發者的回覆，任何人都可以點讚支持。"
+          }
+        }
+      }
+    },
+    "Most wishes are not built, and nothing here promises when or whether. Being asked for often does make a thing more likely." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die meisten Wünsche werden nicht gebaut und hier wird weder ein Wann noch ein Ob versprochen. Oft gewünscht zu sein macht eine Sache aber wahrscheinlicher."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La mayoría de los deseos no se construyen y aquí no se promete ni cuándo ni si. Que se pida a menudo sí hace una cosa más probable."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La plupart des souhaits ne sont pas réalisés, et rien ici ne promet ni quand ni si. Être demandé souvent rend tout de même une chose plus probable."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La maggior parte dei desideri non viene realizzata e qui non si promette né quando né se. Essere chiesto spesso rende però una cosa più probabile."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Większość życzeń nie powstaje i nic tutaj nie obiecuje kiedy ani czy. Częste prośby jednak zwiększają szanse."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A maioria dos desejos não é construída e aqui não se promete nem quando nem se. Ser pedido muitas vezes torna uma coisa mais provável."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Большинство пожеланий не делается, и здесь не обещают ни когда, ни вообще. Но то, о чём просят часто, становится вероятнее."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大多数心愿不会被做出来，这里也不承诺什么时候或是否会做。不过被经常提起确实会让一件事更有可能。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大多數心願不會被做出來，這裡也不承諾什麼時候或是否會做。不過被經常提起確實會讓一件事更有可能。"
+          }
+        }
+      }
+    },
+    "ABCD-EFGH-JKLM-NPQR" : {
+      "shouldTranslate" : false
+    },
+    "Help build it" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mithelfen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ayuda a construirlo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aidez à le construire"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aiuta a costruirlo"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pomóż to zbudować"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajude a construí-lo"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Помогите строить"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一起把它做好"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一起把它做好"
+          }
+        }
+      }
+    },
+    "The long way: a redacted file you carry wherever you like" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der lange Weg: eine bereinigte Datei, die du mitnimmst, wohin du willst"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El camino largo: un archivo depurado que llevas a donde quieras"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La voie longue : un fichier expurgé que vous emportez où vous voulez"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La via lunga: un file ripulito che porti dove vuoi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Długa droga: oczyszczony plik, który zabierzesz, gdzie chcesz"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O caminho longo: um ficheiro limpo que leva para onde quiser"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Долгий путь: вычищенный файл, который вы несёте куда хотите"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "长路：一份已清理的文件，你想带到哪里都行"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "長路：一份已清理的檔案，你想帶到哪裡都行"
+          }
+        }
+      }
+    },
+    "A redacted file you can attach wherever you report it" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine bereinigte Datei, die du anhängen kannst, wo immer du es meldest"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un archivo depurado que puedes adjuntar donde informes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un fichier expurgé que vous pouvez joindre là où vous le signalez"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un file ripulito che puoi allegare ovunque tu lo segnali"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oczyszczony plik, który dołączysz tam, gdzie zgłaszasz"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Um ficheiro limpo que pode anexar onde quer que comunique"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вычищенный файл, который можно приложить там, где вы сообщаете"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一份已清理的文件，你在哪里报告都能附上"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一份已清理的檔案，你在哪裡報告都能附上"
+          }
+        }
+      }
+    },
+    "Published" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veröffentlicht"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Publicados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Publiés"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pubblicati"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opublikowane"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Publicados"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Опубликовано"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已发布"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已發布"
+          }
+        }
+      }
+    },
+    "In progress" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In Arbeit"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En curso"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En cours"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In corso"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "W trakcie"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Em curso"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В работе"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "进行中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "進行中"
+          }
+        }
+      }
+    },
+    "Sending is not set up yet. The recordings stay on your phone until it is." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Senden ist noch nicht eingerichtet. Die Aufnahmen bleiben so lange auf deinem Telefon."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El envío aún no está configurado. Las grabaciones se quedan en tu teléfono hasta que lo esté."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'envoi n'est pas encore configuré. Les enregistrements restent sur votre téléphone en attendant."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'invio non è ancora configurato. Le registrazioni restano sul tuo telefono finché non lo è."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wysyłanie nie jest jeszcze ustawione. Nagrania zostają na telefonie, dopóki nie będzie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O envio ainda não está configurado. As gravações ficam no seu telemóvel até estar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отправка ещё не настроена. Записи остаются на телефоне, пока её не настроят."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送还没有设置好。在那之前，记录会留在你的手机上。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "發送還沒有設定好。在那之前，記錄會留在你的手機上。"
+          }
+        }
+      }
+    },
+    "Quote the code if you ever want one deleted again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nenne den Code, wenn du eine davon wieder löschen lassen willst."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menciona el código si alguna vez quieres que se borre una."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indiquez le code si vous voulez un jour en faire supprimer un."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indica il codice se un giorno vuoi farne cancellare una."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Podaj kod, jeśli kiedyś zechcesz którąś usunąć."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Indique o código se algum dia quiser apagar uma."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Назовите код, если однажды захотите удалить одну из них."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果你以后想删掉其中一条，报上这个代码即可。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果你以後想刪掉其中一條，報上這個代碼即可。"
+          }
+        }
+      }
+    },
     "That did not go out. Try again later." : {
       "localizations" : {
         "de" : {
