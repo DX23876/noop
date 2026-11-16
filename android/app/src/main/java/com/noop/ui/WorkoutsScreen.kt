@@ -1018,7 +1018,7 @@ private fun BreakdownSection(groups: List<SportGroup>, rows: List<WorkoutRow>) {
         SectionHeader(
             title = uiString(R.string.l10n_workouts_screen_activity_breakdown_214431d6),
             overline = stringResource(R.string.forge_wo_by_sport),
-            trailing = "${groups.size} sport${if (groups.size == 1) "" else "s"}",
+            trailing = pluralStringResource(R.plurals.forge_wo_n_sports, groups.size, groups.size),
         )
         // This sport's own sessions, so each card can carry an HR-zone mini-bar.
         groups.forEach { g -> SportCard(g, zones = zoneSummary(rows.filter { it.sport == g.sport })) }
@@ -1094,7 +1094,8 @@ private fun ZonesSection(rows: List<WorkoutRow>) {
         SectionHeader(
             title = uiString(R.string.l10n_workouts_screen_hr_zones_293d7175),
             overline = "Whoop import",
-            trailing = "${z.sessionsWithZones} of ${rows.size} session${if (rows.size == 1) "" else "s"}",
+            trailing = pluralStringResource(R.plurals.forge_wo_n_of_sessions, rows.size,
+                                            z.sessionsWithZones, rows.size),
         )
         NoopCard(tint = Palette.effortColor) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -1182,7 +1183,7 @@ private fun SessionsSection(
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.weight(1f)) {
-                SectionHeader(title = uiString(R.string.l10n_workouts_screen_all_sessions_03bc4eb4), overline = stringResource(R.string.forge_wo_log), trailing = "${rows.size} total")
+                SectionHeader(title = uiString(R.string.l10n_workouts_screen_all_sessions_03bc4eb4), overline = stringResource(R.string.forge_wo_log), trailing = stringResource(R.string.forge_wo_n_total, rows.size))
             }
             if (anySelectable) SelectPill(selectionMode, onToggleSelectMode)
         }

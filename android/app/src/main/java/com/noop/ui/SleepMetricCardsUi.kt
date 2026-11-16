@@ -385,7 +385,7 @@ internal fun AsleepDurationHostCard(hours: List<Double>, dates: List<String>) {
         SleepChartCard(
             title = uiString(R.string.l10n_sleep_screen_hours_asleep_06f68993),
             subtitle = "Per night, trailing 14 days",
-            trailing = avg?.let { String.format(Locale.US, "%.1f h avg", it) },
+            trailing = avg?.let { stringResource(R.string.forge_sl_hours_avg, it) },
             tint = Palette.restColor,
             footer = {
                 SleepChartFooter(
@@ -428,7 +428,7 @@ internal fun DurationTrend(m: SleepModel) {
         SleepChartCard(
             title = uiString(R.string.l10n_sleep_screen_hours_asleep_06f68993),
             subtitle = "Per night, trailing 14 days",
-            trailing = avg?.let { String.format(Locale.US, "%.1f h avg", it) },
+            trailing = avg?.let { stringResource(R.string.forge_sl_hours_avg, it) },
             tint = Palette.restColor,
             footer = {
                 SleepChartFooter(

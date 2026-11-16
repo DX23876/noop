@@ -82,23 +82,11 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
-      "${pairs.size} pairs"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
-      "${series.size} series"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
       "Each line min-max normalized within ${range.phrase}"
     ],
     [
       "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
       "Each line min-max normalized · sparse series widened past ${range.phrase}"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
-      "Pearson r · ${range.phrase}"
     ],
     [
       "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
@@ -142,23 +130,11 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "${filteredReadings.size} readings"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "${it.buckets.size} bars"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
       "${kotlin.math.abs(delta)} ${yearWord(delta)} ${if (younger) \"younger\" else \"older\"}"
     ],
     [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
       "Awaiting strap"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Body Age ${ba.roundToInt()}"
     ],
     [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
@@ -197,10 +173,6 @@
       "about your age"
     ],
     [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "as of ${selectedMetric.day}"
-    ],
-    [
       "android/app/src/main/java/com/noop/ui/HrvSnapshotScreen.kt",
       "$value $unit"
     ],
@@ -215,10 +187,6 @@
     [
       "android/app/src/main/java/com/noop/ui/InsightsHubScreen.kt",
       "d = %.2f"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/InsightsScreen.kt",
-      "What moves your ${outcome.outcomeName.lowercase(Locale.US)}"
     ],
     [
       "android/app/src/main/java/com/noop/ui/InsightsScreen.kt",
@@ -258,19 +226,7 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/LabBookScreen.kt",
-      "${keys.size} markers"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LabBookScreen.kt",
-      "1 marker"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LabBookScreen.kt",
       "No overlap yet between this marker and ${signal.title.lowercase()}. Log a few more readings "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LabBookScreen.kt",
-      "side by side · ${window.phrase} before each reading"
     ],
     [
       "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
@@ -389,10 +345,6 @@
       "Wear the strap, tap once, then let it sync and share your strap log."
     ],
     [
-      "android/app/src/main/java/com/noop/ui/SleepMetricCardsUi.kt",
-      "%.1f h avg"
-    ],
-    [
       "android/app/src/main/java/com/noop/ui/SmartAlarmScreen.kt",
       "Armed on the strap itself, so it can buzz at your wake time even if your phone is asleep or NOOP is closed. Sends the exact alarm command the official app sends, confirmed buzzing on a real WHOOP 4.0 (community wire capture + on-device test, #535). Keep a backup alarm for anything you truly can't miss."
     ],
@@ -451,18 +403,6 @@
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
       "${WorkoutEditing.displaySport(row.sport)}, ${dateLabel(row.startTs)}"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
-      "${groups.size} sport${if (groups.size == 1) \"\" else \"s\"}"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
-      "${rows.size} total"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",
-      "${z.sessionsWithZones} of ${rows.size} session${if (rows.size == 1) \"\" else \"s\"}"
     ],
     [
       "android/app/src/main/java/com/noop/ui/WorkoutsScreen.kt",

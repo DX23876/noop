@@ -1,6 +1,7 @@
 package com.noop.ui
 
 import com.noop.R
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.Canvas
 import androidx.annotation.StringRes
@@ -821,7 +822,7 @@ private fun VitalitySection(vm: AppViewModel, days: List<DailyMetric>, profile: 
     val v = vitality; val ba = bodyAge
     if (v != null && ba != null) {
         Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-            SectionHeader(stringResource(R.string.l10n_health_screen_vitality_be320b06), overline = stringResource(R.string.forge_hl_weekly), trailing = "Body Age ${ba.roundToInt()}")
+            SectionHeader(stringResource(R.string.l10n_health_screen_vitality_be320b06), overline = stringResource(R.string.forge_hl_weekly), trailing = stringResource(R.string.forge_hl_body_age, ba.roundToInt()))
             VitalityHero(vitality = v, bodyAge = ba, chronoAge = profile.age, contributions = contributions)
         }
     }
@@ -1301,7 +1302,7 @@ fun VitalSignsScreen(vm: AppViewModel, onVitalClick: (String) -> Unit = {}) {
             VitalsSection(
                 title = uiString(R.string.l10n_health_screen_vital_signs_e7d9e1b1),
                 overline = selectedDayLabel(selectedDayOffset),
-                trailing = "as of ${selectedMetric.day}",
+                trailing = stringResource(R.string.forge_hl_as_of, selectedMetric.day),
                 vitals = vitals,
                 onVitalClick = onVitalClick,
                 footer = false,
@@ -2126,7 +2127,10 @@ fun VitalDetailScreen(vm: AppViewModel, key: String, onAskCoach: ((title: String
         if (!isStepsDetail && !com.noop.ui.forge.ForgeDesign.preview) SectionHeader(
             detail.title,
             overline = stringResource(R.string.l10n_health_screen_vital_signs_e7d9e1b1),
-            trailing = stepsSeries?.let { "${it.buckets.size} bars" } ?: "${filteredReadings.size} readings",
+            trailing = stepsSeries?.let {
+                pluralStringResource(R.plurals.forge_hl_n_bars, it.buckets.size, it.buckets.size)
+            } ?: pluralStringResource(R.plurals.forge_hl_n_readings,
+                                      filteredReadings.size, filteredReadings.size),
         )
         NoopCard {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

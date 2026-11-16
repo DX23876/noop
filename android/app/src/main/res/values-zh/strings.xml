@@ -6924,6 +6924,33 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_roadmap_later">以后</string>
     <string name="forge_roadmap_reported">已报告的问题</string>
     <string name="forge_roadmap_summary">已报告 %1$d 个</string>
+    <plurals name="forge_cmp_n_series">
+        <item quantity="other">%1$d 条曲线</item>
+    </plurals>
+    <plurals name="forge_cmp_n_pairs">
+        <item quantity="other">%1$d 对</item>
+    </plurals>
+    <plurals name="forge_hl_n_bars">
+        <item quantity="other">%1$d 条</item>
+    </plurals>
+    <plurals name="forge_hl_n_readings">
+        <item quantity="other">%1$d 次测量</item>
+    </plurals>
+    <plurals name="forge_lb_n_markers">
+        <item quantity="other">%1$d 个标记</item>
+    </plurals>
+    <plurals name="forge_wo_n_sports">
+        <item quantity="other">%1$d 个项目</item>
+    </plurals>
+    <plurals name="forge_wo_n_of_sessions">
+        <item quantity="other">%2$d 次训练中的 %1$d 次</item>
+    </plurals>
+    <string name="forge_wo_n_total">共 %1$d 条</string>
+    <string name="forge_cmp_pearson_range">皮尔逊相关系数 · %1$s</string>
+    <string name="forge_hl_body_age">身体年龄 %1$d</string>
+    <string name="forge_hl_as_of">截至 %1$s</string>
+    <string name="forge_lb_side_by_side">并排 · 每次测量前 %1$s</string>
+    <string name="forge_sl_hours_avg">平均 %1$.1f 小时</string>
     <string name="forge_wo_log">记录</string>
     <string name="forge_fr_sources_differ">来源不一致</string>
     <string name="forge_hl_latest_readings">最新的测量</string>

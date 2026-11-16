@@ -6975,6 +6975,54 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_roadmap_later">Później</string>
     <string name="forge_roadmap_reported">Zgłoszone problemy</string>
     <string name="forge_roadmap_summary">Zgłoszone: %1$d</string>
+    <plurals name="forge_cmp_n_series">
+        <item quantity="one">%1$d seria</item>
+        <item quantity="few">%1$d serie</item>
+        <item quantity="many">%1$d serii</item>
+        <item quantity="other">%1$d serii</item>
+    </plurals>
+    <plurals name="forge_cmp_n_pairs">
+        <item quantity="one">%1$d para</item>
+        <item quantity="few">%1$d pary</item>
+        <item quantity="many">%1$d par</item>
+        <item quantity="other">%1$d pary</item>
+    </plurals>
+    <plurals name="forge_hl_n_bars">
+        <item quantity="one">%1$d słupek</item>
+        <item quantity="few">%1$d słupki</item>
+        <item quantity="many">%1$d słupków</item>
+        <item quantity="other">%1$d słupka</item>
+    </plurals>
+    <plurals name="forge_hl_n_readings">
+        <item quantity="one">%1$d pomiar</item>
+        <item quantity="few">%1$d pomiary</item>
+        <item quantity="many">%1$d pomiarów</item>
+        <item quantity="other">%1$d pomiaru</item>
+    </plurals>
+    <plurals name="forge_lb_n_markers">
+        <item quantity="one">%1$d znacznik</item>
+        <item quantity="few">%1$d znaczniki</item>
+        <item quantity="many">%1$d znaczników</item>
+        <item quantity="other">%1$d znacznika</item>
+    </plurals>
+    <plurals name="forge_wo_n_sports">
+        <item quantity="one">%1$d sport</item>
+        <item quantity="few">%1$d sporty</item>
+        <item quantity="many">%1$d sportów</item>
+        <item quantity="other">%1$d sportu</item>
+    </plurals>
+    <plurals name="forge_wo_n_of_sessions">
+        <item quantity="one">%1$d z %2$d sesji</item>
+        <item quantity="few">%1$d z %2$d sesji</item>
+        <item quantity="many">%1$d z %2$d sesji</item>
+        <item quantity="other">%1$d z %2$d sesji</item>
+    </plurals>
+    <string name="forge_wo_n_total">%1$d łącznie</string>
+    <string name="forge_cmp_pearson_range">r Pearsona · %1$s</string>
+    <string name="forge_hl_body_age">Wiek ciała %1$d</string>
+    <string name="forge_hl_as_of">stan na %1$s</string>
+    <string name="forge_lb_side_by_side">obok siebie · %1$s przed każdym pomiarem</string>
+    <string name="forge_sl_hours_avg">%1$.1f h średnio</string>
     <string name="forge_wo_log">Dziennik</string>
     <string name="forge_fr_sources_differ">Źródła się różnią</string>
     <string name="forge_hl_latest_readings">Najnowsze pomiary</string>

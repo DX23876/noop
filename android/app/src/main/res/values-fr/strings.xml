@@ -6954,6 +6954,40 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="forge_roadmap_later">Plus tard</string>
     <string name="forge_roadmap_reported">Problèmes signalés</string>
     <string name="forge_roadmap_summary">%1$d signalés</string>
+    <plurals name="forge_cmp_n_series">
+        <item quantity="one">%1$d série</item>
+        <item quantity="other">%1$d séries</item>
+    </plurals>
+    <plurals name="forge_cmp_n_pairs">
+        <item quantity="one">%1$d paire</item>
+        <item quantity="other">%1$d paires</item>
+    </plurals>
+    <plurals name="forge_hl_n_bars">
+        <item quantity="one">%1$d barre</item>
+        <item quantity="other">%1$d barres</item>
+    </plurals>
+    <plurals name="forge_hl_n_readings">
+        <item quantity="one">%1$d mesure</item>
+        <item quantity="other">%1$d mesures</item>
+    </plurals>
+    <plurals name="forge_lb_n_markers">
+        <item quantity="one">%1$d repère</item>
+        <item quantity="other">%1$d repères</item>
+    </plurals>
+    <plurals name="forge_wo_n_sports">
+        <item quantity="one">%1$d sport</item>
+        <item quantity="other">%1$d sports</item>
+    </plurals>
+    <plurals name="forge_wo_n_of_sessions">
+        <item quantity="one">%1$d sur %2$d séance</item>
+        <item quantity="other">%1$d sur %2$d séances</item>
+    </plurals>
+    <string name="forge_wo_n_total">%1$d au total</string>
+    <string name="forge_cmp_pearson_range">r de Pearson · %1$s</string>
+    <string name="forge_hl_body_age">Âge corporel %1$d</string>
+    <string name="forge_hl_as_of">au %1$s</string>
+    <string name="forge_lb_side_by_side">côte à côte · %1$s avant chaque mesure</string>
+    <string name="forge_sl_hours_avg">%1$.1f h en moyenne</string>
     <string name="forge_wo_log">Journal</string>
     <string name="forge_fr_sources_differ">Les sources divergent</string>
     <string name="forge_hl_latest_readings">Dernières mesures</string>

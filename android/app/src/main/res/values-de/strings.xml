@@ -6971,6 +6971,40 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_roadmap_later">Später</string>
     <string name="forge_roadmap_reported">Gemeldete Probleme</string>
     <string name="forge_roadmap_summary">%1$d gemeldet</string>
+    <plurals name="forge_cmp_n_series">
+        <item quantity="one">%1$d Reihe</item>
+        <item quantity="other">%1$d Reihen</item>
+    </plurals>
+    <plurals name="forge_cmp_n_pairs">
+        <item quantity="one">%1$d Paar</item>
+        <item quantity="other">%1$d Paare</item>
+    </plurals>
+    <plurals name="forge_hl_n_bars">
+        <item quantity="one">%1$d Balken</item>
+        <item quantity="other">%1$d Balken</item>
+    </plurals>
+    <plurals name="forge_hl_n_readings">
+        <item quantity="one">%1$d Messung</item>
+        <item quantity="other">%1$d Messungen</item>
+    </plurals>
+    <plurals name="forge_lb_n_markers">
+        <item quantity="one">%1$d Eintrag</item>
+        <item quantity="other">%1$d Einträge</item>
+    </plurals>
+    <plurals name="forge_wo_n_sports">
+        <item quantity="one">%1$d Sportart</item>
+        <item quantity="other">%1$d Sportarten</item>
+    </plurals>
+    <plurals name="forge_wo_n_of_sessions">
+        <item quantity="one">%1$d von %2$d Einheit</item>
+        <item quantity="other">%1$d von %2$d Einheiten</item>
+    </plurals>
+    <string name="forge_wo_n_total">%1$d insgesamt</string>
+    <string name="forge_cmp_pearson_range">Korrelation nach Pearson · %1$s</string>
+    <string name="forge_hl_body_age">Körperalter %1$d</string>
+    <string name="forge_hl_as_of">Stand %1$s</string>
+    <string name="forge_lb_side_by_side">nebeneinander · %1$s vor jeder Messung</string>
+    <string name="forge_sl_hours_avg">%1$.1f h im Schnitt</string>
     <string name="forge_wo_log">Protokoll</string>
     <string name="forge_fr_sources_differ">Quellen weichen ab</string>
     <string name="forge_hl_latest_readings">Neueste Messungen</string>

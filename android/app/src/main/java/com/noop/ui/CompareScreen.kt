@@ -1,6 +1,7 @@
 package com.noop.ui
 
 import com.noop.R
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import android.content.Context
 import androidx.compose.foundation.Canvas
@@ -797,7 +798,7 @@ private fun OverlaySection(
     anyWidened: Boolean,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
-        SectionHeader(stringResource(R.string.forge_cmp_overlay), overline = range.phrase, trailing = "${series.size} series")
+        SectionHeader(stringResource(R.string.forge_cmp_overlay), overline = range.phrase, trailing = pluralStringResource(R.plurals.forge_cmp_n_series, series.size, series.size))
         // Anchor the overlay card to the brand-green chrome world; each line keeps its own categorical
         // series colour so the overlaid lines stay distinguishable against the wash.
         NoopCard(tint = Palette.accent) {
@@ -1257,8 +1258,9 @@ private fun CorrelationSection(series: List<CompareSeries>, range: CompareRange)
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         SectionHeader(
             stringResource(R.string.forge_cmp_together),
-            overline = "Pearson r · ${range.phrase}",
-            trailing = if (pairs.isEmpty()) null else "${pairs.size} pairs",
+            overline = stringResource(R.string.forge_cmp_pearson_range, range.phrase),
+            trailing = if (pairs.isEmpty()) null else
+                pluralStringResource(R.plurals.forge_cmp_n_pairs, pairs.size, pairs.size),
         )
 
         if (pairs.isEmpty()) {

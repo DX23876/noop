@@ -6995,6 +6995,40 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_roadmap_later">Later</string>
     <string name="forge_roadmap_reported">Reported problems</string>
     <string name="forge_roadmap_summary">%1$d reported</string>
+    <plurals name="forge_cmp_n_series">
+        <item quantity="one">%1$d series</item>
+        <item quantity="other">%1$d series</item>
+    </plurals>
+    <plurals name="forge_cmp_n_pairs">
+        <item quantity="one">%1$d pair</item>
+        <item quantity="other">%1$d pairs</item>
+    </plurals>
+    <plurals name="forge_hl_n_bars">
+        <item quantity="one">%1$d bar</item>
+        <item quantity="other">%1$d bars</item>
+    </plurals>
+    <plurals name="forge_hl_n_readings">
+        <item quantity="one">%1$d reading</item>
+        <item quantity="other">%1$d readings</item>
+    </plurals>
+    <plurals name="forge_lb_n_markers">
+        <item quantity="one">%1$d marker</item>
+        <item quantity="other">%1$d markers</item>
+    </plurals>
+    <plurals name="forge_wo_n_sports">
+        <item quantity="one">%1$d sport</item>
+        <item quantity="other">%1$d sports</item>
+    </plurals>
+    <plurals name="forge_wo_n_of_sessions">
+        <item quantity="one">%1$d of %2$d session</item>
+        <item quantity="other">%1$d of %2$d sessions</item>
+    </plurals>
+    <string name="forge_wo_n_total">%1$d total</string>
+    <string name="forge_cmp_pearson_range">Pearson r · %1$s</string>
+    <string name="forge_hl_body_age">Body Age %1$d</string>
+    <string name="forge_hl_as_of">as of %1$s</string>
+    <string name="forge_lb_side_by_side">side by side · %1$s before each reading</string>
+    <string name="forge_sl_hours_avg">%1$.1f h avg</string>
     <string name="forge_wo_log">Log</string>
     <string name="forge_fr_sources_differ">Sources differ</string>
     <string name="forge_hl_latest_readings">Latest readings</string>

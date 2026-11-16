@@ -742,7 +742,8 @@ private fun BehaviourSection(
             Box(modifier = Modifier.weight(1f)) {
                 SectionHeader(
                     stringResource(R.string.forge_in_behaviour_effects),
-                    overline = "What moves your ${outcome.outcomeName.lowercase(Locale.US)}",
+                    overline = stringResource(R.string.forge_ih_what_moves,
+                                              outcome.outcomeName.lowercase(Locale.US)),
                 )
             }
             SegmentedPillControl(

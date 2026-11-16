@@ -6928,6 +6928,54 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_roadmap_later">Позже</string>
     <string name="forge_roadmap_reported">Сообщённые проблемы</string>
     <string name="forge_roadmap_summary">Сообщено: %1$d</string>
+    <plurals name="forge_cmp_n_series">
+        <item quantity="one">%1$d ряд</item>
+        <item quantity="few">%1$d ряда</item>
+        <item quantity="many">%1$d рядов</item>
+        <item quantity="other">%1$d ряда</item>
+    </plurals>
+    <plurals name="forge_cmp_n_pairs">
+        <item quantity="one">%1$d пара</item>
+        <item quantity="few">%1$d пары</item>
+        <item quantity="many">%1$d пар</item>
+        <item quantity="other">%1$d пары</item>
+    </plurals>
+    <plurals name="forge_hl_n_bars">
+        <item quantity="one">%1$d столбец</item>
+        <item quantity="few">%1$d столбца</item>
+        <item quantity="many">%1$d столбцов</item>
+        <item quantity="other">%1$d столбца</item>
+    </plurals>
+    <plurals name="forge_hl_n_readings">
+        <item quantity="one">%1$d измерение</item>
+        <item quantity="few">%1$d измерения</item>
+        <item quantity="many">%1$d измерений</item>
+        <item quantity="other">%1$d измерения</item>
+    </plurals>
+    <plurals name="forge_lb_n_markers">
+        <item quantity="one">%1$d отметка</item>
+        <item quantity="few">%1$d отметки</item>
+        <item quantity="many">%1$d отметок</item>
+        <item quantity="other">%1$d отметки</item>
+    </plurals>
+    <plurals name="forge_wo_n_sports">
+        <item quantity="one">%1$d вид спорта</item>
+        <item quantity="few">%1$d вида спорта</item>
+        <item quantity="many">%1$d видов спорта</item>
+        <item quantity="other">%1$d вида спорта</item>
+    </plurals>
+    <plurals name="forge_wo_n_of_sessions">
+        <item quantity="one">%1$d из %2$d сессии</item>
+        <item quantity="few">%1$d из %2$d сессий</item>
+        <item quantity="many">%1$d из %2$d сессий</item>
+        <item quantity="other">%1$d из %2$d сессий</item>
+    </plurals>
+    <string name="forge_wo_n_total">всего %1$d</string>
+    <string name="forge_cmp_pearson_range">Корреляция Пирсона · %1$s</string>
+    <string name="forge_hl_body_age">Возраст тела %1$d</string>
+    <string name="forge_hl_as_of">на %1$s</string>
+    <string name="forge_lb_side_by_side">рядом · %1$s перед каждым измерением</string>
+    <string name="forge_sl_hours_avg">в среднем %1$.1f ч</string>
     <string name="forge_wo_log">Журнал</string>
     <string name="forge_fr_sources_differ">Источники расходятся</string>
     <string name="forge_hl_latest_readings">Последние измерения</string>
