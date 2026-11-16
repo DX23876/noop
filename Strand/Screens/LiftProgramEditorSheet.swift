@@ -26,6 +26,9 @@ struct LiftProgramEditorSheet: View {
     @State private var items: [LiftProgramItemRow] = []
     @State private var loaded = false
     @State private var saving = false
+    /// The store refused the write. The sheet stays open with the lines on it, rather than closing on
+    /// an edit that is not anywhere.
+    @State private var refused = false
 
     /// The line being added or edited (nil = that sheet is closed).
     @State private var editingItem: ItemEditTarget?
@@ -235,18 +238,26 @@ struct LiftProgramEditorSheet: View {
     // MARK: - Footer
 
     private var footer: some View {
-        HStack {
-            Button("Cancel") { dismiss() }
-                .buttonStyle(.plain)
-                .font(StrandFont.body)
-                .foregroundStyle(StrandPalette.textSecondary)
-            Spacer()
-            Button("Save") { Task { await save() } }
-                .buttonStyle(.noopPrimary)
-                .frame(maxWidth: 160)
-                .disabled(!canSave)
-                .opacity(canSave ? 1 : NoopButtonMetrics.disabledOpacity)
-                .accessibilityLabel("Save program")
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            HStack {
+                Button("Cancel") { dismiss() }
+                    .buttonStyle(.plain)
+                    .font(StrandFont.body)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                Spacer()
+                Button("Save") { Task { await save() } }
+                    .buttonStyle(.noopPrimary)
+                    .frame(maxWidth: 160)
+                    .disabled(!canSave)
+                    .opacity(canSave ? 1 : NoopButtonMetrics.disabledOpacity)
+                    .accessibilityLabel("Save program")
+            }
+            if refused {
+                Text("That was not saved. The program is still here; try again.")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 
@@ -306,7 +317,7 @@ struct LiftProgramEditorSheet: View {
             updatedAt: now,
             archived: program?.archived ?? false
         )
-        _ = try? await store.upsertLiftPrograms([row])
+        let keptProgram = (try? await store.upsertLiftPrograms([row])) != nil
 
         // `ord` is the array index: reordering the list is all it takes to reorder the program.
         let ordered = items.enumerated().map { index, item in
@@ -325,15 +336,22 @@ struct LiftProgramEditorSheet: View {
                 note: item.note
             )
         }
-        _ = try? await store.replaceLiftProgramItems(programId: id, items: ordered)
-
+        var keptItems = false
+        if keptProgram { keptItems = (try? await store.replaceLiftProgramItems(programId: id, items: ordered)) != nil }
+        guard keptItems else {
+            refused = true
+            return
+        }
         await onSaved()
         dismiss()
     }
 
     private func deleteProgram() async {
         guard let program, let store = await repo.storeHandle() else { return }
-        _ = try? await store.deleteLiftProgram(id: program.id)
+        guard (try? await store.deleteLiftProgram(id: program.id)) != nil else {
+            refused = true
+            return
+        }
         await onSaved()
         dismiss()
     }

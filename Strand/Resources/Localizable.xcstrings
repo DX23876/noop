@@ -673963,6 +673963,64 @@
         }
       }
     },
+    "That was not saved. The program is still here; try again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das wurde nicht gespeichert. Das Programm steht noch hier, versuch es nochmal."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eso no se ha guardado. El programa sigue aquí; inténtalo otra vez."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cela n'a pas été enregistré. Le programme est toujours là ; réessayez."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non è stato salvato. Il programma è ancora qui, riprova."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To nie zostało zapisane. Program nadal tu jest, spróbuj jeszcze raz."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isso não foi guardado. O programa continua aqui; tente outra vez."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это не сохранилось. Программа на месте, попробуйте ещё раз."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有保存。这个计划还在，再试一次。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有保存。這個計劃還在，再試一次。"
+          }
+        }
+      }
+    },
     "That did not go out. Try again later." : {
       "localizations" : {
         "de" : {
