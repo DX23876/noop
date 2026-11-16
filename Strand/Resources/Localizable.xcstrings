@@ -674137,6 +674137,64 @@
         }
       }
     },
+    "That was not deleted. The session is still here; try again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das wurde nicht gelöscht. Die Einheit ist noch da, versuch es nochmal."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eso no se ha eliminado. La sesión sigue aquí; inténtalo otra vez."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cela n'a pas été supprimé. La séance est toujours là ; réessayez."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non è stato eliminato. La sessione è ancora qui, riprova."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To nie zostało usunięte. Sesja nadal tu jest, spróbuj jeszcze raz."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isso não foi apagado. A sessão continua aqui; tente outra vez."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это не удалилось. Сессия на месте, попробуйте ещё раз."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有删掉。这次训练还在，再试一次。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有刪掉。這次訓練還在，再試一次。"
+          }
+        }
+      }
+    },
     "That did not go out. Try again later." : {
       "localizations" : {
         "de" : {

@@ -2162,8 +2162,19 @@ struct SleepMarkCard: View {
         // The shareable strap log is the human-readable surface that lands in a debug export.
         live.append(log: mark.logLine)
         Task {
-            guard let store = await repo.storeHandle() else { return }
-            _ = try? await store.upsertMetricSeries([mark.metricPoint], deviceId: repo.deviceId)
+            let stored: Bool
+            if let store = await repo.storeHandle() {
+                stored = (try? await store.upsertMetricSeries([mark.metricPoint],
+                                                              deviceId: repo.deviceId)) != nil
+            } else {
+                stored = false
+            }
+            // The confirmation on screen is a claim about the store, so it goes when the store did not
+            // take the mark, and the log says which of the two happened. Without this the line above
+            // stood in the strap log as though the mark had been kept.
+            guard !stored else { return }
+            live.append(log: "\(mark.logLine) — NOT stored, the write was refused")
+            lastMark = nil
         }
     }
 }

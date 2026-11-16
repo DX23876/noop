@@ -32,6 +32,9 @@ struct LiftSessionDetailSheet: View {
     @State private var loaded = false
     @State private var confirmingDelete = false
     @State private var deleting = false
+    /// The store refused the deletion. The sheet stays open, because closing on it would say the
+    /// session is gone while the list it came from still has it.
+    @State private var deleteRefused = false
     @State private var editing = false
     /// Session RPE as stored now. The edit sheet can correct it, and the session load must follow.
     @State private var sessionRpe: Double?
@@ -102,6 +105,15 @@ struct LiftSessionDetailSheet: View {
         .font(StrandFont.body)
         .foregroundStyle(StrandPalette.statusCritical)
         .padding(.top, NoopMetrics.gap)
+        .overlay(alignment: .bottom) {
+            if deleteRefused {
+                Text("That was not deleted. The session is still here; try again.")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .offset(y: 20)
+            }
+        }
         .disabled(deleting)
         .confirmationDialog("Delete this session?",
                             isPresented: $confirmingDelete, titleVisibility: .visible) {
@@ -117,7 +129,10 @@ struct LiftSessionDetailSheet: View {
         deleting = true
         defer { deleting = false }
 
-        _ = try? await store.deleteLiftSession(id: session.id)   // cascades to its sets
+        guard (try? await store.deleteLiftSession(id: session.id)) != nil else {   // cascades to its sets
+            deleteRefused = true
+            return
+        }
         if let workout { await repo.deleteWorkout(workout) }
 
         await onChanged()
