@@ -269,15 +269,22 @@ internal fun ProjectHubSection(
     val (page, loaded) = rememberProjectPage()
     val planned = page.items("now").size + page.items("next").size + page.items("later").size
 
+    // The same words the Apple hub uses. A bare "7" under a card is the count that reads as an
+    // alarm, which is the one thing these pages are not for, and it sat beside a card that says
+    // "8 reported, 1 being worked on" in a sentence.
     ProjectHubCard(R.drawable.scene_roadmap, stringResource(R.string.forge_roadmap_title),
                    stringResource(R.string.project_card_roadmap_line),
-                   if (planned > 0) planned.toString() else null, onRoadmap)
+                   if (planned > 0) stringResource(R.string.project_card_planned, planned) else null,
+                   onRoadmap)
     ProjectHubCard(R.drawable.scene_problems, stringResource(R.string.project_card_problems_title),
                    stringResource(R.string.project_card_problems_line),
                    reportedSummary(page), onProblems)
     ProjectHubCard(R.drawable.scene_wishes, stringResource(R.string.project_card_wishes_title),
                    stringResource(R.string.project_card_wishes_line),
-                   if (page.suggestions.isNotEmpty()) page.suggestions.size.toString() else null, onWishes)
+                   if (page.suggestions.isNotEmpty())
+                       stringResource(R.string.project_card_published, page.suggestions.size)
+                   else null,
+                   onWishes)
     ProjectHubCard(R.drawable.scene_helping, stringResource(R.string.donation_title),
                    stringResource(R.string.donation_subtitle), null, onDonation)
 

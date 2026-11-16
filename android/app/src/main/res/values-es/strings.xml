@@ -6955,6 +6955,8 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_roadmap_later">Más adelante</string>
     <string name="forge_roadmap_reported">Problemas notificados</string>
     <string name="forge_roadmap_summary">%1$d notificados</string>
+    <string name="project_card_planned">%1$d planeados</string>
+    <string name="project_card_published">%1$d publicados</string>
     <string name="forge_roadmap_summary_working">%1$d notificados, %2$d en curso</string>
     <string name="forge_roadmap_show_all">Ver todos</string>
     <string name="forge_roadmap_show_less">Ver menos</string>

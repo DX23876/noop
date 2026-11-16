@@ -6923,6 +6923,8 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="forge_roadmap_later">Più avanti</string>
     <string name="forge_roadmap_reported">Problemi segnalati</string>
     <string name="forge_roadmap_summary">%1$d segnalati</string>
+    <string name="project_card_planned">%1$d in programma</string>
+    <string name="project_card_published">%1$d pubblicati</string>
     <string name="forge_roadmap_summary_working">%1$d segnalati, %2$d in corso</string>
     <string name="forge_roadmap_show_all">Mostra tutti</string>
     <string name="forge_roadmap_show_less">Mostra meno</string>
