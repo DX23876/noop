@@ -673789,6 +673789,64 @@
         }
       }
     },
+    "Disconnected, and the key is gone. The synced sessions could not be removed, so they are still here." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Getrennt, der Schlüssel ist weg. Die übernommenen Einheiten konnten nicht entfernt werden, sie sind also noch da."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desconectado, y la clave ya no está. Las sesiones sincronizadas no se han podido eliminar, así que siguen aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Déconnecté, et la clé a disparu. Les séances synchronisées n'ont pas pu être supprimées, elles sont donc toujours là."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disconnesso, e la chiave non c'è più. Le sessioni sincronizzate non si sono potute rimuovere, quindi sono ancora qui."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rozłączono, klucz zniknął. Zsynchronizowanych sesji nie udało się usunąć, więc nadal tu są."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desligado, e a chave desapareceu. As sessões sincronizadas não puderam ser removidas, por isso continuam aqui."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отключено, ключа больше нет. Перенесённые сессии удалить не удалось, поэтому они остались здесь."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已断开，密钥也没了。同步过来的训练没能删掉，所以还在这里。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已斷開，密鑰也沒了。同步過來的訓練沒能刪掉，所以還在這裡。"
+          }
+        }
+      }
+    },
     "That did not go out. Try again later." : {
       "localizations" : {
         "de" : {

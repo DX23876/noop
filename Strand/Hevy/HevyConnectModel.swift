@@ -132,16 +132,32 @@ final class HevyConnectModel: ObservableObject {
     /// trace left; the caller confirms before calling it.
     func disconnectAndForget(repo: Repository) {
         Task {
-            if let store = await repo.storeHandle() {
-                try? await store.deleteAllHevyData()
-            }
-            HevyCredentials.clear()
-            HevySyncState.reset()
-            isConnected = false
-            status = HevySyncState.load()
-            await repo.refresh()
-            repo.scheduleEnergyRefresh(coveringStart: 0)
+            await forgetEverything(delete: {
+                guard let store = await repo.storeHandle() else { return false }
+                return (try? await store.deleteAllHevyData()) != nil
+            }, refresh: {
+                await repo.refresh()
+                repo.scheduleEnergyRefresh(coveringStart: 0)
+            })
+        }
+    }
+
+    /// The two halves, kept apart because only one of them can fail. The key goes whatever happens,
+    /// which is what disconnecting means. Whether the sessions went is the store's answer, and the line
+    /// says that answer: "removed every synced session" was printed either way, to the one person who
+    /// asked for no trace left.
+    func forgetEverything(delete: () async -> Bool, refresh: () async -> Void) async {
+        let removed = await delete()
+        HevyCredentials.clear()
+        HevySyncState.reset()
+        isConnected = false
+        status = HevySyncState.load()
+        await refresh()
+        if removed {
             report(String(localized: "Disconnected and removed every synced session."), failed: false)
+        } else {
+            report(String(localized: "Disconnected, and the key is gone. The synced sessions could not be removed, so they are still here."),
+                   failed: true)
         }
     }
 
