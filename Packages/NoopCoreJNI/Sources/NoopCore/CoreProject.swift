@@ -106,6 +106,10 @@ enum CoreProject {
                 return #"{"ok":true}"#
             }
             return #"{"ok":false}"#
+        case "project.codeOk":
+            // What a code looks like is one fact, and it lives here. A screen that wants to grey out
+            // its own button must not carry a second copy of the alphabet to decide with.
+            return CoreRead.json(["ok": ProjectService.isReportCode(args["code"] as? String ?? "")])
         case "project.sharing":
             // One switch, read and written through the core, so the two platforms cannot drift on
             // what "off" means or where it is kept.

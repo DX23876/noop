@@ -19,9 +19,11 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -46,6 +48,7 @@ import com.noop.ui.buildPending
 import com.noop.ui.AppViewModel
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.rounded.ChevronRight
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -129,14 +132,21 @@ internal fun ProjectReportSection(canWrite: Boolean, viewModel: AppViewModel) {
                          style = Forge.type.caption, color = Forge.colors.textSecondary)
                 } else {
                     mine.forEach { report ->
-                        Column(
+                        // The chevron every other row here has. Without it this one was the only
+                        // thing on the page that opened something and did not say so.
+                        Row(
                             Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
                                 .clickable(role = Role.Button) { openCode = report.code },
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(report.title, style = Forge.type.body, color = Forge.colors.text)
-                            Text(statusText(report.status), style = Forge.type.caption,
-                                 color = Forge.colors.textTertiary)
+                            Column(Modifier.weight(1f),
+                                   verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text(report.title, style = Forge.type.body, color = Forge.colors.text)
+                                Text(statusText(report.status), style = Forge.type.caption,
+                                     color = Forge.colors.textTertiary)
+                            }
+                            Icon(Icons.Rounded.ChevronRight, contentDescription = null,
+                                 tint = Forge.colors.textTertiary, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
@@ -153,6 +163,17 @@ internal fun ProjectReportSection(canWrite: Boolean, viewModel: AppViewModel) {
     }
 
     if (typing) {
+        // Whether this is a code at all is the core's answer, not a second copy of the alphabet
+        // here. Nothing else is verified: the thread screen asks the service, and a code that means
+        // nothing answers exactly like one that was withdrawn.
+        var looksLikeACode by remember { mutableStateOf(false) }
+        LaunchedEffect(typed) {
+            looksLikeACode = runCatching {
+                JSONObject(withContext(Dispatchers.IO) {
+                    SwiftCore.call("project.codeOk", JSONObject().put("code", typed.trim()).toString())
+                } ?: "").optBoolean("ok")
+            }.getOrDefault(false)
+        }
         AlertDialog(
             onDismissRequest = { typing = false; typed = "" },
             title = { Text(stringResource(R.string.project_report_have_code)) },
@@ -161,9 +182,7 @@ internal fun ProjectReportSection(canWrite: Boolean, viewModel: AppViewModel) {
                                   placeholder = { Text(stringResource(R.string.project_report_code_example)) })
             },
             confirmButton = {
-                TextButton(onClick = {
-                    // Nothing is verified here: the thread screen asks the service, and a code that
-                    // means nothing answers exactly like one that was withdrawn.
+                TextButton(enabled = looksLikeACode, onClick = {
                     openCode = typed.trim()
                     typing = false
                     typed = ""
