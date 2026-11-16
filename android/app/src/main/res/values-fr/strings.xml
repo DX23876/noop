@@ -7051,6 +7051,7 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="project_card_planned">%1$d prévus</string>
     <string name="project_card_published">%1$d publiés</string>
     <string name="forge_roadmap_summary_working">%1$d signalés, %2$d en cours</string>
+    <string name="forge_roadmap_summary_only_working">%1$d en cours</string>
     <string name="forge_roadmap_show_all">Tout afficher</string>
     <string name="forge_roadmap_show_less">Afficher moins</string>
     <string name="forge_roadmap_fixed">Corrigé récemment</string>

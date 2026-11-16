@@ -7086,6 +7086,7 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="project_card_planned">zaplanowane: %1$d</string>
     <string name="project_card_published">opublikowane: %1$d</string>
     <string name="forge_roadmap_summary_working">Zgłoszone: %1$d, w toku: %2$d</string>
+    <string name="forge_roadmap_summary_only_working">w trakcie: %1$d</string>
     <string name="forge_roadmap_show_all">Pokaż wszystkie</string>
     <string name="forge_roadmap_show_less">Pokaż mniej</string>
     <string name="forge_roadmap_fixed">Ostatnio naprawione</string>

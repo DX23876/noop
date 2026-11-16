@@ -200,6 +200,11 @@ struct ProjectProblemsView: View {
     /// One line instead of a number on a card: "8 reported, 1 being worked on". A count that reads as
     /// an alarm is the thing this page is not for. Static so the hub card says it from the same page.
     static func summary(_ page: ProjectPage) -> String {
+        // "0 reported, 3 being worked on" is a true sentence that reads as a fault. Everything open
+        // is being worked on is the good case, so say that and nothing else.
+        if page.workingCount > 0 && page.reportedCount == 0 {
+            return String(localized: "\(page.workingCount) being worked on")
+        }
         if page.workingCount > 0 {
             return String(localized: "\(page.reportedCount) reported, \(page.workingCount) being worked on")
         }

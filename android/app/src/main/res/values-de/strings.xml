@@ -7068,6 +7068,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="project_card_planned">%1$d geplant</string>
     <string name="project_card_published">%1$d veröffentlicht</string>
     <string name="forge_roadmap_summary_working">%1$d gemeldet, %2$d in Arbeit</string>
+    <string name="forge_roadmap_summary_only_working">%1$d in Arbeit</string>
     <string name="forge_roadmap_show_all">Alle anzeigen</string>
     <string name="forge_roadmap_show_less">Weniger anzeigen</string>
     <string name="forge_roadmap_fixed">Zuletzt behoben</string>

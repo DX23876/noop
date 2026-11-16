@@ -7092,6 +7092,7 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="project_card_planned">%1$d planned</string>
     <string name="project_card_published">%1$d published</string>
     <string name="forge_roadmap_summary_working">%1$d reported, %2$d being worked on</string>
+    <string name="forge_roadmap_summary_only_working">%1$d being worked on</string>
     <string name="forge_roadmap_show_all">Show all</string>
     <string name="forge_roadmap_show_less">Show less</string>
     <string name="forge_roadmap_fixed">Recently fixed</string>

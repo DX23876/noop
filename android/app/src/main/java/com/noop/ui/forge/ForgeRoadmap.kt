@@ -342,6 +342,10 @@ private fun ProjectSharingCard() {
 @Composable
 private fun reportedSummary(page: RoadmapPage): String? = when {
     page.reported.isEmpty() -> null
+    // "0 reported, 3 being worked on" is true and reads as a fault. Everything open being worked on
+    // is the good case, so it says that and nothing else. The Apple twin is `summary(_:)`.
+    page.workingCount > 0 && page.reportedCount == 0 ->
+        stringResource(R.string.forge_roadmap_summary_only_working, page.workingCount)
     page.workingCount > 0 ->
         stringResource(R.string.forge_roadmap_summary_working, page.reportedCount, page.workingCount)
     else -> stringResource(R.string.forge_roadmap_summary, page.reportedCount)

@@ -7044,6 +7044,7 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="project_card_planned">%1$d planeados</string>
     <string name="project_card_published">%1$d publicados</string>
     <string name="forge_roadmap_summary_working">%1$d comunicados, %2$d em curso</string>
+    <string name="forge_roadmap_summary_only_working">%1$d em curso</string>
     <string name="forge_roadmap_show_all">Mostrar todos</string>
     <string name="forge_roadmap_show_less">Mostrar menos</string>
     <string name="forge_roadmap_fixed">Corrigido recentemente</string>

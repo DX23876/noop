@@ -7039,6 +7039,7 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="project_card_planned">запланировано: %1$d</string>
     <string name="project_card_published">опубликовано: %1$d</string>
     <string name="forge_roadmap_summary_working">Сообщено: %1$d, в работе: %2$d</string>
+    <string name="forge_roadmap_summary_only_working">в работе: %1$d</string>
     <string name="forge_roadmap_show_all">Показать все</string>
     <string name="forge_roadmap_show_less">Показать меньше</string>
     <string name="forge_roadmap_fixed">Недавно исправлено</string>

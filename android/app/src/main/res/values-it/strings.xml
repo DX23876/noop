@@ -7020,6 +7020,7 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="project_card_planned">%1$d in programma</string>
     <string name="project_card_published">%1$d pubblicati</string>
     <string name="forge_roadmap_summary_working">%1$d segnalati, %2$d in corso</string>
+    <string name="forge_roadmap_summary_only_working">%1$d in corso</string>
     <string name="forge_roadmap_show_all">Mostra tutti</string>
     <string name="forge_roadmap_show_less">Mostra meno</string>
     <string name="forge_roadmap_fixed">Corretti di recente</string>
