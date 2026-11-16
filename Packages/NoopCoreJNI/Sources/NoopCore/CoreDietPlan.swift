@@ -257,9 +257,11 @@ enum CoreDietPlan {
             let marked = ((try? await store.foodCompleteDays(from: day, to: day)) ?? []).contains(day)
             return #"{"complete":\#(marked)}"#
         case "food.planSetDayComplete":
-            // Only completely logged days count toward the real burn.
-            try? await store.setFoodDayComplete(args["day"] as? String ?? today, args["complete"] as? Bool ?? true)
-            return #"{"ok":true}"#
+            // Only completely logged days count toward the real burn, so a mark the store did not keep
+            // changes a number days later. `ok` says what the store did.
+            let marked = (try? await store.setFoodDayComplete(args["day"] as? String ?? today,
+                                                              args["complete"] as? Bool ?? true)) != nil
+            return #"{"ok":\#(marked)}"#
         case "food.planSuggest":
             let from = Calendar.current.date(byAdding: .day, value: -14, to: Date()).map(StoreReader.localDayKey) ?? today
             let entries = ((try? await store.foodLogEntries(from: from, to: today)) ?? []).map(FoodLogEntryLite.init)

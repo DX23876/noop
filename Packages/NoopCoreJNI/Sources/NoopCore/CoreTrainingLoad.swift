@@ -115,17 +115,21 @@ public enum CoreTrainingLoad {
     static func decidePair(store: WhoopStore, ids: [String], merge: Bool, now: Int = Int(Date().timeIntervalSince1970)) async -> Bool {
         let sorted = Array(Set(ids)).sorted()
         guard sorted.count >= 2 else { return false }
+        // True means the store kept the answer. Saying true for a write it refused would leave the card
+        // reporting a merge that the next read undoes, with nothing said.
+        var kept = true
         for index in 1..<sorted.count {
-            try? await store.upsertTrainingSessionPairDecision(.init(
-                leftKey: sorted[0], rightKey: sorted[index], decision: merge ? "merge" : "separate", updatedAtTs: now))
+            kept = (try? await store.upsertTrainingSessionPairDecision(.init(
+                leftKey: sorted[0], rightKey: sorted[index], decision: merge ? "merge" : "separate",
+                updatedAtTs: now))) != nil && kept
         }
         if merge {
             let sessionId = "session|\(sorted[0])"
-            try? await store.upsertTrainingSessionLinks(sorted.map {
+            kept = (try? await store.upsertTrainingSessionLinks(sorted.map {
                 .init(componentKey: $0, sessionId: sessionId, origin: "user", updatedAtTs: now)
-            })
+            })) != nil && kept
         }
-        return true
+        return kept
     }
 
     /// `TrainingLoadModel.ExerciseVO2maxReading`: the latest weekly estimate, what it rests on and how it compares

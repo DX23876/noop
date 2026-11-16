@@ -66,10 +66,13 @@ enum CoreFood {
         case "food.favourites":
             return CoreRead.json(["items": await FoodLibrary.favourites(store: store)])
         case "food.setFavourite":
-            try? await store.setFoodFavourite(.init(foodId: string("foodId"), name: string("name"),
-                                                    addedAt: Int(Date().timeIntervalSince1970)),
-                                              on: args["on"] as? Bool ?? true)
-            return #"{"ok":true}"#
+            // `ok` is what the store did, not what was attempted: a star the write did not keep comes
+            // back on the next read anyway, and a screen told otherwise would draw it filled until then.
+            let starred = (try? await store.setFoodFavourite(
+                .init(foodId: string("foodId"), name: string("name"),
+                      addedAt: Int(Date().timeIntervalSince1970)),
+                on: args["on"] as? Bool ?? true)) != nil
+            return #"{"ok":\#(starred)}"#
         case "food.item":
             guard let found = await FoodLibrary.item(store: store, id: string("id")) else { return "null" }
             return CoreRead.json(found)
@@ -159,8 +162,9 @@ enum CoreFood {
             guard !copies.isEmpty, await FoodLog.save(store: store, copies) else { return #"{"error":"invalid"}"# }
             return entries(copies)
         case "food.setHealthId":
-            try? await store.setFoodLogHealthId(entryId: string("id"), healthId: args["healthId"] as? String)
-            return #"{"ok":true}"#
+            let linked = (try? await store.setFoodLogHealthId(entryId: string("id"),
+                                                              healthId: args["healthId"] as? String)) != nil
+            return #"{"ok":\#(linked)}"#
         case "food.own":
             return CoreRead.json(["items": ((try? await store.customFoods()) ?? []).map(FoodLibrary.item(for:))])
         case "food.saveOwn":
