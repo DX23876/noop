@@ -673847,6 +673847,64 @@
         }
       }
     },
+    "That reading was not saved. Note the number and try again." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieser Wert wurde nicht gespeichert. Schreib dir die Zahl auf und versuch es nochmal."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ese valor no se ha guardado. Apunta el número e inténtalo otra vez."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette valeur n'a pas été enregistrée. Notez le chiffre et réessayez."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo valore non è stato salvato. Annota il numero e riprova."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ten wynik nie został zapisany. Zapisz liczbę i spróbuj jeszcze raz."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esse valor não foi guardado. Anote o número e tente outra vez."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это значение не сохранилось. Запишите число и попробуйте ещё раз."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个数值没有保存。记下这个数字，然后再试一次。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這個數值沒有保存。記下這個數字，然後再試一次。"
+          }
+        }
+      }
+    },
     "That did not go out. Try again later." : {
       "localizations" : {
         "de" : {

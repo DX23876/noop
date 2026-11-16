@@ -47,8 +47,10 @@ struct LabBookView: View {
     // Markers CSV import (LabMarkerCsvImport, Phase 2).
     @State private var showingCsvImporter = false   // macOS .fileImporter presentation
     @State private var csvImporting = false
-    @State private var csvSummary: String?
-    @State private var csvFailed = false
+    /// The page's one line about what just happened: an import, or a hand-typed entry the store
+    /// refused. One line rather than one per source, so the page cannot say two things at once.
+    @State private var lastNotice: String?
+    @State private var lastNoticeFailed = false
     @State private var showingReportImporter = false
     @State private var reportImporting = false
     @State private var reportSummary: String?
@@ -180,9 +182,9 @@ struct LabBookView: View {
                         }
                         .disabled(csvImporting || reportImporting)
                     }
-                    if let s = csvSummary {
+                    if let s = lastNotice {
                         Text(s).font(StrandFont.footnote)
-                            .foregroundStyle(csvFailed ? StrandPalette.statusWarningForeground : StrandPalette.statusPositive)
+                            .foregroundStyle(lastNoticeFailed ? StrandPalette.statusWarningForeground : StrandPalette.statusPositive)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     if let s = reportSummary {
@@ -353,9 +355,9 @@ struct LabBookView: View {
                     .accessibilityLabel("Choose a markers CSV file to import")
                     if csvImporting { ProgressView().controlSize(.small) }
                 }
-                if let s = csvSummary {
+                if let s = lastNotice {
                     Text(s).font(StrandFont.subhead)
-                        .foregroundStyle(csvFailed ? StrandPalette.statusWarningForeground : StrandPalette.statusPositive)
+                        .foregroundStyle(lastNoticeFailed ? StrandPalette.statusWarningForeground : StrandPalette.statusPositive)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Divider().overlay(StrandPalette.hairline)
@@ -500,8 +502,8 @@ struct LabBookView: View {
     /// the new markers.
     private func importMarkersCsv(url: URL) {
         csvImporting = true
-        csvSummary = nil
-        csvFailed = false
+        lastNotice = nil
+        lastNoticeFailed = false
         Task {
             let scoped = url.startAccessingSecurityScopedResource()
             defer { if scoped { url.stopAccessingSecurityScopedResource() } }
@@ -515,21 +517,21 @@ struct LabBookView: View {
                                      : LabMarkerCsvImport.parse(data: data)
                 let sourceId = isWhoop ? WhoopBiomarkerExportParser.sourceId : LabMarkerCsvImport.sourceId
                 guard !result.fileTooLarge else {
-                    csvSummary = String(localized: "That file is too large for a markers CSV import.")
-                    csvFailed = true
+                    lastNotice = String(localized: "That file is too large for a markers CSV import.")
+                    lastNoticeFailed = true
                     csvImporting = false
                     return
                 }
                 guard result.importedReadings > 0 else {
-                    csvSummary = String(localized: "No usable rows found. Check the file has date, marker and value columns.")
-                    csvFailed = true
+                    lastNotice = String(localized: "No usable rows found. Check the file has date, marker and value columns.")
+                    lastNoticeFailed = true
                     logImport("Lab Book CSV: no usable rows (\(result.skippedRows) skipped)")
                     csvImporting = false
                     return
                 }
                 guard let store = await repo.storeHandle() else {
-                    csvSummary = String(localized: "Couldn't open the local store.")
-                    csvFailed = true
+                    lastNotice = String(localized: "Couldn't open the local store.")
+                    lastNoticeFailed = true
                     csvImporting = false
                     return
                 }
@@ -571,12 +573,12 @@ struct LabBookView: View {
                                     ? String(localized: "1 not measured")
                                     : String(localized: "\(result.notMeasured) not measured"))
                 }
-                csvSummary = msg
-                csvFailed = false
+                lastNotice = msg
+                lastNoticeFailed = false
                 logImport("Lab Book CSV: \(result.importedReadings) readings, \(result.distinctMarkers) markers, \(result.skippedRows) rejected")
             } catch {
-                csvSummary = String(localized: "Import failed: \(error.localizedDescription)")
-                csvFailed = true
+                lastNotice = String(localized: "Import failed: \(error.localizedDescription)")
+                lastNoticeFailed = true
                 logImport("Lab Book CSV failed: \(error.localizedDescription)")
             }
             csvImporting = false
@@ -766,7 +768,13 @@ struct LabBookView: View {
 
     private func save(_ drafts: [LabMarkerRow]) async {
         guard !drafts.isEmpty, let store = await repo.storeHandle() else { return }
-        _ = try? await store.upsertLabMarkers(drafts)
+        // A reading typed by hand is the one thing on this page nobody can get back: the page reloads
+        // from the store, so a refused write used to leave the sheet closed and the row simply absent.
+        let kept = (try? await store.upsertLabMarkers(drafts)) != nil
+        if !kept {
+            lastNotice = String(localized: "That reading was not saved. Note the number and try again.")
+            lastNoticeFailed = true
+        }
         await repo.refresh()   // re-resolves the lab-book projection into Compare/Explore/Coach
         await load()
     }
