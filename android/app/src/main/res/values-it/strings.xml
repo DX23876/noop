@@ -6923,6 +6923,7 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="forge_roadmap_later">Più avanti</string>
     <string name="forge_roadmap_reported">Problemi segnalati</string>
     <string name="forge_roadmap_summary">%1$d segnalati</string>
+    <string name="forge_wo_log">Registro</string>
     <string name="forge_fr_sources_differ">Le fonti non coincidono</string>
     <string name="forge_hl_latest_readings">Ultime misure</string>
     <string name="forge_hl_from_rr">dagli intervalli R-R</string>

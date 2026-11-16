@@ -6928,6 +6928,7 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_roadmap_later">Позже</string>
     <string name="forge_roadmap_reported">Сообщённые проблемы</string>
     <string name="forge_roadmap_summary">Сообщено: %1$d</string>
+    <string name="forge_wo_log">Журнал</string>
     <string name="forge_fr_sources_differ">Источники расходятся</string>
     <string name="forge_hl_latest_readings">Последние измерения</string>
     <string name="forge_hl_from_rr">из интервалов R-R</string>

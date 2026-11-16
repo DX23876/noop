@@ -6971,6 +6971,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_roadmap_later">Später</string>
     <string name="forge_roadmap_reported">Gemeldete Probleme</string>
     <string name="forge_roadmap_summary">%1$d gemeldet</string>
+    <string name="forge_wo_log">Protokoll</string>
     <string name="forge_fr_sources_differ">Quellen weichen ab</string>
     <string name="forge_hl_latest_readings">Neueste Messungen</string>
     <string name="forge_hl_from_rr">aus den Abständen zwischen Schlägen</string>

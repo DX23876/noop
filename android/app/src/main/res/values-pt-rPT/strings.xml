@@ -6947,6 +6947,7 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="forge_roadmap_later">Mais tarde</string>
     <string name="forge_roadmap_reported">Problemas comunicados</string>
     <string name="forge_roadmap_summary">%1$d comunicados</string>
+    <string name="forge_wo_log">Registo</string>
     <string name="forge_fr_sources_differ">As fontes divergem</string>
     <string name="forge_hl_latest_readings">Últimas leituras</string>
     <string name="forge_hl_from_rr">a partir de R-R</string>

@@ -6954,6 +6954,7 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="forge_roadmap_later">Plus tard</string>
     <string name="forge_roadmap_reported">Problèmes signalés</string>
     <string name="forge_roadmap_summary">%1$d signalés</string>
+    <string name="forge_wo_log">Journal</string>
     <string name="forge_fr_sources_differ">Les sources divergent</string>
     <string name="forge_hl_latest_readings">Dernières mesures</string>
     <string name="forge_hl_from_rr">à partir des intervalles R-R</string>

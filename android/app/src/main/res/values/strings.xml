@@ -6995,6 +6995,7 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_roadmap_later">Later</string>
     <string name="forge_roadmap_reported">Reported problems</string>
     <string name="forge_roadmap_summary">%1$d reported</string>
+    <string name="forge_wo_log">Log</string>
     <string name="forge_fr_sources_differ">Sources differ</string>
     <string name="forge_hl_latest_readings">Latest readings</string>
     <string name="forge_hl_from_rr">from R-R</string>

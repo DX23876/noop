@@ -6975,6 +6975,7 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_roadmap_later">Później</string>
     <string name="forge_roadmap_reported">Zgłoszone problemy</string>
     <string name="forge_roadmap_summary">Zgłoszone: %1$d</string>
+    <string name="forge_wo_log">Dziennik</string>
     <string name="forge_fr_sources_differ">Źródła się różnią</string>
     <string name="forge_hl_latest_readings">Najnowsze pomiary</string>
     <string name="forge_hl_from_rr">z odstępów R-R</string>

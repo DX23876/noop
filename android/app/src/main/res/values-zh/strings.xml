@@ -6924,6 +6924,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_roadmap_later">以后</string>
     <string name="forge_roadmap_reported">已报告的问题</string>
     <string name="forge_roadmap_summary">已报告 %1$d 个</string>
+    <string name="forge_wo_log">记录</string>
     <string name="forge_fr_sources_differ">来源不一致</string>
     <string name="forge_hl_latest_readings">最新的测量</string>
     <string name="forge_hl_from_rr">来自 R-R 间期</string>

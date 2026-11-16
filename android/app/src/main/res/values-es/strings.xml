@@ -6955,6 +6955,7 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_roadmap_later">Más adelante</string>
     <string name="forge_roadmap_reported">Problemas notificados</string>
     <string name="forge_roadmap_summary">%1$d notificados</string>
+    <string name="forge_wo_log">Registro</string>
     <string name="forge_fr_sources_differ">Las fuentes no coinciden</string>
     <string name="forge_hl_latest_readings">Últimas lecturas</string>
     <string name="forge_hl_from_rr">a partir de R-R</string>

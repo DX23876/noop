@@ -1182,7 +1182,7 @@ private fun SessionsSection(
     Column(verticalArrangement = Arrangement.spacedBy(Metrics.gap)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(modifier = Modifier.weight(1f)) {
-                SectionHeader(title = uiString(R.string.l10n_workouts_screen_all_sessions_03bc4eb4), overline = stringResource(R.string.forge_log_title), trailing = "${rows.size} total")
+                SectionHeader(title = uiString(R.string.l10n_workouts_screen_all_sessions_03bc4eb4), overline = stringResource(R.string.forge_wo_log), trailing = "${rows.size} total")
             }
             if (anySelectable) SelectPill(selectionMode, onToggleSelectMode)
         }
