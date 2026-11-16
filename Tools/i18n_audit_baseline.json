@@ -529,5 +529,30 @@
       "⚡ $it%"
     ]
   ],
-  "ios": []
+  "ios": [
+    [
+      "Strand/Data/AppleDemoSeeder.swift",
+      "Belt from the second working set."
+    ],
+    [
+      "Strand/Data/AppleDemoSeeder.swift",
+      "Belt weight only — the body is priced separately."
+    ],
+    [
+      "Strand/Data/AppleDemoSeeder.swift",
+      "Feet planted, elbows tucked to 45°."
+    ],
+    [
+      "Strand/Screens/AddDeviceWizard.swift",
+      "WHOOP"
+    ],
+    [
+      "StrandiOS/App/StrandiOSApp.swift",
+      "Card kinds"
+    ],
+    [
+      "StrandiOS/App/StrandiOSApp.swift",
+      "Navigation, data, hero and state."
+    ]
+  ]
 }

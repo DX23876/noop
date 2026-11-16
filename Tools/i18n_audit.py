@@ -643,8 +643,19 @@ CATALOGS = [
     ),
 ]
 
+# The SwiftUI constructors that localize their first argument, plus this fork's own components that
+# do the same. The second group is not decoration: `ForgeListGroup`, `ForgeLinkRow` and the rest take
+# `LocalizedStringKey`, Xcode extracts their literals like any other, and this audit could not see a
+# single one of them. A whole new screen (the four project pages) therefore shipped with 55 literals
+# that had no catalog entry at all, in English on every device, while this gate printed OK — the
+# "a gate must be able to fail on the change that caused it" rule, one layer down: the gate could not
+# see the call shape the fork writes its screens in.
 SWIFT_CALL_START_PATTERN = re.compile(
-    r"\b(?:Text|Button|Label|Toggle|Menu|Picker|ProgressView|SectionHeader)\s*\("
+    r"\b(?:Text|Button|Label|Toggle|Menu|Picker|ProgressView|SectionHeader"
+    r"|ForgeListGroup|ForgeLinkRow|ForgeActionRow|ForgeActionLabel|ForgeToggleRow|ForgeFactRow"
+    r"|ForgeValueTile|ForgeEffectRow|ForgeFilterChip|ForgeTileRow|ForgeSectionHeading|ScreenScaffold"
+    r"|ComingSoon|DataPendingNote"
+    r")\s*\("
     r"|"
     r"\.(?:navigationTitle|confirmationDialog|alert|accessibilityLabel|help)\s*\("
     r"|"
@@ -785,6 +796,26 @@ def swift_string_literals(text: str):
             i += 1
 
 
+# A named argument that IS copy. `swift_string_literals` deliberately reads only a call's first
+# argument, which is right for `Text(...)` and wrong for every row component in this fork: the
+# `subtitle:` under a title is a sentence the wearer reads, and it was invisible here. Matched by
+# argument name rather than by component, for the same reason `SWIFT_COPY_PROPERTY_PATTERN` matches
+# property names: these words mean copy wherever they appear, and only literals are yielded, so a
+# computed subtitle stays out.
+# `detail:` is deliberately NOT here: in this codebase it is the word for a diagnostic payload
+# (`CircadianTrace.rejectedLine(detail:)`, `OuraSyncProgress(detail:)`), and reporting those as
+# untranslated copy would put lines nobody reads into the baseline beside lines somebody does.
+COPY_ARGUMENT_PATTERN = re.compile(r"\b(?:subtitle|note|caption|footnote):\s*\"")
+
+
+def swift_copy_argument_literals(text: str):
+    """Yield (offset, literal) for a literal handed to a copy-named argument."""
+    for match in COPY_ARGUMENT_PATTERN.finditer(text):
+        i = match.end() - 1
+        j = _skip_swift_string_literal(text, i)
+        yield i, text[i + 1:j - 1]
+
+
 def swift_returned_copy_literals(text: str):
     """Yield (offset, literal) for copy RETURNED as a String from a `var label: String { ... }`-shaped
     property, e.g. `case .current: return "Current"`.
@@ -838,6 +869,46 @@ def swift_returned_copy_literals(text: str):
                 if depth == 0:
                     break
             i += 1
+
+
+# `#Preview { … }`, the old `PreviewProvider`, and a harness struct named for what it is: this file
+# has `StressPreviewHarness: View`, whose sample tiles read "54 bpm" and "low-stress days · 30d".
+PREVIEW_START_PATTERN = re.compile(
+    r"#Preview\b[^{\n]*\{|struct\s+\w*Preview\w*\s*:\s*(?:PreviewProvider|View)\b")
+
+
+def mask_swift_previews(text: str) -> str:
+    """`text` with the body of every `#Preview { ... }` and `PreviewProvider` blanked out.
+
+    Preview copy never reaches a device, so flagging it buys nothing and costs the gate its
+    credibility: of the first findings the widened patterns above produced, a handful were sample
+    strings like `n = 12` and `<day> · <source> · <state>`, written to make a canvas legible. A
+    baseline full of those is a baseline nobody reads.
+    """
+    out = list(text)
+    for match in PREVIEW_START_PATTERN.finditer(text):
+        i = text.find("{", match.start())
+        if i < 0:
+            continue
+        depth, j = 0, i
+        n = len(text)
+        while j < n:
+            ch = text[j]
+            if ch == '"':
+                nxt = _skip_swift_string_literal(text, j)
+                for k in range(j, min(nxt, n)):
+                    if out[k] != "\n":
+                        out[k] = " "
+                j = nxt
+                continue
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            j += 1
+    return "".join(out)
 
 
 def swift_catalog_pattern(literal: str) -> re.Pattern[str] | None:
@@ -998,8 +1069,13 @@ def scan_ios() -> tuple[list[tuple[str, int, str]], dict[str, list[str]]]:
             if not base.exists():
                 continue
             for path in sorted(base.rglob("*.swift")):
-                text = path.read_text(encoding="utf-8", errors="replace")
+                # Comments are masked FIRST, and not as housekeeping: a doc comment explaining a
+                # caption quotes it, so `COPY_ARGUMENT_PATTERN` read three of them as code — one of
+                # them a German word in a comment about why it is not used ("Herzfrequenz").
+                text = mask_swift_previews(
+                    _mask_comments(path.read_text(encoding="utf-8", errors="replace")))
                 literals = list(swift_string_literals(text))
+                literals += list(swift_copy_argument_literals(text))
                 # Screen files only: see `swift_returned_copy_literals` for why the same shape
                 # elsewhere (BLE opcode names, design-system internals) is not copy.
                 if "/Screens/" in path.as_posix() or "/Liquid/" in path.as_posix():
