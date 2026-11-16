@@ -702,6 +702,14 @@ class CommentsAndPreviewsAreNotCopy(unittest.TestCase):
                '    var body: some View { Text("low-stress days") }\n}\n')
         self.assertEqual(self.found(src), [])
 
+    def test_a_shipped_view_named_for_a_preview_is_still_copy(self):
+        """`TrainingRoutineImportPreviewView`, `GoalSessionPreviewNote` and `OnboardingPreview` are
+        screens, not canvas scaffolding. Masking every `View` whose name contains "Preview" would
+        have hidden six of them."""
+        src = ('struct TrainingRoutineImportPreviewView: View {\n'
+               '    var body: some View { Text("Import this routine?") }\n}\n')
+        self.assertEqual(self.found(src), ["Import this routine?"])
+
     def test_a_shipped_view_right_after_a_preview_is_still_copy(self):
         src = ('#Preview {\n    Text("sample")\n}\n'
                'struct Real: View {\n    var body: some View { Text("Shown") }\n}\n')

@@ -882,10 +882,16 @@ def swift_returned_copy_literals(text: str):
             i += 1
 
 
-# `#Preview { … }`, the old `PreviewProvider`, and a harness struct named for what it is: this file
+# `#Preview { … }`, the old `PreviewProvider`, and a harness struct named for what it is: this tree
 # has `StressPreviewHarness: View`, whose sample tiles read "54 bpm" and "low-stress days · 30d".
+#
+# Deliberately NOT every `View` with "Preview" in its name. Six of those are shipped screens whose
+# subject happens to be a preview — `TrainingRoutineImportPreviewView`, `GoalSessionPreviewNote`,
+# `OnboardingPreview` — and masking them would quietly shrink this gate instead of sharpening it.
 PREVIEW_START_PATTERN = re.compile(
-    r"#Preview\b[^{\n]*\{|struct\s+\w*Preview\w*\s*:\s*(?:PreviewProvider|View)\b")
+    r"#Preview\b[^{\n]*\{"
+    r"|struct\s+\w*\s*:\s*PreviewProvider\b"
+    r"|struct\s+\w*PreviewHarness\w*\s*:")
 
 
 def mask_swift_previews(text: str) -> str:
