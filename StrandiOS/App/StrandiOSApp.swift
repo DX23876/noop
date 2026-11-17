@@ -803,6 +803,10 @@ enum DemoScreens {
         // screen in whatever skin is on, and the Forge page is a different view. Without this the nap
         // card added for #49 could not be captured on the page most wearers see.
         case "forgesleep": return AnyView(ForgeSleepView(onProfile: {}))
+        // The new design's Today, which `today` does not reach: that route renders the classic screen.
+        // Needed to put the two platforms' Today pages side by side, which is how the nap defects on
+        // Android were found at all.
+        case "forgetoday": return AnyView(DemoForgeTodayHost())
         case "live":     return AnyView(LiveView())
         case "stress":   return AnyView(StressView())
         case "workouts": return AnyView(WorkoutsView())
@@ -871,6 +875,16 @@ enum DemoScreens {
 private struct DemoStartWorkoutHost: View {
     @EnvironmentObject private var session: ActiveSessionController
     var body: some View { StartWorkoutSheet(session: session) }
+}
+
+/// DEBUG-only host so `--demo-screen forgetoday` can render the new design's Today with the app's own
+/// model and coach, which it takes as parameters rather than from the environment.
+private struct DemoForgeTodayHost: View {
+    @EnvironmentObject private var model: AppModel
+    var body: some View {
+        ForgeTodayView(coach: model.coach, model: model, onProfile: {}, onLog: {}, onWorkout: {},
+                       onCoach: {}, onSleep: {}, onCoachSettings: {}, onAsk: { _ in })
+    }
 }
 
 /// DEBUG-only host so `--demo-screen library` can render the exercise library.
