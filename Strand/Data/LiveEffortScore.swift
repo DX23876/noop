@@ -55,7 +55,9 @@ public enum LiveEffortScore {
     public static func cycleStart(onsetMarkers: [Double], now: Date,
                                   offsetSec: Int = TimeZone.current.secondsFromGMT()) -> Int? {
         let nowTs = Int(now.timeIntervalSince1970)
-        let usable = onsetMarkers.filter { $0.isFinite && $0 > 0 && Int($0) <= nowTs }
+        // Compared as Double before converting: `Int(_:)` TRAPS on a value outside its range, and these
+        // come out of a stored series. A corrupt marker must leave the window alone, not stop the app.
+        let usable = onsetMarkers.filter { $0.isFinite && $0 > 0 && $0 <= Double(nowTs) }
         guard let newest = usable.max() else { return nil }
         let latest = DayCycleWindow(id: "live", startInclusive: Int(newest), endExclusive: nowTs,
                                     displayDay: "", source: .detectedSleep)

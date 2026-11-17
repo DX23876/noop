@@ -1035,6 +1035,10 @@ fun TodayScreen(
     LaunchedEffect(days, selectedDayKey, selectedDayOffset, activeDayCycle, dayCycleMode) {
         liveTodayStrain = if (selectedDayOffset == 0) {
             withContext(Dispatchers.IO) {
+                // As the Forge screen does: the session has to be open before a core read, or the read
+                // returns nothing and the screen silently falls back to the lagging stored row. Opening
+                // is idempotent and cheap once done.
+                com.noop.core.CoreRead.open(context)
                 com.noop.core.CoreLiveEffort.today(context, displayMetric?.restingHr, displayMetric?.strain)
             }
         } else {
