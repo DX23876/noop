@@ -6758,6 +6758,15 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="cx_caffeine_none_logged">未记录咖啡因。记录一次摄入以查看估算。</string>
     <string name="cx_caffeine_cleared">估计大部分已代谢。你记录的物质可能都已不再起作用。</string>
     <string name="cx_backup_none_yet">尚无备份。</string>
+    <string name="backup_saving_to">保存到：%1$s</string>
+    <string name="backup_no_folder">还没有选文件夹。挑一个你的云盘应用已经在同步的，或者任意本地文件夹。</string>
+    <string name="backup_last">上次备份：%1$s</string>
+    <string name="compare_normalized_overlay">归一化叠加</string>
+    <string name="compare_normalized_within">每条线都按它自己在 %1$s 内的最小值和最大值缩放</string>
+    <string name="compare_normalized_widened">每条线都按它自己的最小值和最大值缩放 · 稀疏的序列会超出 %1$s 取值</string>
+    <string name="steps_cal_auto">自动</string>
+    <string name="steps_cal_unit">步 / 动作单位</string>
+    <string name="steps_cal_fit">根据你的手机拟合</string>
     <string name="cx_coach_refresh_models">刷新模型</string>
     <string name="cx_compare_add_metric">添加指标</string>
     <string name="cx_state_expanded">已展开</string>

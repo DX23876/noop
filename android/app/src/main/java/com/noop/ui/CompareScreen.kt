@@ -803,12 +803,12 @@ private fun OverlaySection(
         // series colour so the overlaid lines stay distinguishable against the wash.
         NoopCard(tint = Palette.accent) {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Overline("Normalized overlay")
+                Overline(stringResource(R.string.compare_normalized_overlay))
                 Text(
                     if (anyWidened) {
-                        "Each line min-max normalized · sparse series widened past ${range.phrase}"
+                        stringResource(R.string.compare_normalized_widened, range.phrase)
                     } else {
-                        "Each line min-max normalized within ${range.phrase}"
+                        stringResource(R.string.compare_normalized_within, range.phrase)
                     },
                     style = NoopType.footnote,
                     color = Palette.textTertiary,

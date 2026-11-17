@@ -6762,6 +6762,15 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="cx_caffeine_none_logged">Кофеин не отмечен. Добавьте приём, чтобы увидеть оценку.</string>
     <string name="cx_caffeine_cleared">По оценке, в основном выведено. То, что не отмечено, вероятно, уже не действует.</string>
     <string name="cx_backup_none_yet">Резервной копии пока нет.</string>
+    <string name="backup_saving_to">Сохранение в: %1$s</string>
+    <string name="backup_no_folder">Папка ещё не выбрана. Возьмите ту, которую уже синхронизирует ваше облако, или любую локальную.</string>
+    <string name="backup_last">Последняя копия: %1$s</string>
+    <string name="compare_normalized_overlay">Приведено к одной шкале</string>
+    <string name="compare_normalized_within">Каждая линия приведена к своему минимуму и максимуму за %1$s</string>
+    <string name="compare_normalized_widened">Каждая линия приведена к своему минимуму и максимуму · разрежённые ряды расширены за %1$s</string>
+    <string name="steps_cal_auto">Автоматически</string>
+    <string name="steps_cal_unit">шагов на единицу движения</string>
+    <string name="steps_cal_fit">подобрано по вашему телефону</string>
     <string name="cx_coach_refresh_models">Обновить модели</string>
     <string name="cx_compare_add_metric">Добавить метрику</string>
     <string name="cx_state_expanded">Развёрнуто</string>

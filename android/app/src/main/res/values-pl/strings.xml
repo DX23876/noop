@@ -6809,6 +6809,15 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="cx_caffeine_none_logged">Nie zarejestrowano żadnej kofeiny. Zarejestruj spożycie, aby zobaczyć oszacowanie.</string>
     <string name="cx_caffeine_cleared">Szacunkowo w większości wyczyszczone. Nic, co zostało zarejestrowane, prawdopodobnie nie jest nadal aktywne.</string>
     <string name="cx_backup_none_yet">Nie ma jeszcze kopii zapasowej.</string>
+    <string name="backup_saving_to">Zapis do: %1$s</string>
+    <string name="backup_no_folder">Nie wybrano jeszcze folderu. Wybierz taki, który twoja aplikacja chmury już synchronizuje, albo dowolny folder lokalny.</string>
+    <string name="backup_last">Ostatnia kopia: %1$s</string>
+    <string name="compare_normalized_overlay">Nałożenie znormalizowane</string>
+    <string name="compare_normalized_within">Każda linia sprowadzona do własnego minimum i maksimum w %1$s</string>
+    <string name="compare_normalized_widened">Każda linia sprowadzona do własnego minimum i maksimum · rzadkie serie poszerzone poza %1$s</string>
+    <string name="steps_cal_auto">Automatycznie</string>
+    <string name="steps_cal_unit">kroki / jednostka ruchu</string>
+    <string name="steps_cal_fit">dopasowane z twojego telefonu</string>
     <string name="cx_coach_refresh_models">Odśwież modele</string>
     <string name="cx_compare_add_metric">Dodaj metrykę</string>
     <string name="cx_state_expanded">Rozszerzony</string>

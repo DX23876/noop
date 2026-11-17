@@ -6781,6 +6781,15 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="cx_caffeine_none_logged">Nenhuma cafeína registada. Registe uma ingestão para ver uma estimativa.</string>
     <string name="cx_caffeine_cleared">Estima-se que esteja quase totalmente limpo. Provavelmente nada registado ainda está ativo.</string>
     <string name="cx_backup_none_yet">Nenhum cópia de segurança ainda.</string>
+    <string name="backup_saving_to">A guardar em: %1$s</string>
+    <string name="backup_no_folder">Ainda não escolheu pasta. Escolha uma que a sua aplicação de nuvem já sincronize, ou qualquer pasta local.</string>
+    <string name="backup_last">Última cópia: %1$s</string>
+    <string name="compare_normalized_overlay">Sobreposição normalizada</string>
+    <string name="compare_normalized_within">Cada linha levada ao seu próprio mínimo e máximo dentro de %1$s</string>
+    <string name="compare_normalized_widened">Cada linha levada ao seu próprio mínimo e máximo · séries esparsas alargadas para lá de %1$s</string>
+    <string name="steps_cal_auto">Automático</string>
+    <string name="steps_cal_unit">passos / unidade de movimento</string>
+    <string name="steps_cal_fit">ajustado a partir do seu telemóvel</string>
     <string name="cx_coach_refresh_models">Atualizar modelos</string>
     <string name="cx_compare_add_metric">Adicionar métrica</string>
     <string name="cx_state_expanded">Expandido</string>

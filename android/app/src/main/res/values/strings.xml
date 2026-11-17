@@ -6829,6 +6829,15 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="cx_caffeine_none_logged">No caffeine logged. Log an intake to see an estimate.</string>
     <string name="cx_caffeine_cleared">Estimated mostly cleared. Nothing logged is likely still active.</string>
     <string name="cx_backup_none_yet">No backup yet.</string>
+    <string name="backup_saving_to">Saving to: %1$s</string>
+    <string name="backup_no_folder">No folder chosen yet. Pick one your cloud app already syncs, or any local folder.</string>
+    <string name="backup_last">Last backup: %1$s</string>
+    <string name="compare_normalized_overlay">Normalized overlay</string>
+    <string name="compare_normalized_within">Each line min-max normalized within %1$s</string>
+    <string name="compare_normalized_widened">Each line min-max normalized · sparse series widened past %1$s</string>
+    <string name="steps_cal_auto">Auto</string>
+    <string name="steps_cal_unit">steps / motion unit</string>
+    <string name="steps_cal_fit">fit from your phone</string>
     <string name="cx_coach_refresh_models">Refresh models</string>
     <string name="cx_compare_add_metric">Add metric</string>
     <string name="cx_state_expanded">Expanded</string>

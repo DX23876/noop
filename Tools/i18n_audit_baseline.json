@@ -5,18 +5,6 @@
       "The most common cause is the ring was not fully reset in the Oura app, or the Oura "
     ],
     [
-      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
-      "Last backup: ${DateUtils.getRelativeTimeSpanString(lastMs)}"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
-      "No folder chosen yet. Pick one your cloud app already syncs, or any local folder."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
-      "Saving to: ${folderLabel(it)}"
-    ],
-    [
       "android/app/src/main/java/com/noop/ui/BreatheScreen.kt",
       "%.1f br/min"
     ],
@@ -79,14 +67,6 @@
     [
       "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
       "dot$i"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
-      "Each line min-max normalized within ${range.phrase}"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
-      "Each line min-max normalized · sparse series widened past ${range.phrase}"
     ],
     [
       "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
@@ -355,18 +335,6 @@
     [
       "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
       "%+.0f%%"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
-      "Auto"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
-      "fit from your phone"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
-      "steps / motion unit"
     ],
     [
       "android/app/src/main/java/com/noop/ui/StressScreen.kt",

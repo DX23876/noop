@@ -6805,6 +6805,15 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="cx_caffeine_none_logged">Kein Koffein erfasst. Erfasse eine Einnahme, um eine Schätzung zu sehen.</string>
     <string name="cx_caffeine_cleared">Schätzung: größtenteils abgebaut. Nichts Erfasstes wirkt wahrscheinlich noch.</string>
     <string name="cx_backup_none_yet">Noch keine Sicherung.</string>
+    <string name="backup_saving_to">Wird gesichert nach: %1$s</string>
+    <string name="backup_no_folder">Noch kein Ordner gewählt. Nimm einen, den deine Cloud-App schon abgleicht, oder irgendeinen Ordner auf dem Gerät.</string>
+    <string name="backup_last">Letzte Sicherung: %1$s</string>
+    <string name="compare_normalized_overlay">Auf eine Skala gebracht</string>
+    <string name="compare_normalized_within">Jede Linie auf ihren eigenen kleinsten und größten Wert in %1$s gebracht</string>
+    <string name="compare_normalized_widened">Jede Linie auf ihren eigenen kleinsten und größten Wert gebracht · dünne Reihen über %1$s hinaus verbreitert</string>
+    <string name="steps_cal_auto">Automatisch</string>
+    <string name="steps_cal_unit">Schritte je Bewegungseinheit</string>
+    <string name="steps_cal_fit">aus deinem Telefon abgeleitet</string>
     <string name="cx_coach_refresh_models">Modelle aktualisieren</string>
     <string name="cx_compare_add_metric">Metrik hinzufügen</string>
     <string name="cx_state_expanded">Ausgeklappt</string>

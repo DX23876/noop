@@ -171,8 +171,8 @@ fun BackupSyncScreen() {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(uiString(R.string.l10n_backup_sync_screen_backup_folder_2a33df93), style = NoopType.headline, color = Palette.textPrimary)
                     Text(
-                        treeUri?.let { "Saving to: ${folderLabel(it)}" }
-                            ?: "No folder chosen yet. Pick one your cloud app already syncs, or any local folder.",
+                        treeUri?.let { stringResource(R.string.backup_saving_to, folderLabel(it)) }
+                            ?: stringResource(R.string.backup_no_folder),
                         style = NoopType.footnote, color = Palette.textTertiary,
                     )
                     Text(
@@ -308,7 +308,8 @@ fun BackupSyncScreen() {
                     }
                     Text(
                         if (lastMs > 0L) {
-                            "Last backup: ${DateUtils.getRelativeTimeSpanString(lastMs)}"
+                            stringResource(R.string.backup_last,
+                                           DateUtils.getRelativeTimeSpanString(lastMs))
                         } else {
                             stringResource(R.string.cx_backup_none_yet)
                         },

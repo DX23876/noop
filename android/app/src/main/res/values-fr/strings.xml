@@ -6788,6 +6788,15 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="cx_caffeine_none_logged">Aucune caféine enregistrée. Enregistrez une prise pour voir une estimation.</string>
     <string name="cx_caffeine_cleared">Estimation : majoritairement éliminé. Rien de ce qui est enregistré n\'est probablement encore actif.</string>
     <string name="cx_backup_none_yet">Aucune sauvegarde pour l\'instant.</string>
+    <string name="backup_saving_to">Enregistré dans : %1$s</string>
+    <string name="backup_no_folder">Aucun dossier choisi pour l\'instant. Prenez-en un que votre app de cloud synchronise déjà, ou n\'importe quel dossier local.</string>
+    <string name="backup_last">Dernière sauvegarde : %1$s</string>
+    <string name="compare_normalized_overlay">Superposition normalisée</string>
+    <string name="compare_normalized_within">Chaque courbe ramenée à son propre minimum et maximum sur %1$s</string>
+    <string name="compare_normalized_widened">Chaque courbe ramenée à son propre minimum et maximum · les séries clairsemées élargies au-delà de %1$s</string>
+    <string name="steps_cal_auto">Automatique</string>
+    <string name="steps_cal_unit">pas / unité de mouvement</string>
+    <string name="steps_cal_fit">ajusté d\'après votre téléphone</string>
     <string name="cx_coach_refresh_models">Actualiser les modèles</string>
     <string name="cx_compare_add_metric">Ajouter une métrique</string>
     <string name="cx_state_expanded">Développé</string>

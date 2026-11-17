@@ -6789,6 +6789,15 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="cx_caffeine_none_logged">No hay cafeína registrada. Registra una ingesta para ver una estimación.</string>
     <string name="cx_caffeine_cleared">Estimado como mayormente eliminado. Probablemente nada de lo registrado sigue activo.</string>
     <string name="cx_backup_none_yet">Aún no hay copia de seguridad.</string>
+    <string name="backup_saving_to">Se guarda en: %1$s</string>
+    <string name="backup_no_folder">Todavía no has elegido carpeta. Escoge una que tu app de nube ya sincronice, o cualquier carpeta local.</string>
+    <string name="backup_last">Última copia: %1$s</string>
+    <string name="compare_normalized_overlay">Superposición normalizada</string>
+    <string name="compare_normalized_within">Cada línea llevada a su propio mínimo y máximo dentro de %1$s</string>
+    <string name="compare_normalized_widened">Cada línea llevada a su propio mínimo y máximo · las series escasas se amplían más allá de %1$s</string>
+    <string name="steps_cal_auto">Automático</string>
+    <string name="steps_cal_unit">pasos / unidad de movimiento</string>
+    <string name="steps_cal_fit">ajustado desde tu teléfono</string>
     <string name="cx_coach_refresh_models">Actualizar modelos</string>
     <string name="cx_compare_add_metric">Añadir métrica</string>
     <string name="cx_state_expanded">Expandido</string>

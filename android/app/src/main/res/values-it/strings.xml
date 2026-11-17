@@ -6757,6 +6757,15 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="cx_caffeine_none_logged">Nessuna caffeina registrata. Registra un\'assunzione per vedere una stima.</string>
     <string name="cx_caffeine_cleared">Stimato per lo più smaltito. È probabile che nulla di registrato sia ancora attivo.</string>
     <string name="cx_backup_none_yet">Ancora nessun backup.</string>
+    <string name="backup_saving_to">Salvataggio in: %1$s</string>
+    <string name="backup_no_folder">Nessuna cartella scelta. Prendine una che la tua app cloud già sincronizza, o una qualsiasi sul dispositivo.</string>
+    <string name="backup_last">Ultimo backup: %1$s</string>
+    <string name="compare_normalized_overlay">Sovrapposizione normalizzata</string>
+    <string name="compare_normalized_within">Ogni linea portata al proprio minimo e massimo entro %1$s</string>
+    <string name="compare_normalized_widened">Ogni linea portata al proprio minimo e massimo · le serie rade allargate oltre %1$s</string>
+    <string name="steps_cal_auto">Automatico</string>
+    <string name="steps_cal_unit">passi / unità di movimento</string>
+    <string name="steps_cal_fit">ricavato dal tuo telefono</string>
     <string name="cx_coach_refresh_models">Aggiorna modelli</string>
     <string name="cx_compare_add_metric">Aggiungi metrica</string>
     <string name="cx_state_expanded">Espanso</string>
