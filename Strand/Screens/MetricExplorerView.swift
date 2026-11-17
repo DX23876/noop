@@ -417,16 +417,32 @@ struct VitalReadingRow: Equatable {
 /// "-noop" sibling → "On-device", "apple-health" → "Apple Health", "health-connect" → "Health Connect").
 /// `strapDeviceId` is the active strap id the resolver needs. Byte-identical projection to Android's
 /// `vitalReadingRows`.
+/// `durationMinutes` says the reading IS a length of time counted in minutes, which the descriptor knows
+/// and the formatted string does not: the Explorer passes a unit-bearing formatter and an empty unit
+/// (#1942), so "526 min" would have to be read back to find out what it means. Past an hour such a
+/// reading is written the way the rest of the app writes a duration, "8h 46m", because nobody reads 526
+/// minutes as eight and three quarter hours (reported 2026-11-17).
 func vitalReadingRows(readings: [VitalReading], unit: String, strapDeviceId: String,
-                      now: Date = Date(), format: (Double) -> String) -> [VitalReadingRow] {
+                      now: Date = Date(), durationMinutes: Bool = false,
+                      format: (Double) -> String) -> [VitalReadingRow] {
     readings.reversed().map { reading in
-        let value = format(reading.value)
+        let plain = format(reading.value)
+        let value = durationMinutes && reading.value >= 60
+            ? vitalReadingDurationText(reading.value)
+            : (unit.isEmpty ? plain : "\(plain) \(unit)")
         return VitalReadingRow(
             time: vitalReadingDateLabel(reading.day, now: now),
-            value: unit.isEmpty ? value : "\(value) \(unit)",
+            value: value,
             source: TodayView.provenanceDisplayLabel(rawSource: reading.source, deviceId: strapDeviceId)
         )
     }
+}
+
+/// Minutes as hours and minutes, in the app's own spelling (`NightDetailCard.durationText` and its
+/// siblings). Only used past the hour, so there is no minutes-only branch here.
+func vitalReadingDurationText(_ minutes: Double) -> String {
+    let total = Swift.max(0, Int(minutes.rounded()))
+    return String(localized: "\(total / 60)h \(total % 60)m")
 }
 
 /// Include the weekday so recovery readings can be matched to training days. UTC-fixed and localized;
@@ -2217,7 +2233,8 @@ struct MetricDetailView: View {
         // correct because every one of its call sites passes a UNIT-LESS closure; iOS has no unit-less
         // formatter that also converts, so the unit comes from `fmt` and the parameter stays empty.
         let rows = vitalReadingRows(readings: readings, unit: "",
-                                    strapDeviceId: repo.deviceId, format: fmt)
+                                    strapDeviceId: repo.deviceId,
+                                    durationMinutes: metric.unit == "min", format: fmt)
         if !rows.isEmpty {
             NoopCard {
                 VStack(alignment: .leading, spacing: NoopMetrics.gap) {

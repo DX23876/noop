@@ -132,3 +132,53 @@ final class VitalReadingsTableTests: XCTestCase {
         XCTAssertEqual(rows.first?.value, "97 % %")
     }
 }
+
+/// A night read in minutes.
+///
+/// "526 min" is a true figure nobody reads as eight and three quarter hours, and it was reported from the
+/// Readings table under the sleep metrics (Discord, 2026-11-17). Everywhere else in the app a duration is
+/// already "8h 46m"; this is the one table that still printed the raw minutes.
+///
+/// Whether a metric IS a duration is the descriptor's answer, not the formatted string's: the Explorer
+/// hands this function a unit-bearing formatter and an empty unit (#1942), so sniffing "… min" off the
+/// output would be reading the label to find out what the number means.
+extension VitalReadingsTableTests {
+
+    private func minutes(_ values: [Double]) -> [VitalReading] {
+        values.enumerated().map { index, value in
+            VitalReading(day: String(format: "2026-01-%02d", index + 1), value: value,
+                         source: Repository.whoopSource)
+        }
+    }
+
+    private func rows(_ value: Double, unit: String, duration: Bool,
+                      format: @escaping (Double) -> String = { String(format: "%.0f", $0) }) -> [VitalReadingRow] {
+        vitalReadingRows(readings: minutes([value]), unit: unit, strapDeviceId: Repository.whoopSource,
+                         now: now, durationMinutes: duration, format: format)
+    }
+
+    func testAMinuteReadingPastAnHourReadsAsHoursAndMinutes() {
+        XCTAssertEqual(rows(526, unit: "min", duration: true).first?.value, "8h 46m")
+    }
+
+    /// The shape the screen actually uses: the formatter already says "526 min" and the unit is empty.
+    func testTheExplorersOwnShapeIsConvertedToo() {
+        let value = rows(526, unit: "", duration: true, format: { String(format: "%.0f min", $0) })
+        XCTAssertEqual(value.first?.value, "8h 46m")
+    }
+
+    func testUnderAnHourItStaysAsTheFormatterWroteIt() {
+        let value = rows(47, unit: "", duration: true, format: { String(format: "%.0f min", $0) })
+        XCTAssertEqual(value.first?.value, "47 min")
+    }
+
+    func testAnExactHourSaysBothParts() {
+        XCTAssertEqual(rows(60, unit: "min", duration: true).first?.value, "1h 0m")
+    }
+
+    /// Only a metric the descriptor calls a duration is rearranged. A percentage of 96 is not 1h 36m.
+    func testOtherMetricsAreUntouched() {
+        XCTAssertEqual(rows(96, unit: "%", duration: false).first?.value, "96 %")
+        XCTAssertEqual(rows(96, unit: "min", duration: false).first?.value, "96 min")
+    }
+}

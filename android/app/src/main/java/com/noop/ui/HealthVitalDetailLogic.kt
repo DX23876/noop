@@ -243,12 +243,26 @@ internal fun vitalReadingRows(
     format: (Double) -> String,
 ): List<VitalReadingRow> =
     readings.asReversed().map { reading ->
+        // A length of time counted in minutes is written the way the rest of the app writes one once it
+        // passes an hour: nobody reads "526 min" as eight and three quarter hours (reported 2026-11-17).
+        // The Apple twin takes the same decision from the descriptor's unit.
+        val value = if (unit == "min" && reading.value >= 60) {
+            vitalReadingDurationText(reading.value)
+        } else {
+            "${format(reading.value)} $unit".trim()
+        }
         VitalReadingRow(
             time = vitalReadingDateLabel(reading.day),
-            value = "${format(reading.value)} $unit".trim(),
+            value = value,
             source = provenanceDisplayLabel(reading.source, strapDeviceId),
         )
     }
+
+/** Minutes as hours and minutes, in the app's own spelling. Only used past the hour. */
+internal fun vitalReadingDurationText(minutes: Double): String {
+    val total = kotlin.math.max(0, kotlin.math.round(minutes).toInt())
+    return "${total / 60}h ${total % 60}m"
+}
 
 /** Include the weekday so a recovery reading can be matched to a training day without counting dates.
  *  Keep Today/Yesterday as context, and format the calendar date in the device's active locale. */

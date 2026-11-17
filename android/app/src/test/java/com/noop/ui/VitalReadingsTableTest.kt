@@ -127,3 +127,37 @@ class VitalReadingsTableTest {
         }
     }
 }
+
+/**
+ * A night read in minutes. "526 min" is a true figure nobody reads as eight and three quarter hours,
+ * reported on 2026-11-17. Twin of `VitalReadingsTableTests` on Apple.
+ */
+class VitalReadingDurationTest {
+
+    private fun rows(value: Double, unit: String) = vitalReadingRows(
+        readings = listOf(VitalReading(day = "2026-01-01", value = value, source = "my-whoop")),
+        unit = unit,
+        strapDeviceId = "my-whoop",
+        format = { String.format(java.util.Locale.US, "%.0f", it) },
+    )
+
+    @org.junit.Test
+    fun `a minute reading past an hour reads as hours and minutes`() {
+        org.junit.Assert.assertEquals("8h 46m", rows(526.0, "min").first().value)
+    }
+
+    @org.junit.Test
+    fun `under an hour it stays in minutes`() {
+        org.junit.Assert.assertEquals("47 min", rows(47.0, "min").first().value)
+    }
+
+    @org.junit.Test
+    fun `an exact hour says both parts`() {
+        org.junit.Assert.assertEquals("1h 0m", rows(60.0, "min").first().value)
+    }
+
+    @org.junit.Test
+    fun `other units are untouched`() {
+        org.junit.Assert.assertEquals("96 %", rows(96.0, "%").first().value)
+    }
+}
