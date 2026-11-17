@@ -2061,7 +2061,10 @@ struct MetricDetailView: View {
                          accent: StrandPalette.textPrimary)
                 StatTile(label: "Max", value: fmt(s.max),
                          accent: StrandPalette.textPrimary)
-                StatTile(label: "Change", value: deltaText ?? "—",
+                // Keyed, not the word: "Change" here is the AMOUNT a value moved, while the same
+                // English word is the "Change" BUTTON on six other screens. One catalogue key
+                // cannot carry both, and the shared one put a German verb ("Ändern") under a figure.
+                StatTile(label: LocalizedStringKey("metric.stat.change"), value: deltaText ?? "—",
                          caption: deltaCaption, accent: StrandPalette.textPrimary,
                          delta: cmp.pctChange.map { "\($0 >= 0 ? "+" : "")\(String(format: "%.1f", $0))%" },
                          deltaColor: deltaColor)
@@ -2089,7 +2092,7 @@ struct MetricDetailView: View {
                      accent: StrandPalette.textPrimary)
             StatTile(label: "Latest", value: latestPoint.map { fmt($0.value) } ?? "—",
                      caption: latestCaption(windowed: windowed, effectiveRange: effectiveRange), accent: accent)
-            StatTile(label: "Change", value: deltaText ?? "—",
+            StatTile(label: LocalizedStringKey("metric.stat.change"), value: deltaText ?? "—",
                      caption: deltaCaption, accent: StrandPalette.textPrimary,
                      delta: cmp.pctChange.map { "\($0 >= 0 ? "+" : "")\(String(format: "%.1f", $0))%" },
                      deltaColor: deltaColor)
