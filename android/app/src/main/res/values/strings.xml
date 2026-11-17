@@ -6832,6 +6832,14 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="backup_saving_to">Saving to: %1$s</string>
     <string name="backup_no_folder">No folder chosen yet. Pick one your cloud app already syncs, or any local folder.</string>
     <string name="backup_last">Last backup: %1$s</string>
+    <string name="live_sync_history">Syncing your strap history…</string>
+    <string name="live_sync_history_chunks">Syncing your strap history… %1$d chunks pulled</string>
+    <string name="live_recent_intervals">Recent intervals: %1$s ms</string>
+    <string name="live_zone5_on">Strap buzzes when you climb into Zone 5 (≥ %1$d bpm). Manage it in Automations → Haptic coaching.</string>
+    <string name="live_zone5_off">Turn on HR-zone coaching in Automations for a wrist buzz when you reach Zone 5 (≥ %1$d bpm).</string>
+    <string name="journal_help_editing">Rename, regroup, or remove an item to tidy your list. Renaming keeps the original question behind the scenes, so a WHOOP import still lines up. Custom items are deleted; built-in ones are hidden and can be restored below.</string>
+    <string name="journal_help_tomorrow">Logging ahead for tomorrow: today\'s activities inform tomorrow\'s recovery, just as yesterday\'s are reflected in today\'s. Tomorrow\'s answers line up with tomorrow\'s morning.</string>
+    <string name="journal_help_default">Answers are about the night and day leading into this morning, the same attribution a WHOOP export uses, so logged and imported days line up.</string>
     <string name="compare_normalized_overlay">Normalized overlay</string>
     <string name="compare_normalized_within">Each line min-max normalized within %1$s</string>
     <string name="compare_normalized_widened">Each line min-max normalized · sparse series widened past %1$s</string>

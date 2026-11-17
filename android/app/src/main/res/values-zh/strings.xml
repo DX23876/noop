@@ -6761,6 +6761,14 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="backup_saving_to">保存到：%1$s</string>
     <string name="backup_no_folder">还没有选文件夹。挑一个你的云盘应用已经在同步的，或者任意本地文件夹。</string>
     <string name="backup_last">上次备份：%1$s</string>
+    <string name="live_sync_history">正在同步手环历史…</string>
+    <string name="live_sync_history_chunks">正在同步手环历史…已取 %1$d 段</string>
+    <string name="live_recent_intervals">最近的间隔：%1$s 毫秒</string>
+    <string name="live_zone5_on">当你进入第 5 区（≥ %1$d bpm）时手环会震动。可在自动化的震动提示里调整。</string>
+    <string name="live_zone5_off">在自动化里打开心率区间提示，到达第 5 区（≥ %1$d bpm）时手腕会震动。</string>
+    <string name="journal_help_editing">重命名、重新归类或移除某一项来整理你的清单。重命名会在后台保留原来的问题，所以 WHOOP 导入仍能对上。自建的项会被删除，内置的只是隐藏，可以在下面恢复。</string>
+    <string name="journal_help_tomorrow">你在为明天提前记录：今天做的事会影响明天的恢复，就像昨天的影响今天一样。明天的回答属于明天早上。</string>
+    <string name="journal_help_default">这些回答针对的是通向今天早上的那一夜和那一天。WHOOP 的导出也是这样归属的，所以记录的日子和导入的日子能对上。</string>
     <string name="compare_normalized_overlay">归一化叠加</string>
     <string name="compare_normalized_within">每条线都按它自己在 %1$s 内的最小值和最大值缩放</string>
     <string name="compare_normalized_widened">每条线都按它自己的最小值和最大值缩放 · 稀疏的序列会超出 %1$s 取值</string>

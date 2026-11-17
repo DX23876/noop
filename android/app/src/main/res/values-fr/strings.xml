@@ -6791,6 +6791,14 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="backup_saving_to">Enregistré dans : %1$s</string>
     <string name="backup_no_folder">Aucun dossier choisi pour l\'instant. Prenez-en un que votre app de cloud synchronise déjà, ou n\'importe quel dossier local.</string>
     <string name="backup_last">Dernière sauvegarde : %1$s</string>
+    <string name="live_sync_history">Synchronisation de l\'historique du strap…</string>
+    <string name="live_sync_history_chunks">Synchronisation de l\'historique du strap… %1$d blocs récupérés</string>
+    <string name="live_recent_intervals">Intervalles récents : %1$s ms</string>
+    <string name="live_zone5_on">Le strap vibre dès que vous montez en Zone 5 (≥ %1$d bpm). Réglable dans Automatisations, Coaching haptique.</string>
+    <string name="live_zone5_off">Activez le coaching par zones dans Automatisations pour une vibration au poignet dès la Zone 5 (≥ %1$d bpm).</string>
+    <string name="journal_help_editing">Renommez, regroupez ou retirez un élément pour ranger votre liste. Le renommage conserve la question d\'origine en arrière-plan, pour qu\'un import WHOOP corresponde toujours. Vos éléments sont supprimés ; ceux intégrés sont masqués et se récupèrent plus bas.</string>
+    <string name="journal_help_tomorrow">Vous notez à l\'avance pour demain : ce que vous faites aujourd\'hui marque la récupération de demain, comme celle d\'hier se voit aujourd\'hui. Les réponses de demain vont avec le matin de demain.</string>
+    <string name="journal_help_default">Les réponses portent sur la nuit et la journée qui mènent à ce matin. Un export WHOOP attribue de la même façon, donc les jours notés et importés correspondent.</string>
     <string name="compare_normalized_overlay">Superposition normalisée</string>
     <string name="compare_normalized_within">Chaque courbe ramenée à son propre minimum et maximum sur %1$s</string>
     <string name="compare_normalized_widened">Chaque courbe ramenée à son propre minimum et maximum · les séries clairsemées élargies au-delà de %1$s</string>

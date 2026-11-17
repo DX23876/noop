@@ -6812,6 +6812,14 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="backup_saving_to">Zapis do: %1$s</string>
     <string name="backup_no_folder">Nie wybrano jeszcze folderu. Wybierz taki, który twoja aplikacja chmury już synchronizuje, albo dowolny folder lokalny.</string>
     <string name="backup_last">Ostatnia kopia: %1$s</string>
+    <string name="live_sync_history">Synchronizowanie historii ze strapa…</string>
+    <string name="live_sync_history_chunks">Synchronizowanie historii ze strapa… pobrano %1$d porcji</string>
+    <string name="live_recent_intervals">Ostatnie odstępy: %1$s ms</string>
+    <string name="live_zone5_on">Strap zawibruje, gdy wejdziesz w Strefę 5 (od %1$d bpm). Ustawisz to w Automatyzacjach, Coaching wibracją.</string>
+    <string name="live_zone5_off">Włącz coaching stref w Automatyzacjach, żeby poczuć wibrację na nadgarstku po wejściu w Strefę 5 (od %1$d bpm).</string>
+    <string name="journal_help_editing">Zmień nazwę, przenieś albo usuń pozycję, żeby uporządkować listę. Zmiana nazwy zachowuje w tle pierwotne pytanie, więc import z WHOOP nadal pasuje. Własne pozycje są usuwane, wbudowane tylko ukrywane i można je przywrócić poniżej.</string>
+    <string name="journal_help_tomorrow">Zapisujesz z wyprzedzeniem na jutro: to, co robisz dziś, kształtuje jutrzejszą regenerację, tak jak wczorajsze widać w dzisiejszej. Jutrzejsze odpowiedzi należą do jutrzejszego poranka.</string>
+    <string name="journal_help_default">Odpowiedzi dotyczą nocy i dnia prowadzących do tego poranka. Eksport z WHOOP przypisuje tak samo, więc dni wpisane i zaimportowane pasują do siebie.</string>
     <string name="compare_normalized_overlay">Nałożenie znormalizowane</string>
     <string name="compare_normalized_within">Każda linia sprowadzona do własnego minimum i maksimum w %1$s</string>
     <string name="compare_normalized_widened">Każda linia sprowadzona do własnego minimum i maksimum · rzadkie serie poszerzone poza %1$s</string>

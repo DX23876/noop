@@ -6760,6 +6760,14 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="backup_saving_to">Salvataggio in: %1$s</string>
     <string name="backup_no_folder">Nessuna cartella scelta. Prendine una che la tua app cloud già sincronizza, o una qualsiasi sul dispositivo.</string>
     <string name="backup_last">Ultimo backup: %1$s</string>
+    <string name="live_sync_history">Sincronizzazione della cronologia dello strap…</string>
+    <string name="live_sync_history_chunks">Sincronizzazione della cronologia dello strap… %1$d blocchi presi</string>
+    <string name="live_recent_intervals">Intervalli recenti: %1$s ms</string>
+    <string name="live_zone5_on">Lo strap vibra quando sali in Zona 5 (≥ %1$d bpm). Si regola in Automazioni, Coaching con vibrazione.</string>
+    <string name="live_zone5_off">Attiva il coaching per zone in Automazioni per una vibrazione al polso quando raggiungi la Zona 5 (≥ %1$d bpm).</string>
+    <string name="journal_help_editing">Rinomina, raggruppa o togli una voce per mettere ordine nella lista. Rinominando resta dietro la domanda originale, così un import WHOOP combacia ancora. Le voci tue vengono eliminate, quelle integrate solo nascoste e si recuperano più sotto.</string>
+    <string name="journal_help_tomorrow">Stai annotando in anticipo per domani: quello che fai oggi segna il recupero di domani, come quello di ieri si vede in oggi. Le risposte di domani vanno con la mattina di domani.</string>
+    <string name="journal_help_default">Le risposte riguardano la notte e il giorno che portano a questa mattina. Un export WHOOP attribuisce allo stesso modo, così i giorni annotati e quelli importati combaciano.</string>
     <string name="compare_normalized_overlay">Sovrapposizione normalizzata</string>
     <string name="compare_normalized_within">Ogni linea portata al proprio minimo e massimo entro %1$s</string>
     <string name="compare_normalized_widened">Ogni linea portata al proprio minimo e massimo · le serie rade allargate oltre %1$s</string>

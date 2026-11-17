@@ -6792,6 +6792,14 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="backup_saving_to">Se guarda en: %1$s</string>
     <string name="backup_no_folder">Todavía no has elegido carpeta. Escoge una que tu app de nube ya sincronice, o cualquier carpeta local.</string>
     <string name="backup_last">Última copia: %1$s</string>
+    <string name="live_sync_history">Sincronizando el historial del strap…</string>
+    <string name="live_sync_history_chunks">Sincronizando el historial del strap… %1$d bloques traídos</string>
+    <string name="live_recent_intervals">Intervalos recientes: %1$s ms</string>
+    <string name="live_zone5_on">El strap vibra cuando subes a la Zona 5 (≥ %1$d bpm). Se ajusta en Automatizaciones, Coaching por vibración.</string>
+    <string name="live_zone5_off">Activa el coaching por zonas en Automatizaciones para notar una vibración al llegar a la Zona 5 (≥ %1$d bpm).</string>
+    <string name="journal_help_editing">Renombra, reagrupa o quita un elemento para ordenar tu lista. Al renombrar se conserva la pregunta original por detrás, así una importación de WHOOP sigue encajando. Los elementos propios se eliminan; los integrados solo se ocultan y se pueden recuperar abajo.</string>
+    <string name="journal_help_tomorrow">Estás anotando por adelantado para mañana: lo que haces hoy marca la recuperación de mañana, igual que lo de ayer se refleja en la de hoy. Las respuestas de mañana van con la mañana de mañana.</string>
+    <string name="journal_help_default">Las respuestas se refieren a la noche y al día que llevan a esta mañana. Una exportación de WHOOP lo atribuye igual, así que los días anotados y los importados encajan.</string>
     <string name="compare_normalized_overlay">Superposición normalizada</string>
     <string name="compare_normalized_within">Cada línea llevada a su propio mínimo y máximo dentro de %1$s</string>
     <string name="compare_normalized_widened">Cada línea llevada a su propio mínimo y máximo · las series escasas se amplían más allá de %1$s</string>

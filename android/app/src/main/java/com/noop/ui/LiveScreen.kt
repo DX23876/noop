@@ -327,8 +327,8 @@ fun LiveScreen(viewModel: AppViewModel, onManageDevices: () -> Unit = {}) {
                 )
                 Text(
                     if (live.syncChunksThisSession > 0)
-                        "Syncing your strap history… ${live.syncChunksThisSession} chunks pulled"
-                    else "Syncing your strap history…",
+                        stringResource(R.string.live_sync_history_chunks, live.syncChunksThisSession)
+                    else stringResource(R.string.live_sync_history),
                     style = NoopType.footnote,
                     color = Palette.textSecondary,
                 )
@@ -759,10 +759,8 @@ private fun MaxHrZoneCard(hrMax: Int, zone5Bpm: Int, coachingOn: Boolean) {
                 )
             }
             Text(
-                if (coachingOn)
-                    "Strap buzzes when you climb into Zone 5 (≥ $zone5Bpm bpm). Manage it in Automations → Haptic coaching."
-                else
-                    "Turn on HR-zone coaching in Automations for a wrist buzz when you reach Zone 5 (≥ $zone5Bpm bpm).",
+                if (coachingOn) stringResource(R.string.live_zone5_on, zone5Bpm)
+                else stringResource(R.string.live_zone5_off, zone5Bpm),
                 style = NoopType.footnote,
                 color = Palette.textTertiary,
                 modifier = Modifier.fillMaxWidth(),
@@ -1270,7 +1268,8 @@ private fun RRStrip(rrRecent: List<Int>) {
         }
         Text(
             if (values.isEmpty()) uiString(R.string.cl_waiting_rr)
-            else "Recent intervals: " + values.takeLast(5).joinToString(" · ") + " ms",
+            else stringResource(R.string.live_recent_intervals,
+                                values.takeLast(5).joinToString(" · ")),
             style = NoopType.footnote,
             color = Palette.textTertiary,
             maxLines = 1,

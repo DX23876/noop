@@ -6784,6 +6784,14 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="backup_saving_to">A guardar em: %1$s</string>
     <string name="backup_no_folder">Ainda não escolheu pasta. Escolha uma que a sua aplicação de nuvem já sincronize, ou qualquer pasta local.</string>
     <string name="backup_last">Última cópia: %1$s</string>
+    <string name="live_sync_history">A sincronizar o histórico da strap…</string>
+    <string name="live_sync_history_chunks">A sincronizar o histórico da strap… %1$d blocos obtidos</string>
+    <string name="live_recent_intervals">Intervalos recentes: %1$s ms</string>
+    <string name="live_zone5_on">A strap vibra quando sobe para a Zona 5 (≥ %1$d bpm). Ajusta-se em Automatizações, Coaching por vibração.</string>
+    <string name="live_zone5_off">Ligue o coaching por zonas em Automatizações para sentir uma vibração no pulso ao chegar à Zona 5 (≥ %1$d bpm).</string>
+    <string name="journal_help_editing">Renomeie, reagrupe ou remova um item para arrumar a sua lista. Renomear mantém a pergunta original nos bastidores, por isso uma importação do WHOOP continua a encaixar. Os itens próprios são apagados; os integrados são escondidos e podem ser recuperados abaixo.</string>
+    <string name="journal_help_tomorrow">Está a registar com antecedência para amanhã: o que faz hoje marca a recuperação de amanhã, tal como a de ontem se vê na de hoje. As respostas de amanhã vão com a manhã de amanhã.</string>
+    <string name="journal_help_default">As respostas dizem respeito à noite e ao dia que levam a esta manhã. Uma exportação do WHOOP atribui da mesma forma, por isso os dias registados e os importados encaixam.</string>
     <string name="compare_normalized_overlay">Sobreposição normalizada</string>
     <string name="compare_normalized_within">Cada linha levada ao seu próprio mínimo e máximo dentro de %1$s</string>
     <string name="compare_normalized_widened">Cada linha levada ao seu próprio mínimo e máximo · séries esparsas alargadas para lá de %1$s</string>

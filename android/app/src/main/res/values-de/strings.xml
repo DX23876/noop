@@ -6808,6 +6808,14 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="backup_saving_to">Wird gesichert nach: %1$s</string>
     <string name="backup_no_folder">Noch kein Ordner gewählt. Nimm einen, den deine Cloud-App schon abgleicht, oder irgendeinen Ordner auf dem Gerät.</string>
     <string name="backup_last">Letzte Sicherung: %1$s</string>
+    <string name="live_sync_history">Verlauf vom Strap wird geholt …</string>
+    <string name="live_sync_history_chunks">Verlauf vom Strap wird geholt … %1$d Pakete geladen</string>
+    <string name="live_recent_intervals">Letzte Abstände: %1$s ms</string>
+    <string name="live_zone5_on">Der Strap vibriert, sobald du in Zone 5 kommst (ab %1$d bpm). Einstellbar unter Automatisierungen, Vibrations-Coaching.</string>
+    <string name="live_zone5_off">Schalte das Zonen-Coaching unter Automatisierungen ein, dann vibriert es am Handgelenk, sobald du Zone 5 erreichst (ab %1$d bpm).</string>
+    <string name="journal_help_editing">Benenne um, sortiere neu oder entferne einen Eintrag, um deine Liste aufzuräumen. Beim Umbenennen bleibt die ursprüngliche Frage im Hintergrund stehen, damit ein WHOOP-Import weiter zusammenpasst. Eigene Einträge werden gelöscht, eingebaute nur ausgeblendet und lassen sich unten zurückholen.</string>
+    <string name="journal_help_tomorrow">Du trägst für morgen vor: Was du heute machst, prägt die Erholung von morgen, so wie das von gestern sich in heute zeigt. Die Antworten für morgen gehören zum Morgen von morgen.</string>
+    <string name="journal_help_default">Die Antworten beziehen sich auf die Nacht und den Tag, die in diesen Morgen führen. Ein WHOOP-Export ordnet es genauso zu, deshalb passen eingetragene und importierte Tage zusammen.</string>
     <string name="compare_normalized_overlay">Auf eine Skala gebracht</string>
     <string name="compare_normalized_within">Jede Linie auf ihren eigenen kleinsten und größten Wert in %1$s gebracht</string>
     <string name="compare_normalized_widened">Jede Linie auf ihren eigenen kleinsten und größten Wert gebracht · dünne Reihen über %1$s hinaus verbreitert</string>
