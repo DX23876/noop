@@ -51,6 +51,27 @@ public enum StrandMotion {
         .easeInOut(duration: breathPeriod).repeatForever(autoreverses: true)
     }
 
+    /// The breath's position at a wall-clock instant: 0 at rest, 1 at full swell, and back, over two
+    /// `breathPeriod`s, eased like `breathe`'s own curve.
+    ///
+    /// It exists because `breathe` is a `repeatForever` animation, which has to be STARTED by a state
+    /// change and is lost when the view leaves the render tree. A pulse that reports live work — a strap
+    /// backfilling — then stops reporting it: switch to another tab and back and the dot sits still while
+    /// the sync runs on, which is what a wearer saw as "the bar is grey now" (fork issue #48). A function
+    /// of the clock cannot be in the wrong state: whatever is on screen draws the phase that the moment
+    /// has, started or not.
+    ///
+    /// The fork already learned this once, for the vitals-grid wiggle (decisions, 2026-07-24).
+    public static func breathPhase(at date: Date, period: Double = breathPeriod) -> Double {
+        guard period > 0 else { return 0 }
+        let t = (date.timeIntervalSinceReferenceDate / period)
+            .truncatingRemainder(dividingBy: 2)
+        let triangle = t < 0 ? -t : (t <= 1 ? t : 2 - t)
+        let clamped = max(0, min(1, triangle))
+        // Smoothstep: the same slow-in/slow-out shape `easeInOut` draws, as a plain function.
+        return clamped * clamped * (3 - 2 * clamped)
+    }
+
     /// Looping breathe animation, suppressed when Reduce Motion is on. Returns
     /// `nil` (no animation) when reduced so call sites collapse to the resting
     /// frame instead of an indefinite loop. Honours Apple's Reduce Motion HIG.

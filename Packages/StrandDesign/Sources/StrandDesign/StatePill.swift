@@ -84,7 +84,6 @@ public struct ConnectionDot: View {
     public var pulsing: Bool
     public var size: CGFloat
 
-    @State private var animate = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Low Power Mode / "Reduce motion in NOOP". This halo is a `repeatForever` loop that never
     /// settles and is on screen for long stretches — a connected strap in Settings, a backfill on
@@ -105,15 +104,25 @@ public struct ConnectionDot: View {
             // (content.opacity(0)); now that we drop the offscreen bloom, gate it explicitly so light
             // mode stays ring-free (the resting dot + its shadow carry the live state there).
             if pulsing && scheme == .dark {
-                Circle()
-                    .fill(tone.color)
-                    .frame(width: size, height: size)
-                    .scaleEffect(animate ? 2.4 : 1.0)
-                    .opacity(animate ? 0.0 : 0.5)
-                    // No .additiveBloom(): the .plusLighter blend forced an offscreen pass every
-                    // frame of the repeatForever pulse, a continuous cost while a strap is backfilling
-                    // (exactly when this live dot is on screen). The expanding/fading ring reads the
-                    // same without it; the resting dot's shadow still carries the "live" glow.
+                // Drawn from the CLOCK, not from a started animation. `repeatForever` has to be kicked
+                // off by a state change and is dropped when the view leaves the render tree, so the
+                // pulse stopped reporting a sync that was still running: a wearer switched tab, came
+                // back, and found a still dot beside a chunk counter that went on climbing (#48). It
+                // also never started at all for a sync that began while the screen was already open,
+                // because the only trigger was `onAppear`. A phase taken from the moment is right
+                // whenever it is drawn.
+                //
+                // No .additiveBloom(): the .plusLighter blend forced an offscreen pass every frame,
+                // a continuous cost while a strap is backfilling (exactly when this dot is on screen).
+                if poseStill {
+                    // The quiet gate settles it at rest rather than hiding it: same resting halo the
+                    // non-animating path drew before.
+                    halo(phase: 0)
+                } else {
+                    TimelineView(.animation) { context in
+                        halo(phase: StrandMotion.breathPhase(at: context.date))
+                    }
+                }
             }
             Circle()
                 .fill(tone.color)
@@ -121,12 +130,17 @@ public struct ConnectionDot: View {
                 .shadow(color: tone.color.opacity(0.8), radius: pulsing ? 4 : 2)
         }
         .frame(width: size, height: size)
-        // Honour the quiet-motion gate (system Reduce Motion, Low Power Mode, or the in-app
-        // toggle): don't kick off the looping pulse (it settles at the resting dot) and never
-        // attach the repeatForever breathe animation.
-        .onAppear { if pulsing && !poseStill { animate = true } }
-        .animation(pulsing && !poseStill ? StrandMotion.breathe : nil, value: animate)
         .accessibilityHidden(true)
+    }
+
+    /// The expanding ring at one point of the breath: full size and half opaque at rest, 2.4× and gone
+    /// at the swell, exactly the two frames the animation used to travel between.
+    private func halo(phase: Double) -> some View {
+        Circle()
+            .fill(tone.color)
+            .frame(width: size, height: size)
+            .scaleEffect(1.0 + 1.4 * phase)
+            .opacity(0.5 * (1 - phase))
     }
 }
 
