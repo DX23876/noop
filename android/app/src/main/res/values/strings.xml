@@ -7286,5 +7286,7 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_se_add_nap_blurb">Pick when the nap started and ended. NOOP stages it from your data as its own session, separate from the night\'s sleep.</string>
     <string name="forge_se_nap_started">Nap started</string>
     <string name="forge_se_nap_ended">Nap ended</string>
+    <string name="forge_se_nap_inside_night">This starts inside the night\'s sleep, so it corrects that night instead of adding a nap.</string>
+    <string name="forge_se_nap_part_of_night">This is close enough to the night that it counts as part of it, not as a nap. Pick a time at least two hours after you woke.</string>
     <string name="forge_se_no_naps">No naps on this day. Add one if NOOP missed it.</string>
 </resources>

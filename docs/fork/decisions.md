@@ -1699,3 +1699,48 @@ be taken the backup FAILS, with a message that says so, rather than writing a fi
 The owner's own store is 4.9 GB, so this is a real limit, not a theoretical one.
 
 Analysis migration required: no.
+
+## 2026-11-17 — A nap the wearer enters is suggested where a nap can exist, and the sheet says what the window will become
+
+The ryanbr/noop fork issue #49 asked for automatic detection of short naps. Measured against the
+reporter's own archive it does not work: inside a window they named as a false positive the strap's own
+band state read 60 % "asleep" and 17.5 % "up", and the only signal that separated it from a real nap was
+heart rate against the sleep level, by about one beat per minute. So the answer is the wearer's: a nap can
+be entered, edited and deleted by hand, on both platforms, and the detector stays an opt-in review queue
+that proposes and never writes.
+
+Entering one by hand turned out to need three fixes, each of them a rule stated twice.
+
+**The display rule hid the entry.** `SleepNight.naps` dropped any block off the main night with under ten
+staged asleep minutes. A hand-entered window is stored honestly as one awake block until the stager
+re-stages it, so the app took the entry, moved the day's figures with it, and then told the wearer the day
+had no nap. A block the wearer entered is now kept whatever its stages say. The same floor was hiding
+blocks the stager has not reached at all (no stages, not zero sleep): for one of those the floor is read
+against the window's span instead, because "not staged yet" is not "no sleep".
+
+**The suggested window could not become a nap.** The sheet opened an hour after the wake, which is inside
+the selector's night-tail bridge for the whole morning ([20:00, 11:00), gaps under 90 minutes), so the
+entry was folded into the night and was never a nap at all. Reproduced in the simulator: woken 07:25,
+suggested 08:25, stored, figures moved, card empty. The suggestion now comes from the shared core
+(`SleepStageTotals.napEntrySeed`): half an hour in the early afternoon, never less than two hours after
+the wake, which clears both bridge windows whatever the hour, and never ahead of the clock while a past
+slot exists.
+
+**The wearer could still pick such a window, and nothing said so.** The sheet now resolves what the
+chosen window will become through one shared rule (`napEntryVerdict`) and says it in a line: a nap, a
+correction of that night, or a stretch counted as part of the night. It is not a refusal, because all
+three are legitimate writes. Both the line and the write read the same picker value, so they cannot
+describe different windows.
+
+Three second opinions were removed with it, in the spirit of the "two readouts of one fact" rule: the
+bridge test itself (two copies per platform, now one function each, called by the grouping passes), the
+Coach's own nap list (no floor at all, under a doc comment claiming it agreed with the card — it calls
+`SleepNight.naps` now), and the timeline's nap row, which printed "0:00 h asleep" for a window nobody had
+measured and now prints no figure at all.
+
+Not done: the daytime guard that rejected the reporter's false positive stays at its present threshold.
+Moving it needs a counter-example from a real nap, and the archive has none; the one candidate signal
+separates the two cases by about a beat per minute, which is not a threshold worth moving on.
+
+Analysis migration required: no. The nap rule, the suggestion and the verdict are read-side only; nothing
+derives or stores a score from them.

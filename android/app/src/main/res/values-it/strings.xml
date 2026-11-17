@@ -7213,5 +7213,7 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="forge_se_add_nap_blurb">Scegli quando è iniziato e finito il pisolino. NOOP lo ricostruisce dai tuoi dati come sessione a sé, separata dalla notte.</string>
     <string name="forge_se_nap_started">Pisolino iniziato</string>
     <string name="forge_se_nap_ended">Pisolino finito</string>
+    <string name="forge_se_nap_inside_night">Inizia dentro il sonno notturno, quindi corregge quella notte invece di aggiungere un pisolino.</string>
+    <string name="forge_se_nap_part_of_night">È così vicino alla notte che conta come parte della notte e non come pisolino. Scegli un orario almeno due ore dopo il risveglio.</string>
     <string name="forge_se_no_naps">Nessun pisolino in questo giorno. Aggiungilo se NOOP non l\'ha rilevato.</string>
 </resources>

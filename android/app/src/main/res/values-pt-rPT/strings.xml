@@ -7237,5 +7237,7 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="forge_se_add_nap_blurb">Escolha quando a sesta começou e terminou. O NOOP reconstrói-a a partir dos seus dados como sessão própria, separada da noite.</string>
     <string name="forge_se_nap_started">A sesta começou</string>
     <string name="forge_se_nap_ended">A sesta terminou</string>
+    <string name="forge_se_nap_inside_night">Isto começa dentro do sono da noite, pelo que corrige essa noite em vez de adicionar uma sesta.</string>
+    <string name="forge_se_nap_part_of_night">Isto fica tão perto da noite que conta como parte dela e não como sesta. Escolha uma hora pelo menos duas horas após acordar.</string>
     <string name="forge_se_no_naps">Nenhuma sesta neste dia. Adicione uma se o NOOP não a detetou.</string>
 </resources>

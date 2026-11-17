@@ -25,11 +25,21 @@ struct SleepUndoBanner {
 struct AddNapSeed: Identifiable {
     let bedTs: Int
     let wakeTs: Int
+    /// The night's wake the window is measured against, carried into the sheet so it can say what the
+    /// chosen window will become (`SleepStageTotals.napEntryVerdict`) before it is written.
+    let nightEndTs: Int
     var id: Int { bedTs }
-    init(afterWake wakeTs: Int) {
-        let anchor = wakeTs + 3_600
-        self.bedTs = anchor
-        self.wakeTs = anchor + 30 * 60
+
+    /// Seeded from the shared core (`SleepStageTotals.napEntrySeed`), which both platforms call: an early
+    /// afternoon half hour, never inside the window the selector would fold back into the night. The
+    /// suggestion used to be wake + 1 h, which is inside the night-tail bridge all morning — taken,
+    /// counted into the day's figures, and then reported as no nap at all (#49).
+    init(afterWake wakeTs: Int, now: Int = Int(Date().timeIntervalSince1970),
+         offsetSec: Int = TimeZone.current.secondsFromGMT()) {
+        let seed = SleepStageTotals.napEntrySeed(nightEnd: wakeTs, offsetSec: offsetSec, now: now)
+        self.bedTs = seed.start
+        self.wakeTs = seed.end
+        self.nightEndTs = wakeTs
     }
 }
 
@@ -191,6 +201,7 @@ struct SleepNightEditing: ViewModifier {
             // no delete, because there is nothing to delete yet.
             .sheet(item: $editor.addingNap) { seed in
                 SleepTimeEditor(bedTs: seed.bedTs, wakeTs: seed.wakeTs,
+                                napAfterNightEnd: seed.nightEndTs,
                                 title: "Add a nap",
                                 blurb: "Pick when the nap started and ended. NOOP stages it from your data as its own session, separate from the night's sleep.",
                                 bedLabel: "Nap started", wakeLabel: "Nap ended",

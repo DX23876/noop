@@ -158,19 +158,41 @@ public enum SleepNight {
         return idx.map { sessions[$0] }.sorted { $0.effectiveStartTs < $1.effectiveStartTs }
     }
 
-    /// Below this many asleep minutes a block off the main night is a detector crumb, not a nap.
+    /// Below this many asleep minutes a block off the main night is a detector crumb, not a nap. A block
+    /// the stager has not reached yet carries no stages at all, so for one of those the same floor is read
+    /// against its SPAN: "no stages yet" is not "no sleep", and an hour-long afternoon window the recorder
+    /// handed us is a nap whether or not it has been staged.
     public static let napMinAsleepMinutes = 10.0
 
     /// The day's naps: blocks outside its main-night group (`mainGroup`) with at least `napMinAsleepMinutes`
     /// asleep, oldest first. A nap is "not the main night", never a duration gate, so a short night stays the
     /// night and the label cannot contradict the pick (#518). The Apple timeline and the Android core read both use
     /// this one rule.
+    ///
+    /// A nap the WEARER entered is kept whatever its stages say (#49). The asleep floor is there to drop
+    /// detector crumbs, and a hand-entered window is not one: when the strap has no dense data over it yet,
+    /// `addManualNap` stores it honestly as a single awake block and the self-heal re-stages it once the raw
+    /// lands. Without this exception the app took the entry, moved the day's figures with it, and then told
+    /// the wearer there was no nap on that day — which is the app contradicting the person who told it.
+    ///
+    /// This is the ONLY nap rule: the Apple timeline, the Forge Sleep page, Android through `CoreRead` and
+    /// the Coach's own context block all call it. The Coach used to carry its own version with no floor at
+    /// all while its doc claimed "a block is a nap here exactly when the Naps card calls it one", so a
+    /// crumb the card hid was described to the wearer as a nap.
     public static func naps(_ day: [CachedSleepSession], mainGroup: [CachedSleepSession]) -> [CachedSleepSession] {
         let mainStarts = Set(mainGroup.map(\.startTs))
-        return day.filter {
-            !mainStarts.contains($0.startTs)
-                && asleepMinutes($0.stagesJSON, effectiveStartTs: $0.effectiveStartTs) >= napMinAsleepMinutes
-        }.sorted { $0.effectiveStartTs < $1.effectiveStartTs }
+        return day.filter { !mainStarts.contains($0.startTs) && isNap($0) }
+            .sorted { $0.effectiveStartTs < $1.effectiveStartTs }
+    }
+
+    /// Whether one block OFF the main night is a nap rather than a crumb. Split out so the rule is stated
+    /// once and can be read on a single block.
+    public static func isNap(_ block: CachedSleepSession) -> Bool {
+        if block.userEdited { return true }
+        guard block.stagesJSON != nil else {
+            return Double(block.endTs - block.effectiveStartTs) / 60.0 >= napMinAsleepMinutes
+        }
+        return asleepMinutes(block.stagesJSON, effectiveStartTs: block.effectiveStartTs) >= napMinAsleepMinutes
     }
 
     /// The night's DISPLAYED onset (bedtime): the first fragment that is not a spurious leading pre-onset awake

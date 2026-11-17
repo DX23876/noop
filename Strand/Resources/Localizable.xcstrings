@@ -18909,6 +18909,122 @@
         }
       }
     },
+    "This is close enough to the night that it counts as part of it, not as a nap. Pick a time at least two hours after you woke." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das liegt so nah an der Nacht, dass es als Teil der Nacht zählt und nicht als Nickerchen. Wähle eine Zeit mindestens zwei Stunden nach dem Aufwachen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esto queda tan cerca de la noche que cuenta como parte de ella y no como siesta. Elige una hora al menos dos horas después de despertarte."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette plage est si proche de la nuit qu'elle compte comme une partie de la nuit et non comme une sieste. Choisis une heure au moins deux heures après le réveil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "È così vicino alla notte che conta come parte della notte e non come pisolino. Scegli un orario almeno due ore dopo il risveglio."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To leży tak blisko nocy, że liczy się jako jej część, a nie jako drzemka. Wybierz godzinę co najmniej dwie godziny po przebudzeniu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isto fica tão perto da noite que conta como parte dela e não como sesta. Escolha uma hora pelo menos duas horas após acordar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это настолько близко к ночи, что считается её частью, а не дневным сном. Выберите время не раньше чем через два часа после пробуждения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这段时间离夜间睡眠太近，会算作夜间睡眠的一部分，而不是小睡。请选择醒来至少两小时之后的时间。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這段時間離夜間睡眠太近，會算作夜間睡眠的一部分，而不是小睡。請選擇醒來至少兩小時之後的時間。"
+          }
+        }
+      }
+    },
+    "This starts inside the night's sleep, so it corrects that night instead of adding a nap." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das beginnt noch im Nachtschlaf und korrigiert damit die Nacht statt ein Nickerchen anzulegen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esto empieza dentro del sueño nocturno, así que corrige esa noche en lugar de añadir una siesta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette plage commence pendant le sommeil de la nuit et corrige donc cette nuit au lieu d'ajouter une sieste."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inizia dentro il sonno notturno, quindi corregge quella notte invece di aggiungere un pisolino."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To zaczyna się w trakcie nocnego snu, więc poprawia tę noc, zamiast dodawać drzemkę."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isto começa dentro do sono da noite, pelo que corrige essa noite em vez de adicionar uma sesta."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это начинается внутри ночного сна, поэтому исправляет эту ночь, а не добавляет дневной сон."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这段时间开始于夜间睡眠之内，因此会修改那一晚，而不是新增小睡。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這段時間開始於夜間睡眠之內，因此會修改那一晚，而不是新增小睡。"
+          }
+        }
+      }
+    },
     "No naps on this day. Add one if NOOP missed it." : {
       "localizations" : {
         "de" : {

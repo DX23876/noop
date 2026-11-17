@@ -537,8 +537,10 @@ struct SleepView: View {
         .onChange(of: displayedNightOffset) { _ in selectedStage = nil }
     }
 
-    /// Existing naps remain a compact part of the day's sleep accounting. Creating and editing them is not
-    /// exposed from the Sleep tab; a wrongly detected nap can be deleted, with the same undo as a night.
+    /// The day's naps, and the one place a nap can be ENTERED by hand (#49). A wrongly detected nap is
+    /// deleted here with the same undo as a night, and one the detector missed is added with the same two
+    /// pickers a night is corrected with — the engine has staged a hand-chosen window since v4.6.0 (#508),
+    /// it simply had no way in on this screen.
     @ViewBuilder
     private func napSection(_ night: Night) -> some View {
         // The day's main sleep is the bridged main-night GROUP (#561): a briefly-interrupted / biphasic
@@ -2332,6 +2334,11 @@ struct SleepTimeEditor: View {
     /// "Add a nap" sheet, whose window deliberately sits outside the night (only the future-bed
     /// guard applies there).
     private let coverage: ClosedRange<Int>?
+    /// For the "Add a nap" sheet only: the wake of the night this window follows. With it the sheet can
+    /// say what the chosen window will BECOME before it is written — a nap, a correction of that night,
+    /// or a stretch the selector folds into the night — which is the answer the wearer cannot otherwise
+    /// get until the figures have already moved (#49). nil for every other caller.
+    private let napAfterNightEnd: Int?
     /// True when deleting THIS session writes a re-detection tombstone (a DETECTED night). false for a
     /// userEdited/nap row, which is never re-detected, so the delete-confirm copy drops the suppression
     /// promise for it, matching the undo banner. (#65 confirm honesty.)
@@ -2354,6 +2361,7 @@ struct SleepTimeEditor: View {
     /// is just an edit whose "existing" window is a seed. `onDelete` (#68) is the optional destructive
     /// action; `deleteLabel` lets the nap editor say "Delete this nap".
     init(bedTs: Int, wakeTs: Int,
+         napAfterNightEnd: Int? = nil,
          title: LocalizedStringKey = "Edit sleep times",
          blurb: LocalizedStringKey = "Correct when you went to bed and woke. Stages are re-derived from your data; the edit is kept through the next strap sync.",
          bedLabel: LocalizedStringKey = "Asleep",
@@ -2369,9 +2377,11 @@ struct SleepTimeEditor: View {
         self.bedLabel = bedLabel; self.wakeLabel = wakeLabel
         self.deleteLabel = deleteLabel
         self.coverage = coverage
+        self.napAfterNightEnd = napAfterNightEnd
         self.suppressesReDetection = suppressesReDetection
-        // A bed can never be seeded in the future (#940): the "Add a nap" anchor is wake+1h, which is
-        // ahead of the clock right after a morning sync; clamp so the picker opens inside its bound.
+        // A bed can never be seeded in the future (#940): the "Add a nap" suggestion is the earliest
+        // window that would still count as a nap, which right after a morning sync is ahead of the
+        // clock; clamp so the picker opens inside its bound.
         let seedBed = min(bedTs, Int(Date().timeIntervalSince1970))
         _bed = State(initialValue: Date(timeIntervalSince1970: TimeInterval(seedBed)))
         _previousBed = State(initialValue: Date(timeIntervalSince1970: TimeInterval(seedBed)))
@@ -2398,6 +2408,23 @@ struct SleepTimeEditor: View {
             return "These times span more than 24 hours. Check the date on both — a night that crosses midnight ends on the NEXT day."
         }
         return "A sleep can't end in the future."
+    }
+
+    /// What the window in the pickers will become, for the "Add a nap" sheet: resolved from the shared
+    /// selector rule (`SleepStageTotals.napEntryVerdict`) and the bed picker's CURRENT value, so the line
+    /// and the write can never state different things. nil when the entry does stand as a nap, and for
+    /// every caller that is not the nap sheet.
+    private var napWindowNotice: LocalizedStringKey? {
+        guard let napAfterNightEnd else { return nil }
+        switch SleepStageTotals.napEntryVerdict(start: Int(bed.timeIntervalSince1970),
+                                                nightEnd: napAfterNightEnd,
+                                                offsetSec: TimeZone.current.secondsFromGMT()) {
+        case .standsAsNap: return nil
+        case .insideTheNight:
+            return "This starts inside the night's sleep, so it corrects that night instead of adding a nap."
+        case .foldedIntoTheNight:
+            return "This is close enough to the night that it counts as part of it, not as a nap. Pick a time at least two hours after you woke."
+        }
     }
 
     /// The single save funnel: both the direct Save and the #940 disjoint confirm land here.
@@ -2460,6 +2487,16 @@ struct SleepTimeEditor: View {
                 .accessibilityLabel(deleteLabel)
             }
 
+            // Not a refusal: all three outcomes are legitimate writes, and the wearer may well mean the
+            // one they picked. It is said in the warning tint because it is not what the sheet's own
+            // title promises.
+            if let napWindowNotice {
+                Text(napWindowNotice)
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.statusWarning)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityAddTraits(.isStaticText)
+            }
             if let invalidReason {
                 Text(invalidReason)
                     .font(StrandFont.footnote)

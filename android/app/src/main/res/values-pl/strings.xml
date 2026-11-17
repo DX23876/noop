@@ -7283,5 +7283,7 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_se_add_nap_blurb">Wybierz początek i koniec drzemki. NOOP odtworzy ją z Twoich danych jako osobną sesję, niezależną od nocy.</string>
     <string name="forge_se_nap_started">Drzemka zaczęła się</string>
     <string name="forge_se_nap_ended">Drzemka skończyła się</string>
+    <string name="forge_se_nap_inside_night">To zaczyna się w trakcie nocnego snu, więc poprawia tę noc, zamiast dodawać drzemkę.</string>
+    <string name="forge_se_nap_part_of_night">To leży tak blisko nocy, że liczy się jako jej część, a nie jako drzemka. Wybierz godzinę co najmniej dwie godziny po przebudzeniu.</string>
     <string name="forge_se_no_naps">Brak drzemek tego dnia. Dodaj ją, jeśli NOOP jej nie wykrył.</string>
 </resources>

@@ -7261,5 +7261,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_se_add_nap_blurb">Wähle, wann das Nickerchen begann und endete. NOOP stellt es aus deinen Daten als eigene Sitzung, getrennt vom Nachtschlaf.</string>
     <string name="forge_se_nap_started">Nickerchen begann</string>
     <string name="forge_se_nap_ended">Nickerchen endete</string>
+    <string name="forge_se_nap_inside_night">Das beginnt noch im Nachtschlaf und korrigiert damit die Nacht statt ein Nickerchen anzulegen.</string>
+    <string name="forge_se_nap_part_of_night">Das liegt so nah an der Nacht, dass es als Teil der Nacht zählt und nicht als Nickerchen. Wähle eine Zeit mindestens zwei Stunden nach dem Aufwachen.</string>
     <string name="forge_se_no_naps">An diesem Tag kein Nickerchen. Trage eines ein, falls NOOP es übersehen hat.</string>
 </resources>

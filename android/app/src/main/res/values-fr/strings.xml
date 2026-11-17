@@ -7244,5 +7244,7 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="forge_se_add_nap_blurb">Choisissez le début et la fin de la sieste. NOOP la reconstruit depuis vos données comme sa propre session, séparée de la nuit.</string>
     <string name="forge_se_nap_started">Début de la sieste</string>
     <string name="forge_se_nap_ended">Fin de la sieste</string>
+    <string name="forge_se_nap_inside_night">Cette plage commence pendant le sommeil de la nuit et corrige donc cette nuit au lieu d’ajouter une sieste.</string>
+    <string name="forge_se_nap_part_of_night">Cette plage est si proche de la nuit qu’elle compte comme une partie de la nuit et non comme une sieste. Choisis une heure au moins deux heures après le réveil.</string>
     <string name="forge_se_no_naps">Aucune sieste ce jour-là. Ajoutez-en une si NOOP l\'a manquée.</string>
 </resources>

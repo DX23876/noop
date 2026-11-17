@@ -83,6 +83,7 @@ internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long) -> Unit
 internal fun SleepTimesDialog(seedStart: Long, seedEnd: Long,
                               title: String? = null, blurb: String? = null,
                               bedLabel: String? = null, wakeLabel: String? = null,
+                              napAfterNightEnd: Long? = null,
                               onSave: (Long, Long) -> Unit, onDelete: (() -> Unit)?, onDismiss: () -> Unit) {
     val colors = Forge.colors
     val zone = ZoneId.systemDefault()
@@ -95,6 +96,18 @@ internal fun SleepTimesDialog(seedStart: Long, seedEnd: Long,
         timeSelectorSelectedContainerColor = colors.rest.copy(alpha = 0.18f), timeSelectorSelectedContentColor = colors.rest,
         timeSelectorUnselectedContainerColor = colors.inset, timeSelectorUnselectedContentColor = colors.text,
         periodSelectorBorderColor = colors.divider)
+    val offsetSec = zone.rules.getOffset(Instant.now()).totalSeconds.toLong()
+    // The window the pickers currently describe, resolved ONCE: the notice below and the Save button read
+    // this same value, so the line cannot describe a different window than the one that gets written.
+    fun resolved(): Pair<Long, Long> {
+        // The bed time on the night's first day (the day before when it would fall after waking), the wake
+        // time on its last day (the day after when it would fall before bed).
+        var newEnd = end.withHour(wake.hour).withMinute(wake.minute).withSecond(0)
+        var newStart = start.withHour(bed.hour).withMinute(bed.minute).withSecond(0)
+        if (newStart >= newEnd) newStart = newStart.minusDays(1)
+        if (newEnd.toEpochSecond() - newStart.toEpochSecond() > 20 * 3600) newEnd = newEnd.minusDays(1)
+        return newStart.toEpochSecond() to newEnd.toEpochSecond()
+    }
     Dialog(onDismissRequest = onDismiss) {
         Column(Modifier.background(colors.surface, RoundedCornerShape(20.dp)).padding(20.dp).verticalScroll(rememberScrollState()),
                verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
@@ -106,6 +119,24 @@ internal fun SleepTimesDialog(seedStart: Long, seedEnd: Long,
             Text(wakeLabel ?: stringResource(R.string.forge_se_woke),
                  style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
             TimeInput(wake, colors = pickerColors)
+            // For the "add a nap" dialog only: what the chosen window will BECOME, from the one shared
+            // selector rule (`SleepStageTotals.napEntryVerdict`), said before it is written rather than
+            // left for the wearer to infer from figures that moved. Not a refusal — all three outcomes
+            // are legitimate writes. Apple twin: `SleepTimeEditor.napWindowNotice`. (#49)
+            if (napAfterNightEnd != null) {
+                val verdict = com.noop.analytics.SleepStageTotals.napEntryVerdict(
+                    start = resolved().first, nightEnd = napAfterNightEnd, offsetSec = offsetSec)
+                val notice = when (verdict) {
+                    com.noop.analytics.SleepStageTotals.NapEntryVerdict.STANDS_AS_NAP -> null
+                    com.noop.analytics.SleepStageTotals.NapEntryVerdict.INSIDE_THE_NIGHT ->
+                        stringResource(R.string.forge_se_nap_inside_night)
+                    com.noop.analytics.SleepStageTotals.NapEntryVerdict.FOLDED_INTO_THE_NIGHT ->
+                        stringResource(R.string.forge_se_nap_part_of_night)
+                }
+                if (notice != null) {
+                    Text(notice, style = Forge.type.caption, color = ForgeTokens.Color.systemOrange.resolve())
+                }
+            }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 if (onDelete != null) {
                     Text(stringResource(R.string.forge_se_delete), style = Forge.type.subhead, color = ForgeTokens.Color.systemRed.resolve(),
@@ -117,13 +148,8 @@ internal fun SleepTimesDialog(seedStart: Long, seedEnd: Long,
                 Spacer(Modifier.width(ForgeMetrics.space2))
                 Text(stringResource(R.string.forge_se_save), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.rest,
                      modifier = Modifier.clickable(role = Role.Button) {
-                         // The bed time on the night's first day (the day before when it would fall after waking), the wake
-                         // time on its last day (the day after when it would fall before bed).
-                         var newEnd = end.withHour(wake.hour).withMinute(wake.minute).withSecond(0)
-                         var newStart = start.withHour(bed.hour).withMinute(bed.minute).withSecond(0)
-                         if (newStart >= newEnd) newStart = newStart.minusDays(1)
-                         if (newEnd.toEpochSecond() - newStart.toEpochSecond() > 20 * 3600) newEnd = newEnd.minusDays(1)
-                         if (newEnd > newStart) onSave(newStart.toEpochSecond(), newEnd.toEpochSecond())
+                         val (newStart, newEnd) = resolved()
+                         if (newEnd > newStart) onSave(newStart, newEnd)
                      }.padding(8.dp))
             }
         }

@@ -30,6 +30,32 @@ final class SleepNightTests: XCTestCase {
 
     /// The naps are the blocks off the main group, whatever their length: the evening block of 2026-10-24 is one,
     /// the split night's two blocks are not, and a five-minute crumb is too small to count.
+    /// A nap the wearer entered is shown whatever its stages say (#49). When the strap has no dense data
+    /// over the chosen window yet, `addManualNap` stores it honestly as one awake block — and before this
+    /// the card then reported no nap on a day whose figures had just moved because of it. Reproduced in
+    /// the simulator: the entry was in the store with `userEdited = 1` and a single "wake" stage, the sleep
+    /// debt went from 34 to 25 minutes, and the nap card still read "no naps on this day".
+    func testAHandEnteredNapIsShownEvenWithNoStagedSleepYet() throws {
+        let d = 1_761_264_000
+        let night = block(d - 28_800, d, [("light", d - 28_800, d)])
+        let entered = CachedSleepSession(
+            startTs: d + 5 * 3_600, endTs: d + 5 * 3_600 + 1_800, efficiency: nil, restingHr: nil, avgHrv: nil,
+            stagesJSON: #"[{"stage":"wake","start":\#(d + 5 * 3_600),"end":\#(d + 5 * 3_600 + 1_800)}]"#, userEdited: true)
+        let day = [night, entered]
+        let group = SleepNight.mainGroup(SleepNight.days(day, calendar: utcCalendar()).first!, offsetSec: utc)
+        XCTAssertEqual(SleepNight.naps(day, mainGroup: group).map(\.startTs), [entered.startTs],
+                       "the wearer's own entry is not a detector crumb")
+    }
+
+    /// The floor still holds for what the DETECTOR produced: a crumb with no asleep minutes is not a nap.
+    func testADetectedCrumbIsStillNotANap() throws {
+        let d = 1_761_264_000
+        let crumb = CachedSleepSession(
+            startTs: d + 3_600, endTs: d + 4_200, efficiency: nil, restingHr: nil, avgHrv: nil,
+            stagesJSON: #"[{"stage":"wake","start":\#(d + 3_600),"end":\#(d + 4_200)}]"#, userEdited: false)
+        XCTAssertTrue(SleepNight.naps([crumb], mainGroup: []).isEmpty)
+    }
+
     func testNapsAreTheBlocksOffTheMainNight() throws {
         let d = 1_761_264_000
         let first = block(d - 10_200, d + 3_000, [("light", d - 10_200, d - 3_000), ("deep", d - 3_000, d + 3_000)])
@@ -100,5 +126,30 @@ final class SleepNightTests: XCTestCase {
         var c = Calendar(identifier: .gregorian)
         c.timeZone = TimeZone(identifier: "UTC")!
         return c
+    }
+
+    /// A block the stager has not reached carries no stages at all. Judged on its stages it reads as zero
+    /// asleep minutes and was dropped, which hid real afternoon sleep the recorder had handed us — and, by
+    /// a second rule with no floor of its own, the Coach then told the wearer about a nap the card denied.
+    /// One rule now, and for an unstaged block the floor is read against its span.
+    func testAnUnstagedHourOffTheMainNightIsANap() {
+        let d = 1_761_264_000
+        let night = block(d - 28_800, d, [("light", d - 28_800, d)])
+        let unstaged = CachedSleepSession(startTs: d + 14 * 3_600, endTs: d + 15 * 3_600, efficiency: nil,
+                                          restingHr: nil, avgHrv: nil, stagesJSON: nil)
+        let day = [night, unstaged]
+        let main = SleepNight.mainGroup(day, offsetSec: utc)
+        XCTAssertEqual(SleepNight.naps(day, mainGroup: main).map(\.startTs), [unstaged.startTs])
+    }
+
+    /// The floor still holds: a four-minute unstaged sliver is a crumb, not an afternoon nap.
+    func testAnUnstagedSliverIsStillNotANap() {
+        let d = 1_761_264_000
+        let night = block(d - 28_800, d, [("light", d - 28_800, d)])
+        let sliver = CachedSleepSession(startTs: d + 14 * 3_600, endTs: d + 14 * 3_600 + 240, efficiency: nil,
+                                        restingHr: nil, avgHrv: nil, stagesJSON: nil)
+        let day = [night, sliver]
+        let main = SleepNight.mainGroup(day, offsetSec: utc)
+        XCTAssertEqual(SleepNight.naps(day, mainGroup: main).map(\.startTs), [])
     }
 }

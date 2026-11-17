@@ -7245,5 +7245,7 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_se_add_nap_blurb">Elige cuándo empezó y terminó la siesta. NOOP la reconstruye desde tus datos como sesión propia, aparte del sueño nocturno.</string>
     <string name="forge_se_nap_started">La siesta empezó</string>
     <string name="forge_se_nap_ended">La siesta terminó</string>
+    <string name="forge_se_nap_inside_night">Esto empieza dentro del sueño nocturno, así que corrige esa noche en lugar de añadir una siesta.</string>
+    <string name="forge_se_nap_part_of_night">Esto queda tan cerca de la noche que cuenta como parte de ella y no como siesta. Elige una hora al menos dos horas después de despertarte.</string>
     <string name="forge_se_no_naps">Ningún sueño diurno este día. Añade uno si NOOP no lo detectó.</string>
 </resources>

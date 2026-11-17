@@ -7236,5 +7236,7 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_se_add_nap_blurb">Укажите начало и конец дневного сна. NOOP восстановит его из ваших данных как отдельную сессию, отдельно от ночи.</string>
     <string name="forge_se_nap_started">Сон начался</string>
     <string name="forge_se_nap_ended">Сон закончился</string>
+    <string name="forge_se_nap_inside_night">Это начинается внутри ночного сна, поэтому исправляет эту ночь, а не добавляет дневной сон.</string>
+    <string name="forge_se_nap_part_of_night">Это настолько близко к ночи, что считается её частью, а не дневным сном. Выберите время не раньше чем через два часа после пробуждения.</string>
     <string name="forge_se_no_naps">В этот день дневного сна нет. Добавьте его, если NOOP его не заметил.</string>
 </resources>

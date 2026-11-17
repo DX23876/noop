@@ -799,6 +799,10 @@ enum DemoScreens {
         case "overviewdashboard": return AnyView(OverviewDashboardView())
         case "trends":   return AnyView(TrendsView())
         case "sleep":    return AnyView(SleepView())
+        // The NEW design's Sleep page, which `sleep` does not reach: that route renders the full Sleep
+        // screen in whatever skin is on, and the Forge page is a different view. Without this the nap
+        // card added for #49 could not be captured on the page most wearers see.
+        case "forgesleep": return AnyView(ForgeSleepView(onProfile: {}))
         case "live":     return AnyView(LiveView())
         case "stress":   return AnyView(StressView())
         case "workouts": return AnyView(WorkoutsView())

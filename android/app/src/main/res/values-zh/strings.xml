@@ -7205,5 +7205,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_se_add_nap_blurb">选择小睡的开始和结束时间。NOOP 会从你的数据中重建它，作为独立于夜间睡眠的会话。</string>
     <string name="forge_se_nap_started">小睡开始</string>
     <string name="forge_se_nap_ended">小睡结束</string>
+    <string name="forge_se_nap_inside_night">这段时间开始于夜间睡眠之内，因此会修改那一晚，而不是新增小睡。</string>
+    <string name="forge_se_nap_part_of_night">这段时间离夜间睡眠太近，会算作夜间睡眠的一部分，而不是小睡。请选择醒来至少两小时之后的时间。</string>
     <string name="forge_se_no_naps">这一天没有小睡。如果 NOOP 漏掉了，请手动添加。</string>
 </resources>

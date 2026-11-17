@@ -783,8 +783,9 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var editing by remember { mutableStateOf<CoreRead.Night?>(null) }
     var undo by remember { mutableStateOf<List<com.noop.data.SleepSession>>(emptyList()) }
-    /// Seed for the "add a nap" dialog: a 30-minute window an hour after the night's wake, which the
-    /// wearer moves. Null while the dialog is closed. Apple twin: `AddNapSeed`.
+    /// Seed for the "add a nap" dialog, from the shared rule both platforms call
+    /// ([SleepStageTotals.napEntrySeed]): an early-afternoon half hour, never a window the selector would
+    /// fold back into the night. Null while the dialog is closed. Apple twin: `AddNapSeed`.
     var addingNap by remember { mutableStateOf<Pair<Long, Long>?>(null) }
     SleepTonightCard(viewModel, need, onAlarms)
     if (undo.isNotEmpty()) SleepUndoStrip {
@@ -806,6 +807,7 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
     }
     addingNap?.let { (seedStart, seedEnd) ->
         SleepTimesDialog(seedStart = seedStart, seedEnd = seedEnd,
+                         napAfterNightEnd = night?.endTs,
                          title = stringResource(R.string.forge_se_add_nap),
                          blurb = stringResource(R.string.forge_se_add_nap_blurb),
                          bedLabel = stringResource(R.string.forge_se_nap_started),
@@ -821,7 +823,13 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
         val key = wakeDay.toString()
         SleepNightCard(night, isLatest, zone, onEdit = { editing = night })
         DayNaps(night, wakeDay, zone,
-                onAdd = { addingNap = (night.endTs + 3_600) to (night.endTs + 3_600 + 30 * 60) },
+                onAdd = {
+                    val seed = com.noop.analytics.SleepStageTotals.napEntrySeed(
+                        nightEnd = night.endTs,
+                        offsetSec = zone.rules.getOffset(java.time.Instant.now()).totalSeconds.toLong(),
+                        now = System.currentTimeMillis() / 1_000L)
+                    addingNap = seed.first to seed.last
+                },
                 onDelete = { nap ->
             scope.launch {
                 val group = withContext(Dispatchers.IO) {
