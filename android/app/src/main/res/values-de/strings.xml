@@ -6404,11 +6404,11 @@
     <string name="forge_md_average">Durchschnitt</string>
     <string name="forge_md_min">Min</string>
     <string name="forge_md_max">Max</string>
-    <string name="forge_md_change">Ändern</string>
+    <string name="forge_md_change">Veränderung</string>
     <string name="forge_md_latest">Aktuellste</string>
-    <string name="forge_md_vs_prev">vs. vorherige %1$s</string>
+    <string name="forge_md_vs_prev">vs. %1$s davor</string>
     <string name="forge_md_all_history">gesamter Verlauf</string>
-    <string name="forge_md_no_prior">kein früheres %1$s</string>
+    <string name="forge_md_no_prior">%1$s davor fehlt</string>
     <string name="forge_md_week">Woche</string>
     <string name="forge_md_two_weeks">2 Wochen</string>
     <string name="forge_md_three_weeks">3 Wochen</string>

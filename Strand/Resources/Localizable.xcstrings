@@ -352497,7 +352497,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "kein früheres %@"
+            "value" : "%@ davor fehlt"
           }
         },
         "es" : {
@@ -546024,7 +546024,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "vs. vorherige %@"
+            "value" : "vs. %@ davor"
           }
         },
         "es" : {

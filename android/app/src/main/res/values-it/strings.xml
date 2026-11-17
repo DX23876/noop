@@ -6356,7 +6356,7 @@
     <string name="forge_md_average">Media</string>
     <string name="forge_md_min">Min</string>
     <string name="forge_md_max">Max</string>
-    <string name="forge_md_change">Modifica</string>
+    <string name="forge_md_change">Variazione</string>
     <string name="forge_md_latest">Più recente</string>
     <string name="forge_md_vs_prev">vs %1$s prec.</string>
     <string name="forge_md_all_history">tutta la cronologia</string>

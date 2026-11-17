@@ -209,3 +209,37 @@ final class MetricDurationSpellingTests: XCTestCase {
         XCTAssertNil(metricDurationSpelling(unit: "", value: 443))
     }
 }
+
+/// The share each row carries for its hairline: one projection, so a bar can never belong to another
+/// row's figure.
+final class VitalReadingShareTests: XCTestCase {
+
+    private func rows(_ values: [Double]) -> [VitalReadingRow] {
+        let readings = values.enumerated().map { index, value in
+            VitalReading(day: String(format: "2026-01-%02d", index + 1), value: value,
+                         source: Repository.whoopSource)
+        }
+        return vitalReadingRows(readings: readings, unit: "", strapDeviceId: Repository.whoopSource,
+                                format: { String(format: "%.0f", $0) })
+    }
+
+    /// Newest first, so the LAST reading is the first row — and the lowest of the window sits at 0, the
+    /// highest at 1, whatever order they arrived in.
+    func testTheLowestIsEmptyAndTheHighestIsFull() {
+        let out = rows([400, 500, 450])
+        XCTAssertEqual(out.map(\.value), ["450", "500", "400"])
+        XCTAssertEqual(out[0].share, 0.5, accuracy: 0.0001)
+        XCTAssertEqual(out[1].share, 1.0, accuracy: 0.0001)
+        XCTAssertEqual(out[2].share, 0.0, accuracy: 0.0001)
+    }
+
+    /// A window where nothing moved has no position to state, so every row draws the bare track rather
+    /// than a full bar that would read as a high.
+    func testAFlatWindowStatesNothing() {
+        XCTAssertEqual(rows([420, 420, 420]).map(\.share), [0, 0, 0])
+    }
+
+    func testOneReadingIsFlatToo() {
+        XCTAssertEqual(rows([443]).first?.share, 0)
+    }
+}

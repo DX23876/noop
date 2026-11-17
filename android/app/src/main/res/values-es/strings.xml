@@ -6388,7 +6388,7 @@
     <string name="forge_md_average">Promedio</string>
     <string name="forge_md_min">Mín</string>
     <string name="forge_md_max">Máx</string>
-    <string name="forge_md_change">Cambiar</string>
+    <string name="forge_md_change">Variación</string>
     <string name="forge_md_latest">Más reciente</string>
     <string name="forge_md_vs_prev">vs %1$s ant.</string>
     <string name="forge_md_all_history">todo el historial</string>

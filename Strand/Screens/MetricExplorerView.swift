@@ -407,6 +407,11 @@ struct VitalReadingRow: Equatable {
     let time: String
     let value: String
     let source: String
+    /// Where this reading sits between the window's smallest and largest, 0 at the low and 1 at the high,
+    /// for the hairline under the row. Carried HERE rather than worked out beside the rows, so the bar and
+    /// the figure next to it come from one reading by construction and cannot end up a row apart. A window
+    /// whose readings are all equal has no position to state and answers 0, which draws the empty track.
+    var share: Double = 0
 }
 
 /// Project a vital's windowed `readings` into table rows, NEWEST FIRST — the same list (so the same count)
@@ -425,7 +430,9 @@ struct VitalReadingRow: Equatable {
 func vitalReadingRows(readings: [VitalReading], unit: String, strapDeviceId: String,
                       now: Date = Date(), durationMinutes: Bool = false,
                       format: (Double) -> String) -> [VitalReadingRow] {
-    readings.reversed().map { reading in
+    let low = readings.map(\.value).min() ?? 0
+    let high = readings.map(\.value).max() ?? 0
+    return readings.reversed().map { reading in
         let plain = format(reading.value)
         let value = durationMinutes && reading.value >= 60
             ? vitalReadingDurationText(reading.value)
@@ -433,7 +440,8 @@ func vitalReadingRows(readings: [VitalReading], unit: String, strapDeviceId: Str
         return VitalReadingRow(
             time: vitalReadingDateLabel(reading.day, now: now),
             value: value,
-            source: TodayView.provenanceDisplayLabel(rawSource: reading.source, deviceId: strapDeviceId)
+            source: TodayView.provenanceDisplayLabel(rawSource: reading.source, deviceId: strapDeviceId),
+            share: high > low ? min(max((reading.value - low) / (high - low), 0), 1) : 0
         )
     }
 }
@@ -2267,19 +2275,6 @@ struct MetricDetailView: View {
         // parameter is for callers whose formatter does not, which is why the projection keeps it.
         let rows = vitalReadingRows(readings: readings, unit: "",
                                     strapDeviceId: repo.deviceId, format: fmt)
-        // Where each reading sits between the window's own smallest and largest, so the table carries the
-        // shape of the series as well as its figures. A column of numbers hides the pattern the chart
-        // above shows; one thin bar per row gives it back without a second chart.
-        //
-        // The bar and the number beside it are two readouts of ONE reading, so they are paired here by
-        // construction: `vitalReadingRows` maps `readings.reversed()` one to one, and if it ever stops
-        // doing that the counts disagree and the column draws NO bars rather than silently putting one
-        // reading's shape beside another reading's figure.
-        let ordered = Array(readings.reversed())
-        let span = (ordered.map(\.value).min() ?? 0, ordered.map(\.value).max() ?? 0)
-        let shares: [Double?] = rows.count == ordered.count
-            ? ordered.map { readingShare($0.value, span: span) }
-            : Array(repeating: nil, count: rows.count)
         if !rows.isEmpty {
             NoopCard {
                 VStack(alignment: .leading, spacing: NoopMetrics.gap) {
@@ -2309,7 +2304,7 @@ struct MetricDetailView: View {
                                     readingSourceChip(row.source)
                                         .frame(maxWidth: .infinity, alignment: .trailing)
                                 }
-                                readingShareBar(share: shares.indices.contains(idx) ? shares[idx] : nil)
+                                readingShareBar(share: row.share)
                             }
                             .padding(.vertical, 8)
                             .accessibilityElement(children: .combine)
@@ -2324,33 +2319,22 @@ struct MetricDetailView: View {
         }
     }
 
-    /// Where one reading sits between the window's smallest and largest, 0 at the low and 1 at the high.
-    /// A flat window (every reading the same) has no position to state, so it answers 0 and the row draws
-    /// the empty track rather than a full bar that would read as a high.
-    private func readingShare(_ value: Double, span: (Double, Double)) -> Double {
-        let (low, high) = span
-        guard high > low else { return 0 }
-        return min(max((value - low) / (high - low), 0), 1)
-    }
-
-    /// The share as a hairline track with a filled head. Deliberately quiet: it is a shape to read down
-    /// the column, not a second chart. A nil share means the row's reading could not be identified, and
-    /// then nothing is drawn — an empty track would still be a claim about that reading.
+    /// Where this reading sits in the window, as a hairline track with a filled head. Deliberately quiet:
+    /// it is a shape to read down the column, not a second chart. The share comes from the row itself
+    /// (`VitalReadingRow.share`), so the bar and the figure beside it are one reading's, not two.
     @ViewBuilder
-    private func readingShareBar(share: Double?) -> some View {
-        if let share {
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    Capsule().fill(StrandPalette.hairline).frame(height: 2)
-                    Capsule()
-                        .fill(metricDomain(metric).color.opacity(0.55))
-                        .frame(width: max(2, geo.size.width * share), height: 2)
-                }
-                .frame(maxHeight: .infinity, alignment: .center)
+    private func readingShareBar(share: Double) -> some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(StrandPalette.hairline).frame(height: 2)
+                Capsule()
+                    .fill(metricDomain(metric).color.opacity(0.55))
+                    .frame(width: max(2, geo.size.width * share), height: 2)
             }
-            .frame(height: 2)
-            .accessibilityHidden(true)
+            .frame(maxHeight: .infinity, alignment: .center)
         }
+        .frame(height: 2)
+        .accessibilityHidden(true)
     }
 
     /// The source as a dot and a word rather than a coloured word: the colour then marks the source

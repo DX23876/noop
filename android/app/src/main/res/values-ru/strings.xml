@@ -6361,7 +6361,7 @@
     <string name="forge_md_average">Среднее</string>
     <string name="forge_md_min">Мин.</string>
     <string name="forge_md_max">Макс.</string>
-    <string name="forge_md_change">Изменить</string>
+    <string name="forge_md_change">Изменение</string>
     <string name="forge_md_latest">Последнее</string>
     <string name="forge_md_vs_prev">относительно предыдущего %1$s</string>
     <string name="forge_md_all_history">вся история</string>
