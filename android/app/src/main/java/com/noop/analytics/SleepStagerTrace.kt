@@ -21,8 +21,9 @@ object SleepStagerTrace {
      * band last night used, a reader can only count lines and hope the emission order matches the day
      * order. The other funnel lines in this file already carry `day=`.
      */
-    fun hrOnlyGateLine(day: String, attempted: Boolean, reason: String, gravRows: Int, storedNights: Int): String =
-        "[sleep] hr-only gate day=$day attempted=$attempted reason=$reason grav=$gravRows stored=$storedNights"
+    fun hrOnlyGateLine(day: String, attempted: Boolean, reason: String, gravRows: Int,
+                       windowGravRows: Int, storedNights: Int): String =
+        "[sleep] hr-only gate day=$day attempted=$attempted reason=$reason grav=$gravRows windowGrav=$windowGravRows stored=$storedNights"
 
     /**
      * The HR-only spine's own funnel line (#1801).

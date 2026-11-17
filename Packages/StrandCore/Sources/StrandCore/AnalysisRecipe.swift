@@ -245,6 +245,12 @@ public enum AnalysisRecipe {
     // strap's trace or the minute heart rate Android's import files beside each session
     // (`WorkoutHeartRateFills.fillHealthConnect`), as Apple Health's workouts get theirs; the `.workoutHeartRate` step
     // runs it over the whole history. It rides on AI-35, which is in no release or testing build yet.
+    // AI-35 also stages a night from heart rate when the NIGHT has no motion (2026-11-17, #2890): the
+    // gate used to count gravity across the whole 54-hour read window, so a strap whose history offload
+    // stalled kept rows from the day before yesterday in the window while the night itself had none, and
+    // every following night scored as nothing at all (`SleepStager.nightMotionRows`). Nights that scored
+    // blank for that reason gain a heart-rate-staged night on the rebuild; a night with motion of its own
+    // is untouched. It rides on AI-35, which is in no release or testing build yet.
     // The full rebuild re-derives every day; no stored input is rewritten.
     public static let currentVersion = 35
 

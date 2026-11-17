@@ -119,10 +119,23 @@ class SleepStagerHrOnlyTraceTest {
     @Test fun theGateLineNamesItsNightToo() {
         assertEquals(
             "[sleep] hr-only gate day=2026-09-23 attempted=true reason=no-motion-no-hypnogram " +
-                "grav=0 stored=0",
+                "grav=0 windowGrav=0 stored=0",
             SleepStagerTrace.hrOnlyGateLine(
                 day = "2026-09-23", attempted = true, reason = "no-motion-no-hypnogram",
-                gravRows = 0, storedNights = 0,
+                gravRows = 0, windowGravRows = 0, storedNights = 0,
+            ),
+        )
+    }
+
+    /** The case the gate was wrong about (#2890): motion in the window, none in the night. Both numbers
+     *  are printed, the first being the one the verdict rests on. Twin of the Swift expectation. */
+    @Test fun theGateLineSeparatesTheNightFromTheWindow() {
+        assertEquals(
+            "[sleep] hr-only gate day=2026-11-16 attempted=true reason=no-motion-no-hypnogram " +
+                "grav=0 windowGrav=4812 stored=0",
+            SleepStagerTrace.hrOnlyGateLine(
+                day = "2026-11-16", attempted = true, reason = "no-motion-no-hypnogram",
+                gravRows = 0, windowGravRows = 4812, storedNights = 0,
             ),
         )
     }
