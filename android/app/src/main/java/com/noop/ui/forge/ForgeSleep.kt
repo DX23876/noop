@@ -521,8 +521,11 @@ private fun DayNaps(night: CoreRead.Night, wakeDay: java.time.LocalDate, zone: Z
                         Text(stringResource(R.string.l10n_sleep_screen_deleted_sleep_window_range_7bc5f027,
                                             clock(nap.startTs, zone, clockFormat), clock(nap.endTs, zone, clockFormat)),
                              style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.text)
-                        Text(TodayTimeline.hoursMinutes(nap.asleepMinutes), style = Forge.type.caption,
-                             color = Forge.colors.textSecondary)
+                        // The WINDOW's length, as iOS's `napRow` prints: a nap the wearer entered has no
+                        // staged sleep in it until the raw lands, and "0:00" under its own clock times
+                        // states a measurement nobody took (#49).
+                        Text(TodayTimeline.hoursMinutes((nap.endTs - nap.startTs) / 60.0),
+                             style = Forge.type.caption, color = Forge.colors.textSecondary)
                     }
                     // A wrongly detected nap goes with the shared editor's delete and its undo (iOS `napRow`).
                     if (onDelete != null) {
