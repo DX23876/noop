@@ -240,9 +240,13 @@
     <string name="timeline_owned">Di proprietà</string>
     <string name="timeline_all">Tutto</string>
     <string name="timeline_loading_day">Caricamento della giornata…</string>
-    <string name="timeline_pinch_to_zoom">Pizzica per ingrandire · trascina per spostarti</string>
-    <string name="timeline_zoomed_in">Zoom attivo · trascina per spostarti</string>
+    <string name="timeline_pinch_to_zoom">Pizzica per ingrandire · trascina per spostarti · tieni premuto per leggere</string>
+    <string name="timeline_zoomed_in">Zoom attivo · trascina per spostarti · tieni premuto per leggere</string>
     <string name="timeline_reset">Reimposta</string>
+    <string name="timeline_whole_day">L’intera giornata</string>
+    <string name="timeline_lane_sleep">Sonno</string>
+    <string name="timeline_lane_heart">Polso</string>
+    <string name="timeline_lane_workouts">Allenamenti</string>
     <string name="timeline_min">MIN</string>
     <string name="timeline_avg">MEDIA</string>
     <string name="timeline_max">MAX</string>

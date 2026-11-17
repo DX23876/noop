@@ -154,9 +154,13 @@
     <string name="timeline_owned">Posiadany</string>
     <string name="timeline_all">Wszystko</string>
     <string name="timeline_loading_day">Ładowanie dnia…</string>
-    <string name="timeline_pinch_to_zoom">Ściśnij, aby powiększyć · przeciągnij, aby przesunąć</string>
-    <string name="timeline_zoomed_in">Powiększenie · przeciągnij, aby przesunąć</string>
+    <string name="timeline_pinch_to_zoom">Ściśnij, aby powiększyć · przeciągnij, aby przesunąć · przytrzymaj, aby odczytać</string>
+    <string name="timeline_zoomed_in">Powiększenie · przeciągnij, aby przesunąć · przytrzymaj, aby odczytać</string>
     <string name="timeline_reset">Nastawić</string>
+    <string name="timeline_whole_day">Cały dzień</string>
+    <string name="timeline_lane_sleep">Sen</string>
+    <string name="timeline_lane_heart">Puls</string>
+    <string name="timeline_lane_workouts">Treningi</string>
     <string name="timeline_min">MIN</string>
     <string name="timeline_avg">ŚREDNIA</string>
     <string name="timeline_max">MAKS</string>

@@ -2,15 +2,22 @@ package com.noop.ui
 
 import com.noop.analytics.StagePercentages
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -18,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawWithCache
@@ -40,7 +48,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -1317,6 +1327,35 @@ fun pannedWindow(base: LongRange, deltaSeconds: Long, bounds: LongRange): LongRa
     return newLo..(newLo + span)
 }
 
+/** A workout as the Deep Timeline annotates it: a span on the clock plus the sport that names its glyph. */
+data class TimelineWorkoutSpan(val start: Long, val end: Long, val sport: String)
+
+/**
+ * The single sleep to band for a visible window: the LONGEST candidate overlapping it , the main night,
+ * never an afternoon nap. Overlap is strict on both edges, so a night ending exactly at the window start
+ * (or starting exactly at its end) contributes no visible band and does not count.
+ *
+ * Pure. Twin of Swift `OverviewHRChart.mainSleep`, pinned case-for-case against it in
+ * DeepTimelineHelpersTest so the two whole-day charts cannot disagree about what a day looked like.
+ */
+fun mainSleepSpan(candidates: List<LongRange>, window: LongRange): LongRange? =
+    candidates
+        .filter { it.last > window.first && it.first < window.last }
+        .maxByOrNull { it.last - it.first }
+
+/**
+ * The workout spans overlapping a visible window, in the order supplied. Edge-TOUCHING spans are kept
+ * (inclusive on both sides, mirroring the classic Today's workout filter , a session ending exactly at
+ * midnight still belongs to the day it filled); a disjoint one is dropped, because its glyph would be
+ * clamp-dragged to the plot edge and lie about its time.
+ *
+ * Pure. Twin of Swift `OverviewHRChart.workouts`.
+ */
+fun workoutSpansOverlapping(
+    candidates: List<TimelineWorkoutSpan>,
+    window: LongRange,
+): List<TimelineWorkoutSpan> = candidates.filter { it.end >= window.first && it.start <= window.last }
+
 /**
  * The Deep Timeline chart: a line over [points] within the visible [windowStart, windowEnd], pinch to
  * zoom + drag to pan (both clamped to [bounds]). Reports the settled window via [onWindowChange] so the
@@ -1337,6 +1376,20 @@ fun TimelineChart(
     // Round wall-clock (epochSec, "HH:mm") ticks, each drawn as a dotted gridline under the curve.
     // The matching labels render OUTSIDE this plot-height composable by the host. Empty = no gridlines.
     timeTicks: List<Pair<Long, String>> = emptyList(),
+    // #979 parity: the main night's span, shaded behind the curve with a dashed divider at its wake edge.
+    // Passed on EVERY metric track (it is a time annotation, so "when was I asleep" reads against skin
+    // temp or HRV just as it does against HR). Null = no band. The host picks it with [mainSleepSpan].
+    sleepBand: LongRange? = null,
+    // #979 parity: sport glyphs anchored above each workout's peak in the SHOWN metric. The host scopes
+    // them with [workoutSpansOverlapping]; a span outside the visible window draws nothing.
+    workouts: List<TimelineWorkoutSpan> = emptyList(),
+    // Hold-to-read (#979 spin-off): press and hold, then drag, to pin a crosshair and read the value
+    // under the finger. Off by default so the other TimelineChart callers keep their plain pan/pinch.
+    scrubEnabled: Boolean = false,
+    // The read-out's value formatter, so the crosshair prints exactly what the surrounding card prints
+    // (°F where the wearer chose Fahrenheit, one decimal where the metric carries one). Null = the
+    // chart's own near-integer-collapsing default.
+    formatValue: ((Double) -> String)? = null,
 ) {
     val span = (windowEnd - windowStart).coerceAtLeast(1L)
     val vis = remember(points, windowStart, windowEnd) {
@@ -1351,10 +1404,38 @@ fun TimelineChart(
     val currentWindowStart by rememberUpdatedState(windowStart)
     val currentWindowEnd by rememberUpdatedState(windowEnd)
 
+    // ONE value scale for the whole composable: the curve, the workout glyphs and the hold-to-read
+    // crosshair all read THIS, never their own min/max. Two readouts of one fact must not be able to
+    // disagree, and a glyph or a dot a few pixels off its own curve is exactly that disagreement.
+    val valueScale = remember(vis) {
+        if (vis.size < 2) null else {
+            val mn = vis.minOf { it.value }
+            val mx = vis.maxOf { it.value }
+            TimelineValueScale(minV = mn, maxV = mx)
+        }
+    }
+
+    // Plot-relative x of the held finger, or null when nothing is held. Cleared whenever the series or
+    // the window moves under it, so the read-out can never point at a sample that is no longer there.
+    var scrubX by remember(points, windowStart, windowEnd) { mutableStateOf<Float?>(null) }
+    val haptics = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    val scrubPaint = remember(color) {
+        android.graphics.Paint().apply {
+            isAntiAlias = true
+            textSize = 30f
+            this.color = color.copy(alpha = StrandAlpha.chartLabel).toArgb()
+            typeface = android.graphics.Typeface.create(
+                android.graphics.Typeface.DEFAULT,
+                android.graphics.Typeface.BOLD,
+            )
+        }
+    }
+
     // ONE collapsed semantics node (summary of the VISIBLE window) so the a11y delegate reads a single
     // line instead of walking the canvas; recomputes as the zoom/pan window changes. Changes no drawing.
     val axSummary = seriesSummary(vis.map { it.value }, "Timeline")
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .clipToBounds()
@@ -1375,15 +1456,59 @@ fun TimelineChart(
                     }
                     onWindowChange(window)
                 }
-            },
+            }
+            // The scrub detector sits INSIDE the transform one, so it sees each event first and, once a
+            // hold has landed, consumes the drag that would otherwise pan. Before that it consumes
+            // nothing: a finger that moves straight away crosses the pan slop and pans, exactly as it
+            // did. The hold gate is Android's own long-press timeout (~500 ms) rather than iOS's 250 ms,
+            // because that is the dwell this platform's users already expect from a press-and-hold.
+            .then(
+                if (!scrubEnabled) Modifier else Modifier.pointerInput(points, windowStart, windowEnd) {
+                    detectDragGesturesAfterLongPress(
+                        onDragStart = { at ->
+                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            scrubX = at.x
+                        },
+                        onDrag = { change, _ -> scrubX = change.position.x },
+                        onDragEnd = { scrubX = null },
+                        onDragCancel = { scrubX = null },
+                    )
+                }
+            ),
     ) {
-        // Dotted round-time gridlines, FIRST so the curve reads over them (matching OverviewHRChart z-order).
+        val widthPx = with(density) { maxWidth.toPx() }
+        val heightPx = with(density) { maxHeight.toPx() }
+
+        // Sleep band FIRST of all, so the curve, its gridlines and every marker sit on top of it.
+        if (sleepBand != null && sleepBand.last > windowStart && sleepBand.first < windowEnd) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                if (size.width <= 0f || size.height <= 0f) return@Canvas
+                val x0 = timelineX(sleepBand.first.coerceIn(windowStart, windowEnd), windowStart, span, size.width)
+                val x1 = timelineX(sleepBand.last.coerceIn(windowStart, windowEnd), windowStart, span, size.width)
+                drawRect(
+                    color = Palette.sleepDeep.copy(alpha = 0.32f),
+                    topLeft = Offset(x0, 0f),
+                    size = androidx.compose.ui.geometry.Size((x1 - x0).coerceAtLeast(0f), size.height),
+                )
+                // Wake divider , the sleep-to-day boundary, only where the wake edge is actually in view.
+                if (sleepBand.last < windowEnd) {
+                    drawLine(
+                        color = Palette.sleepLight.copy(alpha = 0.5f),
+                        start = Offset(x1, 0f),
+                        end = Offset(x1, size.height),
+                        strokeWidth = 1f,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(3f, 3f), 0f),
+                    )
+                }
+            }
+        }
+        // Dotted round-time gridlines, before the curve so it reads over them (matching OverviewHRChart z-order).
         if (timeTicks.isNotEmpty()) {
             val gridDash = remember { PathEffect.dashPathEffect(floatArrayOf(4f, 6f), 0f) }
             Canvas(modifier = Modifier.fillMaxSize()) {
                 if (size.width <= 0f || size.height <= 0f) return@Canvas
                 timeTicks.forEach { (ts, _) ->
-                    val x = ((ts - windowStart).toFloat() / span) * size.width
+                    val x = timelineX(ts, windowStart, span, size.width)
                     if (x in 0f..size.width) {
                         drawLine(
                             color = Palette.hairline,
@@ -1397,20 +1522,12 @@ fun TimelineChart(
             }
         }
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val strokePx = 2.5f
-            val topPad = strokePx + 4f
-            val bottomPad = strokePx + 4f
-            if (vis.size < 2 || size.width <= 0f || size.height <= 0f) {
+            if (valueScale == null || size.width <= 0f || size.height <= 0f) {
                 drawBaseline()
                 return@Canvas
             }
-            val minV = vis.minOf { it.value }
-            val maxV = vis.maxOf { it.value }
-            val range = (maxV - minV).takeIf { it > 0.0 } ?: 1.0
-            val usable = (size.height - topPad - bottomPad).coerceAtLeast(1f)
-
-            fun px(ts: Long): Float = ((ts - windowStart).toFloat() / span) * size.width
-            fun py(v: Double): Float = topPad + ((maxV - v) / range).toFloat() * usable
+            fun px(ts: Long): Float = timelineX(ts, windowStart, span, size.width)
+            fun py(v: Double): Float = timelineY(v, valueScale, size.height)
 
             val linePath = Path().apply {
                 moveTo(px(vis.first().ts), py(vis.first().value))
@@ -1439,8 +1556,88 @@ fun TimelineChart(
             drawPath(
                 path = linePath,
                 color = color,
-                style = Stroke(width = strokePx, cap = StrokeCap.Round, join = StrokeJoin.Round),
+                style = Stroke(width = TIMELINE_STROKE_PX, cap = StrokeCap.Round, join = StrokeJoin.Round),
             )
         }
+
+        // Workout glyphs, anchored over each session's peak IN THE SHOWN METRIC (the same anchor iOS
+        // uses), so the badge marks where the session actually told on the curve.
+        if (valueScale != null && widthPx > 0f && heightPx > 0f) {
+            workouts.forEach { w ->
+                val peak = vis.filter { it.ts in w.start..w.end }.maxByOrNull { it.value } ?: return@forEach
+                val cx = timelineX(peak.ts, windowStart, span, widthPx).coerceIn(14f, (widthPx - 14f).coerceAtLeast(14f))
+                val cy = kotlin.math.max(38f, timelineY(peak.value, valueScale, heightPx) - 20f)
+                Box(
+                    modifier = Modifier
+                        .offset(
+                            x = with(density) { (cx - 11f).toDp() },
+                            y = with(density) { (cy - 11f).toDp() },
+                        )
+                        .size(22.dp)
+                        .background(Palette.effortColor, RoundedCornerShape(6.dp)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = sportIcon(w.sport),
+                        contentDescription = null,
+                        tint = Palette.textPrimary,
+                        modifier = Modifier.size(13.dp),
+                    )
+                }
+            }
+        }
+
+        // Hold-to-read: crosshair, dot and read-out for the sample nearest the finger. A thin overlay of
+        // its own, so a scrub re-issues only this and never the curve underneath.
+        val heldX = scrubX
+        if (valueScale != null && heldX != null) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                if (size.width <= 0f || size.height <= 0f) return@Canvas
+                val nearest = vis.minByOrNull {
+                    abs(timelineX(it.ts, windowStart, span, size.width) - heldX)
+                } ?: return@Canvas
+                val cx = timelineX(nearest.ts, windowStart, span, size.width)
+                val cy = timelineY(nearest.value, valueScale, size.height)
+                drawLine(
+                    color = color.copy(alpha = StrandAlpha.chartMarker),
+                    start = Offset(cx, 0f),
+                    end = Offset(cx, size.height),
+                    strokeWidth = 1.5f,
+                    cap = StrokeCap.Round,
+                )
+                drawCircle(color = Palette.surfaceBase.copy(alpha = StrandAlpha.chartShadow), radius = 9f, center = Offset(cx, cy))
+                drawCircle(color = color, radius = 4.5f, center = Offset(cx, cy))
+                drawContext.canvas.nativeCanvas.apply {
+                    drawText(
+                        lineChartSelectionLabel(
+                            value = nearest.value,
+                            formatValue = formatValue,
+                            epochSec = nearest.ts,
+                        ),
+                        8f,
+                        scrubPaint.textSize + 2f,
+                        scrubPaint,
+                    )
+                }
+            }
+        }
     }
+}
+
+/** The visible window's value scale: ONE min/max for the curve, the workout glyphs and the crosshair. */
+private class TimelineValueScale(val minV: Double, val maxV: Double) {
+    val range: Double = (maxV - minV).takeIf { it > 0.0 } ?: 1.0
+}
+
+private const val TIMELINE_STROKE_PX = 2.5f
+private const val TIMELINE_PAD_PX = TIMELINE_STROKE_PX + 4f
+
+/** Plot-relative x for a wall-clock second inside the visible window. */
+private fun timelineX(ts: Long, windowStart: Long, span: Long, width: Float): Float =
+    ((ts - windowStart).toFloat() / span) * width
+
+/** Plot-relative y for a value on [scale], with the same stroke padding the curve is drawn with. */
+private fun timelineY(v: Double, scale: TimelineValueScale, height: Float): Float {
+    val usable = (height - 2f * TIMELINE_PAD_PX).coerceAtLeast(1f)
+    return TIMELINE_PAD_PX + ((scale.maxV - v) / scale.range).toFloat() * usable
 }

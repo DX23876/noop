@@ -167,9 +167,13 @@
     <string name="timeline_owned">Im Besitz</string>
     <string name="timeline_all">Alle</string>
     <string name="timeline_loading_day">Tag wird geladen…</string>
-    <string name="timeline_pinch_to_zoom">Zum Zoomen aufziehen · zum Verschieben ziehen</string>
-    <string name="timeline_zoomed_in">Herangezoomt · zum Verschieben ziehen</string>
+    <string name="timeline_pinch_to_zoom">Zum Zoomen aufziehen · zum Verschieben ziehen · halten zum Ablesen</string>
+    <string name="timeline_zoomed_in">Herangezoomt · zum Verschieben ziehen · halten zum Ablesen</string>
     <string name="timeline_reset">Zurücksetzen</string>
+    <string name="timeline_whole_day">Der ganze Tag</string>
+    <string name="timeline_lane_sleep">Schlaf</string>
+    <string name="timeline_lane_heart">Puls</string>
+    <string name="timeline_lane_workouts">Workouts</string>
     <string name="timeline_min">MIN</string>
     <string name="timeline_avg">AVG</string>
     <string name="timeline_max">MAX</string>

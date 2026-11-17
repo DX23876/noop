@@ -1749,9 +1749,13 @@
     <string name="timeline_owned">En propiedad</string>
     <string name="timeline_all">Todo</string>
     <string name="timeline_loading_day">Cargando el día…</string>
-    <string name="timeline_pinch_to_zoom">Pellizca para hacer zoom · arrastra para desplazarte</string>
-    <string name="timeline_zoomed_in">Con zoom · arrastra para desplazarte</string>
+    <string name="timeline_pinch_to_zoom">Pellizca para hacer zoom · arrastra para desplazarte · mantén pulsado para leer</string>
+    <string name="timeline_zoomed_in">Con zoom · arrastra para desplazarte · mantén pulsado para leer</string>
     <string name="timeline_reset">Restablecer</string>
+    <string name="timeline_whole_day">Todo el día</string>
+    <string name="timeline_lane_sleep">Sueño</string>
+    <string name="timeline_lane_heart">Pulso</string>
+    <string name="timeline_lane_workouts">Entrenamientos</string>
     <string name="timeline_min">MIN</string>
     <string name="timeline_avg">PROM</string>
     <string name="timeline_max">MAX</string>

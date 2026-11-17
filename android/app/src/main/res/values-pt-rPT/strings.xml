@@ -154,9 +154,13 @@
     <string name="timeline_owned">Controlado</string>
     <string name="timeline_all">Tudo</string>
     <string name="timeline_loading_day">Carregando o dia…</string>
-    <string name="timeline_pinch_to_zoom">Aperta para ampliar · arrasta para deslocar</string>
-    <string name="timeline_zoomed_in">Ampliado · arrasta para deslocar</string>
+    <string name="timeline_pinch_to_zoom">Aperta para ampliar · arrasta para deslocar · mantém premido para ler</string>
+    <string name="timeline_zoomed_in">Ampliado · arrasta para deslocar · mantém premido para ler</string>
     <string name="timeline_reset">Repor</string>
+    <string name="timeline_whole_day">O dia inteiro</string>
+    <string name="timeline_lane_sleep">Sono</string>
+    <string name="timeline_lane_heart">Pulso</string>
+    <string name="timeline_lane_workouts">Treinos</string>
     <string name="timeline_min">MIN</string>
     <string name="timeline_avg">AVG</string>
     <string name="timeline_max">MAX</string>

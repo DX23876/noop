@@ -1,17 +1,29 @@
 package com.noop.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,11 +34,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.noop.R
 import com.noop.analytics.HrvAnalyzer
@@ -211,55 +231,80 @@ fun FullDayChartScreen(vm: AppViewModel, onBack: () -> Unit) {
         loading = false
     }
 
+    // Which screen set is running. The whole-day card is Forge-only on iOS (FullDayChartView branches on
+    // NoopVisualStyle.skin), so it is Forge-only here, and the day's extra HR read below only happens
+    // where something draws it.
+    val forge = remember { com.noop.ui.forge.ForgeUi.enabled(context, null) }
+
+    // #979 parity — the day's annotations: the night to band behind the curve, every sleep block for the
+    // whole-day lane, and the sport glyphs. Resolved against the SHOWN DAY and re-read only when the day
+    // or fresh data changes, deliberately NOT on zoom, so a pinch or a hold-to-read never re-queries
+    // sleeps and workouts. Same scoping as iOS FullDayChartView.reloadAnnotations, so the two whole-day
+    // charts can never band different nights.
+    var sleepCandidates by remember { mutableStateOf<List<LongRange>>(emptyList()) }
+    val allWorkouts by vm.workouts.collectAsStateWithLifecycle()
+    // Classic has no root-level workout load (ForgeRoot does one), so ask for it here as Insights does.
+    LaunchedEffect(Unit) { vm.loadWorkouts() }
+    LaunchedEffect(deviceId, dayStartSec, recentDays) {
+        val daysBack = ((System.currentTimeMillis() / 1000L - dayStartSec) / 86_400L).toInt().coerceAtLeast(0) + 2
+        sleepCandidates = runCatching { vm.repo.allSleepSessionsUnion(deviceId, daysBack) }
+            .getOrDefault(emptyList())
+            .map { it.effectiveStartTs..it.endTs }
+    }
+    // The band is the longest night overlapping the day; the lane shows every block that touches it.
+    val sleepBand = remember(sleepCandidates, dayStartSec) { mainSleepSpan(sleepCandidates, dayBounds) }
+    val daySleeps = remember(sleepCandidates, dayStartSec) {
+        sleepCandidates.filter { it.first < dayBounds.last && it.last > dayBounds.first }
+    }
+    val dayWorkouts = remember(allWorkouts, dayStartSec) {
+        workoutSpansOverlapping(
+            allWorkouts.map { TimelineWorkoutSpan(it.startTs, it.endTs, it.sport) },
+            dayBounds,
+        )
+    }
+
+    // The whole-day card's own HR lane: one coarse read of the FULL day (~144 points), independent of the
+    // zoomed window the chart below reads, so stepping a day redraws the lane without touching the chart.
+    var dayHeart by remember { mutableStateOf<List<TimelinePoint>>(emptyList()) }
+    LaunchedEffect(forge, deviceId, dayStartSec, recentDays) {
+        if (!forge) return@LaunchedEffect
+        dayHeart = readTimeline(
+            vm, deviceId, TimelineMetric.Hr, dayBounds.first, dayBounds.last,
+            timelineBucketSeconds(dayBounds.last - dayBounds.first, targetPoints = 144),
+        )
+    }
+
     ScreenScaffold(
         title = stringResource(R.string.deep_timeline_title),
         subtitle = stringResource(R.string.timeline_subtitle),
     ) {
-        // METRIC PILLS — horizontally scrollable so all six fit on a phone.
-        Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
-            SegmentedPillControl(
-                items = TimelineMetric.entries.toList(),
-                selection = metric,
-                label = { it.title },
-                onSelect = { metric = it; window = null },
-            )
-        }
-
-        // SOURCE PILL — the owned (active) device, with the #574 owned/all scope toggle.
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(sourceName ?: stringResource(R.string.timeline_my_whoop), style = NoopType.footnote, color = Palette.textSecondary)
-            Spacer(Modifier.weight(1f))
-            val ownedLabel = stringResource(R.string.timeline_owned)
-            val allLabel = stringResource(R.string.timeline_all)
-            SegmentedPillControl(
-                items = listOf(true, false),
-                selection = ownedOnly,
-                label = { if (it) ownedLabel else allLabel },
-                onSelect = { ownedOnly = it },
-            )
-        }
-
-        // DAY STEPPER — move the whole timeline back/forward a day (#597). Forward clamps at today.
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
-        ) {
-            Text(
-                "‹", style = NoopType.title2, color = Palette.accent,
-                modifier = Modifier
-                    .clickable { dayStartSec -= 86_400; window = null }
-                    .padding(horizontal = 12.dp, vertical = 2.dp),
-            )
-            Spacer(Modifier.weight(1f))
-            Text(dayLabel(dayStartSec, todayStart), style = NoopType.headline, color = Palette.textPrimary)
-            Spacer(Modifier.weight(1f))
-            val onLatest = dayStartSec >= todayStart
-            Text(
-                "›", style = NoopType.title2, color = if (onLatest) Palette.textTertiary else Palette.accent,
-                modifier = Modifier
-                    .then(if (onLatest) Modifier else Modifier.clickable { dayStartSec += 86_400; window = null })
-                    .padding(horizontal = 12.dp, vertical = 2.dp),
-            )
+        // Row order follows iOS FullDayChartView: Forge opens on the day and its whole-day card, then
+        // narrows to one metric; classic keeps the metric pills on top. The whole-day card is Forge-only
+        // there, so it is Forge-only here too.
+        if (forge) {
+            TimelineDayStepper(dayStartSec, todayStart) { dayStartSec = it; window = null }
+            NoopCard {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        stringResource(R.string.timeline_whole_day),
+                        style = NoopType.headline,
+                        color = Palette.textPrimary,
+                    )
+                    WholeDayLanes(
+                        dayStart = dayBounds.first,
+                        dayEnd = dayBounds.last,
+                        heart = dayHeart,
+                        sleeps = daySleeps,
+                        sessions = dayWorkouts,
+                    )
+                }
+            }
+            TimelineMetricPills(metric) { metric = it; window = null }
+            TimelineSourceRow(sourceName, ownedOnly) { ownedOnly = it }
+        } else {
+            TimelineMetricPills(metric) { metric = it; window = null }
+            TimelineDayStepper(dayStartSec, todayStart) { dayStartSec = it; window = null }
+            TimelineSourceRow(sourceName, ownedOnly) { ownedOnly = it }
         }
 
         NoopCard(tint = Palette.metricRose) {
@@ -303,6 +348,15 @@ fun FullDayChartScreen(vm: AppViewModel, onBack: () -> Unit) {
                                 modifier = Modifier.fillMaxWidth().height(280.dp),
                                 onWindowChange = { window = it },
                                 timeTicks = timeTicks,
+                                // #979 parity: the night behind the curve and the sport glyphs over it, on
+                                // every metric track , they are time annotations, so "when was I asleep /
+                                // training" reads against skin temp just as it does against HR.
+                                sleepBand = sleepBand,
+                                workouts = dayWorkouts,
+                                // Hold to read, the touch twin of the pointer read-out. The formatter is
+                                // the card's own, so the crosshair can't print °C where the card says °F.
+                                scrubEnabled = true,
+                                formatValue = { formatValue(metric, it) + unitSuffix(metric, tempUnit) },
                             )
                         }
                     }
@@ -626,5 +680,190 @@ private fun TimelineTimeAxisLabels(
                 }
             }
         }
+    }
+}
+
+// MARK: - Controls (one row each, so Forge and classic can order them the way iOS does)
+
+/** The metric pills, horizontally scrollable so all eight fit on a phone. */
+@Composable
+private fun TimelineMetricPills(metric: TimelineMetric, onSelect: (TimelineMetric) -> Unit) {
+    Row(modifier = Modifier.horizontalScroll(rememberScrollState())) {
+        SegmentedPillControl(
+            items = TimelineMetric.entries.toList(),
+            selection = metric,
+            label = { it.title },
+            onSelect = onSelect,
+        )
+    }
+}
+
+/** The owned (active) device, with the #574 owned/all scope toggle. */
+@Composable
+private fun TimelineSourceRow(sourceName: String?, ownedOnly: Boolean, onOwnedOnly: (Boolean) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(sourceName ?: stringResource(R.string.timeline_my_whoop), style = NoopType.footnote, color = Palette.textSecondary)
+        Spacer(Modifier.weight(1f))
+        val ownedLabel = stringResource(R.string.timeline_owned)
+        val allLabel = stringResource(R.string.timeline_all)
+        SegmentedPillControl(
+            items = listOf(true, false),
+            selection = ownedOnly,
+            label = { if (it) ownedLabel else allLabel },
+            onSelect = onOwnedOnly,
+        )
+    }
+}
+
+/** Move the whole timeline back/forward a day (#597). Forward clamps at today. */
+@Composable
+private fun TimelineDayStepper(dayStartSec: Long, todayStart: Long, onStep: (Long) -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+    ) {
+        Text(
+            "‹", style = NoopType.title2, color = Palette.accent,
+            modifier = Modifier
+                .clickable { onStep(dayStartSec - 86_400) }
+                .padding(horizontal = 12.dp, vertical = 2.dp),
+        )
+        Spacer(Modifier.weight(1f))
+        Text(dayLabel(dayStartSec, todayStart), style = NoopType.headline, color = Palette.textPrimary)
+        Spacer(Modifier.weight(1f))
+        val onLatest = dayStartSec >= todayStart
+        Text(
+            "›", style = NoopType.title2, color = if (onLatest) Palette.textTertiary else Palette.accent,
+            modifier = Modifier
+                .then(if (onLatest) Modifier else Modifier.clickable { onStep(dayStartSec + 86_400) })
+                .padding(horizontal = 12.dp, vertical = 2.dp),
+        )
+    }
+}
+
+// MARK: - The whole day (Android twin of Swift WholeDayLanes)
+
+/**
+ * A day as lanes on one time axis: when the wearer slept, how the heart ran, when they trained. Read
+ * before any single signal, so a day has a shape before the chart below narrows to one metric.
+ *
+ * Twin of the Swift `WholeDayLanes` in FullDayChartView.swift: same three lanes in the same order, same
+ * label column, same 00/06/12/18/24 hour axis, and the heart line breaks the same way on a gap of more
+ * than half an hour (the strap off the wrist, not a straight line through it). The draw-in differs in
+ * kind, not in result: SwiftUI trims the path by its own length, while here the day fills left to right,
+ * which is the same gesture on a lane whose x IS the clock.
+ */
+@Composable
+private fun WholeDayLanes(
+    dayStart: Long,
+    dayEnd: Long,
+    heart: List<TimelinePoint>,
+    sleeps: List<LongRange>,
+    sessions: List<TimelineWorkoutSpan>,
+) {
+    val span = (dayEnd - dayStart).coerceAtLeast(1L)
+    fun fraction(ts: Long): Float = ((ts - dayStart).toFloat() / span).coerceIn(0f, 1f)
+
+    // The day draws itself in when its figures arrive, so stepping a day reads as a new day drawing
+    // rather than a cut. Reduce Motion gets the finished day at once.
+    val reduceMotion = rememberReduceMotion()
+    val drawn = remember { Animatable(0f) }
+    LaunchedEffect(heart.size, sleeps.size, sessions.size, reduceMotion) {
+        if (reduceMotion) { drawn.snapTo(1f); return@LaunchedEffect }
+        drawn.snapTo(0f)
+        drawn.animateTo(1f, animationSpec = tween(durationMillis = 900, easing = FastOutSlowInEasing))
+    }
+    val progress = drawn.value
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        WholeDayLane(stringResource(R.string.timeline_lane_sleep), 22.dp) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                if (size.width <= 0f) return@Canvas
+                sleeps.forEach { block ->
+                    val x0 = fraction(block.first) * size.width
+                    val w = ((fraction(block.last) - fraction(block.first)) * size.width).coerceAtLeast(4f)
+                    drawRoundRect(
+                        color = Palette.restColor,
+                        topLeft = Offset(x0, 0f),
+                        size = Size(w * progress, size.height),
+                        cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx()),
+                    )
+                }
+            }
+        }
+        WholeDayLane(stringResource(R.string.timeline_lane_heart), 58.dp) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                if (size.width <= 0f || heart.size < 2) return@Canvas
+                val values = heart.map { it.value }
+                val low = (values.min()) - 3.0
+                val high = kotlin.math.max(values.max() + 3.0, low + 1.0)
+                val path = Path()
+                var last: Long? = null
+                for (point in heart) {
+                    if (fraction(point.ts) > progress) break
+                    val x = fraction(point.ts) * size.width
+                    val y = size.height * (1f - ((point.value - low) / (high - low)).toFloat())
+                    val prev = last
+                    // A gap of more than half an hour is the strap off the wrist, not a straight line.
+                    if (prev != null && point.ts - prev < 1800L) path.lineTo(x, y) else path.moveTo(x, y)
+                    last = point.ts
+                }
+                drawPath(
+                    path = path,
+                    color = Palette.metricRose,
+                    style = Stroke(width = 1.6.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round),
+                )
+            }
+        }
+        WholeDayLane(stringResource(R.string.timeline_lane_workouts), 26.dp) {
+            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
+                val widthDp = maxWidth
+                sessions.forEach { session ->
+                    val spanDp = (widthDp * (fraction(session.end) - fraction(session.start))).coerceAtLeast(22.dp)
+                    val leftDp = (widthDp * fraction(session.start)).coerceAtMost(widthDp - spanDp)
+                    Box(
+                        modifier = Modifier
+                            .offset(x = leftDp)
+                            .size(width = spanDp * progress, height = 24.dp)
+                            .background(Palette.effortColor.copy(alpha = 0.85f * progress), RoundedCornerShape(6.dp)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = sportIcon(session.sport),
+                            contentDescription = null,
+                            tint = Palette.textPrimary.copy(alpha = progress),
+                            modifier = Modifier.size(13.dp),
+                        )
+                    }
+                }
+            }
+        }
+        // Hour axis, offset by the label column so its marks sit under the lanes they describe.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.width(WHOLE_DAY_LABEL_WIDTH))
+            Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceBetween) {
+                listOf("00", "06", "12", "18", "24").forEach { hour ->
+                    Text(hour, style = NoopType.caption, color = Palette.textTertiary)
+                }
+            }
+        }
+    }
+}
+
+private val WHOLE_DAY_LABEL_WIDTH = 54.dp
+
+/** One named lane: its label in a fixed column, its content filling the rest of the width. */
+@Composable
+private fun WholeDayLane(name: String, height: Dp, content: @Composable () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            name,
+            style = NoopType.caption,
+            color = Palette.textSecondary,
+            maxLines = 1,
+            modifier = Modifier.width(WHOLE_DAY_LABEL_WIDTH),
+        )
+        Spacer(Modifier.width(8.dp))
+        Box(modifier = Modifier.weight(1f).height(height)) { content() }
     }
 }

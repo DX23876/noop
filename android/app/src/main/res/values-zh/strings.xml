@@ -151,9 +151,13 @@
     <string name="timeline_owned">个人设备</string>
     <string name="timeline_all">全部</string>
     <string name="timeline_loading_day">正在加载当天数据…</string>
-    <string name="timeline_pinch_to_zoom">双指缩放 · 拖拽平移</string>
-    <string name="timeline_zoomed_in">已放大 · 拖拽平移</string>
+    <string name="timeline_pinch_to_zoom">双指缩放 · 拖拽平移 · 长按读数</string>
+    <string name="timeline_zoomed_in">已放大 · 拖拽平移 · 长按读数</string>
     <string name="timeline_reset">重置</string>
+    <string name="timeline_whole_day">一整天</string>
+    <string name="timeline_lane_sleep">睡眠</string>
+    <string name="timeline_lane_heart">心率</string>
+    <string name="timeline_lane_workouts">运动</string>
     <string name="timeline_min">最小</string>
     <string name="timeline_avg">平均</string>
     <string name="timeline_max">最大</string>

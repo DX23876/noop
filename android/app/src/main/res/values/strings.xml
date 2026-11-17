@@ -265,9 +265,13 @@
     <string name="timeline_owned">Owned</string>
     <string name="timeline_all">All</string>
     <string name="timeline_loading_day">Loading the day…</string>
-    <string name="timeline_pinch_to_zoom">Pinch to zoom · drag to pan</string>
-    <string name="timeline_zoomed_in">Zoomed in · drag to pan</string>
+    <string name="timeline_pinch_to_zoom">Pinch to zoom · drag to pan · hold to read</string>
+    <string name="timeline_zoomed_in">Zoomed in · drag to pan · hold to read</string>
     <string name="timeline_reset">Reset</string>
+    <string name="timeline_whole_day">The whole day</string>
+    <string name="timeline_lane_sleep">Sleep</string>
+    <string name="timeline_lane_heart">Heart</string>
+    <string name="timeline_lane_workouts">Workouts</string>
     <string name="timeline_min">MIN</string>
     <string name="timeline_avg">AVG</string>
     <string name="timeline_max">MAX</string>

@@ -234,9 +234,13 @@
     <string name="timeline_owned">Во владении</string>
     <string name="timeline_all">Все</string>
     <string name="timeline_loading_day">Загружаем день…</string>
-    <string name="timeline_pinch_to_zoom">Сведите пальцы для масштабирования · перетащите для перемещения</string>
-    <string name="timeline_zoomed_in">Увеличено · перетащите для панорамирования</string>
+    <string name="timeline_pinch_to_zoom">Сведите пальцы для масштабирования · перетащите для перемещения · удерживайте, чтобы считать</string>
+    <string name="timeline_zoomed_in">Увеличено · перетащите для панорамирования · удерживайте, чтобы считать</string>
     <string name="timeline_reset">Сбросить</string>
+    <string name="timeline_whole_day">Весь день</string>
+    <string name="timeline_lane_sleep">Сон</string>
+    <string name="timeline_lane_heart">Пульс</string>
+    <string name="timeline_lane_workouts">Тренировки</string>
     <string name="timeline_min">Мин.</string>
     <string name="timeline_avg">СРЕД</string>
     <string name="timeline_max">Макс.</string>
