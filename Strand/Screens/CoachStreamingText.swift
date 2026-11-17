@@ -85,19 +85,31 @@ struct CoachStreamCaret: View {
     var animated: Bool = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject private var motion = NoopMotionState.shared
-    @State private var on = true
+
+    /// Half a blink: the caret goes dim and bright again over twice this.
+    private static let blinkPeriod: Double = 0.6
 
     private var shouldAnimate: Bool { animated && !motion.poseStill(reduceMotion) }
 
     var body: some View {
+        // Taken from the CLOCK, like the sync pulse (#48): a `repeatForever` blink has to be started by a
+        // state change and is dropped when the view leaves the render tree, so a caret that says "still
+        // writing" could freeze while the reply went on arriving — the one cue the bubble has, stuck.
+        if shouldAnimate {
+            TimelineView(.animation) { context in
+                caret(opacity: 0.15 + 0.85 * StrandMotion.breathPhase(at: context.date,
+                                                                      period: Self.blinkPeriod))
+            }
+        } else {
+            caret(opacity: 1)
+        }
+    }
+
+    private func caret(opacity: Double) -> some View {
         RoundedRectangle(cornerRadius: 1, style: .continuous)
             .fill(StrandPalette.accent)
             .frame(width: 2, height: 15)
-            .opacity(on ? 1 : 0.15)
-            .animation(shouldAnimate ? .easeInOut(duration: 0.6).repeatForever(autoreverses: true) : nil,
-                       value: on)
-            .onAppear { if shouldAnimate { on.toggle() } }
-            .onChangeCompat(of: shouldAnimate) { enabled in on = !enabled }
+            .opacity(opacity)
             .accessibilityHidden(true)
     }
 }
