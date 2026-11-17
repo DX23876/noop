@@ -6808,6 +6808,12 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="backup_saving_to">Wird gesichert nach: %1$s</string>
     <string name="backup_no_folder">Noch kein Ordner gewählt. Nimm einen, den deine Cloud-App schon abgleicht, oder irgendeinen Ordner auf dem Gerät.</string>
     <string name="backup_last">Letzte Sicherung: %1$s</string>
+    <string name="coach_connect_custom">Richte den Coach auf einen beliebigen OpenAI-kompatiblen Server: ein lokales Modell (Ollama, LM Studio, llama.cpp) hält alles auf deinem Gerät, ein API-Schlüssel ist dann freiwillig.</string>
+    <string name="coach_connect_key">Bring deinen eigenen API-Schlüssel mit. Er liegt verschlüsselt auf diesem Gerät und wird nur benutzt, um deine Frage und eine kurze Zusammenfassung deiner Werte an den Anbieter zu schicken, den du wählst.</string>
+    <string name="coach_privacy_local">Der Coach spricht nur mit der Serveradresse, die du einträgst. Richte ihn auf ein lokales Modell, dann bleibt alles auf deinem Gerät. Gesendet wird erst, wenn du fragst.</string>
+    <string name="coach_privacy_default">Von Haus aus privat: gesendet werden nur deine Frage und eine kurze Zusammenfassung deiner Werte, und das erst, wenn du einen Schlüssel eingetragen hast.</string>
+    <string name="coach_paste_key">Füge deinen Schlüssel für %1$s ein</string>
+    <string name="coach_fetching">Wird geholt …</string>
     <string name="live_sync_history">Verlauf vom Strap wird geholt …</string>
     <string name="live_sync_history_chunks">Verlauf vom Strap wird geholt … %1$d Pakete geladen</string>
     <string name="live_recent_intervals">Letzte Abstände: %1$s ms</string>

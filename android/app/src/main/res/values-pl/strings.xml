@@ -6812,6 +6812,12 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="backup_saving_to">Zapis do: %1$s</string>
     <string name="backup_no_folder">Nie wybrano jeszcze folderu. Wybierz taki, który twoja aplikacja chmury już synchronizuje, albo dowolny folder lokalny.</string>
     <string name="backup_last">Ostatnia kopia: %1$s</string>
+    <string name="coach_connect_custom">Skieruj coacha na dowolny serwer zgodny z OpenAI: model lokalny (Ollama, LM Studio, llama.cpp) zatrzymuje wszystko na twoim urządzeniu, klucz API jest wtedy opcjonalny.</string>
+    <string name="coach_connect_key">Przynieś własny klucz API. Leży zaszyfrowany na tym urządzeniu i służy tylko do wysłania twojego pytania oraz krótkiego podsumowania twoich wartości do wybranego dostawcy.</string>
+    <string name="coach_privacy_local">Coach rozmawia tylko z adresem serwera, który podasz. Skieruj go na model lokalny, a wszystko zostanie na twoim urządzeniu. Nic nie wychodzi, dopóki nie zapytasz.</string>
+    <string name="coach_privacy_default">Domyślnie prywatnie: wysyłane są tylko twoje pytanie i krótkie podsumowanie wartości, i dopiero gdy wpiszesz klucz.</string>
+    <string name="coach_paste_key">Wklej swój klucz %1$s</string>
+    <string name="coach_fetching">Pobieranie…</string>
     <string name="live_sync_history">Synchronizowanie historii ze strapa…</string>
     <string name="live_sync_history_chunks">Synchronizowanie historii ze strapa… pobrano %1$d porcji</string>
     <string name="live_recent_intervals">Ostatnie odstępy: %1$s ms</string>

@@ -6832,6 +6832,12 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="backup_saving_to">Saving to: %1$s</string>
     <string name="backup_no_folder">No folder chosen yet. Pick one your cloud app already syncs, or any local folder.</string>
     <string name="backup_last">Last backup: %1$s</string>
+    <string name="coach_connect_custom">Point the coach at any OpenAI-compatible server: a local model (Ollama, LM Studio, llama.cpp) keeps everything on your device; an API key is optional.</string>
+    <string name="coach_connect_key">Bring your own API key. It is stored encrypted on this device and only used to send your question plus a short summary of your metrics to the provider you pick.</string>
+    <string name="coach_privacy_local">The coach talks only to the server URL you set. Point it at a local model to keep everything on your device. Nothing is sent until you ask.</string>
+    <string name="coach_privacy_default">Private by default: only your question and a short metrics summary are sent, and only after you set a key.</string>
+    <string name="coach_paste_key">Paste your %1$s key</string>
+    <string name="coach_fetching">Fetching…</string>
     <string name="live_sync_history">Syncing your strap history…</string>
     <string name="live_sync_history_chunks">Syncing your strap history… %1$d chunks pulled</string>
     <string name="live_recent_intervals">Recent intervals: %1$s ms</string>

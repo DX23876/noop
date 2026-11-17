@@ -6765,6 +6765,12 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="backup_saving_to">Сохранение в: %1$s</string>
     <string name="backup_no_folder">Папка ещё не выбрана. Возьмите ту, которую уже синхронизирует ваше облако, или любую локальную.</string>
     <string name="backup_last">Последняя копия: %1$s</string>
+    <string name="coach_connect_custom">Направьте коуча на любой сервер, совместимый с OpenAI: локальная модель (Ollama, LM Studio, llama.cpp) оставляет всё на вашем устройстве, ключ API тогда не обязателен.</string>
+    <string name="coach_connect_key">Принесите свой ключ API. Он хранится на этом устройстве в зашифрованном виде и используется только чтобы отправить ваш вопрос и короткую сводку ваших показателей выбранному провайдеру.</string>
+    <string name="coach_privacy_local">Коуч общается только с тем адресом сервера, который вы укажете. Направьте его на локальную модель, и всё останется на устройстве. Ничего не уходит, пока вы не спросите.</string>
+    <string name="coach_privacy_default">По умолчанию приватно: уходят только ваш вопрос и короткая сводка показателей, и лишь после того, как вы введёте ключ.</string>
+    <string name="coach_paste_key">Вставьте свой ключ %1$s</string>
+    <string name="coach_fetching">Загрузка…</string>
     <string name="live_sync_history">Синхронизация истории со страпа…</string>
     <string name="live_sync_history_chunks">Синхронизация истории со страпа… получено %1$d фрагментов</string>
     <string name="live_recent_intervals">Последние интервалы: %1$s мс</string>

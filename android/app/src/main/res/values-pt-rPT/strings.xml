@@ -6784,6 +6784,12 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="backup_saving_to">A guardar em: %1$s</string>
     <string name="backup_no_folder">Ainda não escolheu pasta. Escolha uma que a sua aplicação de nuvem já sincronize, ou qualquer pasta local.</string>
     <string name="backup_last">Última cópia: %1$s</string>
+    <string name="coach_connect_custom">Aponte o coach para qualquer servidor compatível com OpenAI: um modelo local (Ollama, LM Studio, llama.cpp) mantém tudo no seu dispositivo; a chave de API é opcional.</string>
+    <string name="coach_connect_key">Traga a sua própria chave de API. Fica cifrada neste dispositivo e só é usada para enviar a sua pergunta e um breve resumo dos seus valores ao fornecedor que escolher.</string>
+    <string name="coach_privacy_local">O coach fala apenas com o endereço de servidor que indicar. Aponte-o para um modelo local e tudo fica no seu dispositivo. Nada sai antes de perguntar.</string>
+    <string name="coach_privacy_default">Privado por omissão: só seguem a sua pergunta e um breve resumo dos seus valores, e só depois de definir uma chave.</string>
+    <string name="coach_paste_key">Cole a sua chave %1$s</string>
+    <string name="coach_fetching">A obter…</string>
     <string name="live_sync_history">A sincronizar o histórico da strap…</string>
     <string name="live_sync_history_chunks">A sincronizar o histórico da strap… %1$d blocos obtidos</string>
     <string name="live_recent_intervals">Intervalos recentes: %1$s ms</string>

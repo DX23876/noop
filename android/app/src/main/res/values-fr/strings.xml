@@ -6791,6 +6791,12 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="backup_saving_to">Enregistré dans : %1$s</string>
     <string name="backup_no_folder">Aucun dossier choisi pour l\'instant. Prenez-en un que votre app de cloud synchronise déjà, ou n\'importe quel dossier local.</string>
     <string name="backup_last">Dernière sauvegarde : %1$s</string>
+    <string name="coach_connect_custom">Pointez le coach vers n\'importe quel serveur compatible OpenAI : un modèle local (Ollama, LM Studio, llama.cpp) garde tout sur votre appareil ; la clé d\'API est facultative.</string>
+    <string name="coach_connect_key">Apportez votre propre clé d\'API. Elle est stockée chiffrée sur cet appareil et sert uniquement à envoyer votre question et un bref résumé de vos mesures au fournisseur que vous choisissez.</string>
+    <string name="coach_privacy_local">Le coach ne parle qu\'à l\'adresse de serveur que vous indiquez. Pointez-le vers un modèle local et tout reste sur votre appareil. Rien ne part avant votre question.</string>
+    <string name="coach_privacy_default">Privé par défaut : seules votre question et un bref résumé de vos mesures partent, et seulement une fois une clé renseignée.</string>
+    <string name="coach_paste_key">Collez votre clé %1$s</string>
+    <string name="coach_fetching">Récupération…</string>
     <string name="live_sync_history">Synchronisation de l\'historique du strap…</string>
     <string name="live_sync_history_chunks">Synchronisation de l\'historique du strap… %1$d blocs récupérés</string>
     <string name="live_recent_intervals">Intervalles récents : %1$s ms</string>

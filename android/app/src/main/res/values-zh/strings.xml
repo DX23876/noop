@@ -6761,6 +6761,12 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="backup_saving_to">保存到：%1$s</string>
     <string name="backup_no_folder">还没有选文件夹。挑一个你的云盘应用已经在同步的，或者任意本地文件夹。</string>
     <string name="backup_last">上次备份：%1$s</string>
+    <string name="coach_connect_custom">把教练指向任意兼容 OpenAI 的服务器：本地模型（Ollama、LM Studio、llama.cpp）让一切都留在你的设备上，API 密钥是可选的。</string>
+    <string name="coach_connect_key">自带 API 密钥。它会加密存在这台设备上，只用于把你的问题和一小段指标摘要发给你选的服务商。</string>
+    <string name="coach_privacy_local">教练只和你填的服务器地址通信。把它指向本地模型，一切就都留在你的设备上。在你提问之前什么都不会发出去。</string>
+    <string name="coach_privacy_default">默认是私密的：只会发出你的问题和一小段指标摘要，而且要等你填了密钥之后。</string>
+    <string name="coach_paste_key">粘贴你的 %1$s 密钥</string>
+    <string name="coach_fetching">正在获取…</string>
     <string name="live_sync_history">正在同步手环历史…</string>
     <string name="live_sync_history_chunks">正在同步手环历史…已取 %1$d 段</string>
     <string name="live_recent_intervals">最近的间隔：%1$s 毫秒</string>

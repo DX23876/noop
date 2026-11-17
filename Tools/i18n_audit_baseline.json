@@ -34,30 +34,6 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "Bring your own API key. It is stored encrypted on this device and only used to "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "Fetching…"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "Paste your ${provider.displayName} key"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "Point the coach at any OpenAI-compatible server: a local model (Ollama, LM "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "Private by default: only your question and a short metrics summary are sent, "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "The coach talks only to the server URL you set. Point it at a local model to "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
       "coachBreath"
     ],
     [
