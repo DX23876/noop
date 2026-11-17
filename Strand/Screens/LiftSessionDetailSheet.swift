@@ -95,26 +95,28 @@ struct LiftSessionDetailSheet: View {
     /// session the user just said did not happen — which is worse than not being able to delete at
     /// all, because it would look like the delete worked.
     private var deleteSection: some View {
-        Button(role: .destructive) {
-            confirmingDelete = true
-        } label: {
-            Label("Delete session", systemImage: "trash")
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.plain)
-        .font(StrandFont.body)
-        .foregroundStyle(StrandPalette.statusCritical)
-        .padding(.top, NoopMetrics.gap)
-        .overlay(alignment: .bottom) {
+        VStack(spacing: NoopMetrics.space2) {
+            Button(role: .destructive) {
+                confirmingDelete = true
+            } label: {
+                Label("Delete session", systemImage: "trash")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.plain)
+            .font(StrandFont.body)
+            .foregroundStyle(StrandPalette.statusCritical)
+            .padding(.top, NoopMetrics.gap)
+            .disabled(deleting)
+            // In the stack rather than floating under the button: an overlay drew it over whatever
+            // came next, and a line nobody can read is the same as no line.
             if deleteRefused {
                 Text("That was not deleted. The session is still here; try again.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.statusWarningForeground)
                     .fixedSize(horizontal: false, vertical: true)
-                    .offset(y: 20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .disabled(deleting)
         .confirmationDialog("Delete this session?",
                             isPresented: $confirmingDelete, titleVisibility: .visible) {
             Button("Delete", role: .destructive) { Task { await deleteSession() } }
