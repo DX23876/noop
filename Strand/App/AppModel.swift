@@ -2723,8 +2723,20 @@ final class AppModel: ObservableObject {
         // (deviceId, day, key) through the repo's live store handle: no new Repository API, no schema
         // change. The UserDefaults timestamp list and confirming buzz above retain the existing path.
         Task { [weak self] in
-            guard let self, let store = await self.repo.storeHandle() else { return }
-            _ = try? await store.upsertMetricSeries([mark.metricPoint], deviceId: self.repo.deviceId)
+            guard let self else { return }
+            // The buzz above already told the wearer the mark registered, and the UserDefaults list did
+            // keep it — but the Sleep screen reads this typed row, so when the store refuses it the mark
+            // is simply absent there. Saying so in the log is the only honest account available on this
+            // path, which has no screen of its own to correct (the Sleep screen's own button takes its
+            // confirmation back instead). Without the line the two accounts differ and nothing says why.
+            let stored: Bool
+            if let store = await self.repo.storeHandle() {
+                stored = (try? await store.upsertMetricSeries([mark.metricPoint],
+                                                              deviceId: self.repo.deviceId)) != nil
+            } else {
+                stored = false
+            }
+            if !stored { self.live.append(log: "Sleep mark not stored") }
         }
     }
 
