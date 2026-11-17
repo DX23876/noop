@@ -1688,6 +1688,15 @@ final class Repository: ObservableObject {
     /// hiding the day's extra blocks. Imported blocks still win on any day they cover (matching
     /// the dashboard's imported-wins merge); computed blocks fill days with no import.
     /// Oldest→newest by onset.
+    /// The pass's own day-cycle onset markers for the last few days, for the live Effort window
+    /// (`LiveEffortScore.cycleStart`). Same read the shared core does for Android.
+    func dayCycleOnsets(now: Date = Date()) async -> [Double] {
+        guard let store = await ensureStore() else { return [] }
+        let from = StoreReader.localDayKey(now.addingTimeInterval(-Double(LiveEffortScore.onsetMarkerDays) * 86_400))
+        return await reader(store).dayCycleOnsets(from: from,
+                                                  to: StoreReader.localDayKey(now.addingTimeInterval(86_400)))
+    }
+
     func allSleepSessions(days: Int = 4000) async -> [CachedSleepSession] {
         guard let store = await ensureStore() else { return [] }
         let now = Int(Date().timeIntervalSince1970)

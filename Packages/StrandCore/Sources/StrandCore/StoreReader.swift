@@ -141,6 +141,23 @@ public struct StoreReader: Sendable {
         return byDay.values.sorted { $0.day < $1.day }
     }
 
+    /// The pass's own day-cycle onset markers (`DayCycleIntelligenceIntegration.onsetKey`) over a day
+    /// range, across the COMPUTED ("-noop") union it writes them to. Values are unix seconds.
+    ///
+    /// Read by the live Effort window (`LiveEffortScore.cycleStart`), which must be the span the stored
+    /// Effort was scored over: when the wearer's day starts at sleep onset, the pass scores the day over
+    /// its cycle, and a live figure over the calendar day is a second answer to one question.
+    public func dayCycleOnsets(from: String, to: String) async -> [Double] {
+        var out: [Double] = []
+        for id in computedReadIds {
+            let points = (try? await store.metricSeries(deviceId: id,
+                                                        key: DayCycleIntelligenceIntegration.onsetKey,
+                                                        from: from, to: to)) ?? []
+            out.append(contentsOf: points.map(\.value))
+        }
+        return out
+    }
+
     /// Daily series for any metric key from a given source. When `source` is the canonical WHOOP id, the active
     /// strap is unioned in so a series stored under a re-added strap's id still surfaces beside the canonical
     /// history (deduped per day, active strap wins); other sources read verbatim. A wake-day in

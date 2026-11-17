@@ -22,17 +22,55 @@ public enum LiveEffortScore {
     /// NEWEST rows, so a smaller cap silently stops the live score climbing partway through the day.
     public static let hrLimit = 200_000
 
-    /// The window the score is taken over: the logical day's midnight to now. One clock sample supplies
-    /// both ends, so the two can never straddle a tick.
-    public static func window(now: Date) -> (from: Int, to: Int) {
+    /// The window the score is taken over. One clock sample supplies both ends, so the two can never
+    /// straddle a tick.
+    ///
+    /// `cycleStart` is the active day cycle's start, from `cycleStart(onsetMarkers:now:offsetSec:)`. It is
+    /// not a refinement: when the wearer's day begins at sleep onset — which is the DEFAULT
+    /// (`DayCycleMode.persisted(nil)`) — the pass scores the STORED Effort over exactly that span
+    /// (`DayCycleIntelligenceIntegration.compute` re-scores strain over the cycle's heart rate), and the
+    /// live figure is floored against the stored one. A live window of a different length therefore does
+    /// not fail; it quietly makes `effectiveEffort` return the larger of two figures taken over two
+    /// different spans, which is a number over no window at all.
+    ///
+    /// nil — the midnight cycle, where the pass keeps no onset markers, or no cycle established yet — is
+    /// the logical day's midnight, which is what the pass scores then too.
+    public static func window(now: Date, cycleStart: Int? = nil) -> (from: Int, to: Int) {
         let dayStart = Calendar.current.startOfDay(for: LogicalDay.date(now))
-        return (Int(dayStart.timeIntervalSince1970), Int(now.timeIntervalSince1970))
+        return (cycleStart ?? Int(dayStart.timeIntervalSince1970), Int(now.timeIntervalSince1970))
     }
 
-    /// How far back workout rows are read for the spans below: a session that began before midnight
-    /// still counts inside today's window.
-    public static func workoutWindow(now: Date) -> (from: Int, to: Int) {
-        let (from, to) = window(now: now)
+    /// The active cycle's start, from the pass's own onset markers
+    /// (`DayCycleIntelligenceIntegration.onsetKey`, written under the computed "-noop" sources), or nil
+    /// when no cycle applies.
+    ///
+    /// The markers exist only while the wearer's day starts at sleep onset: in midnight mode the pass
+    /// replaces them with an empty set, so their presence IS the mode and no preference has to be read
+    /// here and kept in step with the pass's. Resolution is `DayCycleResolver.activeWindow`, the pass's
+    /// own, including its cap past which an open cycle becomes a synthetic midnight — so the live window
+    /// cannot stretch back further than the stored figure's does.
+    ///
+    /// A marker left behind by a switch to the midnight cycle is read until the next pass clears it. That
+    /// is the same stale state the stored row is in, so the two still agree, which is the point.
+    public static func cycleStart(onsetMarkers: [Double], now: Date,
+                                  offsetSec: Int = TimeZone.current.secondsFromGMT()) -> Int? {
+        let nowTs = Int(now.timeIntervalSince1970)
+        let usable = onsetMarkers.filter { $0.isFinite && $0 > 0 && Int($0) <= nowTs }
+        guard let newest = usable.max() else { return nil }
+        let latest = DayCycleWindow(id: "live", startInclusive: Int(newest), endExclusive: nowTs,
+                                    displayDay: "", source: .detectedSleep)
+        return DayCycleResolver.activeWindow(mode: .sleepOnset, latestSleep: latest, now: nowTs,
+                                             offsetSec: offsetSec).startInclusive
+    }
+
+    /// How far back the onset markers are read: the cycle in force now was written on today's or
+    /// yesterday's wake day, and a day either side costs nothing.
+    public static let onsetMarkerDays = 3
+
+    /// How far back workout rows are read for the spans below: a session that began before the window
+    /// still counts inside it.
+    public static func workoutWindow(now: Date, cycleStart: Int? = nil) -> (from: Int, to: Int) {
+        let (from, to) = window(now: now, cycleStart: cycleStart)
         return (from - 86_400, to + 1)
     }
 

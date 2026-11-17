@@ -42,7 +42,8 @@ final class CoreLiveEffortTests: XCTestCase {
                        MaxHeartRate.resolve(overrideBpm: 0, age: 40, measured: nil).bpm)
     }
 
-    /// The window is the logical day's own, so an hour recorded yesterday evening is not today's Effort.
+    /// With no cycle in force the window is the logical day's own, so an hour recorded yesterday evening
+    /// is not today's Effort.
     func testTheWindowStartsAtTheLogicalDay() {
         let now = Date()
         let (from, to) = LiveEffortScore.window(now: now)
@@ -70,5 +71,64 @@ final class CoreLiveEffortTests: XCTestCase {
         let floored = await CoreRead.liveEffort(reader: reader(store), hrMaxOverride: 190, age: 40,
                                                 restingHr: 55, storedEffort: scored + 10)
         XCTAssertEqual(floored, scored + 10, "the stored row is a floor, never lowered by a live refinement")
+    }
+
+    /// The window follows the DAY CYCLE when one is in force, because that is the span the pass scored the
+    /// stored row over. The two meet in `effectiveEffort`, which takes the larger, so a live figure over
+    /// the calendar day and a stored figure over the cycle are two answers to one question — and the
+    /// sleep-onset cycle is the default, not an exotic setting (#41).
+    func testTheWindowFollowsTheCycleWhenOneIsInForce() {
+        let now = Date()
+        let onset = Int(now.timeIntervalSince1970) - 9 * 3_600
+        let start = LiveEffortScore.cycleStart(onsetMarkers: [Double(onset)], now: now, offsetSec: 0)
+        XCTAssertEqual(start, onset)
+        XCTAssertEqual(LiveEffortScore.window(now: now, cycleStart: start).from, onset)
+        XCTAssertEqual(LiveEffortScore.workoutWindow(now: now, cycleStart: start).from, onset - 86_400)
+    }
+
+    /// Markers are read, not trusted: a marker in the future is not a boundary that has happened, and the
+    /// newest of the usable ones is the one in force.
+    func testTheNewestUsableMarkerWins() {
+        let now = Date()
+        let nowTs = Int(now.timeIntervalSince1970)
+        let start = LiveEffortScore.cycleStart(
+            onsetMarkers: [Double(nowTs - 20 * 3_600), Double(nowTs - 6 * 3_600), Double(nowTs + 3_600), 0, .nan],
+            now: now, offsetSec: 0)
+        XCTAssertEqual(start, nowTs - 6 * 3_600)
+        XCTAssertNil(LiveEffortScore.cycleStart(onsetMarkers: [], now: now, offsetSec: 0))
+    }
+
+    /// Past the resolver's cap an open cycle is not stretched further: the pass synthesizes a midnight
+    /// boundary there, and the live window has to be the same one rather than a span of two days.
+    func testAnOverlongCycleFallsBackWhereThePassDoes() {
+        let now = Date()
+        let nowTs = Int(now.timeIntervalSince1970)
+        let stale = nowTs - DayCycleResolver.absoluteMaxOpenSeconds - 3_600
+        let start = try? XCTUnwrap(LiveEffortScore.cycleStart(onsetMarkers: [Double(stale)], now: now,
+                                                              offsetSec: 0))
+        XCTAssertEqual(start, DayCycleResolver.fallbackMidnight(after: stale, offsetSec: 0))
+    }
+
+    /// End to end: an hour of heart rate inside the cycle but BEFORE the logical day's midnight counts
+    /// towards today's Effort, because the stored row counts it. Without the marker the same hour is
+    /// yesterday's and the day cannot be scored at all.
+    func testHeartRateInsideTheCycleButBeforeMidnightCounts() async throws {
+        let store = try await WhoopStore.inMemory()
+        // 10:00 local on a fixed day, with the cycle's onset at 23:00 the evening before.
+        let midnight = Calendar.current.startOfDay(for: Date(timeIntervalSince1970: 1_761_264_000))
+        let now = midnight.addingTimeInterval(10 * 3_600)
+        let onset = Int(midnight.timeIntervalSince1970) - 3_600
+        let samples = (0..<3_600).map { HRSample(ts: onset + 60 + $0, bpm: 150) }
+        try await store.insert(Streams(hr: samples), deviceId: "my-whoop")
+        let withoutCycle = await CoreRead.liveEffort(reader: reader(store), hrMaxOverride: 190, age: 40,
+                                                     restingHr: 55, storedEffort: nil, now: now)
+        XCTAssertNil(withoutCycle, "before the fix that hour was simply outside today's window")
+        _ = try await store.upsertMetricSeries(
+            [MetricPoint(day: StoreReader.localDayKey(now), key: DayCycleIntelligenceIntegration.onsetKey,
+                         value: Double(onset))],
+            deviceId: "my-whoop-noop")
+        let withCycle = await CoreRead.liveEffort(reader: reader(store), hrMaxOverride: 190, age: 40,
+                                                  restingHr: 55, storedEffort: nil, now: now)
+        XCTAssertGreaterThan(try XCTUnwrap(withCycle), 0)
     }
 }

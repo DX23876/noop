@@ -14,11 +14,13 @@ import StrandCore
 // chosen.
 //
 // The read lives here rather than being copied into each screen because its PARAMETERS are the part that
-// must not drift: the window (logical-day midnight → now), the profile's Effort HRmax (`MaxHeartRate`: override, measured, else Gellish), today's
-// resting HR with `StrainScorer.defaultRestingHR` as the fallback, the Puffin effort method and the
-// profile's sex are exactly what the daily pass will eventually persist. A screen that got any one of
-// them wrong would not fail — it would quietly show a different number for the same day, which is the
-// failure mode this whole file exists to close.
+// must not drift: the window (the day's own cycle, or the logical day's midnight where no cycle applies),
+// the profile's Effort HRmax (`MaxHeartRate`: override, measured, else Gellish), today's resting HR with
+// `StrainScorer.defaultRestingHR` as the fallback, the Puffin effort method and the profile's sex are
+// exactly what the daily pass will eventually persist. A screen that got any one of them wrong would not
+// fail — it would quietly show a different number for the same day, which is the failure mode this whole
+// file exists to close. The window was itself such a case: this file claimed it matched the pass while
+// the pass scored the day over its cycle, which is the default (#41).
 
 @MainActor
 enum LiveEffort {
@@ -42,8 +44,13 @@ enum LiveEffort {
         // The window, the row limit, the resting fallback and which workout time counts are
         // `LiveEffortScore`'s, so the Android Today reads today's Effort by exactly the same rules
         // (issue #41). This does the two reads and supplies the profile's own HRmax.
-        let (from, to) = LiveEffortScore.window(now: now)
-        let workout = LiveEffortScore.workoutWindow(now: now)
+        // The window the STORED row was scored over: the day's own cycle when the wearer's day starts at
+        // sleep onset (the default), the logical day's midnight otherwise. Without this the live figure
+        // and the stored row it is floored against were taken over different hours, and `effectiveEffort`
+        // returned the larger of two numbers over two spans.
+        let cycle = LiveEffortScore.cycleStart(onsetMarkers: await repo.dayCycleOnsets(now: now), now: now)
+        let (from, to) = LiveEffortScore.window(now: now, cycleStart: cycle)
+        let workout = LiveEffortScore.workoutWindow(now: now, cycleStart: cycle)
         // #2460: the manual HR-max override, then the measured level, then Gellish, as the daily pass
         // resolves it for the STORED day. The two meet in `effectiveEffort`, which takes the larger, so a live value on the
         // formula's yardstick would outvote an override set because the real maximum is above it.

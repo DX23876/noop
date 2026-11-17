@@ -1744,3 +1744,37 @@ separates the two cases by about a beat per minute, which is not a threshold wor
 
 Analysis migration required: no. The nap rule, the suggestion and the verdict are read-side only; nothing
 derives or stores a score from them.
+
+## 2026-11-17 — Today's Effort is taken over one window, the one the stored row was scored over
+
+Fork issue #41: "Effort shows 4.9 on liquid dashboard but 6.5 on classic dashboard, and it also takes too
+much time to show updated Effort." Two Today screens, two numbers, one day.
+
+The stored `strain` only moves when the daily pass runs, so every Today screen re-scores today's raw heart
+rate and floors the result at the stored row (`StrainScorer.effectiveEffort`). The part that has to match
+is not the arithmetic but the parameters, and three of them differed.
+
+**The window.** `LiveEffortScore.window` took the logical day's midnight. The pass does not: when the
+wearer's day starts at sleep onset — which is the DEFAULT (`DayCycleMode.persisted(nil) == .sleepOnset`) —
+`DayCycleIntelligenceIntegration` re-scores the day's Effort over the CYCLE, onset to now. So the live
+figure and the stored figure it is floored against covered different hours, and `effectiveEffort` returned
+the larger of two numbers over two spans, which is a number over no span at all. It also explains the
+reporter's second sentence: the live figure misses the pre-midnight hours, so on an active evening it sits
+below the stale stored one and nothing visibly moves until the pass runs. The live window now comes from
+the pass's own onset markers through the pass's own resolver (`DayCycleResolver.activeWindow`, including
+its cap past which an open cycle becomes a synthetic midnight). The markers exist only in sleep-onset mode
+— the pass clears them in midnight mode — so their presence is the mode, and no preference has to be read
+in a second place and kept in step.
+
+**The HR-max yardstick and the workout spans.** The Android classic dashboard computed its live Effort in
+Kotlin: the age formula where an override or a measured maximum existed, and `CoreMath.strain` without
+workout spans, which drops every minute below 50 % of heart-rate reserve. The Forge screen read the core.
+Both Android Today screens now call `CoreLiveEffort`, so the Kotlin copy of the window rule
+(`activeDayCycleStart`) is gone with its test rather than left as a second opinion.
+
+Named, not fixed: the live read passes no dismissed detected bouts, so a bout the wearer dismissed still
+counts its low-intensity minutes in the live figure but not in the stored one. The dismissal list is a
+host preference the shared read has no access to; closing that needs it threaded through, and it moves
+figures only on a day with a dismissed auto-detected session.
+
+Analysis migration required: no. Nothing stored changes; this is the live read's window.

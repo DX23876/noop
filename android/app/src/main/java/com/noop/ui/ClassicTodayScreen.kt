@@ -1018,42 +1018,25 @@ fun TodayScreen(
         providerByMetric = resolved
     }
 
-    // LIVE in-progress Effort for TODAY (#402), mirrors the iOS TodayView live-Effort fix. The stored
-    // `day?.strain` lags: early in the day it shows yesterday's completed Effort (or a stale 0.0) until the
-    // heavy daily pass re-scores. So for offset 0 only, integrate today's raw HR over the SAME window the
-    // HR trend uses (the logical day's local-midnight → now) through StrainScorer with the SAME params the
-    // daily pass persists (Tanaka HR-max from age, or the manual override, the day's resting HR else the
-    // default, profile sex), and prefer it on the Effort gauge. StrainScorer returns null below
-    // `minReadings`, so before there's enough HR the gauge falls back to the stored value and never shows a
-    // fabricated number. Any past day → null (the gauge uses the stored strain). Keyed on the same inputs
-    // as the day-scoped loads so it reloads as the selector moves and as a sync/import grows the HR window.
+    // TODAY's live Effort, from the one resolver both Today screens read: `CoreLiveEffort`, which is the
+    // core's `LiveEffortScore` — the window the stored row was scored over, the pass's own HR-max
+    // yardstick (override, then the measured level, then the formula) and the day's workout spans for
+    // low-intensity time. The stored `day?.strain` only moves when the daily pass runs, so reading it raw
+    // lags by hours; the live figure is floored at it, so Effort can never visibly drop.
+    //
+    // This screen used to integrate the HR stream here, and all three of those parameters differed from
+    // the stored row the figure is floored against: its own window (the day cycle's start, where the live
+    // read takes the one the pass scored), HR-max from the age formula where an override or a measured
+    // level existed, and no workout spans at all, which drops every minute below 50 % of heart-rate
+    // reserve. Two Today screens therefore showed two Efforts for one day (#41). Null without a core,
+    // which the caller reads as "use the stored row". Keyed on the cycle and the mode too: both move the
+    // window, so a change to either must re-read.
     var liveTodayStrain by remember { mutableStateOf<Double?>(null) }
     LaunchedEffect(days, selectedDayKey, selectedDayOffset, activeDayCycle, dayCycleMode) {
         liveTodayStrain = if (selectedDayOffset == 0) {
-            val zone = ZoneId.systemDefault()
-            val now = System.currentTimeMillis() / 1000
-            val start = activeDayCycleStart(
-                mode = dayCycleMode,
-                confirmedOrSyntheticOnset = activeDayCycle?.onsetTs,
-                calendarStart = selectedDay.atStartOfDay(zone).toEpochSecond(),
-            )
-            // #908: read the active strap ∪ canonical "my-whoop" union, NOT a hardcoded "my-whoop". A strap
-            // re-added through the device manager banks its live HR under its own fresh id, so a pinned
-            // "my-whoop" read returned nothing and Effort integrated to 0 off an empty series. Single-WHOOP
-            // install resolves to "my-whoop" ⇒ one id ⇒ byte-identical read.
-            val todayHr = runCatching { viewModel.repo.hrSamplesUnion(viewModel.activeStrapId, start, now) }
-                .getOrDefault(emptyList())
-            // effMaxHR resolution matches AnalyticsEngine: manual HR-max override first, else Tanaka from age.
-            val effMaxHR = profileStore.hrMaxOverride.takeIf { it > 0 }?.toDouble()
-                ?: if (profileStore.age > 0) StrainScorer.tanakaHRmax(profileStore.age.toDouble()) else null
-            val restingHr = displayMetric?.restingHr?.toDouble() ?: StrainScorer.defaultRestingHR
-            StrainScorer.strain(
-                hr = todayHr,
-                maxHR = effMaxHR,
-                restingHR = restingHr,
-                method = NoopPrefs.effortMethod(context),
-                sex = profileStore.sex,
-            )
+            withContext(Dispatchers.IO) {
+                com.noop.core.CoreLiveEffort.today(context, displayMetric?.restingHr, displayMetric?.strain)
+            }
         } else {
             null
         }

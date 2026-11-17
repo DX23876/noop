@@ -224,8 +224,16 @@ public enum CoreRead {
     public static func liveEffort(reader: StoreReader, hrMaxOverride: Int, age: Int,
                                   restingHr: Int?, storedEffort: Double?,
                                   now: Date = Date()) async -> Double? {
-        let (from, to) = LiveEffortScore.window(now: now)
-        let workout = LiveEffortScore.workoutWindow(now: now)
+        // The window the STORED row was scored over: the day's own cycle when the wearer's day starts at
+        // sleep onset (the default), the logical day's midnight otherwise. Resolved from the pass's own
+        // onset markers, so the live figure and the stored row it is floored against describe one span.
+        let cycle = LiveEffortScore.cycleStart(
+            onsetMarkers: await reader.dayCycleOnsets(
+                from: StoreReader.localDayKey(now.addingTimeInterval(-Double(LiveEffortScore.onsetMarkerDays) * 86_400)),
+                to: StoreReader.localDayKey(now.addingTimeInterval(86_400))),
+            now: now)
+        let (from, to) = LiveEffortScore.window(now: now, cycleStart: cycle)
+        let workout = LiveEffortScore.workoutWindow(now: now, cycleStart: cycle)
         // The override, then the level the last pass measured, then the formula — resolved by the pass's
         // own resolver (`CoreAnalysis.passHRmax`), so the live score is taken against the same yardstick
         // as the stored day. Resolving it here instead read the measured level out of `UserDefaults`,

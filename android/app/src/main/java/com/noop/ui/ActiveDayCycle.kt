@@ -1,6 +1,5 @@
 package com.noop.ui
 
-import com.noop.analytics.DayCycleMode
 import com.noop.data.DailyMetric
 import com.noop.data.MetricSeriesRow
 
@@ -9,13 +8,6 @@ internal data class ActiveDayCycle(val ownerDay: String, val onsetTs: Long, val 
 
 internal fun effectiveActiveStrapId(published: String?, fallback: String): String =
     published?.takeIf { it.isNotBlank() } ?: fallback
-
-/** The one shared start used by every live additive metric on Today. */
-internal fun activeDayCycleStart(
-    mode: DayCycleMode,
-    confirmedOrSyntheticOnset: Long?,
-    calendarStart: Long,
-): Long = if (mode == DayCycleMode.SLEEP_ONSET) confirmedOrSyntheticOnset ?: calendarStart else calendarStart
 
 /** Resolve the newest valid boundary even when this device has no raw step counter. */
 internal fun resolveActiveDayCycle(
