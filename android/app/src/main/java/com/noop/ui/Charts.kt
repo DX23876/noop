@@ -1317,35 +1317,6 @@ fun pannedWindow(base: LongRange, deltaSeconds: Long, bounds: LongRange): LongRa
     return newLo..(newLo + span)
 }
 
-/** A workout as the Deep Timeline annotates it: a span on the clock plus the sport that names its glyph. */
-data class TimelineWorkoutSpan(val start: Long, val end: Long, val sport: String)
-
-/**
- * The single sleep to band for a visible window: the LONGEST candidate overlapping it , the main night,
- * never an afternoon nap. Overlap is strict on both edges, so a night ending exactly at the window start
- * (or starting exactly at its end) contributes no visible band and does not count.
- *
- * Pure. Twin of Swift `OverviewHRChart.mainSleep`, pinned case-for-case against it in
- * DeepTimelineHelpersTest so the two whole-day charts cannot disagree about what a day looked like.
- */
-fun mainSleepSpan(candidates: List<LongRange>, window: LongRange): LongRange? =
-    candidates
-        .filter { it.last > window.first && it.first < window.last }
-        .maxByOrNull { it.last - it.first }
-
-/**
- * The workout spans overlapping a visible window, in the order supplied. Edge-TOUCHING spans are kept
- * (inclusive on both sides, mirroring the classic Today's workout filter , a session ending exactly at
- * midnight still belongs to the day it filled); a disjoint one is dropped, because its glyph would be
- * clamp-dragged to the plot edge and lie about its time.
- *
- * Pure. Twin of Swift `OverviewHRChart.workouts`.
- */
-fun workoutSpansOverlapping(
-    candidates: List<TimelineWorkoutSpan>,
-    window: LongRange,
-): List<TimelineWorkoutSpan> = candidates.filter { it.end >= window.first && it.start <= window.last }
-
 /**
  * The Deep Timeline chart: a line over [points] within the visible [windowStart, windowEnd], pinch to
  * zoom + drag to pan (both clamped to [bounds]). Reports the settled window via [onWindowChange] so the
