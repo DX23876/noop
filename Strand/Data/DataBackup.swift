@@ -152,6 +152,17 @@ enum DataBackup {
         }
     }
 
+    /// #2885: the consistent snapshot the archive is made from could not be taken, which is almost always
+    /// too little room for it. Nothing was written. Said plainly, with the one thing that helps: a backup
+    /// needs about as much free space as the database, because the live file cannot be archived safely
+    /// while the app writes to it.
+    private struct BackupSnapshotFailure: LocalizedError {
+        let complaint: String
+        var errorDescription: String? {
+            String(localized: "NOOP couldn't take a consistent copy of its database to back up (\(complaint)). A backup needs about as much free space as your data, so free some up and try again. Nothing was written.")
+        }
+    }
+
     /// Thrown when the written backup could not be READ BACK to check it, which is not the same thing as
     /// finding it damaged and must not be reported as though it were. The file is left where it is.
     private struct BackupWriteUnverified: LocalizedError {
@@ -206,6 +217,7 @@ enum DataBackup {
             case .integrity(let complaint): throw ExportIntegrityFailure(complaint: complaint)
             case .incomplete: throw BackupWriteIncomplete()
             case .unverified: throw BackupWriteUnverified()
+            case .snapshot(let complaint): throw BackupSnapshotFailure(complaint: complaint)
             }
         }
     }

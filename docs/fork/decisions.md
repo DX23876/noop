@@ -1671,3 +1671,31 @@ countdown.
 The alarm protocol itself is untouched — that needs a strap on a wrist.
 
 Analysis migration required: no.
+
+## 2026-11-17 — A backup is made from a snapshot, and the database inside it is checked
+
+Reported at ryanbr/noop#2885, with evidence: two daily backups in a row restored to a database failing
+`PRAGMA quick_check`, while the live store on the phone was healthy. The ZIPs were complete and passed
+the container check.
+
+The exporter streamed the LIVE `whoop.sqlite` into the archive with the app's GRDB pool still open. A WAL
+checkpoint landing during that read rewrites pages in the main file under the reader, so the archive can
+hold a mix of pages from before and after it. The reporter reproduced the mechanism off-device six times
+out of six with a plain byte copy under a committing writer, and zero times out of six through SQLite's
+online backup API. Nothing ever looked at the database INSIDE the archive: `verifyWritten` checks that
+the container is complete, which is a different question, and the only `quick_check` ran on the live file
+BEFORE the copy.
+
+`BackupArchive.writeVerified` now takes a consistent snapshot first (`LiveDatabaseCopy`, SQLite's own
+backup API, which writers do not disturb), checks THAT file, and archives it. The snapshot is removed
+afterwards.
+
+Android's guard (#1014) holds Room's write transaction for the length of the copy. That is equally
+correct and needs no extra room, but it blocks every strap write until the archive is written — minutes
+on a large store — so Apple takes the snapshot instead.
+
+The cost is honest and stated: a snapshot needs free space of about the size of the store. When it cannot
+be taken the backup FAILS, with a message that says so, rather than writing a file that will not restore.
+The owner's own store is 4.9 GB, so this is a real limit, not a theoretical one.
+
+Analysis migration required: no.

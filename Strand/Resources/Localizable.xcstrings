@@ -358795,6 +358795,64 @@
         }
       }
     },
+    "NOOP couldn't take a consistent copy of its database to back up (%@). A backup needs about as much free space as your data, so free some up and try again. Nothing was written." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP konnte keine zusammenhängende Kopie seiner Datenbank anlegen (%@). Eine Sicherung braucht ungefähr so viel freien Speicher wie Ihre Daten. Schaffen Sie etwas Platz und versuchen Sie es erneut. Es wurde nichts geschrieben."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP no pudo crear una copia coherente de su base de datos (%@). Una copia de seguridad necesita aproximadamente tanto espacio libre como tus datos. Libera espacio e inténtalo de nuevo. No se ha escrito nada."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP n'a pas pu créer une copie cohérente de sa base de données (%@). Une sauvegarde nécessite à peu près autant d'espace libre que vos données. Libérez de l'espace puis réessayez. Rien n'a été écrit."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP non è riuscito a creare una copia coerente del suo database (%@). Un backup richiede circa lo stesso spazio libero dei tuoi dati. Libera spazio e riprova. Non è stato scritto nulla."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP nie mógł utworzyć spójnej kopii swojej bazy danych (%@). Kopia zapasowa potrzebuje mniej więcej tyle wolnego miejsca, ile zajmują Twoje dane. Zwolnij miejsce i spróbuj ponownie. Nic nie zostało zapisane."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O NOOP não conseguiu criar uma cópia consistente da sua base de dados (%@). Uma cópia de segurança precisa de aproximadamente tanto espaço livre quanto os seus dados. Liberte espaço e tente novamente. Nada foi escrito."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP не удалось создать целостную копию своей базы данных (%@). Для резервной копии нужно примерно столько же свободного места, сколько занимают ваши данные. Освободите место и повторите попытку. Ничего не записано."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 无法创建其数据库的一致副本（%@）。备份所需的可用空间大约与您的数据一样多。请释放一些空间后重试。未写入任何内容。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 無法建立其資料庫的一致副本（%@）。備份所需的可用空間大約與您的資料一樣多。請釋出一些空間後重試。未寫入任何內容。"
+          }
+        }
+      }
+    },
     "NOOP can read a coarse menstrual-cycle phase from your nightly skin temperature, entirely on your device. It is awareness only: not contraception, not a fertility predictor, not a medical service." : {
       "localizations" : {
         "de" : {
