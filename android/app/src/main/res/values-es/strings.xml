@@ -7241,4 +7241,9 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="project_report_picture_add">Añadir una imagen</string>
     <string name="project_report_picture_detail">Una captura de lo que falló dice más que un registro</string>
     <string name="project_report_picture_remove">Quitar la imagen</string>
+    <string name="forge_se_add_nap">Añadir una siesta</string>
+    <string name="forge_se_add_nap_blurb">Elige cuándo empezó y terminó la siesta. NOOP la reconstruye desde tus datos como sesión propia, aparte del sueño nocturno.</string>
+    <string name="forge_se_nap_started">La siesta empezó</string>
+    <string name="forge_se_nap_ended">La siesta terminó</string>
+    <string name="forge_se_no_naps">Ningún sueño diurno este día. Añade uno si NOOP no lo detectó.</string>
 </resources>

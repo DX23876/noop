@@ -7257,4 +7257,9 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="project_report_picture_add">Bild hinzufügen</string>
     <string name="project_report_picture_detail">Ein Bildschirmfoto von dem, was schiefging, sagt mehr als ein Protokoll</string>
     <string name="project_report_picture_remove">Bild entfernen</string>
+    <string name="forge_se_add_nap">Nickerchen eintragen</string>
+    <string name="forge_se_add_nap_blurb">Wähle, wann das Nickerchen begann und endete. NOOP stellt es aus deinen Daten als eigene Sitzung, getrennt vom Nachtschlaf.</string>
+    <string name="forge_se_nap_started">Nickerchen begann</string>
+    <string name="forge_se_nap_ended">Nickerchen endete</string>
+    <string name="forge_se_no_naps">An diesem Tag kein Nickerchen. Trage eines ein, falls NOOP es übersehen hat.</string>
 </resources>

@@ -7279,4 +7279,9 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="project_report_picture_add">Dodaj obraz</string>
     <string name="project_report_picture_detail">Zrzut ekranu tego, co poszło źle, mówi więcej niż dziennik</string>
     <string name="project_report_picture_remove">Usuń obraz</string>
+    <string name="forge_se_add_nap">Dodaj drzemkę</string>
+    <string name="forge_se_add_nap_blurb">Wybierz początek i koniec drzemki. NOOP odtworzy ją z Twoich danych jako osobną sesję, niezależną od nocy.</string>
+    <string name="forge_se_nap_started">Drzemka zaczęła się</string>
+    <string name="forge_se_nap_ended">Drzemka skończyła się</string>
+    <string name="forge_se_no_naps">Brak drzemek tego dnia. Dodaj ją, jeśli NOOP jej nie wykrył.</string>
 </resources>

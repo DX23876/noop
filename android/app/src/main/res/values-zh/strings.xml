@@ -7201,4 +7201,9 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="project_report_picture_add">添加图片</string>
     <string name="project_report_picture_detail">一张出错时的截图胜过一份日志</string>
     <string name="project_report_picture_remove">移除图片</string>
+    <string name="forge_se_add_nap">新增小睡</string>
+    <string name="forge_se_add_nap_blurb">选择小睡的开始和结束时间。NOOP 会从你的数据中重建它，作为独立于夜间睡眠的会话。</string>
+    <string name="forge_se_nap_started">小睡开始</string>
+    <string name="forge_se_nap_ended">小睡结束</string>
+    <string name="forge_se_no_naps">这一天没有小睡。如果 NOOP 漏掉了，请手动添加。</string>
 </resources>

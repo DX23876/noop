@@ -65,10 +65,29 @@ internal suspend fun nightSessions(viewModel: AppViewModel, night: CoreRead.Nigh
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long) -> Unit, onDelete: () -> Unit, onDismiss: () -> Unit) {
+    SleepTimesDialog(seedStart = night.startTs, seedEnd = night.endTs, onSave = onSave,
+                     onDelete = onDelete, onDismiss = onDismiss)
+}
+
+/**
+ * The same two pickers, seeded on any window rather than on a recorded night, so a nap can be ENTERED as
+ * well as corrected (fork issue #49; Apple twin: `SleepTimeEditor`).
+ *
+ * The reporter put it plainly: he can see where his nap was, the detector often cannot. Motion does not
+ * separate a cinema seat from a nap, and neither does the strap's own sleep state — on his data it read
+ * "asleep" for 60 % of a film — so the wearer's own answer is the better evidence. `onDelete` is null when
+ * there is nothing to delete yet, and the title and labels say "nap" rather than "night" for that case.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun SleepTimesDialog(seedStart: Long, seedEnd: Long,
+                              title: String? = null, blurb: String? = null,
+                              bedLabel: String? = null, wakeLabel: String? = null,
+                              onSave: (Long, Long) -> Unit, onDelete: (() -> Unit)?, onDismiss: () -> Unit) {
     val colors = Forge.colors
     val zone = ZoneId.systemDefault()
-    val start = Instant.ofEpochSecond(night.startTs).atZone(zone)
-    val end = Instant.ofEpochSecond(night.endTs).atZone(zone)
+    val start = Instant.ofEpochSecond(seedStart).atZone(zone)
+    val end = Instant.ofEpochSecond(seedEnd).atZone(zone)
     val is24 = android.text.format.DateFormat.is24HourFormat(androidx.compose.ui.platform.LocalContext.current)
     val bed = rememberTimePickerState(start.hour, start.minute, is24)
     val wake = rememberTimePickerState(end.hour, end.minute, is24)
@@ -79,15 +98,19 @@ internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long) -> Unit
     Dialog(onDismissRequest = onDismiss) {
         Column(Modifier.background(colors.surface, RoundedCornerShape(20.dp)).padding(20.dp).verticalScroll(rememberScrollState()),
                verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
-            Text(stringResource(R.string.forge_sl_edit_times), style = Forge.type.headline, color = colors.text)
-            Text(stringResource(R.string.forge_se_blurb), style = Forge.type.caption, color = colors.textSecondary)
-            Text(stringResource(R.string.forge_se_asleep), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+            Text(title ?: stringResource(R.string.forge_sl_edit_times), style = Forge.type.headline, color = colors.text)
+            Text(blurb ?: stringResource(R.string.forge_se_blurb), style = Forge.type.caption, color = colors.textSecondary)
+            Text(bedLabel ?: stringResource(R.string.forge_se_asleep),
+                 style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
             TimeInput(bed, colors = pickerColors)
-            Text(stringResource(R.string.forge_se_woke), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+            Text(wakeLabel ?: stringResource(R.string.forge_se_woke),
+                 style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
             TimeInput(wake, colors = pickerColors)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.forge_se_delete), style = Forge.type.subhead, color = ForgeTokens.Color.systemRed.resolve(),
-                     modifier = Modifier.clickable(role = Role.Button, onClick = onDelete).padding(vertical = 8.dp))
+                if (onDelete != null) {
+                    Text(stringResource(R.string.forge_se_delete), style = Forge.type.subhead, color = ForgeTokens.Color.systemRed.resolve(),
+                         modifier = Modifier.clickable(role = Role.Button, onClick = onDelete).padding(vertical = 8.dp))
+                }
                 Spacer(Modifier.weight(1f))
                 Text(stringResource(R.string.forge_se_cancel), style = Forge.type.subhead, color = colors.textSecondary,
                      modifier = Modifier.clickable(role = Role.Button, onClick = onDismiss).padding(8.dp))

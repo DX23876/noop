@@ -7233,4 +7233,9 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="project_report_picture_add">Adicionar uma imagem</string>
     <string name="project_report_picture_detail">Uma captura do que correu mal diz mais do que um registo</string>
     <string name="project_report_picture_remove">Remover a imagem</string>
+    <string name="forge_se_add_nap">Adicionar uma sesta</string>
+    <string name="forge_se_add_nap_blurb">Escolha quando a sesta começou e terminou. O NOOP reconstrói-a a partir dos seus dados como sessão própria, separada da noite.</string>
+    <string name="forge_se_nap_started">A sesta começou</string>
+    <string name="forge_se_nap_ended">A sesta terminou</string>
+    <string name="forge_se_no_naps">Nenhuma sesta neste dia. Adicione uma se o NOOP não a detetou.</string>
 </resources>

@@ -7209,4 +7209,9 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="project_report_picture_add">Aggiungi un\'immagine</string>
     <string name="project_report_picture_detail">Una schermata di ciò che non ha funzionato dice più di un registro</string>
     <string name="project_report_picture_remove">Rimuovi l\'immagine</string>
+    <string name="forge_se_add_nap">Aggiungi un pisolino</string>
+    <string name="forge_se_add_nap_blurb">Scegli quando è iniziato e finito il pisolino. NOOP lo ricostruisce dai tuoi dati come sessione a sé, separata dalla notte.</string>
+    <string name="forge_se_nap_started">Pisolino iniziato</string>
+    <string name="forge_se_nap_ended">Pisolino finito</string>
+    <string name="forge_se_no_naps">Nessun pisolino in questo giorno. Aggiungilo se NOOP non l\'ha rilevato.</string>
 </resources>

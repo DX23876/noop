@@ -485,18 +485,32 @@ private fun clock(ts: Long, zone: ZoneId, format: DateTimeFormatter): String =
 /** The naps of [wakeDay] after this night, one row each with its clock span and length; nothing without one. */
 @Composable
 private fun DayNaps(night: CoreRead.Night, wakeDay: java.time.LocalDate, zone: ZoneId,
-                    onDelete: ((CoreRead.Nap) -> Unit)? = null) {
+                    onDelete: ((CoreRead.Nap) -> Unit)? = null, onAdd: (() -> Unit)? = null) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val naps by produceState(emptyList<CoreRead.Nap>(), night.endTs, wakeDay) {
         val end = wakeDay.plusDays(1).atStartOfDay(zone).toEpochSecond()
         value = withContext(Dispatchers.IO) { CoreRead.open(context); CoreRead.naps(night.endTs, end) }
     }
-    if (naps.isEmpty()) return
+    // Shown even on a day with no nap, because "Add a nap" is the only way to enter one and the wearer who
+    // needs it is the one whose nap was never detected (#49). Without an `onAdd` there is nothing to show.
+    if (naps.isEmpty() && onAdd == null) return
     val clockFormat = rememberClockFormatter()
     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
-        Text(stringResource(R.string.forge_sleep_naps), style = Forge.type.headline, color = Forge.colors.text,
-             modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
+        Row(Modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space1),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.forge_sleep_naps), style = Forge.type.headline, color = Forge.colors.text)
+            if (onAdd != null) {
+                Spacer(Modifier.weight(1f))
+                Text(stringResource(R.string.forge_se_add_nap), style = Forge.type.subhead,
+                     color = Forge.colors.rest,
+                     modifier = Modifier.clickable(role = Role.Button, onClick = onAdd).padding(8.dp))
+            }
+        }
         ForgeCard(Modifier.fillMaxWidth()) {
+            if (naps.isEmpty()) {
+                Text(stringResource(R.string.forge_se_no_naps), style = Forge.type.subhead,
+                     color = Forge.colors.textSecondary)
+            }
             naps.forEachIndexed { i, nap ->
                 if (i > 0) Box(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space2)
                                    .height(ForgeMetrics.hairline).background(Forge.colors.divider))
@@ -769,6 +783,9 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var editing by remember { mutableStateOf<CoreRead.Night?>(null) }
     var undo by remember { mutableStateOf<List<com.noop.data.SleepSession>>(emptyList()) }
+    /// Seed for the "add a nap" dialog: a 30-minute window an hour after the night's wake, which the
+    /// wearer moves. Null while the dialog is closed. Apple twin: `AddNapSeed`.
+    var addingNap by remember { mutableStateOf<Pair<Long, Long>?>(null) }
     SleepTonightCard(viewModel, need, onAlarms)
     if (undo.isNotEmpty()) SleepUndoStrip {
         val restore = undo; undo = emptyList()
@@ -787,10 +804,25 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
             }
         }, onDismiss = { editing = null })
     }
+    addingNap?.let { (seedStart, seedEnd) ->
+        SleepTimesDialog(seedStart = seedStart, seedEnd = seedEnd,
+                         title = stringResource(R.string.forge_se_add_nap),
+                         blurb = stringResource(R.string.forge_se_add_nap_blurb),
+                         bedLabel = stringResource(R.string.forge_se_nap_started),
+                         wakeLabel = stringResource(R.string.forge_se_nap_ended),
+                         onSave = { start, end ->
+                             addingNap = null
+                             scope.launch { viewModel.addManualNap(start, end) }
+                         },
+                         onDelete = null,
+                         onDismiss = { addingNap = null })
+    }
     if (night != null && wakeDay != null) {
         val key = wakeDay.toString()
         SleepNightCard(night, isLatest, zone, onEdit = { editing = night })
-        DayNaps(night, wakeDay, zone, onDelete = { nap ->
+        DayNaps(night, wakeDay, zone,
+                onAdd = { addingNap = (night.endTs + 3_600) to (night.endTs + 3_600 + 30 * 60) },
+                onDelete = { nap ->
             scope.launch {
                 val group = withContext(Dispatchers.IO) {
                     runCatching { viewModel.repo.sleepSessionsUnion(viewModel.activeStrapId, nap.startTs - 3600, nap.endTs + 3600) }

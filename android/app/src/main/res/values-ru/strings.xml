@@ -7232,4 +7232,9 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="project_report_picture_add">Добавить картинку</string>
     <string name="project_report_picture_detail">Снимок экрана говорит больше, чем журнал</string>
     <string name="project_report_picture_remove">Убрать картинку</string>
+    <string name="forge_se_add_nap">Добавить дневной сон</string>
+    <string name="forge_se_add_nap_blurb">Укажите начало и конец дневного сна. NOOP восстановит его из ваших данных как отдельную сессию, отдельно от ночи.</string>
+    <string name="forge_se_nap_started">Сон начался</string>
+    <string name="forge_se_nap_ended">Сон закончился</string>
+    <string name="forge_se_no_naps">В этот день дневного сна нет. Добавьте его, если NOOP его не заметил.</string>
 </resources>

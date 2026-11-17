@@ -7240,4 +7240,9 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="project_report_picture_add">Ajouter une image</string>
     <string name="project_report_picture_detail">Une capture de ce qui a mal tourné en dit plus qu\'un journal</string>
     <string name="project_report_picture_remove">Retirer l\'image</string>
+    <string name="forge_se_add_nap">Ajouter une sieste</string>
+    <string name="forge_se_add_nap_blurb">Choisissez le début et la fin de la sieste. NOOP la reconstruit depuis vos données comme sa propre session, séparée de la nuit.</string>
+    <string name="forge_se_nap_started">Début de la sieste</string>
+    <string name="forge_se_nap_ended">Fin de la sieste</string>
+    <string name="forge_se_no_naps">Aucune sieste ce jour-là. Ajoutez-en une si NOOP l\'a manquée.</string>
 </resources>
