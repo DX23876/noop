@@ -7061,6 +7061,12 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_roadmap_suggestions">Предложения</string>
     <string name="forge_roadmap_suggest">Предложить</string>
     <string name="forge_roadmap_suggest_note">Это идёт разработчику, а не другим людям с NOOP. Ничто не становится видимым до публикации.</string>
+    <string name="project_wish_how">Что происходит с тем, что вы пишете</string>
+    <string name="project_wish_fact_private">Это попадает в частный список, который читает только разработчик. Не в публичный репозиторий и не к другим людям, которые пользуются NOOP.</string>
+    <string name="project_wish_fact_text">Отправляется тот текст, который вы напишете. Ни имени, ни устройства, ничего о вашем теле или тренировках.</string>
+    <string name="project_wish_fact_filter">Сначала его читает фильтр. Он объединяет пожелание, о котором уже просили, а всё неясное придерживает для разработчика вместо публикации.</string>
+    <string name="project_wish_fact_published">Опубликованные пожелания стоят ниже, вместе с ответом разработчика, и любой может поддержать одно из них пальцем вверх.</string>
+    <string name="project_wish_fact_odds">Большинство пожеланий не делается, и здесь не обещают ни когда, ни вообще. Но то, о чём просят часто, становится вероятнее.</string>
     <string name="forge_roadmap_suggest_hint">Что должен уметь NOOP?</string>
     <string name="forge_roadmap_chars_left">Осталось %1$d символов</string>
     <string name="forge_roadmap_send">Отправить</string>

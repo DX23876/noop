@@ -13,6 +13,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Forum
+import androidx.compose.material.icons.rounded.FilterList
+import androidx.compose.material.icons.rounded.TextFields
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.AccessTime
 import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.AutoAwesome
@@ -454,6 +459,17 @@ internal fun WishesSection() {
 
     ProjectScene(R.drawable.scene_wishes)
 
+    // The five questions somebody asks themselves while typing, as on Apple (`ProjectWishesView`).
+    // Android had one line of it, which answered the first question and left the other four.
+    SectionHeader(stringResource(R.string.project_wish_how))
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+        WishFact(Icons.Rounded.Lock, R.string.project_wish_fact_private)
+        WishFact(Icons.Rounded.TextFields, R.string.project_wish_fact_text)
+        WishFact(Icons.Rounded.FilterList, R.string.project_wish_fact_filter)
+        WishFact(Icons.Rounded.Forum, R.string.project_wish_fact_published)
+        WishFact(Icons.Rounded.History, R.string.project_wish_fact_odds)
+    }
+
     if (page.canWrite) {
         SectionHeader(stringResource(R.string.forge_roadmap_suggest))
         ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
@@ -565,6 +581,16 @@ private fun SuggestionCard(suggestion: RoadmapSuggestion, voted: Boolean, count:
             Text(stringResource(R.string.forge_roadmap_send_failed), style = Forge.type.caption,
                  color = Forge.colors.textSecondary)
         }
+    }
+}
+
+/** One fact about the way a wish travels, as a symbol and a sentence. The Apple twin is `WishFact`. */
+@Composable
+private fun WishFact(icon: ImageVector, textRes: Int) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
+        Icon(icon, contentDescription = null, tint = Forge.colors.accent,
+             modifier = Modifier.size(20.dp).padding(top = 2.dp))
+        Text(stringResource(textRes), style = Forge.type.body, color = Forge.colors.textSecondary)
     }
 }
 

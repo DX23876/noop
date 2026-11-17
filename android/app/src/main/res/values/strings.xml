@@ -7114,6 +7114,12 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_roadmap_suggestions">Suggestions</string>
     <string name="forge_roadmap_suggest">Suggest something</string>
     <string name="forge_roadmap_suggest_note">It reaches the developer, not the other people using NOOP. Nothing becomes visible until it is released.</string>
+    <string name="project_wish_how">What happens to what you write</string>
+    <string name="project_wish_fact_private">It goes to a private list only the developer reads. Not to the public repository, and not to the other people using NOOP.</string>
+    <string name="project_wish_fact_text">What is sent is the text you type. No name, no device, nothing about your body or your training.</string>
+    <string name="project_wish_fact_filter">A filter reads it first. It merges a wish somebody already asked for, and holds anything unclear for the developer instead of publishing it.</string>
+    <string name="project_wish_fact_published">Published wishes appear below, with the developer\'s answer, and anyone can back one with a thumb.</string>
+    <string name="project_wish_fact_odds">Most wishes are not built, and nothing here promises when or whether. Being asked for often does make a thing more likely.</string>
     <string name="forge_roadmap_suggest_hint">What would you like NOOP to do?</string>
     <string name="forge_roadmap_chars_left">%1$d characters left</string>
     <string name="forge_roadmap_send">Send</string>

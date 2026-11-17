@@ -7090,6 +7090,12 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_roadmap_suggestions">Vorschläge</string>
     <string name="forge_roadmap_suggest">Etwas vorschlagen</string>
     <string name="forge_roadmap_suggest_note">Das geht an den Entwickler, nicht an die anderen Leute mit NOOP. Sichtbar wird nichts, bevor es freigegeben ist.</string>
+    <string name="project_wish_how">Was mit deinem Text passiert</string>
+    <string name="project_wish_fact_private">Es geht auf eine private Liste, die nur der Entwickler liest. Nicht ins öffentliche Repository und nicht zu den anderen Leuten, die NOOP benutzen.</string>
+    <string name="project_wish_fact_text">Gesendet wird der Text, den du tippst. Kein Name, kein Gerät, nichts über deinen Körper oder dein Training.</string>
+    <string name="project_wish_fact_filter">Ein Filter liest es zuerst. Er führt einen Wunsch zusammen, den jemand schon geäußert hat, und hält alles Unklare für den Entwickler zurück, statt es zu veröffentlichen.</string>
+    <string name="project_wish_fact_published">Veröffentlichte Wünsche stehen unten, mit der Antwort des Entwicklers, und jeder kann einen mit dem Daumen unterstützen.</string>
+    <string name="project_wish_fact_odds">Die meisten Wünsche werden nicht gebaut und hier wird weder ein Wann noch ein Ob versprochen. Oft gewünscht zu sein macht eine Sache aber wahrscheinlicher.</string>
     <string name="forge_roadmap_suggest_hint">Was soll NOOP können?</string>
     <string name="forge_roadmap_chars_left">Noch %1$d Zeichen</string>
     <string name="forge_roadmap_send">Senden</string>

@@ -7036,6 +7036,12 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_roadmap_suggestions">建议</string>
     <string name="forge_roadmap_suggest">提个建议</string>
     <string name="forge_roadmap_suggest_note">这会发给开发者，而不是其他使用 NOOP 的人。在公开之前不会有任何内容可见。</string>
+    <string name="project_wish_how">你写的内容会怎样</string>
+    <string name="project_wish_fact_private">它会进到一个只有开发者能看的私有清单。不会进公开仓库，也不会给其他使用 NOOP 的人。</string>
+    <string name="project_wish_fact_text">发出去的就是你写的文字。没有名字，没有设备信息，也没有任何关于你身体或训练的内容。</string>
+    <string name="project_wish_fact_filter">先由一个筛选器读过。它会把别人已经提过的心愿合并，不清楚的则留给开发者，而不是直接发布。</string>
+    <string name="project_wish_fact_published">已发布的心愿在下面，附带开发者的回复，任何人都可以点赞支持。</string>
+    <string name="project_wish_fact_odds">大多数心愿不会被做出来，这里也不承诺什么时候或是否会做。不过被经常提起确实会让一件事更有可能。</string>
     <string name="forge_roadmap_suggest_hint">您希望 NOOP 做什么？</string>
     <string name="forge_roadmap_chars_left">还剩 %1$d 个字符</string>
     <string name="forge_roadmap_send">发送</string>

@@ -7074,6 +7074,12 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_roadmap_suggestions">Sugerencias</string>
     <string name="forge_roadmap_suggest">Sugerir algo</string>
     <string name="forge_roadmap_suggest_note">Llega al desarrollador, no a las demás personas que usan NOOP. Nada se hace visible hasta que se publique.</string>
+    <string name="project_wish_how">Qué pasa con lo que escribes</string>
+    <string name="project_wish_fact_private">Va a una lista privada que solo lee el desarrollador. No al repositorio público ni a las demás personas que usan NOOP.</string>
+    <string name="project_wish_fact_text">Se envía el texto que escribes. Sin nombre, sin dispositivo, nada sobre tu cuerpo ni tu entrenamiento.</string>
+    <string name="project_wish_fact_filter">Un filtro lo lee primero. Fusiona un deseo que alguien ya ha pedido y retiene lo que no está claro para el desarrollador en vez de publicarlo.</string>
+    <string name="project_wish_fact_published">Los deseos publicados aparecen abajo, con la respuesta del desarrollador, y cualquiera puede apoyar uno con el pulgar.</string>
+    <string name="project_wish_fact_odds">La mayoría de los deseos no se construyen y aquí no se promete ni cuándo ni si. Que se pida a menudo sí hace una cosa más probable.</string>
     <string name="forge_roadmap_suggest_hint">¿Qué te gustaría que hiciera NOOP?</string>
     <string name="forge_roadmap_chars_left">Quedan %1$d caracteres</string>
     <string name="forge_roadmap_send">Enviar</string>
