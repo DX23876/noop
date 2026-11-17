@@ -57,3 +57,48 @@ final class BreathPhaseTests: XCTestCase {
         XCTAssertEqual(StrandMotion.breathPhase(at: Date(), period: 0), 0)
     }
 }
+
+/// The Today header's sync sweep, the ring the wearer watched stop (#48). Same reason as the breath: a
+/// function of the clock, so a view that appears mid-cycle draws where the sweep IS.
+final class SweepPhaseTests: XCTestCase {
+
+    private let period = 1.1
+
+    private func phase(_ seconds: Double) -> Double {
+        StrandMotion.sweepPhase(at: Date(timeIntervalSinceReferenceDate: seconds), period: period)
+    }
+
+    /// It starts at rest and ends at the full sweep, then begins again — no reverse, as the ring draws.
+    func testTheSweepRunsOutAndStartsOver() {
+        XCTAssertEqual(phase(0), 0, accuracy: 1e-9)
+        XCTAssertGreaterThan(phase(period * 0.99), 0.99)
+        XCTAssertEqual(phase(period), 0, accuracy: 1e-9)
+    }
+
+    /// Inside one cycle it only moves forward: a ring that went backwards would read as a stutter.
+    func testItOnlyGrowsWithinACycle() {
+        var previous = -1.0
+        for step in stride(from: 0.0, to: period, by: period / 20) {
+            let value = phase(step)
+            XCTAssertGreaterThan(value, previous, "at \(step)")
+            previous = value
+        }
+    }
+
+    /// Always inside 0…1, whatever instant it is asked about, including before the reference date.
+    func testThePhaseStaysInsideItsRange() {
+        for step in stride(from: -7.0, through: 12.0, by: 0.13) {
+            XCTAssertGreaterThanOrEqual(phase(step), 0, "at \(step)")
+            XCTAssertLessThanOrEqual(phase(step), 1, "at \(step)")
+        }
+    }
+
+    /// Eased out: more than half the sweep is done by the halfway point.
+    func testTheCurveEasesOut() {
+        XCTAssertGreaterThan(phase(period * 0.5), 0.5)
+    }
+
+    func testAZeroPeriodRests() {
+        XCTAssertEqual(StrandMotion.sweepPhase(at: Date(), period: 0), 0)
+    }
+}

@@ -72,6 +72,20 @@ public enum StrandMotion {
         return clamped * clamped * (3 - 2 * clamped)
     }
 
+    /// A sweep's position at a wall-clock instant: 0 to 1 over `period` and straight back to 0, the
+    /// shape of a `repeatForever(autoreverses: false)` ring, eased out like its curve.
+    ///
+    /// Same reason as `breathPhase`: a started animation can be lost, a function of the clock cannot.
+    /// The Today header's sync ring is drawn from this, so it keeps reporting an offload that is still
+    /// running after the wearer has been to another tab and back (fork issue #48).
+    public static func sweepPhase(at date: Date, period: Double) -> Double {
+        guard period > 0 else { return 0 }
+        let raw = (date.timeIntervalSinceReferenceDate / period).truncatingRemainder(dividingBy: 1)
+        let t = max(0, min(1, raw < 0 ? raw + 1 : raw))
+        // Ease out: quick at the start, settling at the end, as `.easeOut` draws it.
+        return 1 - (1 - t) * (1 - t) * (1 - t)
+    }
+
     /// Looping breathe animation, suppressed when Reduce Motion is on. Returns
     /// `nil` (no animation) when reduced so call sites collapse to the resting
     /// frame instead of an indefinite loop. Honours Apple's Reduce Motion HIG.
