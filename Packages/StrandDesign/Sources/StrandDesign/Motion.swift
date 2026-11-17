@@ -64,10 +64,12 @@ public enum StrandMotion {
     /// The fork already learned this once, for the vitals-grid wiggle (decisions, 2026-07-24).
     public static func breathPhase(at date: Date, period: Double = breathPeriod) -> Double {
         guard period > 0 else { return 0 }
-        let t = (date.timeIntervalSinceReferenceDate / period)
-            .truncatingRemainder(dividingBy: 2)
-        let triangle = t < 0 ? -t : (t <= 1 ? t : 2 - t)
-        let clamped = max(0, min(1, triangle))
+        // Mapped into [0, 2) FIRST: a negative remainder mirrored without mapping sticks at full swell
+        // for half of every cycle before the reference instant, which a reader of a "function of the
+        // clock" would not expect of it.
+        var t = (date.timeIntervalSinceReferenceDate / period).truncatingRemainder(dividingBy: 2)
+        if t < 0 { t += 2 }
+        let clamped = max(0, min(1, t <= 1 ? t : 2 - t))
         // Smoothstep: the same slow-in/slow-out shape `easeInOut` draws, as a plain function.
         return clamped * clamped * (3 - 2 * clamped)
     }

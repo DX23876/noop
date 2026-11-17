@@ -52,6 +52,17 @@ final class BreathPhaseTests: XCTestCase {
         XCTAssertGreaterThan(phase(period * 0.75), 0.75)
     }
 
+    /// Before the reference instant it has to keep breathing, not stick: a cycle is a cycle whichever
+    /// side of the clock's origin it falls on, and the same offset draws the same frame either way.
+    func testItBreathesBeforeTheReferenceInstantToo() {
+        for offset in stride(from: 0.0, to: 2 * period, by: period / 8) {
+            XCTAssertEqual(phase(offset), phase(offset - 2 * period), accuracy: 1e-9, "at \(offset)")
+            XCTAssertEqual(phase(offset), phase(offset - 10 * period), accuracy: 1e-9, "at \(offset)")
+        }
+        XCTAssertEqual(phase(-period * 0.5), 0.5, accuracy: 1e-9)
+        XCTAssertEqual(phase(-period), 1, accuracy: 1e-9)
+    }
+
     /// A period of zero cannot divide: it rests rather than producing a value nothing can draw.
     func testAZeroPeriodRests() {
         XCTAssertEqual(StrandMotion.breathPhase(at: Date(), period: 0), 0)
