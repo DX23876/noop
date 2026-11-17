@@ -330,9 +330,30 @@ public final class FrameRouter {
                         // field decodes to 0. This is NOT an undocumented layout; it's the strap telling us
                         // it has no alarm stored, so an arm we just sent did NOT persist. Calling this
                         // "unrecognised payload" (the old branch) hid the single most diagnostic signal in a
-                        // "didn't buzz" report: SET went out, strap kept nothing. Name it plainly. Log-only.
+                        // "didn't buzz" report: SET went out, strap kept nothing. Name it plainly.
+                        //
+                        // #2893 (reported 2026-11-17): it is also a REFUSAL, and it was the one refusal the
+                        // rejection streak never counted — so the Alarms screen's warning, which exists for
+                        // a strap that will not keep an alarm, stayed hidden from the people whose straps
+                        // say so outright. It counts now, through the same attribution every other readback
+                        // passes (`noAlarmVerdict`): unattributed, from another strap, or older than the arm
+                        // it would be judging, and it stays log-only, because a diagnosis may only assert
+                        // what it can attribute.
                         let raw = Self.commandResponsePayloadHex(in: frame) ?? "empty"
-                        state.append(log: "Alarm: strap reports NO alarm currently stored (epoch 0) — the arm did not persist on the strap (raw \(raw))")
+                        let defaults = UserDefaults.standard
+                        let verdict = AlarmReadback.noAlarmVerdict(
+                            sentDeviceId: defaults.string(forKey: "alarm.lastArmDeviceId"),
+                            reportedDeviceId: deviceId,
+                            sentAt: defaults.object(forKey: "alarm.lastArmAt") as? Double,
+                            reportedAt: Date().timeIntervalSince1970)
+                        let counted = defaults.object(forKey: "alarm.lastArmSentEpoch") != nil
+                            && AlarmReadback.countsAsRejection(verdict)
+                        if counted {
+                            defaults.set(defaults.integer(forKey: "alarm.rejectStreak") + 1,
+                                         forKey: "alarm.rejectStreak")
+                        }
+                        state.append(log: "Alarm: strap reports NO alarm currently stored (epoch 0) — the arm did not persist on the strap (raw \(raw))"
+                            + (counted ? "" : " — not attributed to an arm of ours, so it is not counted as a refusal"))
                     } else {
                         state.append(log: "Alarm: strap answered the alarm readback with an unrecognised payload (raw \(Self.commandResponsePayloadHex(in: frame) ?? "empty")) - layout undocumented, log-only")
                     }

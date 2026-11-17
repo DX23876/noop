@@ -1616,3 +1616,58 @@ in.
 
 Analysis migration required: no. A strap setting, a readout and a button; no stored derived value, no
 scoring, no analysis window.
+
+## 2026-11-17 — A night is staged from the heart rate when THAT night has no motion, not when the window has none
+
+Reported at ryanbr/noop#2890. Nights with heart rate right through scored as nothing at all. The
+heart-rate-only fallback (`SleepStager.hrOnlySessions`, #1801) is gated on the day having no motion,
+and the gate counted gravity across the whole **read window** — `dayStart − 30 h` through the night,
+54 hours (`StreamReadCap`). Gravity reaches the store only through the history offload, never from
+the live stream, so a strap whose offload stalls keeps the rows it delivered earlier in that window
+while every night after it has none: the gate saw motion, the fallback stayed shut, and the night
+was lost. The reporter arrived there through a firmware that stopped serving history; the defect is
+ours and is not particular to any firmware.
+
+The gate now counts the rows in the night the day owns, noon before the day through noon on it
+(`SleepStager.nightMotionRows`, `nightSpanSeconds`). A night with motion of its own is untouched, a
+device that streams none (an Oura ring, #804) answers as before, and someone who sleeps through an
+afternoon falls outside the span and is read as a day without a night, which is the answer the
+engine gave before this existed.
+
+Half-covered nights were considered and deliberately left alone: `isGravitySparse` already detects
+motion that covers only part of the night and frees the heart-rate-vouched bridge in `buildRuns`. A
+second coverage rule in the gate would be a second opinion about one fact.
+
+The trace line carries both numbers now (`grav=<night> windowGrav=<window>`), because after this
+change the window count no longer explains the verdict beside it. The Kotlin `IntelligenceEngine`
+keeps its own window-counting gate: on this fork the shared core scores every day (`coreOwnsScores`)
+and that path is reached only by its own JVM tests.
+
+Analysis migration required: yes (AI-35). It rides on AI-35 rather than taking a number of its own,
+which is the one-bump-per-release rule: AI-35 is in no release and no testing build.
+
+## 2026-11-17 — A strap that answers "I have no alarm stored" is refusing, and is counted as refusing
+
+Reported at ryanbr/noop#2893, with logs: `Alarm: armed for Wed 07:28` and immediately under it
+`Alarm: strap reports NO alarm currently stored (epoch 0)`. Two faults, one layer apart.
+
+The Alarms screen already warns about a strap that will not keep an alarm, after two refusals in a
+row (`alarm.rejectStreak`, `SmartAlarmView`). Refusals were counted only where a reported time could
+be compared with the sent one (`AlarmReadback.verdict`). The strap's "nothing stored" sentinel took a
+different branch and only logged, so the plainest refusal a strap can give counted for nothing and
+the warning never reached the people whose straps say so outright. It has its own verdict now
+(`reportsNoAlarm`), passes the same three guards as every other readback — attribution, same strap,
+not older than the arm — and counts. Unattributed, it stays log-only and says so, because a
+diagnosis may only assert what it can attribute. It is not folded into `mismatch`: routing the
+sentinel through the timed comparison would read as "the strap stored 1970" rather than "the strap
+stored nothing".
+
+The arm line itself said `armed` the instant the frame went out, which proves only that NOOP
+transmitted it. Both platforms now say `sent` and point at the readback, which is the thing that
+knows. The countdown on the screen is deliberately not gated on the readback: the WHOOP 4.0 response
+layout is undocumented and that path never steers behaviour. The warning card sits above the
+countdown.
+
+The alarm protocol itself is untouched — that needs a strap on a wrist.
+
+Analysis migration required: no.

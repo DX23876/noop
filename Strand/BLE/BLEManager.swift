@@ -6237,8 +6237,13 @@ public final class BLEManager: NSObject, ObservableObject {
             recordAlarmArm(sentEpoch: Int(wakeMs / 1000))
             // #34: don't claim "armed" when the strap isn't connected (the send was dropped) — the arm
             // re-fires on the next connect.
+            // "sent", not "armed": this line is written the instant the frame goes out, which proves NOOP
+            // transmitted it and nothing about what the strap did with it. The readback says that
+            // (FrameRouter: matched, "NO alarm currently stored", or an unparseable answer), and a report
+            // where the two sat one under the other — "armed for Wed 07:28" above "strap reports NO alarm
+            // currently stored" — is what #2893 arrived as.
             log(commandChannelReady   // #613: reflect whether send() actually reached the strap, not just a non-nil uuid
-                ? "Alarm: armed 5/MG rev4 for \(localFmt.string(from: date)) — your local wake time"
+                ? "Alarm: sent 5/MG rev4 for \(localFmt.string(from: date)) — your local wake time; the strap's own readback follows"
                 : "Alarm: queued 5/MG rev4 for \(localFmt.string(from: date)) — strap not connected; will send on next connect")
             return
         }
@@ -6250,7 +6255,9 @@ public final class BLEManager: NSObject, ObservableObject {
         // #34: only claim "armed" when the strap is connected (the send actually went out); otherwise it's
         // queued and re-sent on the next connect.
         if commandChannelReady {   // #613: reflect whether send() actually reached the strap, not just a non-nil uuid
-            log("Alarm: armed for \(localFmt.string(from: date)) — your local wake time (sent as UTC epoch \(epochSec))")
+            // "sent", for the reason given at the 5/MG line above: what the strap kept is the readback's
+            // to say, not this line's.
+            log("Alarm: sent for \(localFmt.string(from: date)) — your local wake time (sent as UTC epoch \(epochSec)); the strap's own readback follows")
         } else {
             log("Alarm: queued for \(localFmt.string(from: date)) — strap not connected; will send on next connect")
         }
