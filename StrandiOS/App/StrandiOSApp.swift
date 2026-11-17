@@ -814,6 +814,13 @@ enum DemoScreens {
         case "health":   return AnyView(HealthView())
         case "insights": return AnyView(InsightsView())
         case "explore":  return AnyView(MetricExplorerView())
+        // One metric's detail page on its own: "metric-<key>", e.g. metric-sleep_total_min. The explorer
+        // reaches that page by a push, which this harness has no shell for, so the readings table and the
+        // correlation list were the one part of the explorer no screenshot could reach.
+        case let route where route.hasPrefix("metric-"):
+            let key = String(route.dropFirst("metric-".count))
+            guard let metric = MetricCatalog.all.first(where: { $0.key.lowercased() == key }) else { return nil }
+            return AnyView(NavigationStack { MetricDetailView(metric: metric) })
         case "compare":  return AnyView(CompareView())
         case "settings": return AnyView(SettingsView())
         // Analysis migration required: no. This DEBUG-only route only makes the existing filtered

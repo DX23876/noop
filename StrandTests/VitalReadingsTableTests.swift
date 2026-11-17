@@ -182,3 +182,30 @@ extension VitalReadingsTableTests {
         XCTAssertEqual(rows(96, unit: "min", duration: false).first?.value, "96 min")
     }
 }
+
+/// The screen-wide rule behind the table: ONE decision, so the headline, the chart's readout, the stat
+/// tiles and the table cannot spell the same night two ways (reported 2026-11-17).
+final class MetricDurationSpellingTests: XCTestCase {
+
+    func testAMinuteMetricPastAnHourIsSpelledOut() {
+        XCTAssertEqual(metricDurationSpelling(unit: "min", value: 443), "7h 23m")
+        XCTAssertEqual(metricDurationSpelling(unit: "min", value: 526), "8h 46m")
+    }
+
+    func testTheHourItselfCounts() {
+        XCTAssertEqual(metricDurationSpelling(unit: "min", value: 60), "1h 0m")
+    }
+
+    /// Under the hour the metric's own formatter keeps the value, so the rule answers nothing.
+    func testUnderAnHourItDeclines() {
+        XCTAssertNil(metricDurationSpelling(unit: "min", value: 59))
+        XCTAssertNil(metricDurationSpelling(unit: "min", value: 0))
+    }
+
+    /// Everything that is not counted in minutes is left alone — 96 % is not an hour and a half.
+    func testOnlyMinutesAreTreatedAsALength() {
+        XCTAssertNil(metricDurationSpelling(unit: "%", value: 96))
+        XCTAssertNil(metricDurationSpelling(unit: "bpm", value: 142))
+        XCTAssertNil(metricDurationSpelling(unit: "", value: 443))
+    }
+}
