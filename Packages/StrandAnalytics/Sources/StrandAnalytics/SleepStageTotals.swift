@@ -232,9 +232,6 @@ public enum SleepStageTotals {
         public var asleepMinutes: Double { Double(asleepSeconds) / 60.0 }
     }
 
-    /// True when a block's onset falls in the cold-start overnight band (≥ `overnightStartHour` or
-    /// < `overnightEndHour`, local). Retained for callers/tests that still ask the binary question, but
-    /// the scored selector no longer GATES on it — it only feeds the cold-start alignment bonus.
     /// Whether a block starting at `start` is BRIDGED onto a block ending at `previousEnd`: the day's one
     /// two-tier rule, in one place. A negative gap never bridges (pinned legacy semantics), a gap under
     /// `gapBridgeMaxMin` always does, and a gap under `nightTailBridgeMaxMin` does only while the onset is
@@ -299,6 +296,9 @@ public enum SleepStageTotals {
         return (start, start + span)
     }
 
+    /// True when a block's onset falls in the cold-start overnight band (≥ `overnightStartHour` or
+    /// < `overnightEndHour`, local). Retained for callers/tests that still ask the binary question, but
+    /// the scored selector no longer GATES on it — it only feeds the cold-start alignment bonus.
     /// Mirrors `SleepStager.isOvernightOnset`. `offsetSec` is seconds EAST of UTC. (#525 / #547)
     public static func isOvernightOnset(_ ts: Int, offsetSec: Int) -> Bool {
         let local = ts + offsetSec

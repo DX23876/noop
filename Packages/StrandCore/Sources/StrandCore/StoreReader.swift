@@ -149,7 +149,11 @@ public struct StoreReader: Sendable {
     /// its cycle, and a live figure over the calendar day is a second answer to one question.
     public func dayCycleOnsets(from: String, to: String) async -> [Double] {
         var out: [Double] = []
-        for id in computedReadIds {
+        // Every registered strap's computed sibling, not just the active one's: the pass writes each
+        // marker under the DAY OWNER's namespace, which on a two-strap install is often not the strap
+        // connected now. Reading the narrow set returned nothing for those days, and the live Effort
+        // quietly fell back to the midnight window the stored row was not scored over.
+        for id in rawComputedReadIds {
             let points = (try? await store.metricSeries(deviceId: id,
                                                         key: DayCycleIntelligenceIntegration.onsetKey,
                                                         from: from, to: to)) ?? []

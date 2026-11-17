@@ -487,7 +487,11 @@ private fun clock(ts: Long, zone: ZoneId, format: DateTimeFormatter): String =
 private fun DayNaps(night: CoreRead.Night, wakeDay: java.time.LocalDate, zone: ZoneId,
                     onDelete: ((CoreRead.Nap) -> Unit)? = null, onAdd: (() -> Unit)? = null) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val naps by produceState(emptyList<CoreRead.Nap>(), night.endTs, wakeDay) {
+    // Keyed on the core's data revision as every other read on this page is: without it a nap the wearer
+    // just entered (or deleted) stayed invisible until the page was rebuilt, which is how it looked on the
+    // emulator — written to the store, absent from the card.
+    val napRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    val naps by produceState(emptyList<CoreRead.Nap>(), night.endTs, wakeDay, napRevision) {
         val end = wakeDay.plusDays(1).atStartOfDay(zone).toEpochSecond()
         value = withContext(Dispatchers.IO) { CoreRead.open(context); CoreRead.naps(night.endTs, end) }
     }
@@ -836,8 +840,18 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
                 onDelete = { nap ->
             scope.launch {
                 val group = withContext(Dispatchers.IO) {
-                    runCatching { viewModel.repo.sleepSessionsUnion(viewModel.activeStrapId, nap.startTs - 3600, nap.endTs + 3600) }
-                        .getOrDefault(emptyList()).filter { (it.startTsAdjusted ?: it.startTs) < nap.endTs && it.endTs > nap.startTs }
+                    // BOTH lanes: a nap the wearer entered by hand lives in the COMPUTED one
+                    // (`addManualNap` writes there), so looking only in the raw lane found nothing and the
+                    // delete silently did nothing — the row stayed in the store and on the card (#49).
+                    val strap = viewModel.activeStrapId
+                    val from = nap.startTs - 3600
+                    val to = nap.endTs + 3600
+                    val raw = runCatching { viewModel.repo.sleepSessionsUnion(strap, from, to) }
+                        .getOrDefault(emptyList())
+                    val computed = runCatching { viewModel.repo.computedSleepSessionsUnion(strap, from, to) }
+                        .getOrDefault(emptyList())
+                    (raw + computed).distinctBy { it.deviceId to it.startTs }
+                        .filter { (it.startTsAdjusted ?: it.startTs) < nap.endTs && it.endTs > nap.startTs }
                 }
                 group.forEach { viewModel.deleteSleepSession(it) }
                 undo = group
