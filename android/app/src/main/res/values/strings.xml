@@ -6832,6 +6832,24 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="backup_saving_to">Saving to: %1$s</string>
     <string name="backup_no_folder">No folder chosen yet. Pick one your cloud app already syncs, or any local folder.</string>
     <string name="backup_last">Last backup: %1$s</string>
+    <string name="health_sync_now_a11y">Sync now. Pulls your strap\'s stored history immediately, without waiting for the next automatic sync.</string>
+    <string name="health_sync_now_busy_a11y">Sync now. A sync is already in progress.</string>
+    <string name="health_sync_now_nostrap_a11y">Sync now. Connect your strap first.</string>
+    <string name="health_hr_derived">Estimated from R-R interval</string>
+    <string name="health_hr_streaming">Streaming live</string>
+    <string name="health_hr_waiting">Awaiting strap</string>
+    <string name="health_hr_bpm">%1$s bpm</string>
+    <string name="health_hr_chart_a11y">Live heart rate over time, %1$s beats per minute, zone %2$s</string>
+    <string name="health_hr_chart_empty_a11y">Live heart rate over time, no data</string>
+    <string name="health_age_same">about your age</string>
+    <plurals name="health_age_younger">
+        <item quantity="one">%1$d year younger</item>
+        <item quantity="other">%1$d years younger</item>
+    </plurals>
+    <plurals name="health_age_older">
+        <item quantity="one">%1$d year older</item>
+        <item quantity="other">%1$d years older</item>
+    </plurals>
     <string name="coach_connect_custom">Point the coach at any OpenAI-compatible server: a local model (Ollama, LM Studio, llama.cpp) keeps everything on your device; an API key is optional.</string>
     <string name="coach_connect_key">Bring your own API key. It is stored encrypted on this device and only used to send your question plus a short summary of your metrics to the provider you pick.</string>
     <string name="coach_privacy_local">The coach talks only to the server URL you set. Point it at a local model to keep everything on your device. Nothing is sent until you ask.</string>

@@ -6765,6 +6765,28 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="backup_saving_to">Сохранение в: %1$s</string>
     <string name="backup_no_folder">Папка ещё не выбрана. Возьмите ту, которую уже синхронизирует ваше облако, или любую локальную.</string>
     <string name="backup_last">Последняя копия: %1$s</string>
+    <string name="health_sync_now_a11y">Синхронизировать сейчас. Сразу забирает сохранённую на страпе историю, не дожидаясь следующей автоматической синхронизации.</string>
+    <string name="health_sync_now_busy_a11y">Синхронизировать сейчас. Синхронизация уже идёт.</string>
+    <string name="health_sync_now_nostrap_a11y">Синхронизировать сейчас. Сначала подключите страп.</string>
+    <string name="health_hr_derived">Оценено по интервалу R-R</string>
+    <string name="health_hr_streaming">Идёт в реальном времени</string>
+    <string name="health_hr_waiting">Ожидание страпа</string>
+    <string name="health_hr_bpm">%1$s уд/мин</string>
+    <string name="health_hr_chart_a11y">Пульс в реальном времени, %1$s ударов в минуту, зона %2$s</string>
+    <string name="health_hr_chart_empty_a11y">Пульс в реальном времени, данных нет</string>
+    <string name="health_age_same">примерно ваш возраст</string>
+    <plurals name="health_age_younger">
+        <item quantity="one">на %1$d год моложе</item>
+        <item quantity="few">на %1$d года моложе</item>
+        <item quantity="many">на %1$d лет моложе</item>
+        <item quantity="other">на %1$d года моложе</item>
+    </plurals>
+    <plurals name="health_age_older">
+        <item quantity="one">на %1$d год старше</item>
+        <item quantity="few">на %1$d года старше</item>
+        <item quantity="many">на %1$d лет старше</item>
+        <item quantity="other">на %1$d года старше</item>
+    </plurals>
     <string name="coach_connect_custom">Направьте коуча на любой сервер, совместимый с OpenAI: локальная модель (Ollama, LM Studio, llama.cpp) оставляет всё на вашем устройстве, ключ API тогда не обязателен.</string>
     <string name="coach_connect_key">Принесите свой ключ API. Он хранится на этом устройстве в зашифрованном виде и используется только чтобы отправить ваш вопрос и короткую сводку ваших показателей выбранному провайдеру.</string>
     <string name="coach_privacy_local">Коуч общается только с тем адресом сервера, который вы укажете. Направьте его на локальную модель, и всё останется на устройстве. Ничего не уходит, пока вы не спросите.</string>

@@ -6808,6 +6808,24 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="backup_saving_to">Wird gesichert nach: %1$s</string>
     <string name="backup_no_folder">Noch kein Ordner gewählt. Nimm einen, den deine Cloud-App schon abgleicht, oder irgendeinen Ordner auf dem Gerät.</string>
     <string name="backup_last">Letzte Sicherung: %1$s</string>
+    <string name="health_sync_now_a11y">Jetzt abgleichen. Holt den gespeicherten Verlauf vom Strap sofort, ohne auf den nächsten automatischen Abgleich zu warten.</string>
+    <string name="health_sync_now_busy_a11y">Jetzt abgleichen. Ein Abgleich läuft bereits.</string>
+    <string name="health_sync_now_nostrap_a11y">Jetzt abgleichen. Verbinde zuerst deinen Strap.</string>
+    <string name="health_hr_derived">Aus den Abständen zwischen Schlägen geschätzt</string>
+    <string name="health_hr_streaming">Kommt gerade live</string>
+    <string name="health_hr_waiting">Wartet auf den Strap</string>
+    <string name="health_hr_bpm">%1$s bpm</string>
+    <string name="health_hr_chart_a11y">Live-Herzfrequenz über die Zeit, %1$s Schläge pro Minute, Zone %2$s</string>
+    <string name="health_hr_chart_empty_a11y">Live-Herzfrequenz über die Zeit, keine Daten</string>
+    <string name="health_age_same">etwa dein Alter</string>
+    <plurals name="health_age_younger">
+        <item quantity="one">%1$d Jahr jünger</item>
+        <item quantity="other">%1$d Jahre jünger</item>
+    </plurals>
+    <plurals name="health_age_older">
+        <item quantity="one">%1$d Jahr älter</item>
+        <item quantity="other">%1$d Jahre älter</item>
+    </plurals>
     <string name="coach_connect_custom">Richte den Coach auf einen beliebigen OpenAI-kompatiblen Server: ein lokales Modell (Ollama, LM Studio, llama.cpp) hält alles auf deinem Gerät, ein API-Schlüssel ist dann freiwillig.</string>
     <string name="coach_connect_key">Bring deinen eigenen API-Schlüssel mit. Er liegt verschlüsselt auf diesem Gerät und wird nur benutzt, um deine Frage und eine kurze Zusammenfassung deiner Werte an den Anbieter zu schicken, den du wählst.</string>
     <string name="coach_privacy_local">Der Coach spricht nur mit der Serveradresse, die du einträgst. Richte ihn auf ein lokales Modell, dann bleibt alles auf deinem Gerät. Gesendet wird erst, wenn du fragst.</string>

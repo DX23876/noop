@@ -6761,6 +6761,22 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="backup_saving_to">保存到：%1$s</string>
     <string name="backup_no_folder">还没有选文件夹。挑一个你的云盘应用已经在同步的，或者任意本地文件夹。</string>
     <string name="backup_last">上次备份：%1$s</string>
+    <string name="health_sync_now_a11y">立即同步。马上取回手环里存着的历史，不用等下一次自动同步。</string>
+    <string name="health_sync_now_busy_a11y">立即同步。已经有一次同步在进行。</string>
+    <string name="health_sync_now_nostrap_a11y">立即同步。请先连接手环。</string>
+    <string name="health_hr_derived">根据 R-R 间期估算</string>
+    <string name="health_hr_streaming">正在实时传输</string>
+    <string name="health_hr_waiting">等待手环</string>
+    <string name="health_hr_bpm">%1$s bpm</string>
+    <string name="health_hr_chart_a11y">实时心率随时间变化，每分钟 %1$s 次，第 %2$s 区</string>
+    <string name="health_hr_chart_empty_a11y">实时心率随时间变化，没有数据</string>
+    <string name="health_age_same">和你的年龄差不多</string>
+    <plurals name="health_age_younger">
+        <item quantity="other">年轻 %1$d 岁</item>
+    </plurals>
+    <plurals name="health_age_older">
+        <item quantity="other">年长 %1$d 岁</item>
+    </plurals>
     <string name="coach_connect_custom">把教练指向任意兼容 OpenAI 的服务器：本地模型（Ollama、LM Studio、llama.cpp）让一切都留在你的设备上，API 密钥是可选的。</string>
     <string name="coach_connect_key">自带 API 密钥。它会加密存在这台设备上，只用于把你的问题和一小段指标摘要发给你选的服务商。</string>
     <string name="coach_privacy_local">教练只和你填的服务器地址通信。把它指向本地模型，一切就都留在你的设备上。在你提问之前什么都不会发出去。</string>

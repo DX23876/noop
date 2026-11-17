@@ -338,22 +338,20 @@ private fun SyncStatusSection(vm: AppViewModel, onSyncNow: () -> Unit) {
                 // HealthView.swift's `NoopButton(..., kind: .secondary, fullWidth: true)`. Disabled unless
                 // connected+bonded and not already syncing; the gated BLE entry point is a safe no-op
                 // otherwise. (Total pending records are unknowable from the protocol, so no progress %.)
+                // Read out here, not inside the semantics lambda: that lambda is not a composable and
+                // cannot reach the resources.
+                val syncDescription = stringResource(when {
+                    canSync -> R.string.health_sync_now_a11y
+                    live.backfilling -> R.string.health_sync_now_busy_a11y
+                    else -> R.string.health_sync_now_nostrap_a11y
+                })
                 NoopButton(
                     text = if (live.backfilling) uiString(R.string.cx_syncing) else uiString(R.string.cx_sync_now),
                     leadingIcon = Icons.Filled.Sync,
                     kind = NoopButtonKind.Secondary,
                     fullWidth = true,
                     enabled = canSync,
-                    modifier = Modifier.semantics {
-                        contentDescription = if (canSync) {
-                            "Sync now. Pulls your strap's stored history immediately, without waiting " +
-                                "for the next automatic sync."
-                        } else if (live.backfilling) {
-                            "Sync now. A sync is already in progress."
-                        } else {
-                            "Sync now. Connect your strap first."
-                        }
-                    },
+                    modifier = Modifier.semantics { contentDescription = syncDescription },
                     onClick = onSyncNow,
                 )
 
@@ -864,8 +862,13 @@ private fun VitalityHero(
                         color = Palette.textPrimary,
                     )
                     Text(
-                        if (delta == 0) "about your age"
-                        else "${kotlin.math.abs(delta)} ${yearWord(delta)} ${if (younger) "younger" else "older"}",
+                        // One plural per direction rather than number + word + word: "3 years younger"
+                        // is English grammar built in Kotlin, and no other language takes it apart the
+                        // same way.
+                        if (delta == 0) stringResource(R.string.health_age_same)
+                        else pluralStringResource(
+                            if (younger) R.plurals.health_age_younger else R.plurals.health_age_older,
+                            kotlin.math.abs(delta), kotlin.math.abs(delta)),
                         style = NoopType.footnote,
                         color = if (delta == 0) Palette.textSecondary
                         else if (younger) Palette.statusPositive else Palette.statusWarning,
@@ -1387,16 +1390,16 @@ private fun HeartRateSection(vm: AppViewModel, hrMax: Int) {
                         Text(uiString(R.string.l10n_health_screen_heart_rate_dde6e8f7), style = NoopType.headline, color = Palette.textPrimary)
                         Text(
                             text = when {
-                                derived -> "Estimated from R-R interval"
-                                hasLiveHr -> "Streaming live"
-                                else -> "Awaiting strap"
+                                derived -> stringResource(R.string.health_hr_derived)
+                                hasLiveHr -> stringResource(R.string.health_hr_streaming)
+                                else -> stringResource(R.string.health_hr_waiting)
                             },
                             style = NoopType.footnote,
                             color = Palette.textSecondary,
                         )
                     }
                     Text(
-                        text = if (hasLiveHr) "$displayHr bpm" else "—",
+                        text = if (hasLiveHr) stringResource(R.string.health_hr_bpm, displayHr.toString()) else "—",
                         style = NoopType.metricInline,
                         color = if (hasLiveHr) zoneColor else Palette.textTertiary,
                     )
@@ -1404,15 +1407,17 @@ private fun HeartRateSection(vm: AppViewModel, hrMax: Int) {
 
                 // Hero chart: a tall HR line tinted to the current zone, with a status
                 // pill floated top-trailing. Falls back to a big number when R-R is sparse.
+                val hrChartDescription = stringResource(R.string.health_hr_chart_a11y, displayHr.toString(), zone.toString())
+                val hrChartEmptyDescription = stringResource(R.string.health_hr_chart_empty_a11y)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(Metrics.chartHeight)
                         .semantics {
                             contentDescription = if (hasLiveHr) {
-                                "Live heart rate over time, $displayHr beats per minute, zone $zone"
+                                hrChartDescription
                             } else {
-                                "Live heart rate over time, no data"
+                                hrChartEmptyDescription
                             }
                         },
                 ) {

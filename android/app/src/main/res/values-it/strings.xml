@@ -6760,6 +6760,24 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="backup_saving_to">Salvataggio in: %1$s</string>
     <string name="backup_no_folder">Nessuna cartella scelta. Prendine una che la tua app cloud già sincronizza, o una qualsiasi sul dispositivo.</string>
     <string name="backup_last">Ultimo backup: %1$s</string>
+    <string name="health_sync_now_a11y">Sincronizza ora. Prende subito la cronologia salvata sullo strap, senza aspettare la prossima sincronizzazione automatica.</string>
+    <string name="health_sync_now_busy_a11y">Sincronizza ora. Una sincronizzazione è già in corso.</string>
+    <string name="health_sync_now_nostrap_a11y">Sincronizza ora. Collega prima il tuo strap.</string>
+    <string name="health_hr_derived">Stimato dall\'intervallo R-R</string>
+    <string name="health_hr_streaming">In diretta</string>
+    <string name="health_hr_waiting">In attesa dello strap</string>
+    <string name="health_hr_bpm">%1$s bpm</string>
+    <string name="health_hr_chart_a11y">Frequenza cardiaca in diretta nel tempo, %1$s battiti al minuto, zona %2$s</string>
+    <string name="health_hr_chart_empty_a11y">Frequenza cardiaca in diretta nel tempo, nessun dato</string>
+    <string name="health_age_same">più o meno la tua età</string>
+    <plurals name="health_age_younger">
+        <item quantity="one">%1$d anno in meno</item>
+        <item quantity="other">%1$d anni in meno</item>
+    </plurals>
+    <plurals name="health_age_older">
+        <item quantity="one">%1$d anno in più</item>
+        <item quantity="other">%1$d anni in più</item>
+    </plurals>
     <string name="coach_connect_custom">Punta il coach a un qualsiasi server compatibile con OpenAI: un modello locale (Ollama, LM Studio, llama.cpp) tiene tutto sul tuo dispositivo, la chiave API è facoltativa.</string>
     <string name="coach_connect_key">Porta la tua chiave API. Resta cifrata su questo dispositivo e serve solo a inviare la tua domanda e un breve riassunto dei tuoi valori al fornitore che scegli.</string>
     <string name="coach_privacy_local">Il coach parla solo con l\'indirizzo del server che imposti. Puntalo a un modello locale e tutto resta sul tuo dispositivo. Niente parte finché non chiedi.</string>

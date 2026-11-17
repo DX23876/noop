@@ -78,55 +78,11 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "$displayHr bpm"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
       "${detail.format(it)} ${detail.unit}"
     ],
     [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "${kotlin.math.abs(delta)} ${yearWord(delta)} ${if (younger) \"younger\" else \"older\"}"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Awaiting strap"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Estimated from R-R interval"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Live heart rate over time, $displayHr beats per minute, zone $zone"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Live heart rate over time, no data"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
       "SOLID"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Streaming live"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Sync now. A sync is already in progress."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Sync now. Connect your strap first."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Sync now. Pulls your strap's stored history immediately, without waiting "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "about your age"
     ],
     [
       "android/app/src/main/java/com/noop/ui/HrvSnapshotScreen.kt",

@@ -6784,6 +6784,24 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="backup_saving_to">A guardar em: %1$s</string>
     <string name="backup_no_folder">Ainda não escolheu pasta. Escolha uma que a sua aplicação de nuvem já sincronize, ou qualquer pasta local.</string>
     <string name="backup_last">Última cópia: %1$s</string>
+    <string name="health_sync_now_a11y">Sincronizar agora. Traz já o histórico guardado da strap, sem esperar pela próxima sincronização automática.</string>
+    <string name="health_sync_now_busy_a11y">Sincronizar agora. Já está a decorrer uma sincronização.</string>
+    <string name="health_sync_now_nostrap_a11y">Sincronizar agora. Ligue primeiro a sua strap.</string>
+    <string name="health_hr_derived">Estimado a partir do intervalo R-R</string>
+    <string name="health_hr_streaming">Em directo</string>
+    <string name="health_hr_waiting">À espera da strap</string>
+    <string name="health_hr_bpm">%1$s bpm</string>
+    <string name="health_hr_chart_a11y">Frequência cardíaca em directo ao longo do tempo, %1$s batimentos por minuto, zona %2$s</string>
+    <string name="health_hr_chart_empty_a11y">Frequência cardíaca em directo ao longo do tempo, sem dados</string>
+    <string name="health_age_same">mais ou menos a sua idade</string>
+    <plurals name="health_age_younger">
+        <item quantity="one">%1$d ano mais novo</item>
+        <item quantity="other">%1$d anos mais novo</item>
+    </plurals>
+    <plurals name="health_age_older">
+        <item quantity="one">%1$d ano mais velho</item>
+        <item quantity="other">%1$d anos mais velho</item>
+    </plurals>
     <string name="coach_connect_custom">Aponte o coach para qualquer servidor compatível com OpenAI: um modelo local (Ollama, LM Studio, llama.cpp) mantém tudo no seu dispositivo; a chave de API é opcional.</string>
     <string name="coach_connect_key">Traga a sua própria chave de API. Fica cifrada neste dispositivo e só é usada para enviar a sua pergunta e um breve resumo dos seus valores ao fornecedor que escolher.</string>
     <string name="coach_privacy_local">O coach fala apenas com o endereço de servidor que indicar. Aponte-o para um modelo local e tudo fica no seu dispositivo. Nada sai antes de perguntar.</string>
