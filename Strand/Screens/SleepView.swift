@@ -552,10 +552,27 @@ struct SleepView: View {
             .sorted { $0.effectiveStartTs < $1.effectiveStartTs }
         let mainMin = night.stages.total
         let napMin = naps.reduce(0.0) { $0 + Double($1.endTs - $1.effectiveStartTs) / 60.0 }
-        if !naps.isEmpty {
-            NoopCard(padding: NoopMetrics.cardInnerPadding, tint: StrandPalette.restColor) {
+        // The card shows even with no naps on it, because its "Add a nap" is the ONLY way to enter one by
+        // hand and the wearer who needs it is precisely the one whose nap was never detected (#49). An
+        // empty card is a small price for an affordance that is otherwise unreachable.
+        NoopCard(padding: NoopMetrics.cardInnerPadding, tint: StrandPalette.restColor) {
                 VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
-                    SectionHeader("Naps", overline: "Daytime sleep", trailing: nil)
+                    HStack {
+                        SectionHeader("Naps", overline: "Daytime sleep", trailing: nil)
+                        Spacer(minLength: 8)
+                        Button { editor.addingNap = AddNapSeed(afterWake: night.session.endTs) } label: {
+                            Label("Add nap", systemImage: "plus.circle.fill")
+                                .font(StrandFont.subhead)
+                                .foregroundStyle(StrandPalette.restColor)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Text("Add a nap"))
+                    }
+                    if naps.isEmpty {
+                        Text("No naps on this day. Add one if NOOP missed it.")
+                            .font(StrandFont.subhead)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                    } else {
                     napSummaryRow(mainMin: mainMin, napMin: napMin)
                     Divider().overlay(StrandPalette.hairline)
                     ForEach(naps, id: \.startTs) { nap in
@@ -564,8 +581,8 @@ struct SleepView: View {
                             Divider().overlay(StrandPalette.hairline)
                         }
                     }
+                    }
                 }
-            }
         }
     }
 

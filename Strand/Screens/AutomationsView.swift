@@ -38,6 +38,9 @@ struct AutomationsView: View {
     private var cycleOptInApplies: Bool { model.profile.cycleAwarenessApplies }
     /// v5 Rhythm experimental gate (the screen still shows its own consent clickwrap when opened).
     @AppStorage(RhythmConsent.enabledKey) private var rhythmEnabled = false
+    /// Short-nap review (#49): the opt-in switch and the queue it feeds, read when the screen appears.
+    @AppStorage(NapReviewPrefs.enabledKey) private var napDetectionEnabled = false
+    @State private var pendingNaps: [PendingNap] = []
     @AppStorage(FertileReminder.enabledKey) private var fertileReminder = false
     @AppStorage(FertileReminder.discreetKey) private var fertileDiscreet = true
     /// Inactivity reminder (#419) — UI-local store, persisted in UserDefaults. The buzz itself fires
@@ -96,6 +99,7 @@ struct AutomationsView: View {
             // the wind-down reminder. It's moved to the dedicated Alarms screen (SmartAlarmView) so every
             // wake/wind-down control lives in one place. Automations is just inputs-to-actions now.
             if scope != .strapActions {
+                napReviewCard
                 inactivityCard
                 illnessCard
                 healthInsightsCard
@@ -401,6 +405,68 @@ struct AutomationsView: View {
     }
 
     // MARK: - Inactivity reminder (#419)
+
+    /// Short-nap review (#49): the switch and whatever the detector is currently asking about.
+    ///
+    /// The detector never writes a nap; it offers one. A still afternoon and a real nap look alike from
+    /// the wrist, and the wearer is the one who knows which it was — the same reason the reporter asked
+    /// to enter naps himself. Accepting writes it through the ordinary hand-entered path; declining
+    /// remembers the window so the next sync does not ask twice. Apple twin of Android's review card.
+    @ViewBuilder
+    private var napReviewCard: some View {
+        Section2(icon: "powersleep", title: String(localized: "Nap check"),
+                 blurb: String(localized: "After a sync NOOP can look for a daytime nap it might have missed and ask whether to keep it. It never adds one on its own."),
+                 active: napDetectionEnabled) {
+            VStack(spacing: 0) {
+                ToggleRow(label: String(localized: "Look for naps after a sync"),
+                          help: String(localized: "Off by default. A found nap waits here for your yes or no."),
+                          isOn: $napDetectionEnabled)
+                if napDetectionEnabled {
+                    if pendingNaps.isEmpty {
+                        Text("Nothing waiting. A nap NOOP finds after a sync shows up here.")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 8)
+                    } else {
+                        ForEach(pendingNaps) { nap in
+                            Divider().overlay(StrandPalette.hairline)
+                            napReviewRow(nap)
+                        }
+                    }
+                }
+            }
+        }
+        .onAppear { pendingNaps = NapReviewStore.pending() }
+    }
+
+    @ViewBuilder
+    private func napReviewRow(_ nap: PendingNap) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(Night.clockString(nap.start) + "-" + Night.clockString(nap.end))
+                .font(StrandFont.body)
+                .foregroundStyle(StrandPalette.textPrimary)
+            Text("\(nap.durationMin) min" + (nap.meanHr.map { ", \($0) bpm" } ?? ""))
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.textTertiary)
+            HStack(spacing: 12) {
+                Button("Keep this nap") {
+                    Task {
+                        await model.repo.addManualNap(startTs: nap.start, endTs: nap.end)
+                        pendingNaps = NapReviewStore.remove(id: nap.id)
+                        await model.intelligence.analyzeRecent(maxDays: 3, force: true,
+                                                               allowDayReuse: true, reason: .semanticChange)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                Button("Not a nap") { pendingNaps = NapReviewStore.dismiss(id: nap.id) }
+                    .buttonStyle(.bordered)
+            }
+            .font(StrandFont.subhead)
+        }
+        .padding(.vertical, 10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
     private var inactivityCard: some View {
         Section2(icon: "timer", title: String(localized: "Inactivity reminder"),

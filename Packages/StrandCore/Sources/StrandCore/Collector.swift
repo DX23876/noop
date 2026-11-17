@@ -187,6 +187,26 @@ public final class Collector {
         return (try? await s.gravitySamples(deviceId: deviceId, from: from, to: to, limit: limit)) ?? []
     }
 
+    /// The newest scored night's resting heart rate, or nil when no night carries one. The nap review
+    /// (#49) judges a still daytime window against the wearer's own SLEEPING level: a cinema seat is
+    /// quiet and low, but not as low as sleep.
+    public func latestRestingHR(days: Int = 14) async -> Int? {
+        guard let s = concreteStore else { return nil }
+        let to = now()
+        let fromDay = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(to - days * 86_400)))
+        let toDay = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(to)))
+        let rows = (try? await s.dailyMetrics(deviceId: deviceId, from: fromDay, to: toDay)) ?? []
+        return rows.compactMap(\.restingHr).last
+    }
+
+    /// The heart rate over a window, for the same read-only callers `recentGravity` serves. The nap
+    /// review (#49) needs both streams over one window: motion says the wrist was still, heart rate says
+    /// whether it was sleep.
+    public func recentHR(from: Int, to: Int, limit: Int = 100_000) async -> [HRSample] {
+        guard let s = concreteStore else { return [] }
+        return (try? await s.hrSamples(deviceId: deviceId, from: from, to: to, limit: limit)) ?? []
+    }
+
     /// Apply the raw-retention policy. Returns rows pruned (0 if no concrete store).
     @discardableResult
     public func prune() async -> Int {

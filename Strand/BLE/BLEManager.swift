@@ -2968,7 +2968,7 @@ public final class BLEManager: NSObject, ObservableObject {
                                              bankedRows: (backfiller?.sessionRowsPersisted ?? 0) > 0))
         // Inactivity reminder (#419): read-only hook on the natural offload completion (no cadence
         // change). Only on a true HISTORY_COMPLETE — a timeout/disconnect didn't bring a fresh window.
-        if reason == "HISTORY_COMPLETE" { maybeBuzzInactivity() }
+        if reason == "HISTORY_COMPLETE" { maybeBuzzInactivity(); maybeDetectNaps() }
         // Success-side summary (#150 forensics): we logged failures (decoded-to-0) but never successes,
         // so a strap log couldn't tell a banking strap from a broken one. Emit the per-session persistence
         // tally whenever anything actually landed — the win-rate signal a log previously lacked.
@@ -6419,6 +6419,38 @@ public final class BLEManager: NSObject, ObservableObject {
     /// Mirrors the async pattern of checkStrapLiveness: the gravity read only the Collector can do (it
     /// owns the concrete store) hops onto a @MainActor Task, then the gated buzz + state save run back on
     /// the main actor. Haptic firing can't be verified in the simulator — test on-device.
+    /// Short-nap detection over the window an offload just filled (#49; Apple twin of Android's
+    /// `maybeDetectNaps`).
+    ///
+    /// Read-only, on the same completion the inactivity nudge uses, so it adds no cadence of its own. It
+    /// NEVER writes a sleep session: a confident nap is queued as a question (`NapReviewStore`) and only
+    /// becomes a session when the wearer says yes, through the same `addManualNap` a hand-entered nap
+    /// takes. An inconclusive window queues nothing — this is the whole reason the path is shaped as an
+    /// offer rather than an assertion, since a still afternoon and a nap look alike from the wrist.
+    ///
+    /// Self-gated on the opt-in switch, so it is inert until it is asked for.
+    private func maybeDetectNaps() {
+        guard NapReviewPrefs.enabled() else { return }   // cheap gate before any store read
+        Task { @MainActor in
+            let nowSec = Int(Date().timeIntervalSince1970)
+            let from = nowSec - BLEManager.inactivityLookbackSeconds
+            let gravity = await collector?.recentGravity(from: from, to: nowSec) ?? []
+            guard !gravity.isEmpty else { return }
+            let hr = await collector?.recentHR(from: from, to: nowSec) ?? []
+            // The wearer's own sleeping heart rate, from the newest scored night. nil leaves the detector
+            // on motion alone at lower confidence; it never invents a band.
+            let restingHr = await collector?.latestRestingHR()
+            let highWater = NapReviewPrefs.highWaterOrSeed(now: nowSec)
+            let decision = NapDetector.evaluate(gravity: gravity, hr: hr, restingHr: restingHr,
+                                                config: NapReviewPrefs.config())
+            guard decision.verdict == .nap, let candidate = decision.candidate,
+                  candidate.end > highWater else { return }
+            NapReviewStore.enqueue(PendingNap(candidate), now: nowSec)
+            NapReviewPrefs.setHighWater(candidate.end)
+            log("Nap: a \(candidate.durationS / 60)-min window is waiting for your yes or no.")
+        }
+    }
+
     private func maybeBuzzInactivity() {
         guard InactivityPrefs.isEnabled() else { return }   // cheap pre-check before any DB read
         Task { @MainActor in

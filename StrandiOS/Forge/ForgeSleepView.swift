@@ -305,17 +305,35 @@ struct ForgeSleepView: View {
         // ten minutes asleep (`SleepNight.naps`).
         let main = SleepView.mainNightGroup(night.sourceBlocks, habitualMidsleepSec: presentation?.habitualMidsleepSec)
         let blocks = SleepNight.naps(night.sourceBlocks, mainGroup: main)
-        if !blocks.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
+        // Shown even on a day with no nap: "Add a nap" is the only way to enter one by hand, and the
+        // wearer who needs it is the one whose nap the detector missed (#49). The empty state says so in
+        // one line rather than leaving a card that looks broken.
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
                 ForgeSectionTitle(title: "Naps")
-                VStack(spacing: 0) {
+                Spacer(minLength: 8)
+                Button { editor.addingNap = AddNapSeed(afterWake: night.session.endTs) } label: {
+                    Label("Add nap", systemImage: "plus.circle.fill")
+                        .font(.system(.subheadline))
+                        .foregroundStyle(ForgeColor.accent)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("Add a nap"))
+            }
+            VStack(spacing: 0) {
+                if blocks.isEmpty {
+                    Text("No naps on this day. Add one if NOOP missed it.")
+                        .font(.system(.subheadline))
+                        .foregroundStyle(ForgeColor.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
                     ForEach(Array(blocks.enumerated()), id: \.element.startTs) { index, nap in
                         if index > 0 { Rectangle().fill(ForgeColor.separator).frame(height: 0.5) }
                         napRow(nap)
                     }
                 }
-                .forgeCard(radius: ForgeRadius.card, padding: 16)
             }
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
     }
 

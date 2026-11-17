@@ -19,6 +19,20 @@ struct SleepUndoBanner {
     let fromEdit: Bool
 }
 
+/// Seeds the "Add a nap" sheet (#508). A nap is short, so the picker opens on a 30-minute window an hour
+/// after the night's wake — the time of day a missed afternoon nap usually sits — and the wearer moves it.
+/// The identity is the seed start, so `.sheet(item:)` presents once per request.
+struct AddNapSeed: Identifiable {
+    let bedTs: Int
+    let wakeTs: Int
+    var id: Int { bedTs }
+    init(afterWake wakeTs: Int) {
+        let anchor = wakeTs + 3_600
+        self.bedTs = anchor
+        self.wakeTs = anchor + 30 * 60
+    }
+}
+
 struct WakeEdit: Identifiable {
     /// The exact bridged fragments represented by the editor's visible window. A nap is a one-row group.
     let group: [CachedSleepSession]
@@ -38,6 +52,12 @@ struct WakeEdit: Identifiable {
 @MainActor
 final class SleepNightEditor: ObservableObject {
     @Published var wakeEdit: WakeEdit?
+    /// Non-nil while the "Add a nap" sheet is open (#508, ryanbr/noop fork issue #49). The store and the
+    /// repository have carried `addManualNap` since v4.6.0, and the time editor was written with this
+    /// caller in mind — its own documentation names the "Add a nap" sheet — but no iOS screen reached it
+    /// after the app returned to the tree, so a wearer could delete a nap the detector invented and had no
+    /// way to add one it missed.
+    @Published var addingNap: AddNapSeed?
     @Published var napPendingDelete: CachedSleepSession?
     @Published var undo: SleepUndoBanner?
     private var undoTask: Task<Void, Never>?
@@ -93,6 +113,15 @@ final class SleepNightEditor: ObservableObject {
         presentUndo([snapshot], displayStart: nap.effectiveStartTs, windowEnd: nap.endTs, fromEdit: false)
         Self.scheduleRescore(wakeDays: [Repository.sleepEndDayKey(nap.endTs)],
                              required: snapshot.ownerDeviceId.hasSuffix("-noop"), repo: repo, appModel: appModel)
+    }
+
+    /// Write a hand-entered nap and re-score the day it belongs to, exactly as a delete or an edit does.
+    /// `addManualNap` stages the window from the raw streams, writes it as its own `userEdited` row and
+    /// never folds it into the night, so this cannot alter the main sleep.
+    func addNap(startTs: Int, endTs: Int, repo: Repository, appModel: AppModel?) async {
+        await repo.addManualNap(startTs: startTs, endTs: endTs)
+        Self.scheduleRescore(wakeDays: [Repository.sleepEndDayKey(endTs)], required: true,
+                             repo: repo, appModel: appModel)
     }
 
     /// A changed revision makes only the affected wake-days miss their persisted fingerprints. The pass
@@ -156,6 +185,22 @@ struct SleepNightEditing: ViewModifier {
                 Button("Cancel", role: .cancel) { editor.napPendingDelete = nil }
             } message: {
                 Text("It no longer counts toward the day's sleep, and the next analysis leaves it out.")
+            }
+            // Add a nap by hand (#508): the same editor, seeded on a free window instead of a recorded
+            // night. No coverage range, because the chosen window deliberately sits outside the night, and
+            // no delete, because there is nothing to delete yet.
+            .sheet(item: $editor.addingNap) { seed in
+                SleepTimeEditor(bedTs: seed.bedTs, wakeTs: seed.wakeTs,
+                                title: "Add a nap",
+                                blurb: "Pick when the nap started and ended. NOOP stages it from your data as its own session, separate from the night's sleep.",
+                                bedLabel: "Nap started", wakeLabel: "Nap ended",
+                                coverage: nil,
+                                onSave: { startTs, endTs, _ in
+                                    await editor.addNap(startTs: startTs, endTs: endTs,
+                                                        repo: repo, appModel: appModel)
+                                    return .success
+                                },
+                                onDelete: nil)
             }
             .sheet(item: $editor.wakeEdit) { edit in
                 // Validate against the WHOLE bridged night, not just its selector-winning fragment.
