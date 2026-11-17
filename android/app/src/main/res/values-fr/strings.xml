@@ -7064,6 +7064,9 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="forge_roadmap_decided_note">Signalements clos sans modification. Ils restent ici un mois.</string>
     <string name="forge_roadmap_report">Signaler un problème</string>
     <string name="forge_roadmap_report_detail">Crée un journal à joindre, rien n\'est envoyé tout seul</string>
+    <string name="project_log_myself">Créer un journal moi-même</string>
+    <string name="project_log_long_way">La voie longue : un fichier expurgé que vous emportez où vous voulez</string>
+    <string name="project_log_only_way">Un fichier expurgé que vous pouvez joindre là où vous le signalez</string>
     <string name="forge_roadmap_tracker">Ouvrir la liste des tickets</string>
     <string name="forge_roadmap_tracker_detail">La lecture et l\'écriture s\'y font dans votre navigateur</string>
     <string name="forge_roadmap_empty">Rien n\'a pu être chargé. La page a besoin d\'Internet une fois, ensuite elle garde la dernière copie.</string>

@@ -7105,6 +7105,9 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_roadmap_decided_note">Reports closed without a change. They stay here for a month.</string>
     <string name="forge_roadmap_report">Report a problem</string>
     <string name="forge_roadmap_report_detail">Builds a log you can attach, nothing is sent on its own</string>
+    <string name="project_log_myself">Build a log myself</string>
+    <string name="project_log_long_way">The long way: a redacted file you carry wherever you like</string>
+    <string name="project_log_only_way">A redacted file you can attach wherever you report it</string>
     <string name="forge_roadmap_tracker">Open the issue tracker</string>
     <string name="forge_roadmap_tracker_detail">Reading and writing there happens in your browser</string>
     <string name="forge_roadmap_empty">Nothing could be loaded. The page needs the internet once, then it keeps the last copy.</string>

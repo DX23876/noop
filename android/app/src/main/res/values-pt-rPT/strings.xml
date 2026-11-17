@@ -7057,6 +7057,9 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="forge_roadmap_decided_note">Comunicações fechadas sem alteração. Ficam aqui um mês.</string>
     <string name="forge_roadmap_report">Comunicar um problema</string>
     <string name="forge_roadmap_report_detail">Cria um registo para anexar, nada é enviado sozinho</string>
+    <string name="project_log_myself">Criar um registo eu mesmo</string>
+    <string name="project_log_long_way">O caminho longo: um ficheiro limpo que leva para onde quiser</string>
+    <string name="project_log_only_way">Um ficheiro limpo que pode anexar onde quer que comunique</string>
     <string name="forge_roadmap_tracker">Abrir a lista de problemas</string>
     <string name="forge_roadmap_tracker_detail">A leitura e a escrita acontecem no seu navegador</string>
     <string name="forge_roadmap_empty">Não foi possível carregar nada. A página precisa de Internet uma vez, depois guarda a última cópia.</string>

@@ -7052,6 +7052,9 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_roadmap_decided_note">Сообщения, закрытые без изменений. Остаются здесь месяц.</string>
     <string name="forge_roadmap_report">Сообщить о проблеме</string>
     <string name="forge_roadmap_report_detail">Создаёт журнал для вложения, само ничего не отправляется</string>
+    <string name="project_log_myself">Создать журнал самому</string>
+    <string name="project_log_long_way">Долгий путь: вычищенный файл, который вы несёте куда хотите</string>
+    <string name="project_log_only_way">Вычищенный файл, который можно приложить там, где вы сообщаете</string>
     <string name="forge_roadmap_tracker">Открыть список проблем</string>
     <string name="forge_roadmap_tracker_detail">Чтение и запись происходят в вашем браузере</string>
     <string name="forge_roadmap_empty">Не удалось ничего загрузить. Странице нужен интернет один раз, затем она хранит последнюю копию.</string>

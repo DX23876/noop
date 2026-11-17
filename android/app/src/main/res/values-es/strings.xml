@@ -7065,6 +7065,9 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_roadmap_decided_note">Informes cerrados sin cambios. Permanecen aquí un mes.</string>
     <string name="forge_roadmap_report">Informar de un problema</string>
     <string name="forge_roadmap_report_detail">Crea un registro que puedes adjuntar; nada se envía por sí solo</string>
+    <string name="project_log_myself">Crear un registro yo mismo</string>
+    <string name="project_log_long_way">El camino largo: un archivo depurado que llevas a donde quieras</string>
+    <string name="project_log_only_way">Un archivo depurado que puedes adjuntar donde informes</string>
     <string name="forge_roadmap_tracker">Abrir la lista de incidencias</string>
     <string name="forge_roadmap_tracker_detail">La lectura y la escritura allí ocurren en tu navegador</string>
     <string name="forge_roadmap_empty">No se pudo cargar nada. La página necesita internet una vez; después conserva la última copia.</string>

@@ -423,9 +423,14 @@ internal fun ProblemsSection(onOpenTestCentre: () -> Unit, onOpenTracker: () -> 
     IssueGroup(R.string.forge_roadmap_decided, page.decided, R.string.forge_roadmap_decided_note)
 
     ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
+        // Named for what it is, as on Apple: the in-app reporter above carries the title "Report a
+        // problem", and two rows with that title on one page is the page saying one thing twice. The
+        // line under it depends on whether the short way exists at all, because "the long way" only
+        // means something beside a short one.
         HubRow(Icons.Rounded.BugReport, ForgeTokens.Color.systemTeal.resolve(),
-               stringResource(R.string.forge_roadmap_report),
-               stringResource(R.string.forge_roadmap_report_detail), onOpenTestCentre)
+               stringResource(R.string.project_log_myself),
+               stringResource(if (page.canWrite) R.string.project_log_long_way
+                              else R.string.project_log_only_way), onOpenTestCentre)
         HubDivider()
         HubRow(Icons.Rounded.OpenInNew, ForgeTokens.Color.systemGray.resolve(),
                stringResource(R.string.forge_roadmap_tracker),

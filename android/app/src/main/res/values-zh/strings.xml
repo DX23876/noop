@@ -7027,6 +7027,9 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_roadmap_decided_note">已关闭但未更改的报告。它们会在这里保留一个月。</string>
     <string name="forge_roadmap_report">报告问题</string>
     <string name="forge_roadmap_report_detail">会生成一份可附加的日志，不会自行发送</string>
+    <string name="project_log_myself">自己生成日志</string>
+    <string name="project_log_long_way">长路：一份已清理的文件，你想带到哪里都行</string>
+    <string name="project_log_only_way">一份已清理的文件，你在哪里报告都能附上</string>
     <string name="forge_roadmap_tracker">打开问题列表</string>
     <string name="forge_roadmap_tracker_detail">在那里的阅读和书写都在您的浏览器中进行</string>
     <string name="forge_roadmap_empty">没有加载到任何内容。此页面需要联网一次，之后会保留最后一份副本。</string>

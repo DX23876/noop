@@ -7081,6 +7081,9 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_roadmap_decided_note">Meldungen, die ohne Änderung geschlossen wurden. Sie bleiben einen Monat hier.</string>
     <string name="forge_roadmap_report">Problem melden</string>
     <string name="forge_roadmap_report_detail">Erstellt ein Protokoll zum Anhängen, von allein wird nichts gesendet</string>
+    <string name="project_log_myself">Log selbst bauen</string>
+    <string name="project_log_long_way">Der lange Weg: eine bereinigte Datei, die du mitnimmst, wohin du willst</string>
+    <string name="project_log_only_way">Eine bereinigte Datei, die du anhängen kannst, wo immer du es meldest</string>
     <string name="forge_roadmap_tracker">Fehlerliste öffnen</string>
     <string name="forge_roadmap_tracker_detail">Lesen und Schreiben passiert dort im Browser</string>
     <string name="forge_roadmap_empty">Es konnte nichts geladen werden. Die Seite braucht einmal Internet, danach behält sie die letzte Fassung.</string>

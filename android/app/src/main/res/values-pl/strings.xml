@@ -7099,6 +7099,9 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_roadmap_decided_note">Zgłoszenia zamknięte bez zmian. Zostają tu przez miesiąc.</string>
     <string name="forge_roadmap_report">Zgłoś problem</string>
     <string name="forge_roadmap_report_detail">Tworzy dziennik do załączenia, nic nie jest wysyłane samo</string>
+    <string name="project_log_myself">Sam utworzę dziennik</string>
+    <string name="project_log_long_way">Długa droga: oczyszczony plik, który zabierzesz, gdzie chcesz</string>
+    <string name="project_log_only_way">Oczyszczony plik, który dołączysz tam, gdzie zgłaszasz</string>
     <string name="forge_roadmap_tracker">Otwórz listę zgłoszeń</string>
     <string name="forge_roadmap_tracker_detail">Czytanie i pisanie odbywa się tam w przeglądarce</string>
     <string name="forge_roadmap_empty">Nie udało się nic wczytać. Strona potrzebuje raz internetu, potem zachowuje ostatnią kopię.</string>
