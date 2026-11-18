@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Emulator smoke test of the demo app (Android plan D-8): launch, get past the terms and onboarding, then
 screenshot Today and the main tabs. Usage: android_smoke_flow.py <out_dir>. Expects one booted emulator with the
-demo APK installed; `Tools/android-smoke.sh` drives it across screen sizes. Prints "crash: True" if the app's
-process died with a fatal exception."""
+demo APK installed; `Tools/android-smoke.sh` drives it across screen sizes. Ends with "crash: <bool> anr: <bool>":
+a fatal exception in the app's process, and the system's own not-responding verdict, which is the other way a
+run dies and used to surface as a traceback from this script."""
 import re
 import subprocess
 import sys
@@ -19,9 +20,32 @@ def adb(*a, text=True):
     return subprocess.run(["adb", *a], capture_output=True, text=text).stdout
 
 
+def not_responding():
+    """The system's own "Application Not Responding" verdict for our package.
+
+    An ANR is the other way a run dies and it is NOT a crash: the process is alive, logcat carries no
+    FATAL EXCEPTION, and `uiautomator dump` hands back nothing because the window never goes idle.
+    The dialog is the current state; the events log still holds it once the dialog is gone.
+    """
+    if f"Application Not Responding: {PKG}" in adb("shell", "dumpsys", "window"):
+        return True
+    return PKG in adb("logcat", "-d", "-b", "events", "-s", "am_anr")
+
+
 def nodes():
     adb("shell", "uiautomator", "dump", "/sdcard/ui.xml")
     xml = adb("exec-out", "cat", "/sdcard/ui.xml")
+    if "<" not in xml:
+        # Without this the run died on `xml.index("<")` with "ValueError: substring not found", which
+        # reads as a bug in this script rather than as what it is: the app under test stopped
+        # answering. Name the gap and keep the picture of the screen that caused it.
+        shot("99-no-ui-dump")
+        anr = not_responding()
+        print("anr:", anr)
+        raise SystemExit(
+            "smoke flow stopped: "
+            + ("the app is not responding (ANR)" if anr else "uiautomator returned no view hierarchy")
+            + "; the screen at that moment is 99-no-ui-dump.png")
     root = ET.fromstring(xml[xml.index("<"):])
     out = []
     for n in root.iter("node"):
@@ -117,7 +141,7 @@ def main():
             print("no tab", tab); continue
         tap(hit); time.sleep(3)
         shot(f"{i:02d}-{tab.lower()}")
-    print("crash:", crashed())
+    print("crash:", crashed(), "anr:", not_responding())
 
 
 if __name__ == "__main__":
