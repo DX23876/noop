@@ -1599,7 +1599,7 @@
     <string name="l10n_settings_screen_whole_night_is_noop_s_default_fbfff434">【整夜(Whole night)】是 NOOP 的默认算法；【深度睡眠(Deep sleep)】则仅汇总慢波睡眠期间的 HRV，计算出的数值会偏低，且更接近官方 WHOOP 的计算结果。切换算法会基于新窗口重新评估您最近几个晚上的分数，只要您有连续几晚的数据，就能立即生效。</string>
     <string name="l10n_settings_screen_whoop_4_0_versus_5_0_a54c5504">WHOOP 4.0 与 5.0 对比：它们各自能测什么？</string>
     <string name="l10n_settings_screen_whoop_4_0_vs_5_0_2babb05a">WHOOP 4.0 vs 5.0/MG</string>
-    <string name="l10n_settings_screen_whoop_5_mg_straps_hand_a_b8b239e6">WHOOP 5.0/MG 手环默认只会向新连接的 App 发送实时心率。官方 App 会通过写入一组特定的功能标识指令序列（目前已有两个独立项目开源记录了这段序列），来开启手环的深层数据流（如高采样率心率 + 运动幅度 + 历史数据）。开启本功能后，下方的按钮会向您的手环发送这串完全一致的序列。与本界面的其他设置不同，它是真正向手环写入数据的，但该操作是可逆的（仅改变手环要吐出的数据类型），且与官方 App 所做的事情完全一样。实验性功能：您的固件版本可能对此毫无反应。</string>
+    <string name="l10n_settings_screen_whoop_5_mg_straps_hand_a_b8b239e6">R22 功能标识的旧实验。手环会接受这些写入，但 NOOP 并未观察到它们开启了单独的实时数据流。WHOOP 5/MG 的正常使用和原始数据采集都不需要它。它会向手环写入持久设置，在你的固件上可能毫无作用。</string>
     <string name="l10n_settings_screen_whoop_a3650379">WHOOP</string>
     <string name="l10n_settings_screen_working_13b7bfca">正在处理…</string>
     <string name="l10n_settings_screen_you_re_on_the_latest_r_027a82be">您已经是最新版了 (%1$s)。</string>
