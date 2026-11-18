@@ -265,9 +265,24 @@ struct CycleSnapshot: Sendable {
             periodLength = last + 1
         }
 
-        // The engine's shift marker inside this cycle, as a cycle day.
+        // The engine's shift marker inside this cycle, as a cycle day: the FIRST onset of the cycle, not
+        // the last, and never one inside the period itself.
+        //
+        // `shiftMarkers` are rising EDGES of the luteal index (`CyclePhaseEngine`), so an elevated
+        // plateau that dips under the threshold for one night emits another one. Taking the latest made
+        // the shift follow today: in the app's own biphasic demo it read day 18 with today on day 20, and
+        // day 22 with today on day 24, while the seeded rise sits at day 15 either way. Three things read
+        // it. The curve says "the rise around day N is the shift NOOP reads from your nights", which was
+        // then a day the rise did not happen; the phase boundary is drawn from it; and the luteal
+        // comparison averages the nights AFTER it, needing three of them — which it could never gather
+        // while the marker kept moving to two days ago, so the Body, Exercise and Mind cards lost their
+        // comparison line for good.
         let shiftDay: Int? = current.flatMap { start in
-            result?.shiftMarkers.map(\.day).filter { $0 > start && $0 <= today }.max().flatMap { diff(start, $0).map { $0 + 1 } }
+            result?.shiftMarkers.map(\.day)
+                .filter { $0 > start && $0 <= today }
+                .compactMap { diff(start, $0).map { $0 + 1 } }
+                .filter { $0 > periodLength }
+                .min()
         }
 
         // The phase: the logged period first (the wearer's own fact), then this cycle's rise, then the engine.

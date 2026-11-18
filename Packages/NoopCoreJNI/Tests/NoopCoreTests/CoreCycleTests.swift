@@ -25,6 +25,27 @@ final class CoreCycleTests: XCTestCase {
         XCTAssertEqual(luteal.phase(onDay: 10), .follicular)
     }
 
+    func testTheCyclesFirstRiseIsTheShift() {
+        // `shiftMarkers` are rising edges, so an elevated plateau that dips under the threshold for one
+        // night emits another one. Taking the latest made the shift follow today: the curve named a day
+        // the rise did not happen, and the luteal comparison, which averages the three nights after it,
+        // could never gather them.
+        let wobbly = CycleSnapshot.make(result: result(["2026-11-15", "2026-11-18", "2026-11-22"]),
+                                        starts: ["2026-11-01"], log: [:], days: [], today: "2026-11-24")
+        XCTAssertEqual(wobbly.cycleDay, 24)
+        XCTAssertEqual(wobbly.shiftDay, 15, "the first onset of this cycle is the rise, not the last")
+        XCTAssertEqual(wobbly.phase, .luteal)
+    }
+
+    func testAnOnsetInsideThePeriodIsNotTheRise() {
+        // The first nights of a cycle can cross the threshold while the period is still running; that is
+        // not the shift, and reading it as one would put the whole cycle in the luteal phase.
+        let log = ["2026-11-01": CycleLog.Day(flow: .medium), "2026-11-02": CycleLog.Day(flow: .light)]
+        let snap = CycleSnapshot.make(result: result(["2026-11-02", "2026-11-16"]),
+                                      starts: ["2026-11-01"], log: log, days: [], today: "2026-11-20")
+        XCTAssertEqual(snap.shiftDay, 16, "an onset inside the period days is skipped")
+    }
+
     func testPastRisesAndTheTestDayGiveTheFertileWindow() {
         let starts = ["2026-08-08", "2026-09-05", "2026-10-03", "2026-10-31", "2026-11-12"]
         let shifts = ["2026-08-22", "2026-09-19", "2026-10-17", "2026-11-10"]
