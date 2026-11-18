@@ -521,9 +521,13 @@ struct KeepSessionAsRoutineCard: View {
     @State private var programs: [TrainingProgram] = []
     @State private var title = ""
     @State private var programId: UUID?
-    @State private var state = State.offered
+    @State private var state = SaveStep.offered
 
-    private enum State { case offered, saving, saved, failed }
+    /// Not called `State`: a nested type of that name shadows SwiftUI's property wrapper inside this
+    /// struct, so every `@State` above it reads as this enum. Xcode 27 resolves the attribute anyway,
+    /// Xcode 26.6 (what the workflows run) does not, so the local build passed and the testing build
+    /// failed on `enum 'State' cannot be used as an attribute` plus eleven errors that followed it.
+    private enum SaveStep { case offered, saving, saved, failed }
 
     var body: some View {
         if !workout.exercises.isEmpty {
