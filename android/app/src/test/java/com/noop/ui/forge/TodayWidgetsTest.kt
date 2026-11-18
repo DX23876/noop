@@ -1,5 +1,6 @@
 package com.noop.ui.forge
 
+import com.noop.ui.KeyMetric
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -44,5 +45,41 @@ class TodayWidgetsTest {
         val list = listOf(m("a", span = 2), card("g"), TodayWidget("h", TodayWidget.Kind.LiveHeart, wide = true))
         assertEquals(list, TodayWidgets.decode(TodayWidgets.encode(list)))
         assertEquals(emptyList<TodayWidget>(), TodayWidgets.decode("not json"))
+    }
+
+    // Carrying an existing Today into the new design (owner, 2026-11-18), iOS's `ForgeTodayTileSeedTests`.
+    // The promise is "nothing gets rearranged": an arranged Key-Metrics layout comes over as the same
+    // metrics in the same order, an untouched one gets the set Today has always placed.
+
+    private fun keys(selection: String?) = TodayWidgets.firstTiles(selection).map { it.key }
+
+    @Test fun noSavedLayoutKeepsTheFixedFirstSet() {
+        assertEquals(TodayWidgets.firstSet, TodayWidgets.firstTiles(null))
+        assertEquals(TodayWidgets.firstSet, TodayWidgets.firstTiles("   "))
+    }
+
+    @Test fun aSavedLayoutIsCarriedInItsOwnOrder() {
+        assertEquals(listOf("weight", "hrv", "steps"), keys("weight,hrv,steps"))
+    }
+
+    /** The rings directly above already say today's number, and these exist as tiles only across the row. */
+    @Test fun chargeEffortAndRestAreNotCarried() {
+        assertEquals(listOf("hrv"), keys("charge,effort,rest,hrv"))
+    }
+
+    /** A metric the gallery has no tile for is dropped, not placed empty. */
+    @Test fun aMetricWithoutATileIsDropped() {
+        assertEquals(listOf("hrv"), keys("hrv,somethingTheGalleryNeverHeardOf"))
+    }
+
+    @Test fun everyMetricEitherCarriesOrIsOneOfTheThree() {
+        for (metric in KeyMetric.entries) {
+            val carried = metric.measureKey
+            if (metric == KeyMetric.CHARGE || metric == KeyMetric.EFFORT || metric == KeyMetric.REST) {
+                assertEquals("${metric.raw} is a whole-row tile, not a carried one", null, carried)
+            } else {
+                assertEquals("${metric.raw} has nowhere to go", metric.raw, carried)
+            }
+        }
     }
 }

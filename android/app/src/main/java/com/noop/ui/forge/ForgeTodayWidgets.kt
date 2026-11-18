@@ -83,6 +83,7 @@ import com.noop.R
 import com.noop.core.CoreRead
 import com.noop.ui.AppViewModel
 import com.noop.ui.KeyMetric
+import com.noop.ui.KeyMetricPrefs
 import com.noop.ui.NoopPrefs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -228,11 +229,27 @@ internal object TodayWidgets {
         TodayWidget.Size.Small -> 1
     }
 
+    /**
+     * The tiles a wearer starts the new design with, iOS's `ForgeTodayWidgetStore.firstTiles`.
+     *
+     * With no saved Key-Metrics layout ([selection] null or blank) this is the fixed [firstSet], as it has
+     * been. With one, it is THAT layout, in its order: the new design arrives without rearranging anybody's
+     * Today, which is the whole promise of the 2026-11-18 switch-over. A metric with no tile to carry is
+     * dropped ([KeyMetric.measureKey]), and so is one the gallery does not offer.
+     */
+    fun firstTiles(selection: String?): List<TodayWidget> {
+        if (selection?.trim().isNullOrEmpty()) return firstSet
+        return KeyMetricPrefs.decodeEnabled(selection)
+            .mapNotNull { it.measureKey }
+            .filter { it in measures }
+            .map { TodayWidget(kind = TodayWidget.Kind.Measure, key = it) }
+    }
+
     internal fun load(context: Context): List<TodayWidget> {
         val prefs = context.getSharedPreferences(NoopPrefs.NAME, Context.MODE_PRIVATE)
         val stored = decode(prefs.getString(KEY, null))
         if (prefs.getBoolean(SEEDED_KEY, false)) return stored
-        val seeded = firstSet + stored
+        val seeded = firstTiles(KeyMetricPrefs.enabledRaw(context)) + stored
         prefs.edit().putBoolean(SEEDED_KEY, true).putString(KEY, encode(seeded)).apply()
         return seeded
     }

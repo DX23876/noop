@@ -38,6 +38,21 @@ enum class KeyMetric(val raw: String, @StringRes val titleRes: Int) {
     // byte-identical to before; only opts in via the layout editor.
     SKIN_TEMP("skinTemp", R.string.today_card_skin_temp);
 
+    /**
+     * The measure tile this Key Metric becomes when an existing layout is carried into the new design's
+     * tiles (2026-11-18), or null where there is nothing to carry.
+     *
+     * Charge, Effort and Rest answer null deliberately. They DO exist as tiles, but only across the whole
+     * row with their thirty-day curve, because the three rings directly above already say today's number.
+     * Turning someone's small Key-Metrics tile into a full row unasked is exactly the rearrangement this
+     * migration promises not to do; whoever wants them picks them from the gallery.
+     *
+     * Android keys its measure tiles by [raw], iOS by the measure catalogue ("rhr", "spo2", "resp_rate"),
+     * so the two spellings differ. They never meet, `forge.today.widgets` is per device and is not in the
+     * `.noopbak` whitelist, but the lists they produce must stay the same metrics in the same order.
+     */
+    val measureKey: String? get() = if (this == CHARGE || this == EFFORT || this == REST) null else raw
+
     companion object {
         fun fromRaw(raw: String?): KeyMetric? = entries.firstOrNull { it.raw == raw }
 

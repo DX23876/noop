@@ -34,6 +34,31 @@ enum KeyMetric: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
+    /// The measure tile this Key Metric becomes when an existing layout is carried into the new design's
+    /// tiles (2026-11-18), as the measure catalogue keys it; nil where there is nothing to carry.
+    ///
+    /// Charge, Effort and Rest answer nil deliberately. They DO exist as tiles, but only across the whole
+    /// row with their thirty-day curve, because the three rings directly above already say today's number.
+    /// Turning someone's small Key-Metrics tile into a full row unasked is exactly the rearrangement this
+    /// migration promises not to do; whoever wants them picks them from the gallery.
+    ///
+    /// Android's twin answers the rawValue instead: its measure tiles are keyed by `KeyMetric.raw`, iOS's by
+    /// the catalogue. The two spellings never meet — `forge.today.widgets` is per device and is not in the
+    /// `.noopbak` whitelist — but the lists they produce must stay the same metrics in the same order.
+    var measureKey: String? {
+        switch self {
+        case .charge, .effort, .rest: return nil
+        case .hrv:         return "hrv"
+        case .restingHr:   return "rhr"
+        case .bloodOxygen: return "spo2"
+        case .respiratory: return "resp_rate"
+        case .steps:       return "steps"
+        case .weight:      return "weight"
+        case .calories:    return "active_kcal"
+        case .skinTemp:    return "skin_temp"
+        }
+    }
+
     /// The tile's display label — matches the `StatTile(label:)` text rendered on the grid.
     var title: String {
         switch self {

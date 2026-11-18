@@ -85,10 +85,8 @@ final class ForgeTodayWidgetStore: ObservableObject {
         }
         if !UserDefaults.standard.bool(forKey: Self.seededKey) {
             UserDefaults.standard.set(true, forKey: Self.seededKey)
-            let first: [ForgeTodayWidget] = ["hrv", "rhr", "steps", "sleep_total_min", "stress", "weight"].compactMap { key in
-                ForgeWidgetMeasures.all.first { $0.key == key }.map { .init(kind: .measure, key: $0.key, source: $0.source) }
-            }
-            widgets = first + widgets
+            widgets = Self.firstTiles(selection: UserDefaults.standard.string(forKey: KeyMetricPrefs.layoutKey))
+                + widgets
             save()
         }
         // The cycle card stood fixed on Today; whoever saw it keeps it, now as a widget they can remove.
@@ -102,6 +100,14 @@ final class ForgeTodayWidgetStore: ObservableObject {
                 widgets.append(.init(kind: .cycle))
                 save()
             }
+        }
+    }
+
+    /// The tiles placed on a first run, from `ForgeTodayTileSeed` (shared, so it is tested) turned into
+    /// widgets. A key the gallery does not offer is dropped rather than placed as an empty tile.
+    static func firstTiles(selection: String?) -> [ForgeTodayWidget] {
+        ForgeTodayTileSeed.measureKeys(selection: selection).compactMap { key in
+            ForgeWidgetMeasures.all.first { $0.key == key }.map { .init(kind: .measure, key: $0.key, source: $0.source) }
         }
     }
 
