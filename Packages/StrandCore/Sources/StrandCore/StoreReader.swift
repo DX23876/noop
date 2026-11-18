@@ -400,7 +400,9 @@ public struct StoreReader: Sendable {
         return values
     }
 
-    private func pagedNativeWorkoutRows(from: Int, to: Int) async -> [NativeWorkout] {
+    /// Every native session starting in the window, paged. Not private: `WorkoutHeartRateFills.fillRecorded`
+    /// needs the same list, because a native session is not in the `workout` table (#51).
+    func pagedNativeWorkoutRows(from: Int, to: Int) async -> [NativeWorkout] {
         let pageSize = 500
         var offset = 0
         var values: [NativeWorkout] = []

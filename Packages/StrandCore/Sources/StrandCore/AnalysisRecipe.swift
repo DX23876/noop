@@ -246,7 +246,14 @@ public enum AnalysisRecipe {
     // (`WorkoutHeartRateFills.fillHealthConnect`), as Apple Health's workouts get theirs; the `.workoutHeartRate` step
     // runs it over the whole history. It rides on AI-35, which is in no release or testing build yet.
     // The full rebuild re-derives every day; no stored input is rewritten.
-    public static let currentVersion = 35
+    // AI-36 (2026-11-18, fork) fills the sessions recorded in Training. A native session is never written to
+    // the `workout` table, so the recorded fill pass could not see one and no session ever got its average,
+    // peak or Effort in the lists; the pass now projects the native log alongside the table
+    // (`WorkoutHeartRateFills.fillRecorded`, #51). Its own number because AI-35 has since shipped: the
+    // testing build of 2026-11-14 (`7b8d2d928`) carries it, which supersedes the clause above. The
+    // `.workoutHeartRate` step runs the pass over the whole history, so every session already recorded or
+    // imported gets its fill; no stored input is rewritten.
+    public static let currentVersion = 36
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy
     /// repairs of older recipes, which fix stored inputs rather than derive anything (`LegacyRepair`).

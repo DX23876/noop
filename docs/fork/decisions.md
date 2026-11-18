@@ -1754,3 +1754,37 @@ Check `get_app_container` against the build you just made before believing a scr
 
 Analysis migration required: no. Screen copy, display formatters and CI gates; no stored value, no
 scoring, no analysis window.
+
+## 2026-11-18 — Two reports from the testers: a figure that painted nothing, and sessions the fill pass could not see
+
+Both are the same shape: a screen stayed silent about something the app had already worked out.
+
+**The muscle figure under Strength was grey while the list beneath it named twelve trends (#52).**
+The merge per figure muscle compared `abs(slope) >= abs(merged[slug] ?: -1.0)`. The `-1.0` is the
+sentinel for "nothing stored for this muscle yet", and wrapping it in `abs` turned it into a
+threshold of 1.0, a hundred per cent a week. Normalized weekly slopes run around 0.01 to 0.08, so no
+reading ever passed and the map handed to the figure was always empty. Apple compares against a
+stored magnitude, where the sentinel loses every time, so iOS was never affected. The merge is now
+its own function on Android with the sentinel outside `abs`, covered by a test with the reporter's
+own figures. Android only, presentation only.
+
+**A session recorded in Training never showed its heart rate or its Effort (#51).** The reporter
+found the whole chain from an exported backup: the session's load was computed and the day's Effort
+counted it, only the per-workout row was empty. A native session is deliberately not written to the
+`workout` table, it reaches the lists as a read-time projection, and the recorded fill pass built
+its candidates from that table alone. So no fill was ever stored, and the overlay, which already
+maps the `native-training` source to the recorded namespace, had nothing to lay on. The pass now
+projects the native log alongside the table (option A in the report, which reuses the existing fill
+rules unchanged).
+
+Where a native session still has the legacy manual recording of the same session beside it, both
+share the fill key. The native row is the one the list shows, so it is the one that decides, and the
+fill is computed from its span.
+
+Not done: the energy of a native session. The report does not ask for it, and energy is not part of
+a heart rate fill; it would need its own source and its own decision.
+
+Analysis migration required: yes (AI-36). The `.workoutHeartRate` step runs the recorded pass over
+the whole history, which is what gives the sessions already recorded or imported their fill. Its own
+number rather than a rider on AI-35, because AI-35 has shipped: the testing build of 2026-11-14
+(`7b8d2d928`) carries it.

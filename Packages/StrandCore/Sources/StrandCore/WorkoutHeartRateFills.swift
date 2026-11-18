@@ -214,9 +214,15 @@ public enum WorkoutHeartRateFills {
                 offset += page.count
             }
         }
-        let candidates = rows.filter {
+        // A native session is deliberately never written to the `workout` table, so the pages above cannot
+        // see one and no fill was ever computed for it: the list showed every recorded strength session
+        // without heart rate and without its effort (#51). Its read-time envelope already carries the
+        // source family and the natural key the overlay looks under, so projecting it here is enough.
+        let native = await reader.pagedNativeWorkoutRows(from: from, to: to)
+            .map(NativeTrainingProjection.workoutRow)
+        let candidates = Self.oneCandidatePerFillKey((native + rows).filter {
             WorkoutSource.classify($0.source).isWearerLogged && $0.avgHr == nil && $0.endTs > $0.startTs
-        }
+        })
         guard let first = candidates.map(\.startTs).min(),
               let last = candidates.map(\.startTs).max() else { return .untouched }
         let own = await reader.restingHrByDay(fromDay: StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(first))),
@@ -242,6 +248,15 @@ public enum WorkoutHeartRateFills {
         guard !keys.isEmpty else { return .untouched }
         try await store.replaceWorkoutHeartRateFills(fills, keys: keys)
         return Outcome(filled: fills.count, wrote: true)
+    }
+
+    /// One candidate per fill key, keeping the first. The key is start and sport, and a native session can
+    /// still have the legacy manual recording of the same session beside it; the native row is passed in
+    /// first because that is the row the list shows (`StoreReader.hidingLegacyStrengthRecordings`), and so
+    /// the row the stored fill is read back under.
+    private static func oneCandidatePerFillKey(_ rows: [WorkoutRow]) -> [WorkoutRow] {
+        var seen = Set<String>()
+        return rows.filter { seen.insert("\($0.startTs)|\($0.sport)").inserted }
     }
 
     /// The fill namespace a row's stored fill lives in, or nil for a source that is never filled.
