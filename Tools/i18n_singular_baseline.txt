@@ -2,12 +2,15 @@
 # Format: <platform> <allowed count>. Ratchet DOWN as they are given plurals, never up.
 #
 # Found by walking the shipped apps on 2026-11-18: the weekly-goal page said "Best series so far:
-# 1 weeks". That card's six lines were given real plurals on both platforms; these are what is left.
+# 1 weeks". That card's six lines were given real plurals on both platforms, and so were the nine
+# others whose call site can hand them a 1 (sets, stored workouts, imported entries, readings behind
+# a body measurement, days with a workout, days not measured, sessions, sessions a week, days a
+# week). These are what is left.
 #
 # A high number is not a backlog of bugs. Many of these can never show 1 ("%lld of %lld days" on a
 # 14-day baseline, "%lld days" in a fixed 7-day window), and deciding that one by one is worth less
 # than the floor this holds: a new string of this shape makes the count go up, and the gate says so.
 # Lower a number only together with the plurals that earned it.
 
-android 83
-apple 204
+android 74
+apple 197

@@ -37,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -156,7 +157,7 @@ private fun CalendarCard(rows: List<WorkoutRow>, first: LocalDate, today: LocalD
     val dark = colors.dark
     val steps = if (dark) listOf(0xFF6E2412, 0xFFA83A16, 0xFFE0601E, 0xFFFF9447) else listOf(0xFFFFD8BF, 0xFFFFB07A, 0xFFF5803A, 0xFFD4560F)
     val label = stringResource(R.string.forge_wk_cal_label)
-    val value = stringResource(R.string.forge_wk_cal_value, load.keys.size)
+    val value = pluralStringResource(R.plurals.forge_wk_cal_value, load.keys.size, load.keys.size)
     ForgeCard(Modifier.fillMaxWidth(), contentPadding = ForgeMetrics.space4) {
         Row(verticalAlignment = Alignment.Bottom) {
             Text(stringResource(R.string.forge_wk_13), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text,

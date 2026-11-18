@@ -45,6 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import com.noop.R
@@ -472,7 +473,7 @@ private fun BodySitePage(b: CoreBody.Snapshot, key: String, onDelete: (String) -
                 Column(horizontalAlignment = Alignment.End) {
                     Text((if (change > 0) "+" else "") + stringResource(R.string.forge_body_cm, one(change)), style = Forge.type.title2,
                          color = colors.text)
-                    Text(stringResource(R.string.body_site_over, series.size), style = Forge.type.caption, color = colors.textTertiary)
+                    Text(pluralStringResource(R.plurals.body_site_over, series.size, series.size), style = Forge.type.caption, color = colors.textTertiary)
                 }
             }
         }

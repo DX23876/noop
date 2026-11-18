@@ -49,6 +49,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.noop.R
 import com.noop.core.CoreRead
@@ -559,7 +560,7 @@ private fun LibraryExercisePage(id: String, favorite: Boolean, toggleFavorite: (
                     ReportNote(stringResource(R.string.forge_library_estimate_note))
                 }
                 d.recent.forEach { recent ->
-                    ReportFact(sessionDate(recent.startTs), stringResource(R.string.forge_library_sets, recent.workingSets))
+                    ReportFact(sessionDate(recent.startTs), pluralStringResource(R.plurals.forge_library_sets, recent.workingSets, recent.workingSets))
                     if (!recent.isNative) ReportNote(stringResource(R.string.forge_library_imported))
                     recent.heaviestKg?.let { ReportNote(UnitFormatter.massFromKilograms(it, units)) }
                 }

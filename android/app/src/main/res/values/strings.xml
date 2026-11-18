@@ -3635,7 +3635,10 @@
     <string name="forge_library_region_shoulders">Shoulders</string>
     <string name="forge_library_save_failed">The exercise could not be saved. Try again.</string>
     <string name="forge_library_search">Exercise, muscle or equipment</string>
-    <string name="forge_library_sets">%1$d sets</string>
+    <plurals name="forge_library_sets">
+        <item quantity="one">%1$d set</item>
+        <item quantity="other">%1$d sets</item>
+    </plurals>
     <string name="forge_library_subtitle">Find exercises, instructions and your records</string>
     <string name="forge_library_this_exercise">This exercise</string>
     <string name="forge_library_title">Exercise library</string>
@@ -3675,7 +3678,10 @@
     <string name="forge_history_rated">Rated: %1$d of %2$d sessions in this span</string>
     <string name="forge_history_gaps">%1$d of %2$d periods include days that could not be measured (hatched).</string>
     <string name="forge_history_estimate_note">Pale tops are estimated from a workout\'s average heart rate, where no heart-rate trace was kept. They are not counted in the level or the band.</string>
-    <string name="forge_history_unknown_days">%1$d days not measured</string>
+    <plurals name="forge_history_unknown_days">
+        <item quantity="one">%1$d day not measured</item>
+        <item quantity="other">%1$d days not measured</item>
+    </plurals>
     <string name="forge_history_all">All</string>
     <string name="forge_history_unavailable">The training history could not be loaded.</string>
     <string name="forge_session_body_response">What your body did</string>
@@ -3752,7 +3758,10 @@
     <string name="forge_hevy_credentials_failed">Could not save the API key securely.</string>
     <string name="forge_hevy_routines_note">Choose the routines to add. Importing again updates the copies previously imported from Hevy.</string>
     <string name="forge_hevy_counts">Stored: %1$d · updated: %2$d · removed: %3$d · skipped: %4$d</string>
-    <string name="forge_hevy_stored">%1$d workouts stored</string>
+    <plurals name="forge_hevy_stored">
+        <item quantity="one">%1$d workout stored</item>
+        <item quantity="other">%1$d workouts stored</item>
+    </plurals>
     <string name="forge_hevy_last_sync">Last sync: %1$s</string>
     <string name="forge_hevy_pages">Page %1$d of %2$d</string>
     <string name="forge_hevy_skipped_exercises">%1$d exercises skipped</string>
@@ -6313,7 +6322,10 @@
     <string name="forge_wk_min">%1$d min</string>
     <string name="forge_wk_h_min">%1$d h %2$s min</string>
     <string name="forge_wk_cal_label">Training days in the last 13 weeks</string>
-    <string name="forge_wk_cal_value">%1$d days with a workout</string>
+    <plurals name="forge_wk_cal_value">
+        <item quantity="one">%1$d day with a workout</item>
+        <item quantity="other">%1$d days with a workout</item>
+    </plurals>
     <string name="forge_steps_from">Steps from</string>
     <string name="forge_steps_auto">Automatic</string>
     <string name="forge_steps_strap">Strap</string>
@@ -6658,7 +6670,10 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="diet_train_all">With every day a training day there is no rest day to move calories from, so all days stay the same.</string>
     <string name="diet_train_moved">Moved to training days</string>
     <string name="diet_train_fasting">A fasting form keeps its own days, so nothing moves between training and rest days.</string>
-    <string name="body_site_over">over %1$d readings</string>
+    <plurals name="body_site_over">
+        <item quantity="one">over %1$d reading</item>
+        <item quantity="other">over %1$d readings</item>
+    </plurals>
     <string name="body_site_history">History</string>
     <string name="body_site_one">One reading so far. A second one gives this site a trend to draw.</string>
     <string name="body_site_how">How to measure it</string>
@@ -6880,7 +6895,10 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_plan_unnamed">My plan</string>
     <string name="forge_plan_following">Following</string>
     <string name="forge_plan_resting">Resting</string>
-    <string name="forge_plan_days_a_week">%1$d days a week</string>
+    <plurals name="forge_plan_days_a_week">
+        <item quantity="one">%1$d day a week</item>
+        <item quantity="other">%1$d days a week</item>
+    </plurals>
     <string name="forge_plan_block_week">Week %1$d of %2$d</string>
     <string name="forge_plan_block_weeks">%1$d week block</string>
     <string name="forge_plan_block_finished">Block finished</string>
@@ -6903,13 +6921,19 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_plan_block_running">Prescriptions follow the block week by week.</string>
     <string name="forge_plan_this_block">This block so far</string>
     <string name="forge_plan_sessions_of">%1$d of %2$d sessions</string>
-    <string name="forge_plan_sessions">%1$d sessions</string>
+    <plurals name="forge_plan_sessions">
+        <item quantity="one">%1$d session</item>
+        <item quantity="other">%1$d sessions</item>
+    </plurals>
     <string name="forge_plan_work_sets">%1$d work sets</string>
     <string name="forge_plan_load_moved">%1$d kg moved</string>
     <string name="forge_plan_unpriced">%1$d sets carried no weight to count.</string>
     <string name="forge_plan_more_sets_than_before">%1$d work sets more than the block before</string>
     <string name="forge_plan_fewer_sets_than_before">%1$d work sets fewer than the block before</string>
-    <string name="forge_plan_target_sessions">%1$d sessions a week</string>
+    <plurals name="forge_plan_target_sessions">
+        <item quantity="one">%1$d session a week</item>
+        <item quantity="other">%1$d sessions a week</item>
+    </plurals>
     <string name="forge_plan_target_cardio">%1$d cardio minutes a week</string>
     <string name="forge_plan_a_week">A week of this plan</string>
     <string name="forge_plan_sets">%1$s sets</string>
@@ -7010,7 +7034,10 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_import_step_reading">Reading data</string>
     <string name="forge_import_step_sorting">Sorting data</string>
     <string name="forge_import_step_saving">Saving data</string>
-    <string name="forge_import_progress_entries">%1$d entries</string>
+    <plurals name="forge_import_progress_entries">
+        <item quantity="one">%1$d entry</item>
+        <item quantity="other">%1$d entries</item>
+    </plurals>
     <string name="forge_roadmap_title">Roadmap</string>
     <string name="forge_roadmap_subtitle">What is being built, and what is known</string>
     <string name="forge_roadmap_now">In progress</string>

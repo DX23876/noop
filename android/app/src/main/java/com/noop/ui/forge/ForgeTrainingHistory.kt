@@ -12,6 +12,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -207,7 +208,7 @@ private fun HistoryBars(o: CoreTrainingHistory.Output, periods: List<CoreTrainin
     val missing = stringResource(R.string.forge_history_unmeasured)
     val descriptions = periods.map { p ->
         "${historyDate(p.start)}: ${p.total?.let { historyNumber(it) + " " + unit } ?: missing}" +
-            (if (p.unknownDays > 0) "; ${stringResource(R.string.forge_history_unknown_days, p.unknownDays)}" else "") +
+            (if (p.unknownDays > 0) "; ${pluralStringResource(R.plurals.forge_history_unknown_days, p.unknownDays, p.unknownDays)}" else "") +
             (p.estimatedTotal?.let { "; " + stringResource(R.string.forge_history_estimated, historyNumber(it)) } ?: "") +
             (p.band?.let { "; " + bandLabel(it) } ?: "")
     }

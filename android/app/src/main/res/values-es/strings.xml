@@ -3605,7 +3605,10 @@
     <string name="forge_library_region_shoulders">Hombros</string>
     <string name="forge_library_save_failed">No se pudo guardar el ejercicio. Inténtalo de nuevo.</string>
     <string name="forge_library_search">Ejercicio, músculo o equipo</string>
-    <string name="forge_library_sets">%1$d series</string>
+    <plurals name="forge_library_sets">
+        <item quantity="one">%1$d serie</item>
+        <item quantity="other">%1$d series</item>
+    </plurals>
     <string name="forge_library_subtitle">Busca ejercicios, instrucciones y tus récords</string>
     <string name="forge_library_this_exercise">Este ejercicio</string>
     <string name="forge_library_title">Biblioteca de ejercicios</string>
@@ -3645,7 +3648,10 @@
     <string name="forge_history_rated">Valoradas: %1$d de %2$d sesiones en este intervalo</string>
     <string name="forge_history_gaps">%1$d de %2$d periodos incluyen días que no se pudieron medir (rayados).</string>
     <string name="forge_history_estimate_note">Las partes claras superiores se estiman a partir de la frecuencia cardíaca media de un entrenamiento cuando no se guardó un registro de frecuencia cardíaca. No cuentan para el nivel ni para la banda.</string>
-    <string name="forge_history_unknown_days">%1$d días sin medir</string>
+    <plurals name="forge_history_unknown_days">
+        <item quantity="one">%1$d día sin medir</item>
+        <item quantity="other">%1$d días sin medir</item>
+    </plurals>
     <string name="forge_history_all">Todo</string>
     <string name="forge_history_unavailable">No se pudo cargar el historial de entrenamiento.</string>
     <string name="forge_session_body_response">Lo que hizo tu cuerpo</string>
@@ -3720,7 +3726,10 @@
     <string name="forge_hevy_credentials_failed">No se pudo guardar la clave API de forma segura.</string>
     <string name="forge_hevy_routines_note">Elige las rutinas que quieras añadir. Al importar de nuevo se actualizan las copias importadas de Hevy.</string>
     <string name="forge_hevy_counts">Guardados: %1$d · actualizados: %2$d · eliminados: %3$d · omitidos: %4$d</string>
-    <string name="forge_hevy_stored">%1$d entrenamientos guardados</string>
+    <plurals name="forge_hevy_stored">
+        <item quantity="one">%1$d entrenamiento guardado</item>
+        <item quantity="other">%1$d entrenamientos guardados</item>
+    </plurals>
     <string name="forge_hevy_last_sync">Última sincronización: %1$s</string>
     <string name="forge_hevy_pages">Página %1$d de %2$d</string>
     <string name="forge_hevy_skipped_exercises">%1$d ejercicios omitidos</string>
@@ -6274,7 +6283,10 @@
     <string name="forge_wk_min">%1$d min</string>
     <string name="forge_wk_h_min">%1$d h %2$s min</string>
     <string name="forge_wk_cal_label">Días de entrenamiento en las últimas 13 semanas</string>
-    <string name="forge_wk_cal_value">%1$d días con entrenamiento</string>
+    <plurals name="forge_wk_cal_value">
+        <item quantity="one">%1$d día con entrenamiento</item>
+        <item quantity="other">%1$d días con entrenamiento</item>
+    </plurals>
     <string name="forge_steps_from">Pasos de</string>
     <string name="forge_steps_auto">Automático</string>
     <string name="forge_steps_strap">Pulsera</string>
@@ -6619,7 +6631,10 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="diet_train_all">Si todos los días son de entrenamiento, no hay día de descanso del que mover calorías; todos los días quedan iguales.</string>
     <string name="diet_train_moved">Movido a días de entrenamiento</string>
     <string name="diet_train_fasting">Una forma de ayuno tiene sus propios días, así que nada se mueve entre días de entrenamiento y de descanso.</string>
-    <string name="body_site_over">en %1$d mediciones</string>
+    <plurals name="body_site_over">
+        <item quantity="one">en %1$d medición</item>
+        <item quantity="other">en %1$d mediciones</item>
+    </plurals>
     <string name="body_site_history">Historial</string>
     <string name="body_site_one">Por ahora una medición. Una segunda le da a este punto una tendencia que dibujar.</string>
     <string name="body_site_how">Cómo medirlo</string>
@@ -6840,7 +6855,10 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_plan_unnamed">Mi plan</string>
     <string name="forge_plan_following">Activo</string>
     <string name="forge_plan_resting">En reposo</string>
-    <string name="forge_plan_days_a_week">%1$d días por semana</string>
+    <plurals name="forge_plan_days_a_week">
+        <item quantity="one">%1$d día por semana</item>
+        <item quantity="other">%1$d días por semana</item>
+    </plurals>
     <string name="forge_plan_block_week">Semana %1$d de %2$d</string>
     <string name="forge_plan_block_weeks">Bloque de %1$d semanas</string>
     <string name="forge_plan_block_finished">Bloque terminado</string>
@@ -6863,13 +6881,19 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_plan_block_running">Las pautas siguen el bloque semana a semana.</string>
     <string name="forge_plan_this_block">Este bloque hasta ahora</string>
     <string name="forge_plan_sessions_of">%1$d de %2$d sesiones</string>
-    <string name="forge_plan_sessions">%1$d sesiones</string>
+    <plurals name="forge_plan_sessions">
+        <item quantity="one">%1$d sesión</item>
+        <item quantity="other">%1$d sesiones</item>
+    </plurals>
     <string name="forge_plan_work_sets">%1$d series de trabajo</string>
     <string name="forge_plan_load_moved">%1$d kg movidos</string>
     <string name="forge_plan_unpriced">%1$d series no llevaban peso que contar.</string>
     <string name="forge_plan_more_sets_than_before">%1$d series de trabajo más que el bloque anterior</string>
     <string name="forge_plan_fewer_sets_than_before">%1$d series de trabajo menos que el bloque anterior</string>
-    <string name="forge_plan_target_sessions">%1$d sesiones por semana</string>
+    <plurals name="forge_plan_target_sessions">
+        <item quantity="one">%1$d sesión por semana</item>
+        <item quantity="other">%1$d sesiones por semana</item>
+    </plurals>
     <string name="forge_plan_target_cardio">%1$d minutos de cardio por semana</string>
     <string name="forge_plan_a_week">Una semana de este plan</string>
     <string name="forge_plan_sets">%1$s series</string>
@@ -6970,7 +6994,10 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_import_step_reading">Leyendo datos</string>
     <string name="forge_import_step_sorting">Ordenando datos</string>
     <string name="forge_import_step_saving">Guardando datos</string>
-    <string name="forge_import_progress_entries">%1$d entradas</string>
+    <plurals name="forge_import_progress_entries">
+        <item quantity="one">%1$d entrada</item>
+        <item quantity="other">%1$d entradas</item>
+    </plurals>
     <string name="forge_roadmap_title">Hoja de ruta</string>
     <string name="forge_roadmap_subtitle">Qué se está construyendo y qué ya se conoce</string>
     <string name="forge_roadmap_now">En curso</string>

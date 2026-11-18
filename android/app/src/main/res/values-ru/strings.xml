@@ -3500,7 +3500,12 @@
     <string name="forge_library_region_shoulders">Плечи</string>
     <string name="forge_library_save_failed">Не удалось сохранить упражнение. Повторите попытку.</string>
     <string name="forge_library_search">Упражнения, мышцы или оборудование</string>
-    <string name="forge_library_sets">%1$d sets</string>
+    <plurals name="forge_library_sets">
+        <item quantity="one">%1$d подход</item>
+        <item quantity="few">%1$d подхода</item>
+        <item quantity="many">%1$d подходов</item>
+        <item quantity="other">%1$d подхода</item>
+    </plurals>
     <string name="forge_library_subtitle">Упражнения, инструкции и ваши рекорды</string>
     <string name="forge_library_this_exercise">Это упражнение</string>
     <string name="forge_library_title">Библиотека упражнений</string>
@@ -3540,7 +3545,9 @@
     <string name="forge_history_rated">Оценено: %1$d из %2$d тренировок за этот период</string>
     <string name="forge_history_gaps">%1$d из %2$d периодов содержат дни, которые не удалось измерить (заштрихованы).</string>
     <string name="forge_history_estimate_note">Светлые верхушки оценены по среднему пульсу тренировки, если запись пульса не сохранилась. Они не учитываются ни в уровне, ни в диапазоне.</string>
-    <string name="forge_history_unknown_days">%1$d дн. без измерений</string>
+    <plurals name="forge_history_unknown_days">
+        <item quantity="other">%1$d дн. без измерений</item>
+    </plurals>
     <string name="forge_history_all">Все</string>
     <string name="forge_history_unavailable">Не удалось загрузить историю тренировок.</string>
     <string name="forge_session_body_response">Что сделало твое тело</string>
@@ -3615,7 +3622,9 @@
     <string name="forge_hevy_credentials_failed">Не удалось безопасно сохранить ключ API.</string>
     <string name="forge_hevy_routines_note">Выберите программы для добавления. Повторный импорт обновляет ранее импортированные из Hevy копии.</string>
     <string name="forge_hevy_counts">Сохранено: %1$d · обновлено: %2$d · удалено: %3$d · пропущено: %4$d</string>
-    <string name="forge_hevy_stored">Сохранено тренировок: %1$d</string>
+    <plurals name="forge_hevy_stored">
+        <item quantity="other">Сохранено тренировок: %1$d</item>
+    </plurals>
     <string name="forge_hevy_last_sync">Последняя синхронизация: %1$s</string>
     <string name="forge_hevy_pages">Страница %1$d из %2$d</string>
     <string name="forge_hevy_skipped_exercises">Пропущено упражнений: %1$d</string>
@@ -6253,7 +6262,9 @@
     <string name="forge_wk_min">%1$d мин.</string>
     <string name="forge_wk_h_min">%1$d ч %2$s мин</string>
     <string name="forge_wk_cal_label">Дни тренировок за последние 13 недель</string>
-    <string name="forge_wk_cal_value">Дней с тренировкой: %1$d</string>
+    <plurals name="forge_wk_cal_value">
+        <item quantity="other">Дней с тренировкой: %1$d</item>
+    </plurals>
     <string name="forge_steps_from">Шаги из</string>
     <string name="forge_steps_auto">Автоматически</string>
     <string name="forge_steps_strap">Браслет</string>
@@ -6598,7 +6609,12 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="diet_train_all">Если каждый день тренировочный, нет дня отдыха, откуда переносить калории; все дни остаются одинаковыми.</string>
     <string name="diet_train_moved">Перенесено на тренировочные дни</string>
     <string name="diet_train_fasting">У поста свои дни, поэтому ничего не переносится между тренировочными днями и днями отдыха.</string>
-    <string name="body_site_over">по %1$d измерениям</string>
+    <plurals name="body_site_over">
+        <item quantity="one">по %1$d измерению</item>
+        <item quantity="few">по %1$d измерениям</item>
+        <item quantity="many">по %1$d измерениям</item>
+        <item quantity="other">по %1$d измерениям</item>
+    </plurals>
     <string name="body_site_history">История</string>
     <string name="body_site_one">Пока одно измерение. Второе даст этой точке тренд.</string>
     <string name="body_site_how">Как измерять</string>
@@ -6819,7 +6835,12 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_plan_unnamed">Мой план</string>
     <string name="forge_plan_following">Активен</string>
     <string name="forge_plan_resting">Отдыхает</string>
-    <string name="forge_plan_days_a_week">%1$d дней в неделю</string>
+    <plurals name="forge_plan_days_a_week">
+        <item quantity="one">%1$d день в неделю</item>
+        <item quantity="few">%1$d дня в неделю</item>
+        <item quantity="many">%1$d дней в неделю</item>
+        <item quantity="other">%1$d дня в неделю</item>
+    </plurals>
     <string name="forge_plan_block_week">Неделя %1$d из %2$d</string>
     <string name="forge_plan_block_weeks">Блок на %1$d недель</string>
     <string name="forge_plan_block_finished">Блок завершён</string>
@@ -6842,13 +6863,23 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_plan_block_running">Предписания идут за блоком неделя за неделей.</string>
     <string name="forge_plan_this_block">Этот блок на данный момент</string>
     <string name="forge_plan_sessions_of">%1$d из %2$d занятий</string>
-    <string name="forge_plan_sessions">%1$d занятий</string>
+    <plurals name="forge_plan_sessions">
+        <item quantity="one">%1$d занятие</item>
+        <item quantity="few">%1$d занятия</item>
+        <item quantity="many">%1$d занятий</item>
+        <item quantity="other">%1$d занятия</item>
+    </plurals>
     <string name="forge_plan_work_sets">%1$d рабочих подходов</string>
     <string name="forge_plan_load_moved">%1$d кг поднято</string>
     <string name="forge_plan_unpriced">В %1$d подходах не было веса для подсчёта.</string>
     <string name="forge_plan_more_sets_than_before">На %1$d рабочих подходов больше, чем в прошлом блоке</string>
     <string name="forge_plan_fewer_sets_than_before">На %1$d рабочих подходов меньше, чем в прошлом блоке</string>
-    <string name="forge_plan_target_sessions">%1$d занятий в неделю</string>
+    <plurals name="forge_plan_target_sessions">
+        <item quantity="one">%1$d занятие в неделю</item>
+        <item quantity="few">%1$d занятия в неделю</item>
+        <item quantity="many">%1$d занятий в неделю</item>
+        <item quantity="other">%1$d занятия в неделю</item>
+    </plurals>
     <string name="forge_plan_target_cardio">%1$d минут кардио в неделю</string>
     <string name="forge_plan_a_week">Неделя этого плана</string>
     <string name="forge_plan_sets">%1$s подходов</string>
@@ -6949,7 +6980,9 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_import_step_reading">Чтение данных</string>
     <string name="forge_import_step_sorting">Упорядочивание данных</string>
     <string name="forge_import_step_saving">Сохранение данных</string>
-    <string name="forge_import_progress_entries">записей: %1$d</string>
+    <plurals name="forge_import_progress_entries">
+        <item quantity="other">записей: %1$d</item>
+    </plurals>
     <string name="forge_roadmap_title">План развития</string>
     <string name="forge_roadmap_subtitle">Что делается и что уже известно</string>
     <string name="forge_roadmap_now">В работе</string>

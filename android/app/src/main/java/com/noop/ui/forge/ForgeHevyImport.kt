@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -82,7 +83,7 @@ internal fun ForgeHevyCard(onRoutines: () -> Unit) {
                 val s = status
                 if (s?.state == "completed") Text(stringResource(R.string.forge_hevy_counts, s.stored, s.updated, s.deleted, s.skipped),
                     style = Forge.type.subhead, color = Forge.colors.textSecondary)
-                else info?.let { Text(stringResource(R.string.forge_hevy_stored, it.stored), style = Forge.type.subhead, color = Forge.colors.textSecondary) }
+                else info?.let { Text(pluralStringResource(R.plurals.forge_hevy_stored, it.stored, it.stored), style = Forge.type.subhead, color = Forge.colors.textSecondary) }
                 info?.takeIf { it.lastSync > 0 }?.let {
                     val date = DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT).withZone(ZoneId.systemDefault()).format(Instant.ofEpochSecond(it.lastSync))
                     Text(stringResource(R.string.forge_hevy_last_sync, date), style = Forge.type.footnote, color = Forge.colors.textSecondary)

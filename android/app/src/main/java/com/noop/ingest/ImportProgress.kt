@@ -204,7 +204,7 @@ object ImportProgress {
             },
         ),
         entries = if (state.records > 0) {
-            context.getString(R.string.forge_import_progress_entries, state.records)
+            context.resources.getQuantityString(R.plurals.forge_import_progress_entries, state.records, state.records)
         } else {
             null
         },

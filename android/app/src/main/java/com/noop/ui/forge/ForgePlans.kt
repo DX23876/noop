@@ -44,6 +44,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -128,7 +129,7 @@ private fun PlanRow(plan: CorePlans.Plan, onClick: () -> Unit) {
 @Composable
 private fun planSubtitle(plan: CorePlans.Plan): String {
     val parts = mutableListOf<String>()
-    if (plan.dayCount > 0) parts += stringResource(R.string.forge_plan_days_a_week, plan.dayCount)
+    if (plan.dayCount > 0) parts += pluralStringResource(R.plurals.forge_plan_days_a_week, plan.dayCount, plan.dayCount)
     val block = plan.block
     if (block != null) {
         parts += when {
@@ -222,7 +223,7 @@ internal fun ForgePlanDetail(planId: String, onBack: () -> Unit, onEdit: (CorePl
                     Text(it, style = Forge.type.subhead, color = Forge.colors.textSecondary)
                 }
                 current.sessionsPerWeek?.let {
-                    Text(stringResource(R.string.forge_plan_target_sessions, it), style = Forge.type.subhead,
+                    Text(pluralStringResource(R.plurals.forge_plan_target_sessions, it, it), style = Forge.type.subhead,
                          color = Forge.colors.textSecondary)
                 }
                 current.cardioMinutesPerWeek?.let {
@@ -319,7 +320,7 @@ private fun RunCard(title: String, run: CorePlans.BlockRun) {
         Spacer(Modifier.height(ForgeMetrics.space1))
         Text(run.plannedSessions?.let {
                  stringResource(R.string.forge_plan_sessions_of, run.doneSessions, it)
-             } ?: stringResource(R.string.forge_plan_sessions, run.doneSessions),
+             } ?: pluralStringResource(R.plurals.forge_plan_sessions, run.doneSessions, run.doneSessions),
              style = Forge.type.subhead, color = Forge.colors.textSecondary)
         Text(stringResource(R.string.forge_plan_work_sets, run.workSets), style = Forge.type.subhead,
              color = Forge.colors.textSecondary)
@@ -518,7 +519,7 @@ internal fun ForgePlanBuilder(onBack: () -> Unit, onSaved: (String) -> Unit) {
         val shown = preview
         if (shown == null) {
             ForgeCard(Modifier.fillMaxWidth()) {
-                StepperRow(stringResource(R.string.forge_plan_days_a_week, days), days > 2, days < 6,
+                StepperRow(pluralStringResource(R.plurals.forge_plan_days_a_week, days, days), days > 2, days < 6,
                            { days-- }, { days++ })
                 HubDivider()
                 StepperRow(stringResource(R.string.forge_plan_about_minutes, minutes),
@@ -607,7 +608,8 @@ internal fun ForgePlanTemplates(onBack: () -> Unit, onSaved: (String) -> Unit) {
                 Text(template.summary, style = Forge.type.subhead, color = Forge.colors.textSecondary)
                 val source = if (template.sourceName != null && template.sourceAttribution != null)
                     " · ${template.sourceName}, ${template.sourceAttribution}" else ""
-                Text(stringResource(R.string.forge_plan_days_a_week, template.daysPerWeek) + source,
+                Text(pluralStringResource(R.plurals.forge_plan_days_a_week, template.daysPerWeek,
+                                          template.daysPerWeek) + source,
                      style = Forge.type.caption, color = Forge.colors.textTertiary)
             }
         }
@@ -671,7 +673,7 @@ internal fun ForgePlanEditor(plan: CorePlans.Plan?, onClose: () -> Unit) {
             Text(stringResource(R.string.forge_plan_asks_of_a_week), style = Forge.type.headline,
                  color = Forge.colors.text)
             Spacer(Modifier.height(ForgeMetrics.space2))
-            StepperRow(if (sessions > 0) stringResource(R.string.forge_plan_target_sessions, sessions)
+            StepperRow(if (sessions > 0) pluralStringResource(R.plurals.forge_plan_target_sessions, sessions, sessions)
                        else stringResource(R.string.forge_plan_no_session_target),
                        sessions > 0, sessions < 14, { sessions-- }, { sessions++ })
             HubDivider()

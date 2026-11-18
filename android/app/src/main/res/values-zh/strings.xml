@@ -3575,7 +3575,9 @@
     <string name="forge_library_region_shoulders">肩膀</string>
     <string name="forge_library_save_failed">无法保存动作，请重试。</string>
     <string name="forge_library_search">锻炼、肌肉或器材</string>
-    <string name="forge_library_sets">%1$d 套</string>
+    <plurals name="forge_library_sets">
+        <item quantity="other">%1$d 组</item>
+    </plurals>
     <string name="forge_library_subtitle">查找动作、说明和个人纪录</string>
     <string name="forge_library_this_exercise">此动作</string>
     <string name="forge_library_title">练习库</string>
@@ -3615,7 +3617,9 @@
     <string name="forge_history_rated">已评分：此区间内 %1$d / %2$d 次训练</string>
     <string name="forge_history_gaps">%1$d 个时段（共 %2$d 个）包含无法测量的天数（斜线标出）。</string>
     <string name="forge_history_estimate_note">浅色顶部是在未保留心率记录时根据训练平均心率估算的，不计入水平线和区间。</string>
-    <string name="forge_history_unknown_days">%1$d 天未测量</string>
+    <plurals name="forge_history_unknown_days">
+        <item quantity="other">%1$d 天未测量</item>
+    </plurals>
     <string name="forge_history_all">全部</string>
     <string name="forge_history_unavailable">无法加载训练历史。</string>
     <string name="forge_session_body_response">你的身体做了什么</string>
@@ -3690,7 +3694,9 @@
     <string name="forge_hevy_credentials_failed">无法安全保存 API 密钥。</string>
     <string name="forge_hevy_routines_note">选择要添加的训练计划。再次导入会更新之前从 Hevy 导入的副本。</string>
     <string name="forge_hevy_counts">已保存：%1$d · 已更新：%2$d · 已移除：%3$d · 已跳过：%4$d</string>
-    <string name="forge_hevy_stored">已保存 %1$d 次训练</string>
+    <plurals name="forge_hevy_stored">
+        <item quantity="other">已保存 %1$d 次训练</item>
+    </plurals>
     <string name="forge_hevy_last_sync">上次同步：%1$s</string>
     <string name="forge_hevy_pages">第 %1$d 页，共 %2$d 页</string>
     <string name="forge_hevy_skipped_exercises">已跳过 %1$d 个动作</string>
@@ -6237,7 +6243,9 @@
     <string name="forge_wk_min">%1$d 分钟</string>
     <string name="forge_wk_h_min">%1$d 小时 %2$s 分钟</string>
     <string name="forge_wk_cal_label">最近 13 周的训练日</string>
-    <string name="forge_wk_cal_value">%1$d 天有训练</string>
+    <plurals name="forge_wk_cal_value">
+        <item quantity="other">%1$d 天有训练</item>
+    </plurals>
     <string name="forge_steps_from">步数来源</string>
     <string name="forge_steps_auto">自动</string>
     <string name="forge_steps_strap">手环</string>
@@ -6582,7 +6590,9 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="diet_train_all">如果每天都是训练日，就没有休息日可以挪出热量，所有日子保持一样。</string>
     <string name="diet_train_moved">移到训练日</string>
     <string name="diet_train_fasting">断食方式有自己的日程，所以训练日和休息日之间不做调整。</string>
-    <string name="body_site_over">共 %1$d 次测量</string>
+    <plurals name="body_site_over">
+        <item quantity="other">共 %1$d 次测量</item>
+    </plurals>
     <string name="body_site_history">历史</string>
     <string name="body_site_one">目前仅一次测量。第二次才能为该部位画出趋势。</string>
     <string name="body_site_how">如何测量</string>
@@ -6803,7 +6813,9 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_plan_unnamed">我的计划</string>
     <string name="forge_plan_following">进行中</string>
     <string name="forge_plan_resting">休眠</string>
-    <string name="forge_plan_days_a_week">每周 %1$d 天</string>
+    <plurals name="forge_plan_days_a_week">
+        <item quantity="other">每周 %1$d 天</item>
+    </plurals>
     <string name="forge_plan_block_week">第 %1$d 周，共 %2$d 周</string>
     <string name="forge_plan_block_weeks">%1$d 周周期</string>
     <string name="forge_plan_block_finished">周期结束</string>
@@ -6826,13 +6838,17 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_plan_block_running">训练安排随周期逐周推进。</string>
     <string name="forge_plan_this_block">本周期至今</string>
     <string name="forge_plan_sessions_of">%2$d 次中的 %1$d 次</string>
-    <string name="forge_plan_sessions">%1$d 次训练</string>
+    <plurals name="forge_plan_sessions">
+        <item quantity="other">%1$d 次训练</item>
+    </plurals>
     <string name="forge_plan_work_sets">%1$d 组正式组</string>
     <string name="forge_plan_load_moved">已举起 %1$d 公斤</string>
     <string name="forge_plan_unpriced">有 %1$d 组没有可计入的重量。</string>
     <string name="forge_plan_more_sets_than_before">比上一周期多 %1$d 组正式组</string>
     <string name="forge_plan_fewer_sets_than_before">比上一周期少 %1$d 组正式组</string>
-    <string name="forge_plan_target_sessions">每周 %1$d 次训练</string>
+    <plurals name="forge_plan_target_sessions">
+        <item quantity="other">每周 %1$d 次训练</item>
+    </plurals>
     <string name="forge_plan_target_cardio">每周 %1$d 分钟有氧</string>
     <string name="forge_plan_a_week">这个计划的一周</string>
     <string name="forge_plan_sets">%1$s 组</string>
@@ -6933,7 +6949,9 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_import_step_reading">正在读取数据</string>
     <string name="forge_import_step_sorting">正在整理数据</string>
     <string name="forge_import_step_saving">正在保存数据</string>
-    <string name="forge_import_progress_entries">%1$d 条</string>
+    <plurals name="forge_import_progress_entries">
+        <item quantity="other">%1$d 条</item>
+    </plurals>
     <string name="forge_roadmap_title">路线图</string>
     <string name="forge_roadmap_subtitle">正在做什么，以及已知的问题</string>
     <string name="forge_roadmap_now">进行中</string>
