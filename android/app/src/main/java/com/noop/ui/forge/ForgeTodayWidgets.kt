@@ -675,7 +675,9 @@ private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?,
         when (key) {
             TodayWidget.SLEEP_KEY -> TodayLastNightForge(onOpenSleep)
             "stress" -> StressDayWideCard()
-            else -> WideMeasureCard(key, keyTiles, catalogSeries[key].orEmpty(), noData, modifier)
+            // Width, not size: the row-wide form is as tall as what it holds. With `fillMaxSize` a measure
+            // with nothing stored stretched into a tall empty card, which reads as broken rather than empty.
+            else -> WideMeasureCard(key, keyTiles, catalogSeries[key].orEmpty(), noData, Modifier.fillMaxWidth())
         }
         return
     }
@@ -752,12 +754,21 @@ private fun WideMeasureCard(key: String?, keyTiles: KeyTiles, catalog: List<Doub
     val series = if (metric != null) keyTiles.sparks[metric].orEmpty() else catalog
     val tile = metric?.let { keyTiles.tiles[it] }
     val unit = tile?.unit.orEmpty()
-    val value = tile?.value ?: series.lastOrNull()?.let { java.text.DecimalFormat("#.#").format(it) }
+    // Charge, Effort and Rest are whole numbers, as their rings say them; a Charge of "51.1" is noise.
+    val whole = wholeRowMetric(key) != null
+    val value = tile?.value ?: series.lastOrNull()?.let {
+        if (whole) kotlin.math.round(it).toInt().toString() else java.text.DecimalFormat("#.#").format(it)
+    }
     val change = key?.let { rememberTileDelta(if (metric != null) metric.catalogKey() else it, series) }
-    ForgeTodayTile(measureIcon(key.orEmpty()), metric?.tileTint() ?: Forge.colors.charge, measureLabel(key.orEmpty()),
+    val displayMetric = metric ?: wholeRowMetric(key)
+    ForgeTodayTile(measureIcon(key.orEmpty()), displayMetric?.tileTint() ?: Forge.colors.charge, measureLabel(key.orEmpty()),
                    value, unit, change?.summary?.let { summaryLine(it, unit) }, noData, dense = false,
                    modifier = modifier, delta = change?.text, deltaTone = change?.tone,
-                   trend = series.takeLast(30), sparkHeightOverride = 96.dp)
+                   trend = series.takeLast(30),
+                   // Only reserve the tall curve when there is a reading to head it. Without this a measure
+                   // with nothing stored stands on Today as a tall empty card, which says "broken" rather
+                   // than "no data yet" — seen on the emulator the day this was built.
+                   sparkHeightOverride = if (value != null && series.size > 1) 96.dp else null)
 }
 
 /**
@@ -800,14 +811,26 @@ private fun measureLabel(key: String): String = when (key) {
     "vo2max_est" -> stringResource(R.string.forge_th_vo2max)
     "stress" -> stringResource(R.string.forge_vt_stress)
     "fitness_age" -> stringResource(R.string.today_card_fitness_age)
-    else -> KeyMetric.fromRaw(key)?.tileLabel() ?: key
+    else -> (KeyMetric.fromRaw(key) ?: wholeRowMetric(key))?.tileLabel() ?: key
 }
 
 private fun measureIcon(key: String): ImageVector = when (key) {
     "vo2max_est" -> Icons.Rounded.Air
     "stress" -> Icons.Rounded.Bolt
     "fitness_age" -> Icons.Rounded.Favorite
-    else -> KeyMetric.fromRaw(key)?.icon ?: Icons.Rounded.Bedtime
+    else -> (KeyMetric.fromRaw(key) ?: wholeRowMetric(key))?.icon ?: Icons.Rounded.Bedtime
+}
+
+/**
+ * The Key Metric behind a whole-row catalogue key, so Charge, Effort and Rest keep the name, symbol and
+ * colour they have everywhere else. Without it the tile was headed "recovery", the catalogue's own
+ * spelling, which is a word no wearer has ever seen in this app.
+ */
+private fun wholeRowMetric(key: String?): KeyMetric? = when (key) {
+    "recovery" -> KeyMetric.CHARGE
+    "strain" -> KeyMetric.EFFORT
+    "sleep_performance" -> KeyMetric.REST
+    else -> null
 }
 
 /** "usually 53 bpm · range 51 to 58", from the shared `MeasureTileReading.summary`, as iOS's `summaryLine`. */

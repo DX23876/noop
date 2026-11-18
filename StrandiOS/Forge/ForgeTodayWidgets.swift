@@ -699,10 +699,11 @@ struct ForgeStressDayWidget: View {
                     // score and an hour needs enough heart rate, so early morning is empty by
                     // construction rather than by failure.
                     Text("Calibrating").font(ForgeFont.caption).foregroundStyle(ForgeColor.tertiary)
-                        .frame(height: 78, alignment: .center)
+                        .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
         .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) {
@@ -977,11 +978,16 @@ struct ForgeMeasureWidget: View {
                                // plotted values could disagree with the words right over it.
                                height: Self.wideChartHeight, showsHover: false)
                 } else {
+                    // Short on purpose: a measure with nothing stored must not stand on Today as a tall
+                    // empty card, which reads as broken rather than as empty.
                     Text("Not enough days yet").font(ForgeFont.caption).foregroundStyle(ForgeColor.tertiary)
-                        .frame(height: Self.wideChartHeight, alignment: .center)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
+            // Its own surface: the small and two-column forms get theirs from the tile, this one draws
+            // its contents itself and would otherwise float on the page.
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
         .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) { await load() }
