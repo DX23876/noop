@@ -1,7 +1,7 @@
 {
   "counts": {
     "fixed": 3,
-    "reported": 8,
+    "reported": 9,
     "working": 0
   },
   "decided": [],
@@ -25,8 +25,14 @@
       "title": "Package appears to be invalid while installing"
     }
   ],
-  "generated": "2026-11-15T22:27:52Z",
+  "generated": "2026-11-18T11:06:53Z",
   "issues": [
+    {
+      "n": 51,
+      "opened": "2026-11-18",
+      "status": "reported",
+      "title": "Native training sessions show no HR / Effort in workout lists (grey on Today)"
+    },
     {
       "n": 49,
       "opened": "2026-11-14",
