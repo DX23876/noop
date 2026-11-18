@@ -4669,5 +4669,6 @@
   "A screenshot of what went wrong says more than a log": "Une capture de ce qui a mal tourné en dit plus qu'un journal",
   "Remove the picture": "Retirer l'image",
   "You've kept every planned step for %@.": "Vous avez réalisé chaque étape prévue pour %@.",
-  "4.0, unconfirmed on real hardware": "4.0, non confirmé sur du matériel réel"
+  "4.0, unconfirmed on real hardware": "4.0, non confirmé sur du matériel réel",
+  "The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Restart the strap from Devices, or fully charge it and reconnect; keep your phone's Clock alarm as your wake until it takes.": "La sangle continue d'indiquer une heure différente de celle que NOOP envoie, donc son alarme firmware ne se déclenchera pas à votre heure de réveil, en général une sangle dont l'horloge ou l'alarme s'est réinitialisée. Redémarrez la sangle depuis Appareils, ou chargez-la complètement et reconnectez-la ; gardez l'alarme de l'app Horloge de votre téléphone comme réveil jusqu'à ce que cela fonctionne."
 }

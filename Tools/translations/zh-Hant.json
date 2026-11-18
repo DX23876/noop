@@ -4823,5 +4823,6 @@
   "A screenshot of what went wrong says more than a log": "一張出錯時的截圖勝過一份日誌",
   "Remove the picture": "移除圖片",
   "You've kept every planned step for %@.": "「%@」的每個計畫步驟都完成了。",
-  "4.0, unconfirmed on real hardware": "4.0，未在真實裝置上確認"
+  "4.0, unconfirmed on real hardware": "4.0，未在真實裝置上確認",
+  "The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Restart the strap from Devices, or fully charge it and reconnect; keep your phone's Clock alarm as your wake until it takes.": "錶帶回報的時間與 NOOP 傳送的時間不一致，因此它的韌體鬧鐘不會在你的起床時間響起，通常是錶帶的時鐘或鬧鐘被重設了。請在「裝置」中重新啟動錶帶，或將它充飽電後重新連線；在生效之前，請繼續使用手機的時鐘鬧鐘。"
 }

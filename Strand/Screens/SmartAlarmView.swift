@@ -214,8 +214,10 @@ struct SmartAlarmView: View {
 
     // #34: shown ONLY when the strap has repeatedly reported back a different alarm time than we sent —
     // i.e. its firmware is refusing the write (a reset/corrupted clock/alarm register). Gated on the alarm
-    // being on and a rejection STREAK (≥2) so a one-off readback quirk never nags. Actionable: a strap
-    // reset via the official app clears it; the phone Clock alarm covers the gap meanwhile.
+    // being on and a rejection STREAK (≥2) so a one-off readback quirk never nags. Actionable without
+    // leaving NOOP: Devices › Restart strap reboots it (#166), and a reconnect re-sends the clock; the
+    // phone Clock alarm covers the gap meanwhile. It used to send the wearer to the official WHOOP app,
+    // which pulls a firmware update on connect and can leave the strap unusable here.
     @ViewBuilder private var strapRejectedCard: some View {
         if behavior.smartAlarmEnabled && alarmRejectStreak >= 2 {
             StrandCard(padding: 20) {
@@ -227,7 +229,7 @@ struct SmartAlarmView: View {
                         Text("Your strap isn't accepting the alarm")
                             .font(StrandFont.headline)
                             .foregroundStyle(StrandPalette.textPrimary)
-                        Text("The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Reset the strap in the official WHOOP app (or fully charge it and reconnect), and keep your phone's Clock alarm as your wake until it takes.")
+                        Text("The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Restart the strap from Devices, or fully charge it and reconnect; keep your phone's Clock alarm as your wake until it takes.")
                             .font(StrandFont.footnote)
                             .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)

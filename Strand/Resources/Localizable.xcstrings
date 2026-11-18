@@ -508563,60 +508563,60 @@
         }
       }
     },
-    "The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Reset the strap in the official WHOOP app (or fully charge it and reconnect), and keep your phone's Clock alarm as your wake until it takes." : {
+    "The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Restart the strap from Devices, or fully charge it and reconnect; keep your phone's Clock alarm as your wake until it takes." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Der Riemen meldet eine andere Zeit als NOOP sendet, so dass sein Firmware-Alarm nicht zu deiner Weckzeit feuert - normalerweise ein Riemen, dessen Uhr oder Alarm zurückgesetzt wurde. Setze den Riemen in der offiziellen WHOOP-App zurück (oder lade ihn vollständig auf und verbinde ihn wieder), und halte den Uhralarm deines Telefons solange wach, bis es dauert."
+            "value" : "Der Strap meldet weiter eine andere Zeit als die, die NOOP sendet. Sein Wecker in der Firmware geht deshalb nicht zu deiner Weckzeit los, meist weil seine Uhr oder sein Wecker zurückgesetzt wurde. Starte den Strap unter Geräte neu oder lade ihn ganz auf und verbinde ihn neu. Nimm bis dahin den Wecker deines Telefons."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La correa sigue reportando un tiempo diferente al que envía NOOP, por lo que su alarma de firmware no disparará a su hora de despertar, generalmente una correa cuyo reloj o alarma se ha reiniciado. Reiniciar la correa en la aplicación oficial WHOOP (o cargarla completamente y volver a conectar), y mantener la alarma del reloj del teléfono como su vela hasta que se necesite."
+            "value" : "La correa sigue informando una hora distinta de la que envía NOOP, así que su alarma de firmware no sonará a tu hora de despertar, normalmente una correa cuyo reloj o alarma se ha reiniciado. Reinicia la correa desde Dispositivos, o cárgala por completo y vuelve a conectarla; mantén la alarma del Reloj de tu teléfono como despertador hasta que funcione."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La sangle continue de signaler une autre heure que NOOP envoie, de sorte que son alarme firmware ne tire pas à votre réveil — généralement une sangle dont l'horloge ou l'alarme a réinitialisé. Réinitialisez la sangle dans l'application officielle WHOOP (ou chargez-la complètement et reconnectez-la), et gardez l'alarme de votre téléphone pendant votre réveil jusqu'à ce qu'il prenne."
+            "value" : "La sangle continue d'indiquer une heure différente de celle que NOOP envoie, donc son alarme firmware ne se déclenchera pas à votre heure de réveil, en général une sangle dont l'horloge ou l'alarme s'est réinitialisée. Redémarrez la sangle depuis Appareils, ou chargez-la complètement et reconnectez-la ; gardez l'alarme de l'app Horloge de votre téléphone comme réveil jusqu'à ce que cela fonctionne."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La fascia continua a segnalare un orario diverso da quello inviato da NOOP, quindi la sveglia del firmware non suonerà all'orario di sveglia — di solito si tratta di una fascia il cui orologio o la cui sveglia si sono reimpostati. Reimposta la fascia nell'app ufficiale WHOOP (oppure caricala completamente e ricollegala) e usa la sveglia dell'app Orologio del telefono finché non funziona."
+            "value" : "La fascia continua a segnalare un orario diverso da quello inviato da NOOP, quindi la sveglia del firmware non suonerà al tuo orario di sveglia, di solito si tratta di una fascia il cui orologio o la cui sveglia si sono reimpostati. Riavvia la fascia da Dispositivi, oppure caricala completamente e ricollegala; usa la sveglia dell'app Orologio del telefono finché non funziona."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pasek zgłasza inny czas niż wysyła NOOP, więc alarm oprogramowania sprzętowego nie włączy się o godzinie pobudki — zwykle jest to pasek, którego zegar lub alarm został zresetowany. Zresetuj pasek w oficjalnej aplikacji WHOOP (lub naładuj go do pełna i podłącz ponownie), a budzik w telefonie będzie włączał się do momentu, aż to nastąpi."
+            "value" : "Pasek wciąż zgłasza inny czas niż wysyła NOOP, więc alarm w jego oprogramowaniu nie włączy się o godzinie pobudki, zwykle dlatego, że jego zegar lub alarm został zresetowany. Uruchom pasek ponownie w Urządzeniach albo naładuj go do pełna i połącz ponownie; do tego czasu korzystaj z budzika w telefonie."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O bracelete continua a informar um horário diferente daquele enviado pelo NOOP, pelo que o teu alarme de firmware não dispara na hora de despertar - geralmente um bracelete cujo relógio ou alarme foi reposto. Reponha a bracelete na aplicação oficial WHOOP (ou carregue-a totalmente e volte a ligá-la) e mantenha o alarme do relógio do teu telemóvel como despertador até que seja necessário."
+            "value" : "A bracelete continua a indicar uma hora diferente da que o NOOP envia, pelo que o alarme do firmware não toca à tua hora de despertar, normalmente uma bracelete cujo relógio ou alarme foi reposto. Reinicia a bracelete em Dispositivos, ou carrega-a totalmente e volta a ligá-la; mantém o alarme do Relógio do teu telemóvel até que funcione."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Устройство показывает время иначе, чем отправляет NOOP, поэтому его будильник не срабатывает в момент пробуждения — обычно это устройство, чья система или будильник сброс. Сбросьте устройство через официальное приложение WHOOP (или полностью зарядите его и подключите снова) и используйте будильник телефона «Часы» как свой будильник, пока это не изменится."
+            "value" : "Устройство продолжает сообщать время, отличное от того, что отправляет NOOP, поэтому его встроенный будильник не сработает в нужное время, обычно это устройство, у которого сбросились часы или будильник. Перезапустите устройство в разделе «Устройства» или полностью зарядите его и подключите заново; до тех пор используйте будильник «Часы» на телефоне."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "手表显示的时间与NOOP发送的时间不同，因此其固件警报不会在您醒来时触发——通常是手表时钟或警报已重置。在官方WHOOP应用程序中重置手表（或完全充电并重新连接），并保持手机上的闹钟作为您醒来的时间参考，直到它生效。"
+            "value" : "手环报告的时间与 NOOP 发送的时间不一致，因此其固件闹钟不会在你的起床时间响起，通常是手环的时钟或闹钟被重置了。请在「设备」中重启手环，或将其充满电后重新连接；在生效之前，请继续使用手机的时钟闹钟。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "綁帶持續報告的時間與NOOP傳送的時間不同,因此它的韌體警報不會在你的醒悟時間開火——通常是一條其時鐘或警報重設的綁帶. 重置WHOOP官方app中的綁帶(或充電後重新連線),並保持手機的時鐘警鐘作為你的警鐘,直到需要."
+            "value" : "錶帶回報的時間與 NOOP 傳送的時間不一致，因此它的韌體鬧鐘不會在你的起床時間響起，通常是錶帶的時鐘或鬧鐘被重設了。請在「裝置」中重新啟動錶帶，或將它充飽電後重新連線；在生效之前，請繼續使用手機的時鐘鬧鐘。"
           }
         }
       }
