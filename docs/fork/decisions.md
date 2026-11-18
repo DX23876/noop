@@ -1707,3 +1707,50 @@ made a withdrawn claim and left the rest, which are mostly keys whose slug was n
 
 Analysis migration required: no. Screen copy, one display formatter and a CI gate; no stored value,
 no scoring, no analysis window.
+
+## 2026-11-18 — A unit the reader did not choose, a count that could not say one, and an emulator that was not the app
+
+The second pass of the same day, after walking both apps on a real build rather than reading source.
+
+**The temperature fault had three sites, not one.** The Charge breakdown was the first found; the
+Charge score page and the cycle page's body line printed the same engine figure under their own fixed
+"°C". Found by asking which strings carry a unit the wearer can switch, rather than by looking again
+at the place already fixed. The score page was Android only (Apple resolves it in
+`ForgeToday.driverValue` since #622), the cycle line was wrong on both. All four lines now take the
+figure from one resolver, and the gate covers all four.
+
+**"Best series so far: 1 weeks"** stood on the weekly-goal page of a real build. The card had six
+lines of that shape and nine more strings elsewhere can be handed a 1, each checked at its call site
+rather than guessed: sets, stored workouts, imported entries, the readings behind a body measurement,
+days with a workout, days not measured, sessions, sessions a week, days a week. Two that looked the
+same are already guarded, which is why reading the call site matters: a goal's last day and "last
+week" have their own lines.
+
+Which languages need a singular is not the same everywhere, and this is the part a bulk conversion
+gets wrong. Russian inflects here ("1 неделя", "2 недели", "5 недель") where its abbreviated lines
+elsewhere do not; Polish and Chinese abbreviate and need none; French "mois" is one word either way.
+Three translations were wrong beyond the missing singular and were corrected with them: the Italian
+set count read "imposta" (the verb), the Russian was still English, and the Chinese used 套, the
+classifier for a suit of clothes, where training sets are 组.
+
+`Tools/test_singular_blind_strings.py` holds the rest at a baseline that may only shrink. It counts
+only where the noun is governed by the line's ONLY number: "%lld of %lld days" is not a fault at any
+count, because the noun belongs to the second number. Counting those doubled the reported number and
+made every one of them a false alarm, which is how a gate stops being read.
+
+**The Android hang was the emulator, and the evidence says so.** The demo build ANR'd repeatedly on
+`noop-spike`. The trace puts the main thread in `ViewRootImpl.performDraw` →
+`HardwareRenderer.setStopped` → `RenderProxy::setStopped` → `pthread_cond_wait`, waiting on the
+platform's render thread with no NOOP frame on the stack at all, and the reason Android logs is
+"Input dispatching timed out ... Waited 5063 ms for FocusEvent". The same reason hit
+`com.google.android.googlequicksearchbox` two minutes earlier, and `com.android.systemui` in between.
+Three processes, one starved renderer. This says nothing about a real phone, which is why nothing was
+changed in the app for it; what did change is that `Tools/android_smoke_flow.py` now reports an ANR
+as an ANR instead of dying on a missing "<".
+
+**Worth knowing for the next session:** the simulator carried two installs of the app under different
+bundle identifiers, and `simctl launch` of the wrong one silently ran a build from hours earlier.
+Check `get_app_container` against the build you just made before believing a screenshot.
+
+Analysis migration required: no. Screen copy, display formatters and CI gates; no stored value, no
+scoring, no analysis window.
