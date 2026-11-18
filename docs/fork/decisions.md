@@ -1655,3 +1655,55 @@ qualification to offer.
 
 Analysis migration required: no. Card copy and one renamed in-memory field; no stored value, no
 scoring, no analysis window.
+
+## 2026-11-18 — What the two apps said that was not true: a unit, a remedy, and sixty half-translated sentences
+
+A pass over both apps' screens, looking for statements that do not hold rather than for missing
+features. The parity gate (`Tools/test_android_ios_parity.py`) was already green with no named gaps,
+and so were the Tools suites, the doc-comment lint and the translation gate; everything below sat
+underneath all of them.
+
+**A unit the reader did not choose.** The Charge breakdown printed the skin-temperature deviation as
+the scoring engine hands it over, with a literal "C" in the string, on both the Forge breakdown and
+the classic Today driver row. A wearer who had set Fahrenheit was shown a Celsius number under a "C".
+Apple fixed this in #622 with `ChargeBreakdownFormat.displayDriver` and has shown the reader's unit
+since; Android has the setting, every other skin-temp surface there honours it, and this one did not.
+The figure now carries its own sign and unit out of ONE resolver both screens call
+(`UnitFormatter.skinTempDeviation`), composed from the helpers that already existed, and the strings
+lost their hardcoded unit in all nine locales. One consequence worth naming: the number is now
+formatted the way every other skin-temp surface and the Apple row format it, with a US decimal point
+("+0.3 °C"), where this one row used to follow the phone's locale ("+0,3"). Two readouts of one
+figure that could disagree is the worse fault.
+
+**A remedy that breaks the strap.** The card shown when a strap keeps refusing the alarm write told
+the wearer to reset it in the official WHOOP app. That app pulls a firmware update on connect, after
+which the strap is locked out of NOOP: the cure costs the device. NOOP has had its own route since
+#166 (Devices › Restart strap), whose release note already called it "a clean way to reboot a
+misbehaving strap without the official app". Left alone, because no in-app alternative is verified
+and changing them needs a strap on a wrist: the texts that say to unpair a 5.0/MG in the official app
+before pairing it here. Those are an owner decision, not a repair.
+
+**Sixty sentences that stop mid-clause.** One batch of machine translation cut long Android strings at
+some length cap and glued the rest of the ENGLISH source on: "Dies überschreibt aktuelle Daten, so
+back up first if unsure." About sixty strings in every one of the eight locales. Nothing saw it:
+`i18n_audit.py` asks whether a key HAS a translation and all of these do, the XML is well formed, and
+the affected strings are long explanatory texts on Health, Lab Book, Backup, Steps and Smart Alarm
+that nobody reads twice. German is repaired because it is the one that can be checked here; the other
+seven are counted, not hidden.
+
+`Tools/test_i18n_translation_tails.py` is the gate: a translation may not end with a verbatim tail of
+its English source. Its per-locale baseline may only shrink. It lives in `Tools/`, not in the
+`i18n-coverage` workflow, because it reads PRODUCT source and that workflow's path filter would not
+see a later batch move the counts — the same reasoning as the repository-acceptance suite.
+
+**And a weakness in how Android keys are minted.** An Android key is `l10n_<screen>_<slug>_<hash>`,
+hashed on the ORIGINAL English. When the English is rewritten the key survives, so every translation
+stays behind with the old text. The R22 feature-flag note is the live example: the English stopped
+claiming the write unlocks the deeper streams once NOOP never observed it, and five locales went on
+promising exactly that about a write that changes persistent strap settings. Apple keys are the
+English text itself, so a rewrite orphans the old entry and the claim cannot survive. Comparing each
+key's slug against the English it now carries finds the drifted ones; this pass fixed the one that
+made a withdrawn claim and left the rest, which are mostly keys whose slug was never the text.
+
+Analysis migration required: no. Screen copy, one display formatter and a CI gate; no stored value,
+no scoring, no analysis window.
