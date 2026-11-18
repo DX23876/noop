@@ -421,7 +421,10 @@ private fun LegendDot(color: Color, label: String, dashed: Boolean = false) {
 private fun bodyLine(snap: CycleSnapshot): String? {
     val c = snap.compare ?: return null
     val parts = listOfNotNull(
-        c.tempDelta?.let { stringResource(R.string.forge_cy_nights_x_c, signed(it, 1)) },
+        // The figure carries the wearer's unit; the string used to end in a fixed "°C".
+        c.tempDelta?.let { stringResource(R.string.forge_cy_nights_x_c,
+                                          com.noop.ui.UnitFormatter.skinTempDeviation(
+                                              it, com.noop.ui.UnitPrefs.temperature(LocalContext.current))) },
         c.rhrDelta?.let { stringResource(R.string.forge_cy_resting_heart_rate_x_bpm, signed(it, 0)) },
         c.hrvDelta?.let { stringResource(R.string.forge_cy_hrv_x_ms, signed(it, 0)) })
     if (parts.isEmpty()) return null

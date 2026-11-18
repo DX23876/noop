@@ -6064,7 +6064,7 @@
     <string name="forge_cy_topic_exercise">Allenamento</string>
     <string name="forge_cy_topic_mind">Mente</string>
     <string name="forge_cy_day_n_of_n">giorno %1$d di %2$d</string>
-    <string name="forge_cy_nights_x_c">notti %1$s °C</string>
+    <string name="forge_cy_nights_x_c">notti %1$s</string>
     <string name="forge_cy_resting_heart_rate_x_bpm">frequenza a riposo %1$s bpm</string>
     <string name="forge_cy_rise_on_day_n">rialzo al giorno %1$d</string>
     <string name="forge_cy_skin_temperature_against_your_usual">temperatura cutanea rispetto al solito</string>
@@ -6443,7 +6443,7 @@
     <string name="forge_cband_moderate">Moderato</string>
     <string name="forge_cband_primed">Pronto</string>
     <string name="forge_cband_peak">Picco</string>
-    <string name="forge_ch_temp_vs_usual">%1$s °C rispetto al solito</string>
+    <string name="forge_ch_temp_vs_usual">%1$s rispetto al solito</string>
     <string name="forge_tr_coach_shorter">Più breve, per favore</string>
     <string name="forge_tr_coach_other">Altra routine</string>
     <string name="forge_tr_coach_plan_today">Pianifica oggi con il coach</string>

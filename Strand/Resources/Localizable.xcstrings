@@ -635397,60 +635397,60 @@
         }
       }
     },
-    "nights %@ °C" : {
+    "nights %@" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nächte %@ °C"
+            "value" : "Nächte %@"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "noches %@ °C"
+            "value" : "noches %@"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "nuits %@ °C"
+            "value" : "nuits %@"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "notti %@ °C"
+            "value" : "notti %@"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "noce %@ °C"
+            "value" : "noce %@"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "noites %@ °C"
+            "value" : "noites %@"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ночи %@ °C"
+            "value" : "ночи %@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "夜间 %@ °C"
+            "value" : "夜间 %@"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "夜間 %@ °C"
+            "value" : "夜間 %@"
           }
         }
       }

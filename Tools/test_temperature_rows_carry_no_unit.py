@@ -25,8 +25,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 RES = ROOT / "android/app/src/main/res"
 
-# The two lines of the Charge breakdown that state a skin-temperature deviation.
-KEYS = ("today_driver_value_temp_deviation", "forge_cb_vs_normal")
+# Every line that states a skin-temperature deviation. The breakdown's two were the first found; the
+# score page and the cycle page printed the same engine figure under their own fixed "°C".
+KEYS = ("today_driver_value_temp_deviation", "forge_cb_vs_normal",
+        "forge_ch_temp_vs_usual", "forge_cy_nights_x_c")
 
 # A degree sign, or a lone C/F standing as a unit next to the figure. "°C" is the giveaway; the bare
 # letter is how the fault was actually written.

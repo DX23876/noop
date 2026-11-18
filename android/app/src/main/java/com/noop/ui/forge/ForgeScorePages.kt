@@ -451,8 +451,13 @@ internal fun ForgeChargePage(viewModel: AppViewModel, onBack: () -> Unit, onHist
                     // The value as iOS's `ForgeToday.driverValue` words it: "/min" for breaths, "°C vs usual" for skin.
                     val value = when (d.unit) {
                         com.noop.analytics.ChargeDriverUnit.BREATHS_PER_MINUTE -> f(d.value) + " /min"
+                        // The third place this figure is printed, and the third that got it wrong: the
+                        // unit comes from the wearer's setting (`UnitFormatter.skinTempDeviation`), as
+                        // iOS's `ForgeToday.driverValue` has resolved it since #622.
                         com.noop.analytics.ChargeDriverUnit.CELSIUS_DEVIATION ->
-                            stringResource(R.string.forge_ch_temp_vs_usual, String.format(Locale.getDefault(), "%+.1f", d.value))
+                            stringResource(R.string.forge_ch_temp_vs_usual,
+                                           com.noop.ui.UnitFormatter.skinTempDeviation(
+                                               d.value, com.noop.ui.UnitPrefs.temperature(LocalContext.current)))
                         else -> driverValue(d)
                     }
                     WhyRow(driverLabel(d.label), value, d.deltaPoints.coerceIn(-1, 1), usual,

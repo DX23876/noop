@@ -599,7 +599,12 @@ struct ForgeCycleTopicView: View {
     static func bodyLine(_ snap: ForgeCycleSnapshot) -> String? {
         guard let c = snap.compare else { return nil }
         var parts: [String] = []
-        if let t = c.tempDelta { parts.append(String(localized: "nights \(signed(t, 1)) °C")) }
+        // The figure carries the reader's unit, as the Charge breakdown does since #622. The line used
+        // to end in a fixed "°C", so a Fahrenheit reader was shown Celsius here.
+        if let t = c.tempDelta {
+            let figure = ChargeBreakdownFormat.skinTempDeviationFigure(t, unit: ForgeToday.readerTemperatureUnit)
+            parts.append(String(localized: "nights \(figure)"))
+        }
         if let r = c.rhrDelta { parts.append(String(localized: "resting heart rate \(signed(r, 0)) bpm")) }
         if let h = c.hrvDelta { parts.append(String(localized: "HRV \(signed(h, 0)) ms")) }
         guard !parts.isEmpty else { return nil }

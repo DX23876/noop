@@ -6076,7 +6076,7 @@
     <string name="forge_cy_topic_exercise">Тренировки</string>
     <string name="forge_cy_topic_mind">Психика</string>
     <string name="forge_cy_day_n_of_n">день %1$d из %2$d</string>
-    <string name="forge_cy_nights_x_c">ночи %1$s °C</string>
+    <string name="forge_cy_nights_x_c">ночи %1$s</string>
     <string name="forge_cy_resting_heart_rate_x_bpm">пульс покоя %1$s уд/мин</string>
     <string name="forge_cy_rise_on_day_n">подъём на день %1$d</string>
     <string name="forge_cy_skin_temperature_against_your_usual">температура кожи относительно обычной</string>
@@ -6454,7 +6454,7 @@
     <string name="forge_cband_moderate">Умеренный</string>
     <string name="forge_cband_primed">Заряжен</string>
     <string name="forge_cband_peak">Пик</string>
-    <string name="forge_ch_temp_vs_usual">%1$s °C к обычному</string>
+    <string name="forge_ch_temp_vs_usual">%1$s к обычному</string>
     <string name="forge_tr_coach_shorter">Покороче, пожалуйста</string>
     <string name="forge_tr_coach_other">Другая программа</string>
     <string name="forge_tr_coach_plan_today">Спланировать день с коучем</string>

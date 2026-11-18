@@ -6057,7 +6057,7 @@
     <string name="forge_cy_topic_exercise">训练</string>
     <string name="forge_cy_topic_mind">心理</string>
     <string name="forge_cy_day_n_of_n">第 %1$d/%2$d 天</string>
-    <string name="forge_cy_nights_x_c">夜间 %1$s °C</string>
+    <string name="forge_cy_nights_x_c">夜间 %1$s</string>
     <string name="forge_cy_resting_heart_rate_x_bpm">静息心率 %1$s 次/分</string>
     <string name="forge_cy_rise_on_day_n">第 %1$d 天体温上升</string>
     <string name="forge_cy_skin_temperature_against_your_usual">皮肤温度相对你的常态</string>
@@ -6435,7 +6435,7 @@
     <string name="forge_cband_moderate">模拟</string>
     <string name="forge_cband_primed">私营</string>
     <string name="forge_cband_peak">峰值</string>
-    <string name="forge_ch_temp_vs_usual">较平常 %1$s °C</string>
+    <string name="forge_ch_temp_vs_usual">较平常 %1$s</string>
     <string name="forge_tr_coach_shorter">请短一些</string>
     <string name="forge_tr_coach_other">换个训练</string>
     <string name="forge_tr_coach_plan_today">和教练规划今天</string>
