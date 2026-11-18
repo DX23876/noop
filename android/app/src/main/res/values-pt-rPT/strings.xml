@@ -2268,7 +2268,7 @@
     <string name="today_hr_empty_window">Não há dados de frequência cardíaca nas últimas %1$s. Experimenta um período maior ou «Hoje».</string>
     <string name="today_hr_none_today">Ainda não há dados de frequência cardíaca guardados para hoje. A curva é desenhada quando a pulseira transferir os dados ou quando uma importação os trouxer.</string>
     <string name="today_hr_one_block">Para hoje está guardado apenas um bloco de cinco minutos de frequência cardíaca. A curva precisa de dois para traçar uma linha.</string>
-    <string name="today_hr_average_last_window">Média de 5 minutos | últimas %1$s</string>
+    <string name="today_hr_average_last_window">Média de 5 minutos · últimas %1$s</string>
     <string name="today_hr_zoomed_hint">Vista ampliada · arrasta para deslocar</string>
     <string name="today_not_connected">Não ligado</string>
     <string name="today_should_you_push">Deves esforçar-te hoje?</string>
@@ -2429,8 +2429,8 @@
     <string name="today_confidence_solid">SÓLIDA</string>
     <string name="today_confidence_building">EM CONSTRUÇÃO</string>
     <string name="today_confidence_calibrating">A CALIBRAR</string>
-    <string name="today_hr_average_selected_day">Média de 5 minutos | dia selecionado</string>
-    <string name="today_hr_average_since_midnight">Média de 5 minutos | desde a meia-noite</string>
+    <string name="today_hr_average_selected_day">Média de 5 minutos · dia selecionado</string>
+    <string name="today_hr_average_since_midnight">Média de 5 minutos · desde a meia-noite</string>
     <string name="today_hr_a11y_24_hour">Frequência cardíaca de 24 horas</string>
     <string name="today_hr_a11y_sleep_band">faixa de sono %1$s</string>
     <string name="today_hr_a11y_charge_at_wake">Energia ao acordar: %1$d por cento</string>

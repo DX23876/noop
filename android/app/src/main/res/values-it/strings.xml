@@ -2341,7 +2341,7 @@
     <string name="today_hr_empty_window">Nessuna frequenza cardiaca nelle ultime %1$s. Prova una finestra più ampia o Oggi.</string>
     <string name="today_hr_none_today">Per oggi non è ancora salvata alcuna frequenza cardiaca. La curva viene tracciata quando la fascia scarica i dati o quando li porta un’importazione.</string>
     <string name="today_hr_one_block">Per oggi è salvato un solo blocco di cinque minuti di frequenza cardiaca. Per tracciare una linea ne servono due.</string>
-    <string name="today_hr_average_last_window">Media su 5 minuti | ultime %1$s</string>
+    <string name="today_hr_average_last_window">Media su 5 minuti · ultime %1$s</string>
     <string name="today_hr_zoomed_hint">Zoom attivo · trascina per spostarti</string>
     <string name="today_not_connected">Non connesso</string>
     <string name="today_should_you_push">Dovresti spingere oggi?</string>
@@ -2502,8 +2502,8 @@
     <string name="today_confidence_solid">STABILE</string>
     <string name="today_confidence_building">IN CREAZIONE</string>
     <string name="today_confidence_calibrating">CALIBRAZIONE</string>
-    <string name="today_hr_average_selected_day">Media su 5 minuti | giorno selezionato</string>
-    <string name="today_hr_average_since_midnight">Media su 5 minuti | dalla mezzanotte</string>
+    <string name="today_hr_average_selected_day">Media su 5 minuti · giorno selezionato</string>
+    <string name="today_hr_average_since_midnight">Media su 5 minuti · dalla mezzanotte</string>
     <string name="today_hr_a11y_24_hour">Frequenza cardiaca nelle 24 ore</string>
     <string name="today_hr_a11y_sleep_band">fascia di sonno %1$s</string>
     <string name="today_hr_a11y_charge_at_wake">Carica al risveglio del %1$d percento</string>

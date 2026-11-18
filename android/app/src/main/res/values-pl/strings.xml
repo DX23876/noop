@@ -2274,7 +2274,7 @@
     <string name="today_hr_empty_window">Brak danych tętna z ostatnich %1$s. Wybierz dłuższy okres lub „Dzisiaj”.</string>
     <string name="today_hr_none_today">Na dziś nie zapisano jeszcze żadnych danych tętna. Wykres pojawi się, gdy opaska prześle dane lub przyniesie je import.</string>
     <string name="today_hr_one_block">Na dziś zapisano tylko jeden pięciominutowy blok tętna. Do narysowania linii potrzebne są dwa.</string>
-    <string name="today_hr_average_last_window">Średnia 5-minutowa | ostatnie %1$s</string>
+    <string name="today_hr_average_last_window">Średnia 5-minutowa · ostatnie %1$s</string>
     <string name="today_hr_zoomed_hint">Powiększono · przeciągnij, aby przesunąć</string>
     <string name="today_not_connected">Brak połączenia</string>
     <string name="today_should_you_push">Czy dziś warto dać z siebie więcej?</string>
@@ -2435,8 +2435,8 @@
     <string name="today_confidence_solid">PEWNY</string>
     <string name="today_confidence_building">W BUDOWIE</string>
     <string name="today_confidence_calibrating">KALIBRACJA</string>
-    <string name="today_hr_average_selected_day">Średnia 5-minutowa | wybrany dzień</string>
-    <string name="today_hr_average_since_midnight">Średnia 5-minutowa | od północy</string>
+    <string name="today_hr_average_selected_day">Średnia 5-minutowa · wybrany dzień</string>
+    <string name="today_hr_average_since_midnight">Średnia 5-minutowa · od północy</string>
     <string name="today_hr_a11y_24_hour">Tętno z 24 godzin</string>
     <string name="today_hr_a11y_sleep_band">pasmo snu %1$s</string>
     <string name="today_hr_a11y_charge_at_wake">Energia po przebudzeniu: %1$d procent</string>

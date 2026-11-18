@@ -2275,7 +2275,7 @@
     <string name="today_hr_empty_window">Aucune donnée de fréquence cardiaque au cours des dernières %1$s. Essayez une période plus large ou « Aujourd’hui ».</string>
     <string name="today_hr_none_today">Aucune fréquence cardiaque n’est encore enregistrée pour aujourd’hui. La courbe se trace dès que le bracelet transfère ses données ou qu’un import en apporte.</string>
     <string name="today_hr_one_block">Un seul bloc de cinq minutes de fréquence cardiaque est enregistré pour aujourd’hui. Il en faut deux pour tracer une ligne.</string>
-    <string name="today_hr_average_last_window">Moyenne sur 5 minutes | dernières %1$s</string>
+    <string name="today_hr_average_last_window">Moyenne sur 5 minutes · dernières %1$s</string>
     <string name="today_hr_zoomed_hint">Vue agrandie · faites glisser pour déplacer</string>
     <string name="today_not_connected">Non connecté</string>
     <string name="today_should_you_push">Faut-il intensifier aujourd’hui ?</string>
@@ -2436,8 +2436,8 @@
     <string name="today_confidence_solid">SOLIDE</string>
     <string name="today_confidence_building">EN COURS</string>
     <string name="today_confidence_calibrating">ÉTALONNAGE</string>
-    <string name="today_hr_average_selected_day">Moyenne sur 5 minutes | jour sélectionné</string>
-    <string name="today_hr_average_since_midnight">Moyenne sur 5 minutes | depuis minuit</string>
+    <string name="today_hr_average_selected_day">Moyenne sur 5 minutes · jour sélectionné</string>
+    <string name="today_hr_average_since_midnight">Moyenne sur 5 minutes · depuis minuit</string>
     <string name="today_hr_a11y_24_hour">Fréquence cardiaque sur 24 heures</string>
     <string name="today_hr_a11y_sleep_band">plage de sommeil %1$s</string>
     <string name="today_hr_a11y_charge_at_wake">Énergie au réveil : %1$d pour cent</string>

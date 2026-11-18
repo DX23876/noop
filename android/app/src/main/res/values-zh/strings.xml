@@ -2196,7 +2196,7 @@
     <string name="today_hr_empty_window">过去 %1$s 内没有心率数据。请尝试更长的时间范围或选择“今天”。</string>
     <string name="today_hr_none_today">今天尚未保存心率数据。手环传输数据或导入带入数据后，曲线就会绘制。</string>
     <string name="today_hr_one_block">今天只保存了一个五分钟的心率数据块。绘制曲线需要两个。</string>
-    <string name="today_hr_average_last_window">5 分钟平均值 | 过去 %1$s</string>
+    <string name="today_hr_average_last_window">5 分钟平均值 · 过去 %1$s</string>
     <string name="today_hr_zoomed_hint">已放大 · 拖动平移</string>
     <string name="today_not_connected">未连接</string>
     <string name="today_should_you_push">今天适合提高强度吗？</string>
@@ -2357,8 +2357,8 @@
     <string name="today_confidence_solid">稳定</string>
     <string name="today_confidence_building">建立中</string>
     <string name="today_confidence_calibrating">校准中</string>
-    <string name="today_hr_average_selected_day">5 分钟平均值｜所选日期</string>
-    <string name="today_hr_average_since_midnight">5 分钟平均值｜自午夜起</string>
+    <string name="today_hr_average_selected_day">5 分钟平均值·所选日期</string>
+    <string name="today_hr_average_since_midnight">5 分钟平均值·自午夜起</string>
     <string name="today_hr_a11y_24_hour">24 小时心率</string>
     <string name="today_hr_a11y_sleep_band">睡眠区间 %1$s</string>
     <string name="today_hr_a11y_charge_at_wake">醒来时能量 %1$d%%</string>

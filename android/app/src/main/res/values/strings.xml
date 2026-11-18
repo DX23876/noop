@@ -2397,7 +2397,7 @@
     <string name="today_hr_empty_window">No heart rate in the last %1$s. Try a wider window or Today.</string>
     <string name="today_hr_none_today">No heart rate stored for today yet. The curve draws once the strap offloads, or once an import brings one in.</string>
     <string name="today_hr_one_block">Only one five-minute block of heart rate is stored for today. The curve needs two of them to draw a line.</string>
-    <string name="today_hr_average_last_window">5-minute average | last %1$s</string>
+    <string name="today_hr_average_last_window">5-minute average · last %1$s</string>
     <string name="today_hr_zoomed_hint">Zoomed in · drag to pan</string>
     <string name="today_not_connected">Not connected</string>
     <string name="today_should_you_push">Should you push today?</string>
@@ -2558,8 +2558,8 @@
     <string name="today_confidence_solid">SOLID</string>
     <string name="today_confidence_building">BUILDING</string>
     <string name="today_confidence_calibrating">CALIBRATING</string>
-    <string name="today_hr_average_selected_day">5-minute average | selected day</string>
-    <string name="today_hr_average_since_midnight">5-minute average | since midnight</string>
+    <string name="today_hr_average_selected_day">5-minute average · selected day</string>
+    <string name="today_hr_average_since_midnight">5-minute average · since midnight</string>
     <string name="today_hr_a11y_24_hour">24-hour heart rate</string>
     <string name="today_hr_a11y_sleep_band">sleep band %1$s</string>
     <string name="today_hr_a11y_charge_at_wake">%1$d percent Charge at wake</string>
@@ -3595,8 +3595,8 @@
     <string name="forge_library_equipment">Equipment</string>
     <string name="forge_library_equipment_optional">Equipment, optional</string>
     <string name="forge_library_estimate_note">The estimated one-rep maximum is a projection from your logged sets, not a lift you performed.</string>
-    <string name="forge_library_favorite">Add to favorites</string>
-    <string name="forge_library_favorites">Favorites</string>
+    <string name="forge_library_favorite">Add to favourites</string>
+    <string name="forge_library_favorites">Favourites</string>
     <string name="forge_library_filter">Filter</string>
     <string name="forge_library_heaviest">Heaviest</string>
     <string name="forge_library_hide_filters">Hide filters</string>
@@ -3643,7 +3643,7 @@
     <string name="forge_library_try_another">Try another search or add your own exercise.</string>
     <string name="forge_library_type">Type</string>
     <string name="forge_library_unavailable">The exercise library could not be loaded.</string>
-    <string name="forge_library_unfavorite">Remove from favorites</string>
+    <string name="forge_library_unfavorite">Remove from favourites</string>
     <string name="forge_library_unilateral">Track left and right separately</string>
     <string name="forge_library_user_source">Stored locally with your training data.</string>
     <string name="forge_library_your_history">Your history</string>

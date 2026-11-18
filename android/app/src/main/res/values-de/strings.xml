@@ -2289,7 +2289,7 @@
     <string name="today_hr_empty_window">Keine Herzfrequenzdaten in den letzten %1$s. Wähle einen größeren Zeitraum oder „Heute“.</string>
     <string name="today_hr_none_today">Für heute sind noch keine Herzfrequenzdaten gespeichert. Die Kurve wird gezeichnet, sobald der Strap überträgt oder ein Import welche mitbringt.</string>
     <string name="today_hr_one_block">Für heute ist nur ein Fünf-Minuten-Block der Herzfrequenz gespeichert. Für eine Linie braucht die Kurve zwei davon.</string>
-    <string name="today_hr_average_last_window">5-Minuten-Durchschnitt | letzte %1$s</string>
+    <string name="today_hr_average_last_window">5-Minuten-Durchschnitt · letzte %1$s</string>
     <string name="today_hr_zoomed_hint">Vergrößert · zum Verschieben ziehen</string>
     <string name="today_not_connected">Nicht verbunden</string>
     <string name="today_should_you_push">Solltest du heute Gas geben?</string>
@@ -2450,8 +2450,8 @@
     <string name="today_confidence_solid">STABIL</string>
     <string name="today_confidence_building">IM AUFBAU</string>
     <string name="today_confidence_calibrating">KALIBRIERUNG</string>
-    <string name="today_hr_average_selected_day">5-Minuten-Mittel | ausgewählter Tag</string>
-    <string name="today_hr_average_since_midnight">5-Minuten-Mittel | seit Mitternacht</string>
+    <string name="today_hr_average_selected_day">5-Minuten-Mittel · ausgewählter Tag</string>
+    <string name="today_hr_average_since_midnight">5-Minuten-Mittel · seit Mitternacht</string>
     <string name="today_hr_a11y_24_hour">Herzfrequenz über 24 Stunden</string>
     <string name="today_hr_a11y_sleep_band">Schlafbereich %1$s</string>
     <string name="today_hr_a11y_charge_at_wake">%1$d Prozent Energie beim Aufwachen</string>

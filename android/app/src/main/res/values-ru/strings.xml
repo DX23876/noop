@@ -2231,7 +2231,7 @@
     <string name="today_hr_empty_window">Нет пульса за последние %1$s. Попробуйте более широкое окно или «Сегодня».</string>
     <string name="today_hr_none_today">За сегодня пульс ещё не сохранён. Кривая появится, когда браслет выгрузит данные или их принесёт импорт.</string>
     <string name="today_hr_one_block">За сегодня сохранён только один пятиминутный блок пульса. Чтобы провести линию, нужно два.</string>
-    <string name="today_hr_average_last_window">5-минутное среднее | последние %1$s</string>
+    <string name="today_hr_average_last_window">5-минутное среднее · последние %1$s</string>
     <string name="today_hr_zoomed_hint">Увеличено · перетащите для панорамирования</string>
     <string name="today_not_connected">Не подключено</string>
     <string name="today_should_you_push">Стоит ли сегодня выкладываться?</string>
@@ -2392,8 +2392,8 @@
     <string name="today_confidence_solid">Стабильный</string>
     <string name="today_confidence_building">Накопление данных</string>
     <string name="today_confidence_calibrating">КАЛИБРОВКА</string>
-    <string name="today_hr_average_selected_day">5-минутное среднее | выбранный день</string>
-    <string name="today_hr_average_since_midnight">5-минутное среднее | с полуночи</string>
+    <string name="today_hr_average_selected_day">5-минутное среднее · выбранный день</string>
+    <string name="today_hr_average_since_midnight">5-минутное среднее · с полуночи</string>
     <string name="today_hr_a11y_24_hour">Пульс за 24 часа</string>
     <string name="today_hr_a11y_sleep_band">полоса сна %1$s</string>
     <string name="today_hr_a11y_charge_at_wake">%1$d процентов Заряда при пробуждении</string>
