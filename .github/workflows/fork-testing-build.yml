@@ -33,6 +33,11 @@ jobs:
       # One stamp for every leg: computed once here, not per job, so the macOS and the iOS artifact of
       # one run cannot name different builds (a run straddling midnight UTC would date them a day apart).
       stamp: ${{ steps.m.outputs.stamp }}
+      # The date and the short sha the release TEXT carries. Outputs rather than recomputed in `publish`
+      # for the same reason as the stamp: a run that straddles midnight UTC would otherwise name one day
+      # in the artifacts and another in the title.
+      date: ${{ steps.m.outputs.date }}
+      sha: ${{ steps.m.outputs.sha }}
     steps:
       - uses: actions/checkout@v5
       - id: m
@@ -46,6 +51,8 @@ jobs:
           SHA="${GITHUB_SHA:0:7}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "ver=$VER" >> "$GITHUB_OUTPUT"
+          echo "date=$DATE" >> "$GITHUB_OUTPUT"
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
           # WHICH BUILD this is, for the app itself: the version is the release train, every testing
           # build of it shares the numbers, and a tester's strap log therefore could not say whether it
           # carried a given fix (#47). Printed in the log header and under About / More.
@@ -55,79 +62,6 @@ jobs:
           # tell which one they were running. The release workflows stamp "release" in the same place,
           # so the word is always there and its absence means a build nobody's CI made.
           echo "stamp=testing $SHA $DATE" >> "$GITHUB_OUTPUT"
-          # ROLLING release: recreate the single tag so stale (incl. old-version) assets never linger —
-          # one stable URL, always the newest build, zero cleanup. (To KEEP a build, cut a one-off tag.)
-          #
-          # The delete USED to end in `|| true`, which could not tell "the tag is not there yet",
-          # which is the normal first-run case and fine, from "the delete failed", which makes the
-          # create below certain to fail (#2174). Build 499 hit a 500 from GitHub here, the create
-          # then stopped on "Release.tag_name already exists", and since meta gates all four build
-          # legs a blip in a metadata step threw away the Android, iOS and macOS builds behind it.
-          # The message a reader got described the symptom and pointed away from the cause.
-          delete_rolling_release() {
-            local out status attempt
-            for attempt in 1 2 3; do
-              out=$(gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes 2>&1) && status=0 || status=$?
-              [ "$status" -eq 0 ] && return 0
-              # Nothing there to delete is success, not failure: first build, or an earlier run that
-              # got as far as deleting. Anything else is worth another go, GitHub 5xx being transient.
-              case "$(printf '%s' "$out" | tr '[:upper:]' '[:lower:]')" in
-                *"not found"*|*404*) return 0 ;;
-              esac
-              echo "release delete attempt ${attempt} of 3 did not succeed: ${out}"
-              sleep $((attempt * 5))
-            done
-            return 1
-          }
-          delete_rolling_release || {
-            echo "::error::Could not delete $TAG after 3 attempts. Not creating over it, because that fails with a message about the tag existing rather than about this."
-            exit 1
-          }
-          # Assert rather than assume. A delete that reports success but leaves the release standing
-          # would otherwise be read by the create as a name clash, which is the confusion above.
-          # Known limit: a 5xx on this view reads the same as a clean 404, so a blip here lands back
-          # on the create's own error. That is where we were before, not somewhere worse, and failing
-          # the build on an inconclusive view would stop builds whose release really had gone.
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "::error::$TAG still exists after a delete that reported success. Refusing to create over it."
-            exit 1
-          fi
-          # The TAG has to go as well, and its own failure is the quiet one. `create` ignores --target
-          # when the tag already exists, so a release gone but a tag left behind does not fail: it
-          # publishes today's assets against a tag still pointing at the previous build's commit, and
-          # nothing says so. The release title carries $SHA from the workflow, so it would read as
-          # today's build while `git checkout testing-latest` handed someone yesterday's source.
-          # Deleting the ref directly is the same thing --cleanup-tag meant to do, so try once more
-          # before giving up rather than failing a build over a leftover.
-          if gh api "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" >/dev/null 2>&1; then
-            echo "$TAG survived --cleanup-tag; deleting the ref directly."
-            gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" >/dev/null 2>&1 || true
-            if gh api "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" >/dev/null 2>&1; then
-              echo "::error::The tag $TAG could not be removed. Creating now would publish this build against the previous build's commit, so stopping instead."
-              exit 1
-            fi
-          fi
-          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease --target "${{ github.sha }}" \
-            --title "TESTING BUILD · NOOP Forge ${VER} · ${DATE} · ${SHA} · not a release" \
-            --notes "**This is a testing build, not a release.** It is built from a branch under test and refreshed in place, so this tag always holds the newest one. Every file here carries \`testing\` in its name, and the app says \`testing\` beside its version under About, so an installed build can always be told apart from a release.
-
-          ${SUMMARY}
-
-          It installs over NOOP Forge and keeps your data. To go back, install the latest release again.
-
-          - **macOS:** \`NOOP-testing-macos-v${VER}.zip\`. Unzip, then **right-click, Open** (ad-hoc signed, not notarized; Gatekeeper warns once). If it says *\"damaged\"*, run \`xattr -dr com.apple.quarantine /Applications/NOOP.app\`.
-          - **iOS (AltStore):** \`NOOP-testing-ios-unsigned-v${VER}.ipa\`. iPhone and iPad only, for reliable free Apple ID sideloading.
-          - **iOS (Full):** \`NOOP-testing-ios-full-unsigned-v${VER}.ipa\`. Includes the widgets, the Watch app and its complication; needs provisioning for every embedded target.
-
-          Base app version ${VER} · built ${DATE} · \`${SHA}\` · testing channel."
-          # Belt-and-braces: a rolling tag is deleted with --cleanup-tag and recreated seconds later, and
-          # that recreate has come back as a DRAFT — the 9.2.1 staging build did, and a draft release does
-          # not create its tag, so the assets were unreachable and the `testing-latest` URL 404'd until
-          # someone noticed. Whatever the cause (the tag delete is not instant on GitHub's side), asserting
-          # the published state costs one idempotent call and cannot make things worse.
-          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease
-          DRAFT=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft -q .isDraft)
-          [ "$DRAFT" = "false" ] || { echo "::error::$TAG is still a draft — testers cannot download it."; exit 1; }
 
   # macos-26, not macos-15: macos-15's Xcode 16.4 (Swift 6.1.2) crashes swift-frontend compiling the
   # Strand module (x86_64 module emission, then SILGen on the arm64 slice under whole-module mode). The
@@ -150,6 +84,13 @@ jobs:
     # `timeout-minutes` does not govern at all, and no setting here can buy a runner.
     timeout-minutes: 60
     strategy:
+      # ONE runner at a time, from 2026-11-18. Three macOS jobs used to ask for a machine in the same
+      # moment (two slices and the iOS leg) and all three had to be served for the release to be
+      # complete. On the day GitHub ran out of macOS arm64 capacity, one was served and two were dropped
+      # after fifteen minutes, so the run was worthless. Asked for in sequence, each request has the
+      # queue to itself: the build takes longer, which the 60 minutes above allow, and it no longer needs
+      # three pieces of luck at once.
+      max-parallel: 1
       matrix:
         arch: [arm64, x86_64]
     steps:
@@ -254,16 +195,25 @@ jobs:
           ditto -c -k --keepParent "$APP" "NOOP-testing-macos-v${VER}.zip"
           shasum -a 256 "NOOP-testing-macos-v${VER}.zip" > "NOOP-testing-macos-v${VER}.sha256"
           cat "NOOP-testing-macos-v${VER}.sha256"
-          gh release upload "${{ needs.meta.outputs.tag }}" "NOOP-testing-macos-v${VER}.zip" "NOOP-testing-macos-v${VER}.sha256" \
-            --repo "$GITHUB_REPOSITORY" --clobber
           echo "MAC_ZIP=NOOP-testing-macos-v${VER}.zip" >> "$GITHUB_ENV"
       - name: Attest build provenance
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
           subject-path: ${{ env.MAC_ZIP }}
+      # To the RUN, not to the release: `publish` attaches everything once every leg has delivered, so a
+      # leg that never got a runner cannot leave the testers in front of an empty release.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: testing-macos
+          path: |
+            NOOP-testing-macos-v*.zip
+            NOOP-testing-macos-v*.sha256
+          if-no-files-found: error
+          retention-days: 2
 
   ios:
-    needs: meta
+    # After the macOS path, not beside it: one macOS runner is asked for at a time (see `macos-slice`).
+    needs: [meta, macos]
     # iOS 26 Liquid Glass (glassEffect) needs the iOS 26 SDK → Xcode 26 → macos-26.
     runs-on: macos-26
     # 40 was the limit until 2026-11-13: the build took 38 min 41 s on e0c6ff901 and ran out of time on the
@@ -315,7 +265,6 @@ jobs:
           SUMS="NOOP-testing-ios-v${VER}.sha256"
           shasum -a 256 "$LITE_IPA" "$FULL_IPA" > "$SUMS"
           cat "$SUMS"
-          gh release upload "${{ needs.meta.outputs.tag }}" "$LITE_IPA" "$FULL_IPA" "$SUMS" --repo "$GITHUB_REPOSITORY" --clobber
           echo "LITE_IPA=$LITE_IPA" >> "$GITHUB_ENV"
           echo "FULL_IPA=$FULL_IPA" >> "$GITHUB_ENV"
       - name: Attest build provenance
@@ -324,6 +273,119 @@ jobs:
           subject-path: |
             ${{ env.LITE_IPA }}
             ${{ env.FULL_IPA }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: testing-ios
+          path: |
+            NOOP-testing-ios-*.ipa
+            NOOP-testing-ios-v*.sha256
+          if-no-files-found: error
+          retention-days: 2
+
+  # The rolling release is touched ONCE, here, and only once every leg has delivered its files.
+  #
+  # It used to be recreated up front, in `meta`, before any leg had built anything. On 2026-11-18 that
+  # cost the testers their build three times over: GitHub had no macOS arm64 capacity, the legs were
+  # dropped fifteen minutes into the queue, and `testing-latest` stood empty although the build from the
+  # 14th had been perfectly good. Now a dropped leg costs a retry and nothing else — the previous build
+  # stays where it is until a complete one is ready to replace it.
+  publish:
+    needs: [meta, macos, ios]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+      - name: Recreate the rolling release and attach everything
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SUMMARY: ${{ inputs.summary }}
+        run: |
+          set -euo pipefail
+          TAG="${{ needs.meta.outputs.tag }}"
+          VER="${{ needs.meta.outputs.ver }}"
+          DATE="${{ needs.meta.outputs.date }}"
+          SHA="${{ needs.meta.outputs.sha }}"
+          FILES=$(find dist -type f | sort)
+          test -n "$FILES" || { echo "::error::no artifacts to publish"; exit 1; }
+          echo "$FILES"
+          # ROLLING release: recreate the single tag so stale (incl. old-version) assets never linger —
+          # one stable URL, always the newest build, zero cleanup. (To KEEP a build, cut a one-off tag.)
+          #
+          # The delete USED to end in `|| true`, which could not tell "the tag is not there yet",
+          # which is the normal first-run case and fine, from "the delete failed", which makes the
+          # create below certain to fail (#2174). Build 499 hit a 500 from GitHub here, the create
+          # then stopped on "Release.tag_name already exists", and because this ran in `meta`, ahead of
+          # every build leg, a blip in a metadata step threw the whole run away. Since 2026-11-18 it runs
+          # LAST instead: the artifacts are already in the run, so a blip here costs a re-run of this one
+          # job and no build time at all. The retry stays, because a failed delete still means the create
+          # cannot succeed, and the message should say which of the two happened.
+          delete_rolling_release() {
+            local out status attempt
+            for attempt in 1 2 3; do
+              out=$(gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes 2>&1) && status=0 || status=$?
+              [ "$status" -eq 0 ] && return 0
+              # Nothing there to delete is success, not failure: first build, or an earlier run that
+              # got as far as deleting. Anything else is worth another go, GitHub 5xx being transient.
+              case "$(printf '%s' "$out" | tr '[:upper:]' '[:lower:]')" in
+                *"not found"*|*404*) return 0 ;;
+              esac
+              echo "release delete attempt ${attempt} of 3 did not succeed: ${out}"
+              sleep $((attempt * 5))
+            done
+            return 1
+          }
+          delete_rolling_release || {
+            echo "::error::Could not delete $TAG after 3 attempts. Not creating over it, because that fails with a message about the tag existing rather than about this."
+            exit 1
+          }
+          # Assert rather than assume. A delete that reports success but leaves the release standing
+          # would otherwise be read by the create as a name clash, which is the confusion above.
+          # Known limit: a 5xx on this view reads the same as a clean 404, so a blip here lands back
+          # on the create's own error. That is where we were before, not somewhere worse, and failing
+          # the build on an inconclusive view would stop builds whose release really had gone.
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "::error::$TAG still exists after a delete that reported success. Refusing to create over it."
+            exit 1
+          fi
+          # The TAG has to go as well, and its own failure is the quiet one. `create` ignores --target
+          # when the tag already exists, so a release gone but a tag left behind does not fail: it
+          # publishes today's assets against a tag still pointing at the previous build's commit, and
+          # nothing says so. The release title carries $SHA from the workflow, so it would read as
+          # today's build while `git checkout testing-latest` handed someone yesterday's source.
+          # Deleting the ref directly is the same thing --cleanup-tag meant to do, so try once more
+          # before giving up rather than failing a build over a leftover.
+          if gh api "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" >/dev/null 2>&1; then
+            echo "$TAG survived --cleanup-tag; deleting the ref directly."
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" >/dev/null 2>&1 || true
+            if gh api "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" >/dev/null 2>&1; then
+              echo "::error::The tag $TAG could not be removed. Creating now would publish this build against the previous build's commit, so stopping instead."
+              exit 1
+            fi
+          fi
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease --target "${{ github.sha }}" \
+            --title "TESTING BUILD · NOOP Forge ${VER} · ${DATE} · ${SHA} · not a release" \
+            --notes "**This is a testing build, not a release.** It is built from a branch under test and refreshed in place, so this tag always holds the newest one. Every file here carries \`testing\` in its name, and the app says \`testing\` beside its version under About, so an installed build can always be told apart from a release.
+
+          ${SUMMARY}
+
+          It installs over NOOP Forge and keeps your data. To go back, install the latest release again.
+
+          - **macOS:** \`NOOP-testing-macos-v${VER}.zip\`. Unzip, then **right-click, Open** (ad-hoc signed, not notarized; Gatekeeper warns once). If it says *\"damaged\"*, run \`xattr -dr com.apple.quarantine /Applications/NOOP.app\`.
+          - **iOS (AltStore):** \`NOOP-testing-ios-unsigned-v${VER}.ipa\`. iPhone and iPad only, for reliable free Apple ID sideloading.
+          - **iOS (Full):** \`NOOP-testing-ios-full-unsigned-v${VER}.ipa\`. Includes the widgets, the Watch app and its complication; needs provisioning for every embedded target.
+
+          Base app version ${VER} · built ${DATE} · \`${SHA}\` · testing channel."
+          # Belt-and-braces: a rolling tag is deleted with --cleanup-tag and recreated seconds later, and
+          # that recreate has come back as a DRAFT — the 9.2.1 staging build did, and a draft release does
+          # not create its tag, so the assets were unreachable and the `testing-latest` URL 404'd until
+          # someone noticed. Whatever the cause (the tag delete is not instant on GitHub's side), asserting
+          # the published state costs one idempotent call and cannot make things worse.
+          gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --draft=false --prerelease
+          DRAFT=$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isDraft -q .isDraft)
+          [ "$DRAFT" = "false" ] || { echo "::error::$TAG is still a draft — testers cannot download it."; exit 1; }
+          # shellcheck disable=SC2086
+          gh release upload "$TAG" $FILES --repo "$GITHUB_REPOSITORY" --clobber
 
   # Fork-only housekeeping: the disposable `noop-staging` branch exists ONLY to feed this build. Once every
   # platform job has finished (pass OR fail — always()), delete it so GitHub's "Compare & pull request"
@@ -331,7 +393,7 @@ jobs:
   # deleting the branch orphans nothing. Guarded to the disposable branch name — a run dispatched from main
   # (or any other ref) is left alone.
   cleanup:
-    needs: [meta, macos, ios]
+    needs: [meta, macos, ios, publish]
     if: ${{ always() && github.ref_type == 'branch' && github.ref_name == 'noop-staging' }}
     runs-on: ubuntu-latest
     steps:
