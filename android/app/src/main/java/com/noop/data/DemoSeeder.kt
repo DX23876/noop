@@ -48,6 +48,11 @@ object DemoSeeder {
     /** Seed only if the demo (and the user) has no daily history yet. Safe to call on every launch. */
     suspend fun seedIfEmpty(repo: WhoopRepository) {
         if (repo.days(WHOOP).isNotEmpty()) return
+        // The shared core writes it (`DemoDataset`), so the iPhone and this phone seed the SAME account and
+        // a screen can be held against its twin. The Kotlin generator below stays only as the fallback for
+        // a build without the core, where nothing else would fill the screens at all.
+        if (com.noop.core.SwiftCore.available &&
+            com.noop.core.SwiftCore.call("demo.seed", "{}")?.contains("\"seeded\":true") == true) return
         seed(repo)
     }
 

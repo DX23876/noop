@@ -282,6 +282,12 @@ public enum CoreCall {
         guard let (store, _) = ShadowSession.storeAndPath, let reader = ShadowSession.reader else {
             return #"{"error":"noStore"}"#
         }
+        if op == "demo.seed" {
+            // The whole demo account, written once and only into a store that has no days of its own, so it
+            // can never overwrite a real one. The caller gates it to a debug build.
+            let wrote = (try? await DemoDataset.seedIfEmpty(store: store)) ?? false
+            return CoreRead.json(["seeded": wrote])
+        }
         if op.hasPrefix("input.") || op.hasPrefix("lanes.") { return await CoreUserInputs.run(op, json: argsJSON, store: store) }
         // The coach and the goal screens built on its stores run over the persisted goals (`CoreGoalHost`).
         if op.hasPrefix("coach.") || op.hasPrefix("goals.onboarding") || op.hasPrefix("goals.editor") {

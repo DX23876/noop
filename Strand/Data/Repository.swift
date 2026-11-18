@@ -846,6 +846,14 @@ final class Repository: ObservableObject {
         let opened = await task.value
         if let opened { store = opened }
         storeOpenTask = nil
+        #if DEBUG
+        // `--demo-data` writes the shared demo account (`DemoDataset`), the same one Android seeds, so a
+        // screen can be looked at and compared on both phones without a strap. It refuses on a store that
+        // already holds days, and a release build has no such argument.
+        if let opened, CommandLine.arguments.contains("--demo-data") {
+            _ = try? await DemoDataset.seedIfEmpty(store: opened)
+        }
+        #endif
         return opened
     }
 
