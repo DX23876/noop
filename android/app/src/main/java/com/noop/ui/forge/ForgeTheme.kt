@@ -282,6 +282,8 @@ object ForgeMetrics {
     val heroRadius = ForgeTokens.NoopMetrics.heroRadius.dp
     val gap = ForgeTokens.NoopMetrics.gap.dp
     val sectionGap = ForgeTokens.NoopMetrics.sectionGap.dp
+    /** Between the rings and whatever follows, as iOS keeps it: more than a section break. */
+    val heroGap = ForgeTokens.NoopMetrics.heroGap.dp
     val rowSpacing = ForgeTokens.NoopMetrics.rowSpacing.dp
     val space1 = ForgeTokens.NoopMetrics.space1.dp
     val space2 = ForgeTokens.NoopMetrics.space2.dp

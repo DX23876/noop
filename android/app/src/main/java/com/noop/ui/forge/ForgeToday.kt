@@ -409,7 +409,10 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                 d.copy(charge = d.charge ?: carried.first, rest = d.rest ?: carried.second,
                        effort = liveEffort ?: d.effort)
             }
-            Hero(heroDay, width, onHold = { editingWidgets = true }, viewModel = viewModel)
+            Hero(heroDay, width, onHold = { editingWidgets = true }, viewModel = viewModel,
+                 // The rings keep more room under them than an ordinary section break, as on iOS, so the
+                 // chamber reads as the page's head rather than as the first of a list.
+                 modifier = Modifier.padding(bottom = ForgeMetrics.heroGap - ForgeMetrics.sectionGap))
             if (shown == today) ForgeActivityPrompt()
             // The day's one hint under the rings, as iOS's `hintCard`.
             if (shown == today) {
@@ -546,11 +549,12 @@ private fun Header(date: LocalDate, isToday: Boolean, backfilling: Boolean, onPr
 }
 
 @Composable
-private fun Hero(day: CoreRead.Day?, width: ForgeWidth, onHold: (() -> Unit)? = null, viewModel: AppViewModel? = null) {
+private fun Hero(day: CoreRead.Day?, width: ForgeWidth, onHold: (() -> Unit)? = null, viewModel: AppViewModel? = null,
+                 modifier: Modifier = Modifier) {
     val colors = Forge.colors
     // Each ring opens its trend, as iOS's `HeroScoreCell` pushes its `detailRoute`.
     var open by remember { mutableStateOf<CoreRead.Metric?>(null) }
-    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.heroRadius, glass = true, contentPadding = 0.dp) {
+    ForgeCard(modifier.fillMaxWidth(), radius = ForgeMetrics.heroRadius, glass = true, contentPadding = 0.dp) {
         Box(Modifier.fillMaxWidth()) {
             BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = HeroRingLayout.horizontalPadding,
                                                                vertical = HeroRingLayout.verticalPadding)) {

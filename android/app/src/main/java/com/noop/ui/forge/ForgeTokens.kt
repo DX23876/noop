@@ -83,6 +83,13 @@ object ForgeTokens {
         const val screenHPadding: Float = 16f
         const val screenPadding: Float = 16f
         const val sectionGap: Float = 24f
+        /**
+         * Between the rings and whatever follows them, so the chamber reads as the page's head. 32, which is
+         * what iOS puts there (12 under the chamber plus 20 over the tiles); the section gap alone left the
+         * tiles visibly closer to the rings here than on the iPhone, which the owner spotted in a
+         * side-by-side on 2026-11-18.
+         */
+        const val heroGap: Float = 32f
         const val sourceBadgeHeight: Float = 18f
         const val space1: Float = 4f
         const val space10: Float = 40f
