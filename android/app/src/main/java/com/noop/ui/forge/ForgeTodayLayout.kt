@@ -58,7 +58,12 @@ object TodayLayoutDefaults {
         it in setOf(KeyMetric.CALORIES, KeyMetric.CHARGE, KeyMetric.EFFORT, KeyMetric.REST)
     }
 
-    const val KEY_METRICS_COLUMNS = 2
+    /**
+     * Three, as iOS falls back (`KeyMetricPrefs.columns(0)` answers 3 for an unset value). It was 2 here, so the
+     * same install without a column choice drew a different grid on the two phones; 2026-11-18 they agree.
+     * A stored choice is untouched either way.
+     */
+    const val KEY_METRICS_COLUMNS = 3
 
     /** Customised once either section key has been written; unhiding everything writes an explicit "". */
     fun isLayoutCustomised(orderRaw: String?, hiddenRaw: String?): Boolean =

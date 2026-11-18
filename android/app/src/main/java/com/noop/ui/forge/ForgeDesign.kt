@@ -14,17 +14,40 @@ import com.noop.ui.NoopPrefs
 
 /**
  * Fork (DX23876), Forge parity 2026-11: the "New design (preview)" switch, the twin of iOS's `ForgeDesignPrefs`.
- * Off by default, as on iOS: the shipped Forge tabs (Today, Trends, Training, Sleep, More) stay until the owner
- * decides otherwise. On, the shell shows the new design's tabs (Today with its timeline, Training, Sleep, Health,
- * and the coach in its own place). Same key as iOS, so the choice reads the same on both.
+ * **On by default since 2026-11-18**, as on iOS: the owner decided the new design ships to everyone, and
+ * [flipOnce] carries over the installs that had it off. The switch stays, so anyone can go back to the shipped
+ * Forge tabs (Today, Trends, Training, Sleep, More). Same key as iOS, so the choice reads the same on both.
  *
  * `--ez new_design true|false` on the launch intent overrides it for emulator checks in a debug build, without
  * writing the switch, as `--new-design` does on iOS.
  */
 object ForgeDesign {
     const val KEY = "noop.forgeDesign.preview"
-    const val DEFAULT = false
+    const val DEFAULT = true
     const val EXTRA = "new_design"
+
+    /**
+     * Marks that [flipOnce] has run on this install, iOS's `ForgeDesignPrefs.flippedKey`. Its own key, not the
+     * switch: the switch cannot say whether an "off" was the old default or a decision, and that difference is
+     * the whole point.
+     */
+    const val FLIPPED_KEY = "noop.forgeDesign.flipped"
+
+    /**
+     * Turn the new design on for everyone, exactly once per install (owner, 2026-11-18).
+     *
+     * [DEFAULT] alone would not do it: the read below is "the stored value, else the default", so flipping the
+     * default moves only those who never touched the switch, while whoever had deliberately turned the preview
+     * off would keep the old design and report on a screen nobody else is looking at. Clearing the stored value
+     * once hands everyone back to the (now true) default.
+     *
+     * The marker is what keeps this from being a trap: without it the clear would run at every launch and nobody
+     * could ever leave the new design again. With it, an "off" set AFTER the flip is a decision and survives.
+     */
+    internal fun flipOnce(prefs: android.content.SharedPreferences) {
+        if (prefs.getBoolean(FLIPPED_KEY, false)) return
+        prefs.edit().remove(KEY).putBoolean(FLIPPED_KEY, true).apply()
+    }
 
     /** Observed by the shell, so flipping the switch in Lab redraws the tabs at once. */
     var preview by mutableStateOf(DEFAULT)
@@ -32,6 +55,8 @@ object ForgeDesign {
 
     fun load(context: Context, intent: Intent? = null) {
         val prefs = context.getSharedPreferences(NoopPrefs.NAME, Context.MODE_PRIVATE)
+        // Before the read: the new design goes to everyone, once per install.
+        flipOnce(prefs)
         // The launch extra is a debug-build override that leaves the stored switch alone, as iOS's `--new-design`:
         // a release build ignores it, so no other app can flip the wearer's choice through the launcher.
         val override = intent?.takeIf { com.noop.BuildConfig.DEBUG && it.hasExtra(EXTRA) }?.getBooleanExtra(EXTRA, DEFAULT)
