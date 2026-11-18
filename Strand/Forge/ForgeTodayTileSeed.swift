@@ -13,6 +13,13 @@ enum ForgeTodayTileSeed {
     /// tiles were introduced.
     static let firstSet = ["hrv", "rhr", "steps", "sleep_total_min", "stress", "weight"]
 
+    /// Measures that exist only across the whole row (2026-11-18): Charge, Effort and Rest.
+    ///
+    /// Derived from the metrics themselves rather than written out a second time, so this set and the
+    /// metrics that are NOT carried into the tiles cannot drift apart: they are the same three, by
+    /// construction. Android's twin is `TodayWidget.WHOLE_ROW_MEASURES`.
+    static let wholeRowMeasures = Set(KeyMetric.allCases.compactMap(\.wholeRowMeasureKey))
+
     /// The measure keys to place, from a stored `today.keyMetrics` layout.
     ///
     /// With no layout saved this is `firstSet`. With one, it is THAT layout in ITS order, because the new

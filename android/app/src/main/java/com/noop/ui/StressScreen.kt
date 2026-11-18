@@ -950,7 +950,7 @@ private fun pointTimeLabel(ts: Long): String =
 private val stressYAxisWidth = 32.dp
 
 @Composable
-private fun DaytimeStressLine(hours: List<DaytimeStress.HourPoint>) {
+internal fun DaytimeStressLine(hours: List<DaytimeStress.HourPoint>) {
     val levels = remember(hours) { hours.map { it.level } }
     if (levels.size < 2) return
 

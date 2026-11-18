@@ -30,9 +30,21 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
     /// A tile over two columns (2) instead of one; nil or 1 is one column.
     var span: Int? = nil
 
+    /// Measures that exist ONLY across the whole row (2026-11-18): Charge, Effort and Rest.
+    ///
+    /// The three rings stand directly above them and already say today's number. A small tile repeating
+    /// it would be the same fact twice on one screen; across the row, with its thirty days, the tile says
+    /// something the rings do not. The set is derived from the metrics, in the shared folder, where it is
+    /// tested against the ones the seed refuses to carry.
+    static let wholeRowMeasures = ForgeTodayTileSeed.wholeRowMeasures
+
+    /// Whether this is one of those three.
+    var isWholeRowMeasure: Bool { kind == .measure && Self.wholeRowMeasures.contains(key ?? "") }
+
     var isWide: Bool {
         switch kind {
-        case .measure, .water, .breathe, .strap: return false
+        case .measure: return isWholeRowMeasure || wide == true
+        case .water, .breathe, .strap: return false
         case .liveHeart, .ageless: return wide == true
         default: return true
         }
@@ -43,8 +55,12 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
 
     var size: Size { isWide ? .wide : (span == 2 ? .medium : .small) }
 
-    /// Kinds drawn as a tile: they come small or over two columns, and two of them also across the row.
+    /// Kinds drawn as a tile: they come small or over two columns, and some also across the row.
+    ///
+    /// A whole-row measure answers false: it has one size, so a size control on it would be a button that
+    /// does nothing, and a control that does nothing says something untrue about the thing it sits on.
     var resizable: Bool {
+        if isWholeRowMeasure { return false }
         switch kind {
         case .measure, .water, .breathe, .strap, .liveHeart, .ageless: return true
         default: return false
@@ -56,7 +72,8 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
     var nextSize: Size {
         switch size {
         case .small: return .medium
-        case .medium: return (kind == .liveHeart || kind == .ageless) ? .wide : .small
+        // A measure grows across the row too since 2026-11-18, where it draws its thirty days.
+        case .medium: return (kind == .liveHeart || kind == .ageless || kind == .measure) ? .wide : .small
         case .wide: return .small
         }
     }
@@ -187,6 +204,12 @@ enum ForgeWidgetMeasures {
         ("weight", "noop-weight"), ("spo2", Repository.whoopSource), ("resp_rate", Repository.whoopSource),
         ("skin_temp", Repository.whoopSource), ("active_kcal", "apple-health"), ("calories_in", "nutrition-csv"),
         ("fitness_age", Repository.whoopSource),
+        // Charge, Effort and Rest, added 2026-11-18. Only ever drawn across the whole row
+        // (`ForgeTodayWidget.wholeRowMeasures`): the three rings above already say today's number, so a
+        // small tile would be the same fact twice, while thirty days of it is something the rings do not
+        // show. The gallery's own order, last, since they are the newcomers.
+        ("recovery", Repository.whoopSource), ("strain", Repository.whoopSource),
+        ("sleep_performance", Repository.whoopSource),
     ]
 
     static func descriptor(_ key: String, _ source: String?) -> MetricDescriptor? {
@@ -432,7 +455,8 @@ struct ForgeTodayWidgetView: View {
 
     var body: some View {
         switch widget.kind {
-        case .measure: ForgeMeasureWidget(key: widget.key ?? "hrv", source: widget.source, detailed: widget.size == .medium)
+        case .measure: ForgeMeasureWidget(key: widget.key ?? "hrv", source: widget.source,
+                                          detailed: widget.size == .medium, wide: widget.size == .wide)
         case .trainingLoad: LiquidTrainingLoadSection(surfaceOpacity: surfaceOpacity ?? Double(opacityPercent) / 100)
         // The name inside the card, as every other widget carries it.
         case .goals: GoalsTodaySection(headerOutside: false)
@@ -649,6 +673,46 @@ struct ForgeLiveHeartWideWidget: View {
     }
 }
 
+/// Today's stress by the hour: the stress tile's row-wide form (2026-11-18).
+///
+/// One of the two named exceptions to "wider means more time". Thirty daily stress figures say very
+/// little; the shape of today says most of what there is to say, and the app already draws it
+/// (`DaytimeLoadLine`), so this is a choice of card rather than a second way of drawing one thing.
+struct ForgeStressDayWidget: View {
+    @EnvironmentObject private var repo: Repository
+    @State private var hours: [DaytimeStress.HourPoint] = []
+
+    var body: some View {
+        NavigationLink(value: TabRoute.stress) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Image(systemName: "bolt.fill").font(.system(.subheadline, weight: .semibold))
+                        .foregroundStyle(StressRamp.calm)
+                    Text("Stress through the day").font(.system(.subheadline, weight: .semibold))
+                        .foregroundStyle(ForgeColor.text)
+                    Spacer(minLength: 0)
+                }
+                if hours.contains(where: { $0.level != nil }) {
+                    DaytimeLoadLine(hours: hours)
+                } else {
+                    // The honest blank, in the word the other stress cards already use: only waking hours
+                    // score and an hour needs enough heart rate, so early morning is empty by
+                    // construction rather than by failure.
+                    Text("Calibrating").font(ForgeFont.caption).foregroundStyle(ForgeColor.tertiary)
+                        .frame(height: 78, alignment: .center)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(LiquidPressStyle())
+        .task(id: repo.refreshSeq) {
+            hours = await StressDayCurve.today(repo: repo,
+                                               personalBaseline: PuffinExperiment.stressPersonalBaselineEnabled)?
+                .result.timeline ?? []
+        }
+    }
+}
+
 /// The last main night: hours asleep, its stages, bedtime to wake. Opens the Rest page.
 struct ForgeLastNightWidget: View {
     @EnvironmentObject private var repo: Repository
@@ -853,12 +917,87 @@ struct ForgeMeasureWidget: View {
     let source: String?
     /// Over two columns (owner, 2026-11-11): the usual and the last 30 days' range under the figure.
     var detailed = false
+    /// Across the whole row (owner, 2026-11-18): everything the two-column tile says, and under it the
+    /// thirty days those words describe, drawn.
+    var wide = false
     @EnvironmentObject private var repo: Repository
     @State private var values: [Double] = []
     @State private var metric: MetricDescriptor?
 
     var body: some View {
         let m = metric ?? ForgeWidgetMeasures.descriptor(key, source)
+        if wide {
+            wideBody(m)
+        } else {
+            tileBody(m)
+        }
+    }
+
+    /// The row-wide form. One rule, said in one line: the wider it is, the more time it shows.
+    ///
+    /// Two measures are named exceptions, because for them thirty days is the weaker answer: last night's
+    /// stages beat thirty nights of duration, and today's stress by the hour beats thirty daily figures.
+    /// Both are the cards this app already draws, so the exception is a choice of card, not a second way
+    /// of drawing the same thing.
+    @ViewBuilder private func wideBody(_ m: MetricDescriptor?) -> some View {
+        switch key {
+        case "sleep_total_min": ForgeLastNightWidget()
+        case "stress": ForgeStressDayWidget()
+        default: wideChart(m)
+        }
+    }
+
+    @ViewBuilder private func wideChart(_ m: MetricDescriptor?) -> some View {
+        let unit = m.map(ForgeFocusView.unit) ?? ""
+        let series = Array(values.suffix(30))
+        NavigationLink(value: TabRoute.metricSourced(key: m?.key ?? key, source: m?.source ?? source ?? Repository.whoopSource)) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Image(systemName: m?.icon ?? "chart.xyaxis.line")
+                        .font(.system(.subheadline, weight: .semibold)).foregroundStyle(Self.tint(key))
+                    Text(verbatim: Self.shortTitle(key) ?? m?.title ?? key)
+                        .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    Spacer(minLength: 6)
+                    // No stress branch here: stress has its own row-wide card and never reaches this one.
+                    if let value = m.flatMap({ ForgeFocusView.format(values.last, $0) }) {
+                        Text(verbatim: value).font(.system(.title3, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                        if !unit.isEmpty { Text(verbatim: unit).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary) }
+                    }
+                }
+                // The range is this chart's caption rather than a second claim beside it.
+                if let line = Self.summaryLine(key: key, values: values, unit: unit) {
+                    Text(verbatim: line).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                }
+                if series.count > 1 {
+                    TrendChart(points: Self.points(series), gradient: Gradient(colors: [Self.tint(key).opacity(0.35), Self.tint(key)]),
+                               valueRange: (series.min() ?? 0)...(max(series.max() ?? 1, (series.min() ?? 0) + 1)),
+                               showsArea: true,
+                               // No second reference drawn in here. The usual and the range are already in
+                               // the caption above, from one resolver; a dashed rule re-derived from the
+                               // plotted values could disagree with the words right over it.
+                               height: Self.wideChartHeight, showsHover: false)
+                } else {
+                    Text("Not enough days yet").font(ForgeFont.caption).foregroundStyle(ForgeColor.tertiary)
+                        .frame(height: Self.wideChartHeight, alignment: .center)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(LiquidPressStyle())
+        .task(id: repo.refreshSeq) { await load() }
+    }
+
+    /// A fixed height, not the row's: a row-wide tile has its row to itself, so nothing else is stretched
+    /// by it, and the curve is then the same height on every phone instead of depending on its neighbour.
+    static let wideChartHeight: CGFloat = 96
+
+    /// The last thirty days as the chart takes them, one point a day, oldest first.
+    static func points(_ values: [Double]) -> [TrendPoint] {
+        let start = Calendar.current.startOfDay(for: Date()).addingTimeInterval(-Double(values.count - 1) * 86_400)
+        return values.enumerated().map { TrendPoint(date: start.addingTimeInterval(Double($0.offset) * 86_400), value: $0.element) }
+    }
+
+    @ViewBuilder private func tileBody(_ m: MetricDescriptor?) -> some View {
         NavigationLink(value: TabRoute.metricSourced(key: m?.key ?? key, source: m?.source ?? source ?? Repository.whoopSource)) {
             ForgeTodayTile(label: Self.shortTitle(key) ?? m?.title ?? key, symbol: m?.icon ?? "chart.xyaxis.line",
                            value: key == "stress"

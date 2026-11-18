@@ -32,14 +32,20 @@ final class ForgeTodayTileSeedTests: XCTestCase {
     }
 
     /// Every metric that can be in a stored layout must say where it goes, or a future tile is lost in
-    /// silence rather than reported.
-    func testEveryMetricEitherCarriesOrIsOneOfTheThree() {
+    /// silence rather than reported. A metric is either carried as an ordinary tile or drawn across the
+    /// whole row, never both and never neither — which is what keeps the two lists from drifting apart.
+    func testEveryMetricEitherCarriesOrIsAWholeRowTile() {
         for metric in KeyMetric.allCases {
-            if [.charge, .effort, .rest].contains(metric) {
-                XCTAssertNil(metric.measureKey, "\(metric.rawValue) is a whole-row tile, not a carried one")
-            } else {
-                XCTAssertNotNil(metric.measureKey, "\(metric.rawValue) has nowhere to go")
-            }
+            let carried = metric.measureKey != nil
+            let wholeRow = metric.wholeRowMeasureKey != nil
+            XCTAssertNotEqual(carried, wholeRow, "\(metric.rawValue) must be exactly one of the two")
+        }
+    }
+
+    func testTheWholeRowSetIsTheThreeTheRingsAlreadyShow() {
+        XCTAssertEqual(ForgeTodayTileSeed.wholeRowMeasures, ["recovery", "strain", "sleep_performance"])
+        for metric in [KeyMetric.charge, .effort, .rest] {
+            XCTAssertNil(metric.measureKey, "\(metric.rawValue) must not be carried into a small tile")
         }
     }
 }

@@ -44,9 +44,15 @@ import com.noop.ui.KeyMetric
 internal fun ForgeTodayTile(icon: ImageVector, tint: Color, label: String, value: String?, unit: String, caption: String?,
                             noData: String, dense: Boolean, modifier: Modifier = Modifier, delta: String? = null,
                             deltaTone: String? = null, trend: List<Double>? = null,
-                            overlay: (@Composable () -> Unit)? = null) {
+                            overlay: (@Composable () -> Unit)? = null,
+                            /**
+                             * A taller curve than the tile's own, for the row-wide form (2026-11-18): the
+                             * same series, given the room to be read rather than glanced at. Null keeps the
+                             * tile's height.
+                             */
+                            sparkHeightOverride: androidx.compose.ui.unit.Dp? = null) {
     val colors = Forge.colors
-    val sparkHeight = if (dense) 22.dp else 28.dp
+    val sparkHeight = sparkHeightOverride ?: if (dense) 22.dp else 28.dp
     Box(modifier.heightIn(min = ForgeTokens.NoopMetrics.tileHeight.dp)) {
         ForgeCard(Modifier.fillMaxWidth().fillMaxHeight(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
             Column(Modifier.fillMaxWidth().padding(horizontal = if (dense) 12.dp else 14.dp, vertical = if (dense) 11.dp else 12.dp),

@@ -122,14 +122,27 @@ internal data class TodayWidget(
 
     enum class Size { Small, Medium, Wide }
 
+    /**
+     * Whether this is one of the measures that exist only across the whole row, iOS's `wholeRowMeasures`:
+     * Charge, Effort and Rest. The three rings stand directly above them and already say today's number,
+     * so a small tile would be the same fact twice on one screen; across the row, with its thirty days,
+     * the tile says something the rings do not.
+     */
+    val isWholeRowMeasure: Boolean get() = kind == Kind.Measure && key in WHOLE_ROW_MEASURES
+
     val size: Size get() = when {
         kind !in TILE_KINDS -> Size.Wide
-        (kind == Kind.LiveHeart || kind == Kind.AgeLess) && wide -> Size.Wide
+        isWholeRowMeasure -> Size.Wide
+        (kind == Kind.LiveHeart || kind == Kind.AgeLess || kind == Kind.Measure) && wide -> Size.Wide
         span == 2 -> Size.Medium
         else -> Size.Small
     }
 
-    val resizable: Boolean get() = kind in TILE_KINDS
+    /**
+     * A whole-row measure answers false: it has one size, so a size control on it would be a button that
+     * does nothing, and a control that does nothing says something untrue about the thing it sits on.
+     */
+    val resizable: Boolean get() = kind in TILE_KINDS && !isWholeRowMeasure
 
     /** Drawn as a tile in a row (iOS's non-wide kinds), so its row takes the tallest tile's height. */
     val isTile: Boolean get() = size != Size.Wide
@@ -137,12 +150,16 @@ internal data class TodayWidget(
     /** One tap on the size control: small, two columns, the whole row where the kind has a card for it, small. */
     fun nextSize(): TodayWidget = when (size) {
         Size.Small -> copy(span = 2, wide = false)
-        Size.Medium -> if (kind == Kind.LiveHeart || kind == Kind.AgeLess) copy(span = 1, wide = true) else copy(span = 1, wide = false)
+        // A measure grows across the row too since 2026-11-18, where it draws its thirty days.
+        Size.Medium -> if (kind == Kind.LiveHeart || kind == Kind.AgeLess || kind == Kind.Measure) copy(span = 1, wide = true)
+                       else copy(span = 1, wide = false)
         Size.Wide -> copy(span = 1, wide = false)
     }
 
     companion object {
         const val SLEEP_KEY = "sleep_total_min"
+        /** Charge, Effort and Rest as the catalogue keys them; iOS's `wholeRowMeasures`. */
+        val WHOLE_ROW_MEASURES = setOf("recovery", "strain", "sleep_performance")
         /** iOS's kinds drawn as a tile, small or over two columns (`isWide` false). */
         val TILE_KINDS = setOf(Kind.Measure, Kind.LiveHeart, Kind.Breathe, Kind.Strap, Kind.Water, Kind.AgeLess)
     }
@@ -164,20 +181,22 @@ internal object TodayWidgets {
      * Training tab, the fitness age in AgeLess — they simply had no tile, so the two galleries offered
      * different things and "the same customisation on both phones" was not true.
      */
-    val catalogMeasures: List<String> = listOf("vo2max_est", "stress", "fitness_age")
+    val catalogMeasures: List<String> = listOf("vo2max_est", "stress", "fitness_age",
+                                               "recovery", "strain", "sleep_performance")
 
     /**
      * The measures the gallery offers, in iOS's order.
      *
-     * Charge, Effort and Rest left the list: they come back as whole-row tiles with their own curve, since
-     * the three rings above already say today's number. Still missing against iOS: `calories_in`, which
-     * needs the food side wired to a tile.
+     * Charge, Effort and Rest are at the end and only ever drawn across the whole row
+     * ([TodayWidget.WHOLE_ROW_MEASURES]), since the three rings above already say today's number. Still
+     * missing against iOS: `calories_in`, which needs the food side wired to a tile.
      */
     val measures: List<String> = listOf(KeyMetric.HRV.raw, KeyMetric.RESTING_HR.raw, KeyMetric.STEPS.raw,
                                         TodayWidget.SLEEP_KEY, "vo2max_est", "stress",
                                         KeyMetric.WEIGHT.raw, KeyMetric.BLOOD_OXYGEN.raw,
                                         KeyMetric.RESPIRATORY.raw, KeyMetric.SKIN_TEMP.raw,
-                                        KeyMetric.CALORIES.raw, "fitness_age")
+                                        KeyMetric.CALORIES.raw, "fitness_age",
+                                        "recovery", "strain", "sleep_performance")
 
     fun encode(list: List<TodayWidget>): String = JSONArray(list.map { w ->
         JSONObject().put("id", w.id).put("kind", w.kind.raw).apply {
@@ -545,7 +564,9 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                         when (w.kind) {
                             TodayWidget.Kind.Measure -> MeasureTile(w.key, keyTiles, sleepMinutes, sleepTrend, catalogSeries, noData,
                                                                      dense = columns > 2, Modifier.fillMaxSize(),
-                                                                     detailed = w.size == TodayWidget.Size.Medium) { open = it }
+                                                                     detailed = w.size == TodayWidget.Size.Medium,
+                                                                     wide = w.size == TodayWidget.Size.Wide,
+                                                                     onOpenSleep = onOpenSleep) { open = it }
                             TodayWidget.Kind.TrainingLoad -> TodayTrainingLoadForge(onOpenTrainingLoad)
                             TodayWidget.Kind.Goals -> TodayGoals()
                             TodayWidget.Kind.Energy -> TodayEnergy()
@@ -645,7 +666,19 @@ private fun EditButton(icon: ImageVector, label: String, onClick: () -> Unit,
 @Composable
 private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?, sleepTrend: List<Double>,
                         catalogSeries: Map<String, List<Double>>, noData: String,
-                        dense: Boolean, modifier: Modifier, detailed: Boolean = false, onOpen: (CoreRead.Metric) -> Unit) {
+                        dense: Boolean, modifier: Modifier, detailed: Boolean = false, wide: Boolean = false,
+                        onOpenSleep: () -> Unit = {}, onOpen: (CoreRead.Metric) -> Unit) {
+    // The row-wide form, and its two named exceptions (2026-11-18). For sleep and stress thirty days is
+    // the weaker answer, so each shows the card this app already draws for it: a choice of card, not a
+    // second way of drawing the same thing.
+    if (wide) {
+        when (key) {
+            TodayWidget.SLEEP_KEY -> TodayLastNightForge(onOpenSleep)
+            "stress" -> StressDayWideCard()
+            else -> WideMeasureCard(key, keyTiles, catalogSeries[key].orEmpty(), noData, modifier)
+        }
+        return
+    }
     if (key != null && key in TodayWidgets.catalogMeasures) {
         CatalogMeasureTile(key, catalogSeries[key].orEmpty(), noData, dense, modifier, detailed)
         return
@@ -704,6 +737,54 @@ private fun CatalogMeasureTile(key: String, series: List<Double>, noData: String
                    delta = if (key == "stress") null else change?.text,
                    deltaTone = if (key == "stress") null else change?.tone,
                    trend = series.takeLast(30))
+}
+
+/**
+ * A measure across the whole row: everything the two-column tile says, and under it the thirty days those
+ * words describe, drawn with room to be read (2026-11-18, iOS's `wideChart`).
+ *
+ * The range stays the caption rather than becoming a second thing drawn beside the curve: one resolver,
+ * one claim. A row-wide tile has its row to itself, so the taller curve stretches nothing else.
+ */
+@Composable
+private fun WideMeasureCard(key: String?, keyTiles: KeyTiles, catalog: List<Double>, noData: String, modifier: Modifier) {
+    val metric = KeyMetric.fromRaw(key)
+    val series = if (metric != null) keyTiles.sparks[metric].orEmpty() else catalog
+    val tile = metric?.let { keyTiles.tiles[it] }
+    val unit = tile?.unit.orEmpty()
+    val value = tile?.value ?: series.lastOrNull()?.let { java.text.DecimalFormat("#.#").format(it) }
+    val change = key?.let { rememberTileDelta(if (metric != null) metric.catalogKey() else it, series) }
+    ForgeTodayTile(measureIcon(key.orEmpty()), metric?.tileTint() ?: Forge.colors.charge, measureLabel(key.orEmpty()),
+                   value, unit, change?.summary?.let { summaryLine(it, unit) }, noData, dense = false,
+                   modifier = modifier, delta = change?.text, deltaTone = change?.tone,
+                   trend = series.takeLast(30), sparkHeightOverride = 96.dp)
+}
+
+/**
+ * Today's stress by the hour: the stress tile's row-wide form, one of the two named exceptions. Thirty
+ * daily stress figures say very little; the shape of today says most of what there is to say.
+ */
+@Composable
+private fun StressDayWideCard() {
+    val context = LocalContext.current
+    val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    val personal = remember { NoopPrefs.stressPersonalBaseline(context) }
+    val day by produceState<com.noop.core.CoreStress.Day?>(null, coreRevision, personal) {
+        value = withContext(Dispatchers.IO) { com.noop.core.CoreStress.day(personal) }
+    }
+    ForgeCard(Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Icons.Rounded.Bolt, contentDescription = null, tint = Forge.colors.effort, modifier = Modifier.size(18.dp))
+                Text(stringResource(R.string.forge_vt_stress), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                     color = Forge.colors.text)
+            }
+            val hours = day?.result?.timeline.orEmpty()
+            // The honest blank: only waking hours score, and an hour needs enough heart rate.
+            if (hours.any { it.level != null }) com.noop.ui.DaytimeStressLine(hours)
+            else Text(stringResource(R.string.forge_no_data), style = Forge.type.caption, color = Forge.colors.textTertiary)
+        }
+    }
 }
 
 /**

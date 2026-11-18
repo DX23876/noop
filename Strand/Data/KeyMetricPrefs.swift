@@ -59,6 +59,20 @@ enum KeyMetric: String, CaseIterable, Identifiable {
         }
     }
 
+    /// For Charge, Effort and Rest: the catalogue key of their whole-row tile, nil for every other metric.
+    ///
+    /// These three are the exact complement of `measureKey`: a metric either becomes an ordinary tile that
+    /// can be carried over, or it is one of the three the rings above already say, which exist only across
+    /// the whole row where they can show something the rings do not. Never both, never neither.
+    var wholeRowMeasureKey: String? {
+        switch self {
+        case .charge: return "recovery"
+        case .effort: return "strain"
+        case .rest:   return "sleep_performance"
+        default:      return nil
+        }
+    }
+
     /// The tile's display label — matches the `StatTile(label:)` text rendered on the grid.
     var title: String {
         switch self {

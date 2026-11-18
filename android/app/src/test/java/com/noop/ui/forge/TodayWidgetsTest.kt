@@ -9,10 +9,11 @@ class TodayWidgetsTest {
     private fun m(id: String, span: Int = 1) = TodayWidget(id, TodayWidget.Kind.Measure, "hrv", span)
     private fun card(id: String) = TodayWidget(id, TodayWidget.Kind.Goals)
 
-    @Test fun sizesCycleSmallMediumSmallAndLiveHeartGoesWide() {
-        val small = m("a")
-        assertEquals(TodayWidget.Size.Medium, small.nextSize().size)
-        assertEquals(TodayWidget.Size.Small, small.nextSize().nextSize().size)
+    /// A measure's own ladder moved to `aMeasureNowGrowsAcrossTheRowToo` when it gained the row-wide form.
+    @Test fun sizesCycleAndLiveHeartGoesWide() {
+        val water = TodayWidget("w", TodayWidget.Kind.Water)
+        assertEquals(TodayWidget.Size.Medium, water.nextSize().size)
+        assertEquals(TodayWidget.Size.Small, water.nextSize().nextSize().size)
         val heart = TodayWidget("h", TodayWidget.Kind.LiveHeart)
         assertEquals(TodayWidget.Size.Wide, heart.nextSize().nextSize().size)
         assertEquals(TodayWidget.Size.Small, heart.nextSize().nextSize().nextSize().size)
@@ -79,9 +80,37 @@ class TodayWidgetsTest {
      */
     @Test fun theGalleryOffersIosList() {
         assertEquals(listOf("hrv", "restingHr", "steps", "sleep_total_min", "vo2max_est", "stress",
-                            "weight", "bloodOxygen", "respiratory", "skinTemp", "calories", "fitness_age"),
+                            "weight", "bloodOxygen", "respiratory", "skinTemp", "calories", "fitness_age",
+                            "recovery", "strain", "sleep_performance"),
                      TodayWidgets.measures)
         assertEquals(TodayWidgets.catalogMeasures, TodayWidgets.measures.filter { it in TodayWidgets.catalogMeasures })
+    }
+
+    // The size ladder (owner, 2026-11-18): small, two columns, the whole row, and back.
+
+    @Test fun aMeasureNowGrowsAcrossTheRowToo() {
+        val small = m("a")
+        assertEquals(TodayWidget.Size.Medium, small.nextSize().size)
+        assertEquals(TodayWidget.Size.Wide, small.nextSize().nextSize().size)
+        assertEquals(TodayWidget.Size.Small, small.nextSize().nextSize().nextSize().size)
+    }
+
+    /**
+     * Charge, Effort and Rest have one size, so they carry no size control: a button that does nothing
+     * says something untrue about the thing it sits on.
+     */
+    @Test fun theThreeTheRingsShowAreWholeRowAndCarryNoSizeControl() {
+        for (key in TodayWidget.WHOLE_ROW_MEASURES) {
+            val w = TodayWidget("x", TodayWidget.Kind.Measure, key)
+            assertEquals(key, TodayWidget.Size.Wide, w.size)
+            assertEquals(key, false, w.resizable)
+            assertEquals(key, true, w.isWholeRowMeasure)
+        }
+    }
+
+    @Test fun anOrdinaryMeasureIsNotAWholeRowOne() {
+        assertEquals(false, m("a").isWholeRowMeasure)
+        assertEquals(true, m("a").resizable)
     }
 
     @Test fun everyMetricEitherCarriesOrIsOneOfTheThree() {
