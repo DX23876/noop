@@ -132,7 +132,7 @@ struct ForgeTodayView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 0) {
                         // The logical day, as the page's values and Liquid Today's header (#144): past midnight the
                         // evening's day is still "Today", not the new calendar date.
                         ForgeLargeHeader(title: "Today",
@@ -170,8 +170,11 @@ struct ForgeTodayView: View {
                             }
                             // Room between the rings and what follows, so the card reads as the page's head.
                             .padding(.bottom, 12)
-                            // A detected activity waiting for an answer, then the day's one hint.
-                            ActivitySuggestionPrompt(compact: true)
+                            // A detected activity waiting for an answer, then the day's one hint. Each brings
+                            // its own room rather than taking the stack's: on a day with neither, the two
+                            // empty slots still took their spacing, and the rings then sat about twenty
+                            // points further from the tiles than on Android (owner, 2026-11-18).
+                            ActivitySuggestionPrompt(compact: true).padding(.top, 10)
                             hintCard
                         }
                         .padding(.horizontal, 16)
@@ -1206,6 +1209,8 @@ struct ForgeTodayView: View {
                 }
             }
             .forgeCard(radius: ForgeRadius.card, padding: 16)
+            // Its own room above, so an absent hint costs none (see the stack's spacing of 0).
+            .padding(.top, 10)
         }
     }
 
