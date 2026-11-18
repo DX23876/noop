@@ -70,8 +70,11 @@ enum MomentumBuilder {
         /// The next goal waypoint: what it is called, its value text, and whether it is a weight goal.
         var nextMilestone: (goal: String, value: String, isWeight: Bool)?
 
-        /// Consecutive days meeting a goal, from `StreakCalculator`.
-        var streakDays: Int?
+        /// Consecutive goal WEEKS kept, and the goal they belong to. Weeks, not days: the number comes
+        /// from `GoalTrackingEngine`, which evaluates a goal one calendar week at a time and counts a
+        /// week as kept once its planned steps are done. There is no per-day qualification behind it,
+        /// so printing it as days (which this card did until 2026-11-18) states a span nothing measured.
+        var goalStreak: (weeks: Int, goal: String)?
 
         /// Consecutive straining days immediately before/including today.
         var strainingDaysInARow: Int?
@@ -364,11 +367,15 @@ enum MomentumBuilder {
                 detail: String(localized: "The next waypoint on \(m.goal)."),
                 action: MomentumAction(title: String(localized: "View goal"), destination: .goalJourney)))
         }
-        if let days = i.streakDays, days >= 3 {
+        if let streak = i.goalStreak, streak.weeks >= 3 {
+            // The headline carries the count; the line under it names WHICH goal and what a kept week
+            // actually was, rather than saying the same number again in other words. It deliberately
+            // does not say the goal is reached: a kept week means the planned steps were done, and the
+            // target can still be far away.
             out.append(MomentumMessage(
                 kind: .streak, tone: .positive,
-                headline: String(localized: "\(days) days in a row"),
-                detail: String(localized: "You've hit your goal \(days) days running.")))
+                headline: String(localized: "\(streak.weeks) weeks in a row"),
+                detail: String(localized: "You've kept every planned step for \(streak.goal).")))
         }
     }
 
@@ -554,7 +561,7 @@ extension MomentumBuilder {
                                    value: "\(Int(m.value.rounded())) \(hero.goal.kind.unit)",
                                    isWeight: hero.goal.kind == .weight)
             }
-            if hero.currentStreak > 0 { i.streakDays = hero.currentStreak }
+            if hero.currentStreak > 0 { i.goalStreak = (weeks: hero.currentStreak, goal: hero.goal.title) }
         }
 
         i.openPlannedSessionToday = c.openPlannedSessionToday

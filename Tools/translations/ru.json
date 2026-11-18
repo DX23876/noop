@@ -4643,5 +4643,7 @@
   "A picture, if it helps": "Картинка, если она помогает",
   "Add a picture": "Добавить картинку",
   "A screenshot of what went wrong says more than a log": "Снимок экрана говорит больше, чем журнал",
-  "Remove the picture": "Убрать картинку"
+  "Remove the picture": "Убрать картинку",
+  "You've kept every planned step for %@.": "Вы выполнили каждый запланированный шаг для цели «%@».",
+  "4.0, unconfirmed on real hardware": "4.0, не подтверждено на реальном устройстве"
 }

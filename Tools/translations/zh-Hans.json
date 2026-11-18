@@ -4767,5 +4767,7 @@
   "A picture, if it helps": "一张图，如果有帮助",
   "Add a picture": "添加图片",
   "A screenshot of what went wrong says more than a log": "一张出错时的截图胜过一份日志",
-  "Remove the picture": "移除图片"
+  "Remove the picture": "移除图片",
+  "You've kept every planned step for %@.": "「%@」的每个计划步骤都完成了。",
+  "4.0, unconfirmed on real hardware": "4.0，未在真实设备上确认"
 }

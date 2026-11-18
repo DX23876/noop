@@ -1616,3 +1616,42 @@ in.
 
 Analysis migration required: no. A strap setting, a readout and a button; no stored derived value, no
 scoring, no analysis window.
+
+## 2026-11-18 — The streak card counted weeks and said days, and nobody could tell which goal it meant
+
+The Today timeline showed "8 days in a row — You've hit your goal 8 days running." The owner read it
+as a running goal after a day of nothing but walking, which is a fair reading: two of the shipped
+translations had read it the same way and turned "days running" into the sport ("di corsa",
+"跑步目标").
+
+**The number was never days.** `GoalTrackingEngine` evaluates a long-term goal one calendar week at a
+time and counts a week as kept once its planned steps are done; `currentStreak` is a run of those
+weeks. `MomentumBuilder` took that number and printed it as days. Every other surface that shows the
+same value either names it weeks (the goals overview) or prints it bare (the journey page), so the
+Today card was the one readout that disagreed with the thing it was reading — the shape this
+repository already has a rule about.
+
+**What the card says now.** The headline carries the count as weeks, reusing the string the goals
+overview already uses. The line under it no longer repeats the number in other words; it names the
+goal (there can be several, and the card silently picked the first active one) and says what a kept
+week actually was: "You've kept every planned step for *goal*." It deliberately stops short of "you
+hit your goal", because a kept week means the planned steps were done and the target can still be far
+off.
+
+**And it is news once, not every morning.** The timeline admits a notice through `TimelineFeed.admit`,
+where a topic speaks at most once a week unless it gets clearly worse — but a milestone or a streak is
+flagged as an EVENT, and an event skipped the cooldown with nothing else to hold it back. The log is
+checked per day, so the same key was admitted again every day it stayed true: with days in the
+headline that was a new key daily, and with weeks it would have been the same card every morning for a
+week. An event is now admitted once per key. The key carries what changed, so the ninth week announces
+itself and the eighth does not announce itself again. This sits in the shared core, so the Android
+timeline, which calls the same `timeline.admit`, follows without a Kotlin twin.
+
+**Not changed:** the threshold. It was three of these units before and is three after, so the same
+streaks are celebrated as before — only the words and the frequency changed. A per-day streak for a
+long-term goal was considered and dropped: nothing measures one. `StreakCalculator` counts days a
+Charge score exists, which is a wearing streak, not a goal streak, and the engine has no per-day
+qualification to offer.
+
+Analysis migration required: no. Card copy and one renamed in-memory field; no stored value, no
+scoring, no analysis window.

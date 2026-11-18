@@ -85,7 +85,7 @@ enum DemoDayHarness {
                      synthHeadline: "One session short of your week", synthBody: "You've done 2 of 3 this week.",
                      momentumKind: .weeklyTrainingGoal, momentumTone: .neutral, momentumProgress: (0.67, "2 / 3")),
         DemoDayFrame(hour: 19, greeting: "Good evening",   readiness: "Solid",    effort: 77, hrvMs: 63, rhrBpm: 61, stress0to3: 1,
-                     synthHeadline: "5 days in a row", synthBody: "You've hit your goal 5 days running.",
+                     synthHeadline: "5 weeks in a row", synthBody: "You've kept every planned step for Walk 10,000 steps a day.",
                      momentumKind: .streak, momentumTone: .positive),
         DemoDayFrame(hour: 22, greeting: "Good night",     readiness: "Solid",    effort: 84, hrvMs: 71, rhrBpm: 55, stress0to3: 0,
                      synthHeadline: "You're short on sleep this week", synthBody: "About 3 h 20 min behind your nightly need.",

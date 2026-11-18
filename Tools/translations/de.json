@@ -4667,5 +4667,7 @@
   "A picture, if it helps": "Ein Bild, wenn es hilft",
   "Add a picture": "Bild hinzufügen",
   "A screenshot of what went wrong says more than a log": "Ein Bildschirmfoto von dem, was schiefging, sagt mehr als ein Protokoll",
-  "Remove the picture": "Bild entfernen"
+  "Remove the picture": "Bild entfernen",
+  "You've kept every planned step for %@.": "Du hast jeden geplanten Schritt für %@ geschafft.",
+  "4.0, unconfirmed on real hardware": "4.0, an echter Hardware nicht bestätigt"
 }
