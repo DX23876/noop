@@ -9,10 +9,10 @@ history once, and a backup is the way back if something looks wrong afterwards.
 
 ## Install
 
-- **iPhone (AltStore or SideStore):** `NOOP-ios-unsigned-v13.0.0.ipa` from the
+- **iPhone (AltStore or SideStore):** `NOOP-testing-ios-unsigned-v13.0.0.ipa` from the
   [testing release](https://github.com/DX23876/noop/releases/tag/testing-latest). It replaces the installed
   NOOP Forge.
-- **Mac:** `NOOP-macos-v13.0.0.zip`, unzip, then right-click, Open.
+- **Mac:** `NOOP-testing-macos-v13.0.0.zip`, unzip, then right-click, Open.
 - **Android:** still in its own testing round, see [`android/TESTING.md`](android/TESTING.md).
 
 ## 1. The one recalculation (most important)

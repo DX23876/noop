@@ -123,7 +123,7 @@ jobs:
       - name: Build the release APK
         run: |
           ./gradlew assembleFullRelease \
-            "-Pnoop.buildStamp=$(git rev-parse --short=7 HEAD) $(date -u +%Y-%m-%d)" \
+            "-Pnoop.buildStamp=release $(git rev-parse --short=7 HEAD) $(date -u +%Y-%m-%d)" \
             "-Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8"
 
       - name: Check the signature

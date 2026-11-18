@@ -18,7 +18,7 @@ widget extension and the capability template used to provision the shared App Gr
 
 The **testing build** of the next release (13.0.0 at the time of writing) is published under the rolling
 [`testing-latest`](https://github.com/DX23876/noop/releases/tag/testing-latest) tag as
-`NOOP-ios-unsigned-v13.0.0.ipa`. It installs over NOOP Forge and keeps your data; make a backup first and
+`NOOP-testing-ios-unsigned-v13.0.0.ipa`. It installs over NOOP Forge and keeps your data; make a backup first and
 see [`fork/TESTING-13.0.0.md`](fork/TESTING-13.0.0.md) for what to check.
 
 ### If AltStore's Error Log says "Install NOOP Failed"

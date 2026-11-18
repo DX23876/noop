@@ -15,9 +15,9 @@ no server.
 
 | | File | How |
 |---|---|---|
-| **iPhone / iPad** | `NOOP-ios-unsigned-v13.0.0.ipa` | AltStore or SideStore. Replaces the installed NOOP Forge |
-| **iPhone + Watch + widgets** | `NOOP-ios-full-unsigned-v13.0.0.ipa` | Needs provisioning for every embedded target |
-| **Mac** | `NOOP-macos-v13.0.0.zip` | Unzip, then **right-click, Open** (ad-hoc signed, Gatekeeper warns once). If it says *"damaged"*, run `xattr -dr com.apple.quarantine /Applications/NOOP.app` |
+| **iPhone / iPad** | `NOOP-testing-ios-unsigned-v13.0.0.ipa` | AltStore or SideStore. Replaces the installed NOOP Forge |
+| **iPhone + Watch + widgets** | `NOOP-testing-ios-full-unsigned-v13.0.0.ipa` | Needs provisioning for every embedded target |
+| **Mac** | `NOOP-testing-macos-v13.0.0.zip` | Unzip, then **right-click, Open** (ad-hoc signed, Gatekeeper warns once). If it says *"damaged"*, run `xattr -dr com.apple.quarantine /Applications/NOOP.app` |
 | **Android** | `NOOP-Forge-android-13.0.0-testing.apk` | Android 8 or later. Open the file on the phone and allow installing from this source |
 
 To go back on iPhone or Mac, install the latest release again.

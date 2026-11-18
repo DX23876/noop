@@ -1,7 +1,7 @@
 # Fork-only: ONE on-demand testing build that publishes ALL platforms into ONE release.
 #
 # A `meta` job creates a single dated prerelease, then the macOS / iOS jobs each attach their
-# artifact to that SAME tag — so every release has NOOP-macos.zip + NOOP-ios-unsigned.ipa together,
+# artifact to that SAME tag — so every build has NOOP-testing-macos.zip + NOOP-testing-ios-unsigned.ipa
 # each stamped with the base app version.
 # Unsigned/debug-keyed, no secrets. Trigger from the Actions tab. (Built from noop-staging via --ref.)
 name: Testing build (fork)
@@ -49,7 +49,12 @@ jobs:
           # WHICH BUILD this is, for the app itself: the version is the release train, every testing
           # build of it shares the numbers, and a tester's strap log therefore could not say whether it
           # carried a given fix (#47). Printed in the log header and under About / More.
-          echo "stamp=$SHA $DATE" >> "$GITHUB_OUTPUT"
+          #
+          # It leads with the channel, because the numbers cannot carry it: a testing build and the
+          # release of the same train both read "13.0.0", and someone looking at About had no way to
+          # tell which one they were running. The release workflows stamp "release" in the same place,
+          # so the word is always there and its absence means a build nobody's CI made.
+          echo "stamp=testing $SHA $DATE" >> "$GITHUB_OUTPUT"
           # ROLLING release: recreate the single tag so stale (incl. old-version) assets never linger —
           # one stable URL, always the newest build, zero cleanup. (To KEEP a build, cut a one-off tag.)
           #
@@ -103,18 +108,18 @@ jobs:
             fi
           fi
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease --target "${{ github.sha }}" \
-            --title "NOOP Forge testing · base ${VER} · ${DATE} · ${SHA}" \
-            --notes "Rolling testing build of NOOP Forge. Not a release: it is built from a branch under test and refreshed in place, so this tag always holds the newest testing build.
+            --title "TESTING BUILD · NOOP Forge ${VER} · ${DATE} · ${SHA} · not a release" \
+            --notes "**This is a testing build, not a release.** It is built from a branch under test and refreshed in place, so this tag always holds the newest one. Every file here carries \`testing\` in its name, and the app says \`testing\` beside its version under About, so an installed build can always be told apart from a release.
 
           ${SUMMARY}
 
           It installs over NOOP Forge and keeps your data. To go back, install the latest release again.
 
-          - **macOS:** \`NOOP-macos-v${VER}.zip\`. Unzip, then **right-click, Open** (ad-hoc signed, not notarized; Gatekeeper warns once). If it says *\"damaged\"*, run \`xattr -dr com.apple.quarantine /Applications/NOOP.app\`.
-          - **iOS (AltStore):** \`NOOP-ios-unsigned-v${VER}.ipa\`. iPhone and iPad only, for reliable free Apple ID sideloading.
-          - **iOS (Full):** \`NOOP-ios-full-unsigned-v${VER}.ipa\`. Includes the widgets, the Watch app and its complication; needs provisioning for every embedded target.
+          - **macOS:** \`NOOP-testing-macos-v${VER}.zip\`. Unzip, then **right-click, Open** (ad-hoc signed, not notarized; Gatekeeper warns once). If it says *\"damaged\"*, run \`xattr -dr com.apple.quarantine /Applications/NOOP.app\`.
+          - **iOS (AltStore):** \`NOOP-testing-ios-unsigned-v${VER}.ipa\`. iPhone and iPad only, for reliable free Apple ID sideloading.
+          - **iOS (Full):** \`NOOP-testing-ios-full-unsigned-v${VER}.ipa\`. Includes the widgets, the Watch app and its complication; needs provisioning for every embedded target.
 
-          Base app version ${VER} · built ${DATE} · \`${SHA}\`."
+          Base app version ${VER} · built ${DATE} · \`${SHA}\` · testing channel."
           # Belt-and-braces: a rolling tag is deleted with --cleanup-tag and recreated seconds later, and
           # that recreate has come back as a DRAFT — the 9.2.1 staging build did, and a draft release does
           # not create its tag, so the assets were unreachable and the `testing-latest` URL 404'd until
@@ -137,7 +142,13 @@ jobs:
   macos-slice:
     needs: meta
     runs-on: macos-26
-    timeout-minutes: 40
+    # 60, the same allowance the iOS leg has: both build the whole app from a cold runner, and the two
+    # should not differ in how long they may take. NOTE what this does NOT cover: on 2026-11-18 the arm64
+    # slice and the iOS leg were both dropped 15 minutes in with "The job was not acquired by Runner of
+    # type hosted even after multiple attempts" plus GitHub's own "Due to capacity constraints, jobs
+    # targeting macOS arm64 runners may experience longer queue times". That is QUEUE time, which
+    # `timeout-minutes` does not govern at all, and no setting here can buy a runner.
+    timeout-minutes: 60
     strategy:
       matrix:
         arch: [arm64, x86_64]
@@ -240,12 +251,12 @@ jobs:
           # future UPDATE still needs the re-toggle the in-app #429/#295 banner already describes.)
           codesign --force --deep --sign - "$APP"
           codesign -dvv "$APP" 2>&1 | grep -Ei 'identifier|signature|flags' || true
-          ditto -c -k --keepParent "$APP" "NOOP-macos-v${VER}.zip"
-          shasum -a 256 "NOOP-macos-v${VER}.zip" > "NOOP-macos-v${VER}.sha256"
-          cat "NOOP-macos-v${VER}.sha256"
-          gh release upload "${{ needs.meta.outputs.tag }}" "NOOP-macos-v${VER}.zip" "NOOP-macos-v${VER}.sha256" \
+          ditto -c -k --keepParent "$APP" "NOOP-testing-macos-v${VER}.zip"
+          shasum -a 256 "NOOP-testing-macos-v${VER}.zip" > "NOOP-testing-macos-v${VER}.sha256"
+          cat "NOOP-testing-macos-v${VER}.sha256"
+          gh release upload "${{ needs.meta.outputs.tag }}" "NOOP-testing-macos-v${VER}.zip" "NOOP-testing-macos-v${VER}.sha256" \
             --repo "$GITHUB_REPOSITORY" --clobber
-          echo "MAC_ZIP=NOOP-macos-v${VER}.zip" >> "$GITHUB_ENV"
+          echo "MAC_ZIP=NOOP-testing-macos-v${VER}.zip" >> "$GITHUB_ENV"
       - name: Attest build provenance
         uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
         with:
@@ -297,11 +308,11 @@ jobs:
           set -euo pipefail
           APP=$(find build/dd/Build/Products/Release-iphoneos -maxdepth 1 -name '*.app' -type d | head -1)
           test -n "$APP" || { echo ".app (iphoneos) not found"; exit 1; }
-          LITE_IPA="NOOP-ios-unsigned-v${VER}.ipa"
-          FULL_IPA="NOOP-ios-full-unsigned-v${VER}.ipa"
+          LITE_IPA="NOOP-testing-ios-unsigned-v${VER}.ipa"
+          FULL_IPA="NOOP-testing-ios-full-unsigned-v${VER}.ipa"
           Tools/anonymize-ios-app.sh "$APP"
           Tools/package-ios-ipas.sh "$APP" "$LITE_IPA" "$FULL_IPA"
-          SUMS="NOOP-ios-v${VER}.sha256"
+          SUMS="NOOP-testing-ios-v${VER}.sha256"
           shasum -a 256 "$LITE_IPA" "$FULL_IPA" > "$SUMS"
           cat "$SUMS"
           gh release upload "${{ needs.meta.outputs.tag }}" "$LITE_IPA" "$FULL_IPA" "$SUMS" --repo "$GITHUB_REPOSITORY" --clobber

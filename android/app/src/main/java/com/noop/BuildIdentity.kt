@@ -7,8 +7,13 @@ package com.noop
  * said which build that was: `versionName` is the release train ("13.0.0") and `versionCode` has been 1
  * on every build ever made, so a strap log from the build that carried a fix read exactly like one from
  * the build before it (#47). The missing piece is [BuildConfig.BUILD_STAMP] — an opaque string the
- * builder supplies (CI passes the commit and the date, a local release build falls back to the
- * checkout's own commit) that this object never parses and only ever prints.
+ * builder supplies (CI passes the channel, the commit and the date, a local release build falls back to
+ * the checkout's own commit) that this object never parses and only ever prints.
+ *
+ * Since 2026-11-18 that string LEADS with the channel, `testing` or `release`, because nothing else in
+ * the app could say which kind of build it was: a testing build and the release of the same train both
+ * read "13.0.0", and every workflow stamped the bare commit and date. The word is the builder's to
+ * supply, not this object's to infer, so an unstamped build claims neither.
  *
  * ONE resolver, not a format repeated at every call site: the strap log, the Test Centre bundle and the
  * screen footers all have to name the same build, and the way two readouts of one fact start disagreeing

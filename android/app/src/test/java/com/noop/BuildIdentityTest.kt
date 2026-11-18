@@ -24,6 +24,26 @@ class BuildIdentityTest {
         assertEquals("13.0.0 · 7b8d2d9 2026-11-14", BuildIdentity.uiVersion("13.0.0", "7b8d2d9 2026-11-14"))
     }
 
+    /**
+     * The stamp LEADS with the channel, so a screen and a log both say which kind of build this is.
+     * The numbers cannot: a testing build and the release of the same train both read "13.0.0", and
+     * until 2026-11-18 every workflow stamped the bare commit and date, so an install could not be
+     * told apart from a release. The word comes from the builder (`fork-testing-build.yml` stamps
+     * `testing`, the release workflows `release`); this object still only prints what it is handed.
+     */
+    @Test
+    fun theStampSaysWhetherThisIsATestingBuildOrARelease() {
+        assertEquals("13.0.0 · testing 75801dc 2026-11-18",
+                     BuildIdentity.uiVersion("13.0.0", "testing 75801dc 2026-11-18"))
+        assertEquals("13.0.0 · release 75801dc 2026-11-18",
+                     BuildIdentity.uiVersion("13.0.0", "release 75801dc 2026-11-18"))
+        assertEquals(
+            "App:     13.0.0 (full) build 1 · testing 75801dc 2026-11-18 · io.github.dx23876.noop",
+            BuildIdentity.logLine("13.0.0", "full", 1, "io.github.dx23876.noop",
+                                  "testing 75801dc 2026-11-18"),
+        )
+    }
+
     @Test
     fun unstampedBuildShowsTheVersionAlone() {
         assertEquals("13.0.0-debug", BuildIdentity.uiVersion("13.0.0-debug", null))

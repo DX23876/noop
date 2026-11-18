@@ -1817,3 +1817,41 @@ Not decided here: whether the testing build should attach its artifacts to a sta
 through this failure. It is a change to the workflow's shape, so it waits for its own round.
 
 Analysis migration required: no
+
+## 2026-11-18 — A build says which channel it came from, and the Apple testing files say it in their names
+
+Three things came out of the failed testing builds of this afternoon.
+
+**Why the second run produced nothing either.** It was not the code: the arm64 macOS slice and the iOS
+leg were both dropped fifteen minutes in with "The job was not acquired by Runner of type hosted even
+after multiple attempts", beside GitHub's own annotation "Due to capacity constraints, jobs targeting
+macOS arm64 runners may experience longer queue times". The x86_64 slice got a runner and passed; the
+`macos` job needs both slices, so it was skipped, and the rolling release stayed empty. That is queue
+time, which `timeout-minutes` does not govern, so no setting in the workflow can buy a runner.
+
+**The macOS slices may now build for 60 minutes**, the same allowance the iOS leg already had. Two jobs
+that each build the whole app from a cold runner should not differ in how long they are given. Recorded
+here because it is easy to mistake for a fix for the above: it is not, and the note in the workflow says
+so at the line.
+
+**A build now says which channel it is.** `MARKETING_VERSION` is the release train, so a testing build
+and the release of the same train both read "13.0.0", and every workflow stamped the bare commit and
+date. Someone looking at About, or at a strap log, could not tell which kind of build it was. The stamp
+now LEADS with the word: `fork-testing-build.yml` passes `testing`, `fork-release.yml`,
+`publish-ios-release.yml` and `android-release.yml` pass `release`. Neither resolver parses it
+(`BuildIdentity` on Android, `LiveState.buildStamp` on Apple print what they are handed), so this is one
+line per workflow and no new field, and an unstamped build still claims neither.
+
+**The Apple testing files carry it in their names too.** Android's tester APK has read
+`NOOP-Forge-android-<version>-testing.apk` all along, while the Apple testing artifacts were
+`NOOP-ios-unsigned-v13.0.0.ipa` and `NOOP-macos-v13.0.0.zip`: the same shape as a release's, which only
+differs by its `-dx` suffix. They are now `NOOP-testing-ios-unsigned-…`, `NOOP-testing-ios-full-unsigned-…`
+and `NOOP-testing-macos-…`, the release title opens with "TESTING BUILD" and closes with "not a release",
+and the notes say it in the first line. Nothing referenced the old testing names except the three test
+documents, which were updated with them; `altstore-source.json` carries release names only.
+
+**Open, not decided here:** the Android artifact says `-testing` for what is an official release build
+signed with the release certificate, which is the opposite of the distinction above. Renaming it touches
+a download name the testing documents and past release notes give out, so it waits for the owner.
+
+Analysis migration required: no

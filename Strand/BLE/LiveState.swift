@@ -1049,9 +1049,14 @@ public final class LiveState: ObservableObject {
         return "…\(last)"
     }
 
-    /// WHICH BUILD this is, not just which version — the commit and the date, as the builder supplied
-    /// them (`NOOP_BUILD_STAMP` → the `NOOPBuildStamp` Info.plist key; every CI build passes it, testing
-    /// builds and releases alike).
+    /// WHICH BUILD this is, not just which version — the channel, the commit and the date, as the builder
+    /// supplied them (`NOOP_BUILD_STAMP` → the `NOOPBuildStamp` Info.plist key; every CI build passes it,
+    /// testing builds and releases alike).
+    ///
+    /// Since 2026-11-18 the string LEADS with its channel, `testing` or `release`, so About and the log
+    /// header say which kind of build this is. Nothing else could: a testing build and the release of the
+    /// same train both read "13.0.0" here, and every workflow stamped the bare commit and date. The word
+    /// is the builder's to supply and this property's only to print, as with the rest of the stamp.
     ///
     /// Neither number above identifies a build: `MARKETING_VERSION` is the release train, the iOS
     /// `CURRENT_PROJECT_VERSION` moves once per release and the macOS app's `CFBundleVersion` is a
