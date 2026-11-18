@@ -109,6 +109,18 @@ changes app code, a package or `project.yml` without a passing run for exactly t
   Source Hygiene all completed on `ca89d48b5`). The rule above stands unchanged, because GitHub disabled
   them once without notice and can do it again: a push is green when runs exist and they passed, never
   because a push happened.
+- **A local run cannot clear app-target Swift: the workflows compile it with an older Xcode.** The
+  workflows pin `macos-26` (Xcode 26.6); this machine runs a newer Xcode, and the newer compiler accepts
+  code the shipping one rejects. On 2026-11-18 `Tools/local-tests.sh` built and tested the macOS scheme on
+  the pushed tree and passed under Xcode 27.2, while `macos-slice (arm64)` failed on `enum 'State' cannot
+  be used as an attribute` plus eleven errors following it, from a `private enum State` nested in a
+  SwiftUI view (`KeepSessionAsRoutineCard`). The matrix cancelled the other legs, so the rolling
+  `testing-latest` release was recreated with no artifact and the testers were left with nothing.
+  So: a change under `Strand/**`, `StrandiOS*/**` or `NOOPWatch*/**` counts as verified only once a
+  workflow has compiled it. Dispatch `app-build.yml` (it builds both app targets and runs `StrandTests`
+  on its macOS leg) and watch it to green. Use `fork-testing-build.yml` only when the testers are meant
+  to get a new build, because its `meta` job recreates `testing-latest` before the legs attach anything:
+  a leg that fails leaves that release empty.
 
 ## Readout and CI invariants
 

@@ -1788,3 +1788,32 @@ Analysis migration required: yes (AI-36). The `.workoutHeartRate` step runs the 
 the whole history, which is what gives the sessions already recorded or imported their fill. Its own
 number rather than a rider on AI-35, because AI-35 has shipped: the testing build of 2026-11-14
 (`7b8d2d928`) carries it.
+
+## 2026-11-18 — A build the local gate could not have caught, and what now counts as compiled
+
+The testing build dispatched for `8566c521d` failed in its first leg. `KeepSessionAsRoutineCard`
+declared `private enum State` inside the view, which shadows SwiftUI's property wrapper for the whole
+struct, so the four `@State` declarations above it named the enum: four errors, then eleven that
+follow from them. The matrix cancelled the second macOS slice and the iOS leg, and because the `meta`
+job recreates the rolling `testing-latest` release before any leg attaches a file, the testers were
+left with a release holding nothing at all. The fix is a rename (`SaveStep`), `75801dc39`.
+
+**The gate did run and did pass.** `Tools/local-tests.sh` built and tested the macOS scheme on exactly
+that tree. It runs under the Xcode installed here (27.2); the workflows pin `macos-26`, which is
+Xcode 26.6. The newer compiler resolves the attribute despite the shadow, the shipping one does not, so
+this class of error is invisible locally however carefully the script is run. That is the project's own
+rule about a gate that cannot observe what invalidates it, with the roles reversed: the local gate is
+not the authority on whether app-target Swift compiles.
+
+Decided: keep the workflows on 26.6, because that is the compiler that actually ships, and a second
+toolchain on this machine costs tens of gigabytes for a problem that a dispatch already answers.
+Instead, app-target Swift counts as verified only once a workflow has compiled it, and the workflow for
+that is `app-build.yml`, which builds both app targets and runs `StrandTests` without touching any
+release. `fork-testing-build.yml` stays for the case where the testers are meant to get a build.
+Written into `AGENT_RULES.md` under "Before pushing app or package code".
+
+Not decided here: whether the testing build should attach its artifacts to a staging tag and move
+`testing-latest` only once every leg succeeded. It would have kept the 2026-11-14 build in place
+through this failure. It is a change to the workflow's shape, so it waits for its own round.
+
+Analysis migration required: no
