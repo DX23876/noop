@@ -1046,7 +1046,8 @@ struct ForgeMeasureWidget: View {
             unit.isEmpty || unit.hasPrefix("/") ? text : "\(text) \(unit)"
         }
         switch key {
-        case "steps":
+        // Day totals: the week and its daily average. Steps, the energy burned, the calories eaten.
+        case "steps", "active_kcal", "calories_in":
             guard let total = figure(facts.weekTotal), let average = figure(facts.weekAverage) else { return nil }
             return String(localized: "This week \(total) · \(average) a day")
         case "weight":
@@ -1059,7 +1060,8 @@ struct ForgeMeasureWidget: View {
             let sign = change > 0 ? "+" : change < 0 ? "−" : "±"
             let moved = withUnit(sign + MeasureTileReading.figure(key: key, value: abs(change)))
             return String(localized: "Weighed \(when) · \(moved) this week")
-        case "hrv", "rhr", "spo2", "resp_rate":
+        // Readings taken once a day: the wearer's own last seven.
+        case "hrv", "rhr", "spo2", "resp_rate", "skin_temp":
             guard let average = figure(facts.weekAverage) else { return nil }
             return String(localized: "7-day average \(withUnit(average))")
         default:

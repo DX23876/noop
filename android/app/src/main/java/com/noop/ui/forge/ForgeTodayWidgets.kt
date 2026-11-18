@@ -192,7 +192,8 @@ internal object TodayWidgets {
      * nothing loses what it already said. iOS's twin is `ForgeMeasureWidget.factsLine`.
      */
     val factMeasures: Set<String> = setOf(KeyMetric.HRV.raw, KeyMetric.RESTING_HR.raw, KeyMetric.BLOOD_OXYGEN.raw,
-                                          KeyMetric.RESPIRATORY.raw, KeyMetric.STEPS.raw, KeyMetric.WEIGHT.raw)
+                                          KeyMetric.RESPIRATORY.raw, KeyMetric.SKIN_TEMP.raw, KeyMetric.STEPS.raw,
+                                          KeyMetric.CALORIES.raw, KeyMetric.WEIGHT.raw)
 
     /**
      * The measures the gallery offers, in iOS's order.
@@ -913,7 +914,8 @@ private fun rememberFactsLine(key: String?, series: Pair<List<String>, List<Doub
     val f = facts ?: return null
     fun withUnit(text: String) = if (unit.isEmpty() || unit.startsWith("/")) text else "$text $unit"
     return when (key) {
-        KeyMetric.STEPS.raw -> {
+        // Day totals: the week and its daily average.
+        KeyMetric.STEPS.raw, KeyMetric.CALORIES.raw -> {
             val total = f.weekTotalText ?: return null
             val average = f.weekAverageText ?: return null
             stringResource(R.string.forge_tile_week_total, total, average)
@@ -931,7 +933,9 @@ private fun rememberFactsLine(key: String?, series: Pair<List<String>, List<Doub
             val moved = withUnit(sign + (f.weekChangeText ?: return null))
             stringResource(R.string.forge_tile_weighed_change, whenText, moved)
         }
-        KeyMetric.HRV.raw, KeyMetric.RESTING_HR.raw, KeyMetric.BLOOD_OXYGEN.raw, KeyMetric.RESPIRATORY.raw -> {
+        // Readings taken once a day: the wearer's own last seven.
+        KeyMetric.HRV.raw, KeyMetric.RESTING_HR.raw, KeyMetric.BLOOD_OXYGEN.raw, KeyMetric.RESPIRATORY.raw,
+        KeyMetric.SKIN_TEMP.raw -> {
             val average = f.weekAverageText ?: return null
             stringResource(R.string.forge_tile_week_average, withUnit(average))
         }
