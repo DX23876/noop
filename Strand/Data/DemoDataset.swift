@@ -54,6 +54,7 @@ public enum DemoDataset {
         _ = try await store.upsertSleepSessions(plan.sleeps, deviceId: deviceId)
         _ = try await store.upsertMetricSeries(plan.series, deviceId: deviceId)
         _ = try await store.upsertMetricSeries(plan.computedSeries, deviceId: computedDeviceId)
+        _ = try await store.upsertMetricSeries(plan.hydration, deviceId: "hydration")
         _ = try await store.upsertAppleDaily(plan.apple, deviceId: appleId)
         if !plan.whoopWorkouts.isEmpty { _ = try await store.upsertWorkouts(plan.whoopWorkouts, deviceId: deviceId) }
         if !plan.appleWorkouts.isEmpty { _ = try await store.upsertWorkouts(plan.appleWorkouts, deviceId: appleId) }
@@ -69,6 +70,8 @@ public enum DemoDataset {
         public let sleeps: [CachedSleepSession]
         public let series: [MetricPoint]
         public let computedSeries: [MetricPoint]
+        /// The day's water, where the hydration tile and its page read it (`HydrationRead`).
+        public let hydration: [MetricPoint]
         public let apple: [AppleDaily]
         public let whoopWorkouts: [WorkoutRow]
         public let appleWorkouts: [WorkoutRow]
@@ -77,7 +80,7 @@ public enum DemoDataset {
     public static func build(today: Date = Date()) -> Plan {
         var rng = Generator(seed: 0xC0FFEE)
         var daily: [DailyMetric] = [], sleeps: [CachedSleepSession] = [], weights: [BodyWeightRow] = []
-        var series: [MetricPoint] = [], computed: [MetricPoint] = []
+        var series: [MetricPoint] = [], computed: [MetricPoint] = [], hydration: [MetricPoint] = []
         var apple: [AppleDaily] = [], whoopWorkouts: [WorkoutRow] = [], appleWorkouts: [WorkoutRow] = []
 
         var calendar = Calendar(identifier: .gregorian)
@@ -152,6 +155,11 @@ public enum DemoDataset {
             series.append(MetricPoint(day: day, key: "sleep_need_min", value: round1(need)))
             series.append(MetricPoint(day: day, key: "sleep_debt_min", value: round1(max(need - totalSleep, 0))))
 
+            // Water, in millilitres: most days near the goal, some well short, because a tile that always
+            // reads "done" says nothing about the day it is on.
+            hydration.append(MetricPoint(day: day, key: "hydration",
+                                         value: (clamp(rng.gauss(2300, 700), 400, 4200) / 50).rounded() * 50))
+
             let steps = Int(clamp(rng.gauss(8500, 2600), 1200, 19000))
             apple.append(AppleDaily(day: day, steps: steps,
                                     activeKcal: round1(clamp(Double(steps) * 0.045 + Double(workoutCount) * 220,
@@ -218,7 +226,7 @@ public enum DemoDataset {
         }
 
         return Plan(daily: daily, weights: weights, sleeps: sleeps, series: series, computedSeries: computed,
-                    apple: apple, whoopWorkouts: whoopWorkouts, appleWorkouts: appleWorkouts)
+                    hydration: hydration, apple: apple, whoopWorkouts: whoopWorkouts, appleWorkouts: appleWorkouts)
     }
 
     // MARK: - Shaping

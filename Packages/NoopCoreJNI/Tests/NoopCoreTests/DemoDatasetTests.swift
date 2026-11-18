@@ -45,6 +45,7 @@ final class DemoDatasetTests: XCTestCase {
         // The weigh-ins themselves, not only the series: the weight tile reads the weight store, and with
         // the series alone it said "No data yet" beside a screen full of figures.
         XCTAssertFalse(plan.weights.isEmpty)
+        XCTAssertEqual(plan.hydration.count, DemoDataset.days, "the water tile reads a day, so every day has one")
         XCTAssertLessThan(plan.weights.count, plan.daily.count, "not every day has a weigh-in, and the tile says how long ago the last one was")
         XCTAssertFalse(plan.apple.compactMap(\.steps).isEmpty)
         XCTAssertFalse(plan.apple.compactMap(\.vo2max).isEmpty)
