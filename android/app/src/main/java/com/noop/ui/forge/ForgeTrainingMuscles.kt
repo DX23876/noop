@@ -207,21 +207,36 @@ private fun mapFills(m: CoreTraining.MuscleAnalytics, mode: MuscleMode): Map<Str
             .mapValues { MuscleMapArt.scaleColor(scale, it.value) }
     }
     MuscleMode.Strength -> {
-        // A reading with a clear direction gets its own colour, at an intensity that grows with the slope; the
-        // steepest reading wins where several share one figure muscle.
         val up = ForgeTokens.StrandPalette.recovery100.resolve()
         val down = ForgeTokens.StrandPalette.statusCritical.resolve()
         val flat = ForgeTokens.StrandPalette.metricCyan.resolve()
-        val merged = HashMap<String, Double>()
-        for (r in m.strength) {
-            if (r.direction == "unclear" || r.direction == "insufficientEvidence") continue
-            val slug = MuscleMapArt.muscle(r.muscleId) ?: continue
-            val slope = r.slopePerWeek ?: continue
-            if (abs(slope) >= abs(merged[slug] ?: -1.0)) merged[slug] = slope
-        }
         // An override colour fills at full opacity in MuscleMap, whatever the intensity.
-        merged.mapValues { (_, slope) -> if (slope > 0) up else if (slope < 0) down else flat }
+        strengthSlopesByFigureMuscle(m.strength)
+            .mapValues { (_, slope) -> if (slope > 0) up else if (slope < 0) down else flat }
     }
+}
+
+/**
+ * The steepest reading with a clear direction per figure muscle, which is what the Strength fill paints.
+ * Several analytics muscles share one muscle on the figure, so the largest magnitude wins there.
+ *
+ * Its own function because of #52. The comparison read `abs(slope) >= abs(merged[slug] ?: -1.0)`, where
+ * the `-1.0` stands for "nothing stored for this muscle yet". Wrapping the sentinel in `abs` turned it
+ * into a threshold of 1.0, a hundred per cent a week, which no real reading reaches: normalized slopes
+ * run around 0.01 to 0.08. So nothing was ever stored, the figure stayed grey, and the list under it
+ * went on showing every trend. Apple does not have this: it compares the magnitude against a STORED
+ * magnitude, where the sentinel loses every time (`MuscleAnalyticsView.mapIntensities`).
+ */
+internal fun strengthSlopesByFigureMuscle(readings: List<CoreTraining.Strength>): Map<String, Double> {
+    val merged = HashMap<String, Double>()
+    for (r in readings) {
+        if (r.direction == "unclear" || r.direction == "insufficientEvidence") continue
+        val slug = MuscleMapArt.muscle(r.muscleId) ?: continue
+        val slope = r.slopePerWeek ?: continue
+        val best = merged[slug]
+        if (best == null || abs(slope) >= abs(best)) merged[slug] = slope
+    }
+    return merged
 }
 
 @Composable
