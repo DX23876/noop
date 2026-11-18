@@ -424,7 +424,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
     // different histories and the two phones printed different chips for the same measure (+25 against
     // +26 for HRV, on identical data). Same window, same answer.
     val factPlaced = widgets.mapNotNull { it.key }
-        .filter { it != TodayWidget.SLEEP_KEY && (KeyMetric.fromRaw(it) != null || it in TodayWidgets.catalogMeasures) }
+        .filter { KeyMetric.fromRaw(it) != null || it in TodayWidgets.catalogMeasures || it == TodayWidget.SLEEP_KEY }
         .distinct().sorted()
     val factSeries by produceState(emptyMap<String, Pair<List<String>, List<Double>>>(), date, factPlaced, coreRevision) {
         value = if (factPlaced.isEmpty()) emptyMap() else withContext(Dispatchers.IO) {
@@ -709,8 +709,11 @@ private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?,
     }
     if (key == TodayWidget.SLEEP_KEY) {
         val sleepSummary = if (detailed) rememberTileDelta("sleep_total_min", sleepTrend.takeLast(60))?.summary else null
+        // The nights' own fact first, as every other measure has it; the range line stays as the fallback.
+        val sleepFacts = if (detailed) rememberFactsLine(key, factSeries[key], today, "h") else null
         ForgeTodayTile(Icons.Rounded.Bedtime, Forge.colors.rest, stringResource(R.string.forge_sleep),
-                       sleepMinutes?.let { TodayTimeline.hoursMinutes(it) }, "h", sleepSummary?.let { summaryLine(it, "h") }, noData, dense,
+                       sleepMinutes?.let { TodayTimeline.hoursMinutes(it) }, "h",
+                       if (detailed) (sleepFacts ?: sleepSummary?.let { summaryLine(it, "h") }) else null, noData, dense,
                        modifier.clickable { onOpen(CoreRead.Metric.SleepMinutes) }, trend = sleepTrend.takeLast(30))
         return
     }
@@ -935,7 +938,7 @@ private fun rememberFactsLine(key: String?, series: Pair<List<String>, List<Doub
         }
         // Readings taken once a day: the wearer's own last seven.
         KeyMetric.HRV.raw, KeyMetric.RESTING_HR.raw, KeyMetric.BLOOD_OXYGEN.raw, KeyMetric.RESPIRATORY.raw,
-        KeyMetric.SKIN_TEMP.raw -> {
+        KeyMetric.SKIN_TEMP.raw, TodayWidget.SLEEP_KEY -> {
             val average = f.weekAverageText ?: return null
             stringResource(R.string.forge_tile_week_average, withUnit(average))
         }

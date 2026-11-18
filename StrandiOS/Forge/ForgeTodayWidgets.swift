@@ -1061,7 +1061,7 @@ struct ForgeMeasureWidget: View {
             let moved = withUnit(sign + MeasureTileReading.figure(key: key, value: abs(change)))
             return String(localized: "Weighed \(when) · \(moved) this week")
         // Readings taken once a day: the wearer's own last seven.
-        case "hrv", "rhr", "spo2", "resp_rate", "skin_temp":
+        case "hrv", "rhr", "spo2", "resp_rate", "skin_temp", "sleep_total_min":
             guard let average = figure(facts.weekAverage) else { return nil }
             return String(localized: "7-day average \(withUnit(average))")
         default:
