@@ -65,7 +65,8 @@ public enum TimelineFeed {
     ///
     /// A notice already shown today stays. Otherwise its topic must have been quiet for `cooldownDays`, or
     /// the notice must be at least `worsening` times as severe as the topic's last one; an event skips the
-    /// cooldown. Every newly admitted notice is written to the log at `now`.
+    /// cooldown but is admitted only once per key, since nothing else would stop it repeating daily.
+    /// Every newly admitted notice is written to the log at `now`.
     /// `cooldown` gives a topic's quiet days; a topic the reader asked to hear less often gets twice the
     /// default.
     public static func admit(_ candidates: [Candidate], log: [Shown], day: String, now: Date,
@@ -78,6 +79,11 @@ public enum TimelineFeed {
                 admitted.append(Admitted(candidate: candidate, at: today.at))
                 continue
             }
+            // An event is its own news ONCE. It skips the topic's cooldown, so nothing else holds it
+            // back, and the same key would otherwise return every day for as long as it stays true: a
+            // streak reading "8 weeks in a row" is not new news tomorrow. The key carries what changed
+            // (the count, the milestone), so the next step in the same streak is admitted as itself.
+            if candidate.isEvent, log.contains(where: { $0.key == candidate.key }) { continue }
             if !candidate.isEvent,
                let last = log.filter({ $0.topic == candidate.topic && $0.day != day })
                    .max(by: { $0.at < $1.at }),

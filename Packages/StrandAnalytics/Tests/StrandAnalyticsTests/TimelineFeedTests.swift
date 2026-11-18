@@ -36,6 +36,23 @@ final class TimelineFeedTests: XCTestCase {
         XCTAssertEqual(next.admitted.count, 2)
     }
 
+    /// An event skips the topic's cooldown, so nothing else holds it back: without a rule of its own the
+    /// SAME event would be admitted again every day it stays true. A streak reading "8 weeks in a row" is
+    /// news on the day it starts, not every morning of that week.
+    func testTheSameEventIsNewsOnlyOnce() {
+        let streak = TimelineFeed.Candidate(key: "streak|8 weeks in a row", topic: .goals, severity: 1, isEvent: true)
+        let first = TimelineFeed.admit([streak], log: [], day: "D1", now: t0)
+        XCTAssertEqual(first.admitted.count, 1)
+        // Still the same day: the entry stays where it first appeared.
+        XCTAssertEqual(TimelineFeed.admit([streak], log: first.log, day: "D1", now: days(0.3)).admitted.first?.at, t0)
+        // The following days say nothing new.
+        XCTAssertTrue(TimelineFeed.admit([streak], log: first.log, day: "D2", now: days(1)).admitted.isEmpty)
+        XCTAssertTrue(TimelineFeed.admit([streak], log: first.log, day: "D5", now: days(4)).admitted.isEmpty)
+        // The next week IS a new fact, and says so.
+        let grown = TimelineFeed.Candidate(key: "streak|9 weeks in a row", topic: .goals, severity: 1, isEvent: true)
+        XCTAssertEqual(TimelineFeed.admit([grown], log: first.log, day: "D8", now: days(7)).admitted.count, 1)
+    }
+
     func testTheLogForgetsAfterThirtyDays() {
         let log = TimelineFeed.admit([.init(key: "k", topic: .load, severity: 2)], log: [], day: "D1", now: t0).log
         XCTAssertTrue(TimelineFeed.admit([], log: log, day: "D40", now: days(31)).log.isEmpty)
