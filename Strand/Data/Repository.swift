@@ -1137,8 +1137,15 @@ final class Repository: ObservableObject {
     }
 
     /// Checkpoint the WAL into the main DB file if the store is already open, so a file-level
-    /// backup captures everything. No-op (returns false) if no handle exists yet , the caller
-    /// then copies the on-disk files as-is, which still includes the -wal sidecar.
+    /// backup captures everything. Returns false when no handle exists yet, or when the checkpoint
+    /// failed.
+    ///
+    /// False means the export must not proceed, and both callers treat it that way
+    /// (`DataBackup.runExport`, `DataBackup.writeBackup`): a `.noopbak` is a SINGLE zip entry, so
+    /// there is no `-wal` sidecar travelling beside the database the way a folder copy would have
+    /// one, and committed pages still in the WAL would simply be absent. The sentence that used to
+    /// stand here said the caller copies the files as they lie, sidecar included. No caller has done
+    /// that since the archive became one entry.
     func checkpointForBackup() async -> Bool {
         guard let store else { return false }
         do { try await store.checkpointWAL(); return true } catch { return false }
