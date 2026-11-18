@@ -111118,7 +111118,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bewaffnet am Riemen selbst mit dem experimentellen Befehl 5/MG. Ein gurtgetriebener Wake ist immer noch unbestätigt auf 5/MG auf unserer Seite (bestätigt nur auf WHOOP 4.0), also halte einen Backup-Alarm für alles, was du wirklich nicht verpassen kannst."
+            "value" : "Wird mit dem versuchsweisen 5/MG-Befehl direkt auf dem Strap gestellt. Ob ein Wecken vom Strap aus auf einem 5/MG wirklich funktioniert, ist bei uns noch nicht bestätigt (bestätigt nur auf dem WHOOP 4.0). Stelle dir also einen zweiten Wecker für alles, was du wirklich nicht verpassen darfst."
           }
         },
         "es" : {
@@ -111409,7 +111409,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Armiert den Riemen, um zu deiner Weckzeit zu summen, auch wenn NOOP geschlossen ist. Sendet den genauen Alarmbefehl, den die offizielle App sendet, bestätigtes Summen auf einem echten WHOOP 4.0 (Community-Wire-Capture + On-Device-Test, #535). Halte einen Backup-Alarm für alles, was du wirklich nicht verpassen kannst."
+            "value" : "Stellt den Strap so, dass er zu deiner Weckzeit vibriert, auch wenn NOOP geschlossen ist. Gesendet wird genau der Weckbefehl der offiziellen App. Das Vibrieren ist auf einem echten WHOOP 4.0 bestätigt (Mitschnitt aus der Community plus Test am Gerät, #535). Stelle dir einen zweiten Wecker für alles, was du wirklich nicht verpassen darfst."
           }
         },
         "es" : {
@@ -233617,7 +233617,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Heads up: Dieser Testmodus ist ausgeschaltet, so dass der Bericht keine Erfassung dafür hat. Für einen nützlichen Bericht schalte den Modus ein, reproduzieren das Problem beim Tragen des Riemens und melde es erneut."
+            "value" : "Achtung: Dieser Testmodus ist aus, der Bericht enthält dafür also keine Aufzeichnung. Für einen brauchbaren Bericht schalte den Modus ein, führe das Problem mit angelegtem Strap herbei und melde es noch einmal."
           }
         },
         "es" : {
@@ -509798,7 +509798,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Der WHOOP 4.0-Reboot-Frame wird nicht bestätigt - ein normaler Neustart wird ignoriert (# 235). Sende sie an jeden Kandidaten und beobachte dabei sowohl das Straplog als auch den Strap selbst. \"Keine Trennung innerhalb von 12s\" bedeutet, dass der Strap den Rahmen ignoriert hat. Eine \"Link Drop\" -Linie bedeutet, dass der Rahmen den Riemen erreicht hat - aber ein Drop Link allein ist kein Neustart: Ein echter Neustart schaltet auch das Sensorlicht des Riemens für ein paar Sekunden aus, also wenn das Licht anblieb, war es nur eine Drop-Verbindung, kein Neustart. Zerstörungsfrei - deine Daten werden gespeichert. Bitte teile das Protokoll, damit wir den echten Rahmen anheften können."
+            "value" : "Der Reboot-Frame des WHOOP 4.0 ist nicht bestätigt, ein normaler Neustart wird ignoriert (#235). Sende jeden Kandidaten und beobachte dabei sowohl das Strap-Protokoll als auch den Strap selbst. „Keine Trennung innerhalb von 12 s“ heißt, dass der Strap den Frame ignoriert hat. Eine Zeile „Verbindung verloren“ heißt, dass der Frame den Strap erreicht hat. Eine verlorene Verbindung allein ist aber noch kein Neustart: Bei einem echten Neustart geht auch das Sensorlicht des Straps für ein paar Sekunden aus. Blieb das Licht an, war es nur eine verlorene Verbindung. Nichts wird dabei zerstört, deine Daten bleiben erhalten. Teile bitte das Protokoll, damit wir den richtigen Frame festnageln können."
           }
         },
         "es" : {

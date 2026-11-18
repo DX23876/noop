@@ -1,0 +1,20 @@
+# Android translations that end with a verbatim tail of their English source: the translation was cut
+# off and the rest of the English was glued on. Format: <values dir> <allowed count>.
+#
+# Why a baseline rather than zero: one batch of machine translation truncated about sixty long strings
+# in every locale, and German was repaired first (2026-11-18). The other locales still carry theirs, so
+# the gate starts at what is there and blocks anything NEW. Ratchet DOWN as each locale is repaired,
+# never up.
+#
+# The two left in German are not faults: a source line that is mostly proper names ("Max
+# Rubner-Institut, CC BY 4.0") legitimately survives translation word for word, and the detector cannot
+# tell that from a cut-off sentence. Every locale's allowance includes a handful of those.
+
+values-de/strings.xml 2
+values-es/strings.xml 63
+values-fr/strings.xml 62
+values-it/strings.xml 64
+values-pl/strings.xml 63
+values-pt-rPT/strings.xml 63
+values-ru/strings.xml 63
+values-zh/strings.xml 57
