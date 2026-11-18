@@ -158,11 +158,26 @@ internal object TodayWidgets {
                                              TodayWidget.SLEEP_KEY, KeyMetric.WEIGHT.raw)
         .map { TodayWidget(kind = TodayWidget.Kind.Measure, key = it) }
 
-    /** The measures the gallery offers, in iOS's order where Android has the tile. */
+    /**
+     * Measures read by their catalogue key instead of as a Key Metric, the way every iOS tile is read
+     * (2026-11-18). All three already have their number on Android — stress in the core, VO₂max in the
+     * Training tab, the fitness age in AgeLess — they simply had no tile, so the two galleries offered
+     * different things and "the same customisation on both phones" was not true.
+     */
+    val catalogMeasures: List<String> = listOf("vo2max_est", "stress", "fitness_age")
+
+    /**
+     * The measures the gallery offers, in iOS's order.
+     *
+     * Charge, Effort and Rest left the list: they come back as whole-row tiles with their own curve, since
+     * the three rings above already say today's number. Still missing against iOS: `calories_in`, which
+     * needs the food side wired to a tile.
+     */
     val measures: List<String> = listOf(KeyMetric.HRV.raw, KeyMetric.RESTING_HR.raw, KeyMetric.STEPS.raw,
-                                        TodayWidget.SLEEP_KEY, KeyMetric.WEIGHT.raw, KeyMetric.BLOOD_OXYGEN.raw,
-                                        KeyMetric.RESPIRATORY.raw, KeyMetric.SKIN_TEMP.raw, KeyMetric.CALORIES.raw,
-                                        KeyMetric.CHARGE.raw, KeyMetric.EFFORT.raw, KeyMetric.REST.raw)
+                                        TodayWidget.SLEEP_KEY, "vo2max_est", "stress",
+                                        KeyMetric.WEIGHT.raw, KeyMetric.BLOOD_OXYGEN.raw,
+                                        KeyMetric.RESPIRATORY.raw, KeyMetric.SKIN_TEMP.raw,
+                                        KeyMetric.CALORIES.raw, "fitness_age")
 
     fun encode(list: List<TodayWidget>): String = JSONArray(list.map { w ->
         JSONObject().put("id", w.id).put("kind", w.kind.raw).apply {
@@ -371,6 +386,20 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
             CoreRead.series(CoreRead.Metric.SleepMinutes, date.minusDays(29).toString(), date.toString()).map { it.value / 60 }
         }
     }
+    // The measures that are not Key Metrics, read by catalogue key as iOS reads every tile. One series
+    // each, only for the ones actually placed, so an unplaced tile costs nothing.
+    val catalogPlaced = widgets.mapNotNull { it.key }.filter { it in TodayWidgets.catalogMeasures }.distinct().sorted()
+    val catalogSeries by produceState(emptyMap<String, List<Double>>(), date, catalogPlaced, coreRevision) {
+        value = if (catalogPlaced.isEmpty()) emptyMap() else withContext(Dispatchers.IO) {
+            catalogPlaced.associateWith { key ->
+                runCatching {
+                    viewModel.repo.resolvedSeries(key, "my-whoop", date.minusDays(59).toString(), date.toString(),
+                                                  strapDeviceId = viewModel.activeStrapId)
+                        .points.sortedBy { it.day }.map { it.value }
+                }.getOrDefault(emptyList())
+            }
+        }
+    }
     val sleepMinutes by produceState<Double?>(null, date, widgets.any { it.key == TodayWidget.SLEEP_KEY }, coreRevision) {
         value = if (widgets.none { it.key == TodayWidget.SLEEP_KEY }) null else withContext(Dispatchers.IO) {
             val end = date.plusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toEpochSecond()
@@ -514,7 +543,8 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                                onSize = { update(widgets.map { if (it.id == w.id) it.nextSize() else it }) },
                                onShift = { by -> update(TodayWidgets.shift(widgets, w.id, by)) }) {
                         when (w.kind) {
-                            TodayWidget.Kind.Measure -> MeasureTile(w.key, keyTiles, sleepMinutes, sleepTrend, noData, dense = columns > 2, Modifier.fillMaxSize(),
+                            TodayWidget.Kind.Measure -> MeasureTile(w.key, keyTiles, sleepMinutes, sleepTrend, catalogSeries, noData,
+                                                                     dense = columns > 2, Modifier.fillMaxSize(),
                                                                      detailed = w.size == TodayWidget.Size.Medium) { open = it }
                             TodayWidget.Kind.TrainingLoad -> TodayTrainingLoadForge(onOpenTrainingLoad)
                             TodayWidget.Kind.Goals -> TodayGoals()
@@ -613,8 +643,13 @@ private fun EditButton(icon: ImageVector, label: String, onClick: () -> Unit,
  * latest night as the Sleep tab does.
  */
 @Composable
-private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?, sleepTrend: List<Double>, noData: String,
+private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?, sleepTrend: List<Double>,
+                        catalogSeries: Map<String, List<Double>>, noData: String,
                         dense: Boolean, modifier: Modifier, detailed: Boolean = false, onOpen: (CoreRead.Metric) -> Unit) {
+    if (key != null && key in TodayWidgets.catalogMeasures) {
+        CatalogMeasureTile(key, catalogSeries[key].orEmpty(), noData, dense, modifier, detailed)
+        return
+    }
     if (key == TodayWidget.SLEEP_KEY) {
         val sleepSummary = if (detailed) rememberTileDelta("sleep_total_min", sleepTrend.takeLast(60))?.summary else null
         ForgeTodayTile(Icons.Rounded.Bedtime, Forge.colors.rest, stringResource(R.string.forge_sleep),
@@ -630,6 +665,68 @@ private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?,
                    if (detailed) change?.summary?.let { summaryLine(it, t.unit.orEmpty()) } else null, noData, dense,
                    modifier.then(t.opens?.let { m -> Modifier.clickable { onOpen(m) } } ?: Modifier),
                    delta = change?.text, deltaTone = change?.tone, trend = spark?.takeLast(30))
+}
+
+/**
+ * A measure the Key Metrics reading does not carry: VO₂max, stress and the fitness age, read as a plain
+ * series by catalogue key (2026-11-18). Same tile, same change chip and same thirty-day trend as its
+ * siblings; only where the number comes from differs.
+ *
+ * Stress reads as a word rather than a figure, as the Health tab says it: the scale is 0 to 3 and "1.8"
+ * tells nobody anything.
+ */
+@Composable
+private fun CatalogMeasureTile(key: String, series: List<Double>, noData: String, dense: Boolean,
+                               modifier: Modifier, detailed: Boolean) {
+    val colors = Forge.colors
+    val latest = series.lastOrNull()
+    val decimal = remember { java.text.DecimalFormat("#.#") }
+    val value = when {
+        latest == null -> null
+        key == "stress" -> stringResource(when {
+            latest < 1.0 -> R.string.forge_vt_low
+            latest < 2.0 -> R.string.forge_vt_medium
+            else -> R.string.forge_vt_high
+        })
+        key == "fitness_age" -> kotlin.math.round(latest).toInt().toString()
+        else -> decimal.format(latest)
+    }
+    val tint = when (key) {
+        "vo2max_est" -> colors.charge
+        "stress" -> colors.effort
+        else -> colors.rest
+    }
+    val change = rememberTileDelta(key, series)
+    ForgeTodayTile(measureIcon(key), tint, measureLabel(key), value, "",
+                   if (detailed) change?.summary?.let { summaryLine(it, "") } else null, noData, dense, modifier,
+                   // The word carries no direction, so a change chip beside it would be two readings of one
+                   // thing in two languages.
+                   delta = if (key == "stress") null else change?.text,
+                   deltaTone = if (key == "stress") null else change?.tone,
+                   trend = series.takeLast(30))
+}
+
+/**
+ * One name and one symbol per measure key, for the tile AND the gallery row.
+ *
+ * Both used to resolve it through `KeyMetric.fromRaw`, which answers null for sleep and for the three
+ * catalogue measures; the gallery's fallback was the sleep tile, so adding them would have listed three
+ * rows all called "Sleep".
+ */
+@Composable
+private fun measureLabel(key: String): String = when (key) {
+    TodayWidget.SLEEP_KEY -> stringResource(R.string.forge_sleep)
+    "vo2max_est" -> stringResource(R.string.forge_th_vo2max)
+    "stress" -> stringResource(R.string.forge_vt_stress)
+    "fitness_age" -> stringResource(R.string.today_card_fitness_age)
+    else -> KeyMetric.fromRaw(key)?.tileLabel() ?: key
+}
+
+private fun measureIcon(key: String): ImageVector = when (key) {
+    "vo2max_est" -> Icons.Rounded.Air
+    "stress" -> Icons.Rounded.Bolt
+    "fitness_age" -> Icons.Rounded.Favorite
+    else -> KeyMetric.fromRaw(key)?.icon ?: Icons.Rounded.Bedtime
 }
 
 /** "usually 53 bpm · range 51 to 58", from the shared `MeasureTileReading.summary`, as iOS's `summaryLine`. */
@@ -661,8 +758,7 @@ private fun WidgetGallery(cycleOn: Boolean, onAdd: (TodayWidget) -> Unit, onClos
             ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
                 TodayWidgets.measures.forEachIndexed { i, key ->
                     if (i > 0) HubDivider()
-                    val metric = KeyMetric.fromRaw(key)
-                    GalleryRow(metric?.icon ?: Icons.Rounded.Bedtime, metric?.tileLabel() ?: stringResource(R.string.forge_sleep),
+                    GalleryRow(measureIcon(key), measureLabel(key),
                                stringResource(R.string.forge_g_measure_sub)) { onAdd(TodayWidget(kind = TodayWidget.Kind.Measure, key = key)) }
                 }
             }

@@ -72,6 +72,18 @@ class TodayWidgetsTest {
         assertEquals(listOf("hrv"), keys("hrv,somethingTheGalleryNeverHeardOf"))
     }
 
+    /**
+     * The gallery is iOS's list (2026-11-18). The three catalogue measures are the ones Android could
+     * always have shown and did not, and Charge, Effort and Rest are out because they come back as
+     * whole-row tiles. `calories_in` is the one entry iOS still has and Android does not.
+     */
+    @Test fun theGalleryOffersIosList() {
+        assertEquals(listOf("hrv", "restingHr", "steps", "sleep_total_min", "vo2max_est", "stress",
+                            "weight", "bloodOxygen", "respiratory", "skinTemp", "calories", "fitness_age"),
+                     TodayWidgets.measures)
+        assertEquals(TodayWidgets.catalogMeasures, TodayWidgets.measures.filter { it in TodayWidgets.catalogMeasures })
+    }
+
     @Test fun everyMetricEitherCarriesOrIsOneOfTheThree() {
         for (metric in KeyMetric.entries) {
             val carried = metric.measureKey
