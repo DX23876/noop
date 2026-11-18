@@ -4668,7 +4668,7 @@
   "Add a picture": "Bild hinzufügen",
   "A screenshot of what went wrong says more than a log": "Ein Bildschirmfoto von dem, was schiefging, sagt mehr als ein Protokoll",
   "Remove the picture": "Bild entfernen",
-  "You've kept every planned step for %@.": "Du hast jeden geplanten Schritt für %@ geschafft.",
+  "Those weeks met your plan for %@, or came close.": "Diese Wochen haben deinen Plan für %@ erfüllt oder waren knapp dran.",
   "4.0, unconfirmed on real hardware": "4.0, an echter Hardware nicht bestätigt",
   "The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Restart the strap from Devices, or fully charge it and reconnect; keep your phone's Clock alarm as your wake until it takes.": "Der Strap meldet weiter eine andere Zeit als die, die NOOP sendet. Sein Wecker in der Firmware geht deshalb nicht zu deiner Weckzeit los, meist weil seine Uhr oder sein Wecker zurückgesetzt wurde. Starte den Strap unter Geräte neu oder lade ihn ganz auf und verbinde ihn neu. Nimm bis dahin den Wecker deines Telefons."
 }

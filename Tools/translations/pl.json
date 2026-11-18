@@ -5866,7 +5866,7 @@
   "Add a picture": "Dodaj obraz",
   "A screenshot of what went wrong says more than a log": "Zrzut ekranu tego, co poszło źle, mówi więcej niż dziennik",
   "Remove the picture": "Usuń obraz",
-  "You've kept every planned step for %@.": "Każdy zaplanowany krok dla celu %@ wykonany.",
+  "Those weeks met your plan for %@, or came close.": "Te tygodnie wypełniły Twój plan dla %@ albo były blisko.",
   "4.0, unconfirmed on real hardware": "4.0, niepotwierdzone na prawdziwym sprzęcie",
   "The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Restart the strap from Devices, or fully charge it and reconnect; keep your phone's Clock alarm as your wake until it takes.": "Pasek wciąż zgłasza inny czas niż wysyła NOOP, więc alarm w jego oprogramowaniu nie włączy się o godzinie pobudki, zwykle dlatego, że jego zegar lub alarm został zresetowany. Uruchom pasek ponownie w Urządzeniach albo naładuj go do pełna i połącz ponownie; do tego czasu korzystaj z budzika w telefonie."
 }

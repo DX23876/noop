@@ -53,6 +53,34 @@ final class TimelineFeedTests: XCTestCase {
         XCTAssertEqual(TimelineFeed.admit([grown], log: first.log, day: "D8", now: days(7)).admitted.count, 1)
     }
 
+    /// The night-pending notice's shape: an event, so the device topic's cooldown cannot hold it back, and
+    /// a FIXED key, because it reports a state rather than a change. Once-per-key would retire it after the
+    /// first such morning for as long as the log remembers, and it is the only notice carrying the
+    /// confirm-wake action, which the wearer can only use on a morning it is shown.
+    func testAStandingConditionIsSaidEveryDayItHolds() {
+        let night = TimelineFeed.Candidate(key: "nightPending", topic: .device, severity: 3,
+                                           isEvent: true, repeats: true)
+        let first = TimelineFeed.admit([night], log: [], day: "D1", now: t0)
+        XCTAssertEqual(first.admitted.count, 1)
+        let second = TimelineFeed.admit([night], log: first.log, day: "D2", now: days(1))
+        XCTAssertEqual(second.admitted.count, 1, "the night is pending again, and so is the question")
+        XCTAssertEqual(TimelineFeed.admit([night], log: second.log, day: "D3", now: days(2)).admitted.count, 1)
+        // Still once per DAY: a second pass the same morning finds the entry it already placed.
+        let again = TimelineFeed.admit([night], log: second.log, day: "D2", now: days(1.4))
+        XCTAssertEqual(again.admitted.first?.at, days(1))
+        XCTAssertEqual(again.log.filter { $0.key == "nightPending" && $0.day == "D2" }.count, 1)
+    }
+
+    /// The cooldown bypass is what `isEvent` buys, and `repeats` must not cost it: a louder notice on the
+    /// same topic the day before cannot silence the standing one.
+    func testAStandingConditionStillSkipsTheTopicsCooldown() {
+        let battery = TimelineFeed.Candidate(key: "strapBattery", topic: .device, severity: 4)
+        let night = TimelineFeed.Candidate(key: "nightPending", topic: .device, severity: 3,
+                                           isEvent: true, repeats: true)
+        let log = TimelineFeed.admit([battery], log: [], day: "D1", now: t0).log
+        XCTAssertEqual(TimelineFeed.admit([night], log: log, day: "D2", now: days(1)).admitted.count, 1)
+    }
+
     func testTheLogForgetsAfterThirtyDays() {
         let log = TimelineFeed.admit([.init(key: "k", topic: .load, severity: 2)], log: [], day: "D1", now: t0).log
         XCTAssertTrue(TimelineFeed.admit([], log: log, day: "D40", now: days(31)).log.isEmpty)

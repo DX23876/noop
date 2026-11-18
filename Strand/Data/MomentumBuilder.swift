@@ -368,14 +368,18 @@ enum MomentumBuilder {
                 action: MomentumAction(title: String(localized: "View goal"), destination: .goalJourney)))
         }
         if let streak = i.goalStreak, streak.weeks >= 3 {
-            // The headline carries the count; the line under it names WHICH goal and what a kept week
-            // actually was, rather than saying the same number again in other words. It deliberately
-            // does not say the goal is reached: a kept week means the planned steps were done, and the
+            // The headline carries the count; the line under it names WHICH goal, rather than saying the
+            // same number again in other words. It deliberately does not say the goal is reached: the
             // target can still be far away.
+            //
+            // Nor does it say every planned step was done, which is what it claimed until the review of
+            // 2026-11-18. The number comes from `PeriodGoalPace.streak`, which counts a week as kept on
+            // `.achieved` OR `.almost`, so a week of three sessions out of four keeps the run going. "Or
+            // came close" is the whole of what the streak behind the headline actually means.
             out.append(MomentumMessage(
                 kind: .streak, tone: .positive,
                 headline: String(localized: "\(streak.weeks) weeks in a row"),
-                detail: String(localized: "You've kept every planned step for \(streak.goal).")))
+                detail: String(localized: "Those weeks met your plan for \(streak.goal), or came close.")))
         }
     }
 

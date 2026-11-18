@@ -4768,7 +4768,7 @@
   "Add a picture": "添加图片",
   "A screenshot of what went wrong says more than a log": "一张出错时的截图胜过一份日志",
   "Remove the picture": "移除图片",
-  "You've kept every planned step for %@.": "「%@」的每个计划步骤都完成了。",
+  "Those weeks met your plan for %@, or came close.": "这些周达成了「%@」的计划，或接近达成。",
   "4.0, unconfirmed on real hardware": "4.0，未在真实设备上确认",
   "The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Restart the strap from Devices, or fully charge it and reconnect; keep your phone's Clock alarm as your wake until it takes.": "手环报告的时间与 NOOP 发送的时间不一致，因此其固件闹钟不会在你的起床时间响起，通常是手环的时钟或闹钟被重置了。请在「设备」中重启手环，或将其充满电后重新连接；在生效之前，请继续使用手机的时钟闹钟。"
 }

@@ -676920,6 +676920,70 @@
           }
         }
       }
+    },
+    "Those weeks met your plan for %@, or came close." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Those weeks met your plan for %@, or came close."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Diese Wochen haben deinen Plan für %@ erfüllt oder waren knapp dran."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esas semanas cumplieron tu plan de %@, o estuvieron cerca."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ces semaines ont tenu votre plan pour %@, ou presque."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Essas semanas cumpriram o teu plano de %@, ou ficaram perto."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Te tygodnie wypełniły Twój plan dla %@ albo były blisko."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quelle settimane hanno rispettato il tuo piano per %@, o ci sono andate vicino."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Эти недели выполнили ваш план для цели «%@» или были близки к нему."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这些周达成了「%@」的计划，或接近达成。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這幾週達成了「%@」的計畫，或接近達成。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

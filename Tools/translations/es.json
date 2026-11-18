@@ -4667,7 +4667,7 @@
   "Add a picture": "Añadir una imagen",
   "A screenshot of what went wrong says more than a log": "Una captura de lo que falló dice más que un registro",
   "Remove the picture": "Quitar la imagen",
-  "You've kept every planned step for %@.": "Has cumplido todos los pasos planificados de %@.",
+  "Those weeks met your plan for %@, or came close.": "Esas semanas cumplieron tu plan de %@, o estuvieron cerca.",
   "4.0, unconfirmed on real hardware": "4.0, sin confirmar en hardware real",
   "The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Restart the strap from Devices, or fully charge it and reconnect; keep your phone's Clock alarm as your wake until it takes.": "La correa sigue informando una hora distinta de la que envía NOOP, así que su alarma de firmware no sonará a tu hora de despertar, normalmente una correa cuyo reloj o alarma se ha reiniciado. Reinicia la correa desde Dispositivos, o cárgala por completo y vuelve a conectarla; mantén la alarma del Reloj de tu teléfono como despertador hasta que funcione."
 }

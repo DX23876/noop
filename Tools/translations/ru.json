@@ -4644,7 +4644,7 @@
   "Add a picture": "Добавить картинку",
   "A screenshot of what went wrong says more than a log": "Снимок экрана говорит больше, чем журнал",
   "Remove the picture": "Убрать картинку",
-  "You've kept every planned step for %@.": "Вы выполнили каждый запланированный шаг для цели «%@».",
+  "Those weeks met your plan for %@, or came close.": "Эти недели выполнили ваш план для цели «%@» или были близки к нему.",
   "4.0, unconfirmed on real hardware": "4.0, не подтверждено на реальном устройстве",
   "The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Restart the strap from Devices, or fully charge it and reconnect; keep your phone's Clock alarm as your wake until it takes.": "Устройство продолжает сообщать время, отличное от того, что отправляет NOOP, поэтому его встроенный будильник не сработает в нужное время, обычно это устройство, у которого сбросились часы или будильник. Перезапустите устройство в разделе «Устройства» или полностью зарядите его и подключите заново; до тех пор используйте будильник «Часы» на телефоне."
 }

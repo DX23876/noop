@@ -85,7 +85,12 @@ enum ForgeNotices {
                 action: action(message.action?.destination), actionTitle: message.action?.title)
         }
         if nightPending {
-            candidates.append(.init(key: nightPendingKey, topic: .device, severity: 3, isEvent: true))
+            // `isEvent` to skip the device topic's cooldown (a strap-battery notice must not hold this
+            // back), `repeats` because it is a state and not news: its key is fixed, the night is pending
+            // again tomorrow morning if the strap still holds it, and the wearer can only confirm the wake
+            // time on a morning the notice is actually shown.
+            candidates.append(.init(key: nightPendingKey, topic: .device, severity: 3,
+                                    isEvent: true, repeats: true))
             byKey[nightPendingKey] = ForgeTimeline.Notice(
                 key: nightPendingKey, date: now, topic: TimelineFeed.Topic.device.rawValue, tone: .caution,
                 headline: String(localized: "The night may not be fully synced yet."),

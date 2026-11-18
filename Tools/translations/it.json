@@ -4761,7 +4761,7 @@
   "Add a picture": "Aggiungi un'immagine",
   "A screenshot of what went wrong says more than a log": "Una schermata di ciò che non ha funzionato dice più di un registro",
   "Remove the picture": "Rimuovi l'immagine",
-  "You've kept every planned step for %@.": "Hai rispettato ogni passo pianificato per %@.",
+  "Those weeks met your plan for %@, or came close.": "Quelle settimane hanno rispettato il tuo piano per %@, o ci sono andate vicino.",
   "4.0, unconfirmed on real hardware": "4.0, non confermato su hardware reale",
   "The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Restart the strap from Devices, or fully charge it and reconnect; keep your phone's Clock alarm as your wake until it takes.": "La fascia continua a segnalare un orario diverso da quello inviato da NOOP, quindi la sveglia del firmware non suonerà al tuo orario di sveglia, di solito si tratta di una fascia il cui orologio o la cui sveglia si sono reimpostati. Riavvia la fascia da Dispositivi, oppure caricala completamente e ricollegala; usa la sveglia dell'app Orologio del telefono finché non funziona."
 }

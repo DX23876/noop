@@ -22,12 +22,22 @@ public enum TimelineFeed {
         public let severity: Double
         /// Events that are each their own news (a milestone reached) skip the topic's cooldown.
         public let isEvent: Bool
+        /// A standing condition rather than a piece of news: still worth saying every day it is true.
+        ///
+        /// An event is admitted once per key, which is right for news whose key carries what changed (a
+        /// streak's count, a milestone's number). It is wrong for the one notice that reports a state and
+        /// offers an action on it: "the night may not be fully synced" has a FIXED key, so without this it
+        /// would appear on the first such morning and then not again until the log forgot it, while its
+        /// condition and its "wake time is right" button were live on every one of those mornings.
+        public let repeats: Bool
 
-        public init(key: String, topic: Topic, severity: Double, isEvent: Bool = false) {
+        public init(key: String, topic: Topic, severity: Double, isEvent: Bool = false,
+                    repeats: Bool = false) {
             self.key = key
             self.topic = topic
             self.severity = severity
             self.isEvent = isEvent
+            self.repeats = repeats
         }
     }
 
@@ -83,7 +93,10 @@ public enum TimelineFeed {
             // back, and the same key would otherwise return every day for as long as it stays true: a
             // streak reading "8 weeks in a row" is not new news tomorrow. The key carries what changed
             // (the count, the milestone), so the next step in the same streak is admitted as itself.
-            if candidate.isEvent, log.contains(where: { $0.key == candidate.key }) { continue }
+            //
+            // Unless it says it repeats: a standing condition keeps its key while it lasts, and saying
+            // it once would retire the notice for as long as the log remembers it. See `repeats`.
+            if candidate.isEvent, !candidate.repeats, log.contains(where: { $0.key == candidate.key }) { continue }
             if !candidate.isEvent,
                let last = log.filter({ $0.topic == candidate.topic && $0.day != day })
                    .max(by: { $0.at < $1.at }),
