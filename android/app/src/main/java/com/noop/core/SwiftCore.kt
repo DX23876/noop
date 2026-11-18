@@ -94,11 +94,20 @@ object SwiftCore {
     fun start(context: Context) {
         check(Looper.myLooper() == Looper.getMainLooper()) { "SwiftCore.start must run on the main thread" }
         if (!available) return
-        val installed = installMainActor()
+        // `installMainActor` answers in C return codes, where 0 is SUCCESS (`noop_install_main_queue_drain`).
+        // Printed raw it read "main actor installed=0", which is the opposite of what happened, so the line
+        // says the verdict in words and keeps the code only where it has one we do not know.
+        val drain = when (val code = installMainActor()) {
+            0 -> "yes"
+            -1 -> "no: this thread has no looper"
+            -2 -> "no: libdispatch gave no main-queue handle"
+            -3 -> "no: the looper refused the handle"
+            else -> "no: code $code"
+        }
         scheduleMainActorProbe()
         val main = Handler(Looper.getMainLooper())
         main.postDelayed({
-            Log.i(TAG, "main actor installed=$installed, probe jobs run=${mainActorProbeRuns()}, " +
+            Log.i(TAG, "main actor drain installed: $drain, probe jobs run=${mainActorProbeRuns()}, " +
                 "on main thread=${mainActorProbeOnMainThread()}")
         }, 1_000)
         Thread({
