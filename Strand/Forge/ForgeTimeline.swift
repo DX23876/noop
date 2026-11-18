@@ -120,6 +120,14 @@ enum ForgeTimeline {
         let detail: String
         var action: Action = .none
         var actionTitle: String? = nil
+        /// A SECOND action, for a notice that offers two honest answers rather than one.
+        ///
+        /// The unsettled-night notice is the case: either the detected wake really was the wake, which
+        /// confirming says, or it was not, which the sleep screen fixes. The classic morning card has
+        /// carried both buttons since it was written; this notice carried only the first, so the same
+        /// state offered different ways out depending on which screen the reader was on.
+        var secondaryAction: Action = .none
+        var secondaryActionTitle: String? = nil
     }
 
     /// The evening report without a coach: Effort against today's target, the sessions, tomorrow's plan,

@@ -540,7 +540,6 @@
   "Cheaper models for background jobs — leave on default to use %@'s small model. Keeps the pricey coaching model for the actual conversation.": "Tańsze modele do zadań w tle — zostaw wartość domyślną, by użyć małego modelu %@. Kosztowny model trenerski zostaje zarezerwowany dla właściwej rozmowy.",
   "Check OpenRouter balance": "Sprawdź saldo OpenRouter",
   "Check again": "Sprawdź ponownie",
-  "Check last night first": "Najpierw sprawdź ostatnią noc",
   "Check-in time": "Godzina zameldowania",
   "Check-in timing": "Pora zameldowania",
   "Check-in — the coach got in touch": "Zameldowanie — trener się odezwał",
@@ -1843,7 +1842,6 @@
   "This removes the goal and its history from the device. There is no undo.": "To usuwa cel i jego historię z urządzenia. Nie ma cofania.",
   "This strap doesn’t send SpO₂ over Bluetooth. Import a WHOOP export or Health Connect to see it.": "Ta opaska nie przesyła SpO₂ przez Bluetooth. Zaimportuj eksport z WHOOP lub Health Connect, by je zobaczyć.",
   "This strap sends no raw respiration stream. Your estimated respiratory rate appears on the Health screen.": "Ta opaska nie przesyła surowego strumienia oddechu. Szacowana częstość oddechów pojawia się na ekranie Zdrowie.",
-  "This usually means the strap hasn't finished syncing yet.": "Zwykle oznacza to, że opaska nie zakończyła jeszcze synchronizacji.",
   "This week %lld/%lld": "W tym tygodniu %lld/%lld",
   "This week is only %lld days old and your usual week is made of complete ones, so light shading here means the week is young, not that a muscle is fresh.": "Ten tydzień ma tylko %lld dni, a Twój zwykły tydzień składa się z pełnych dni, więc jasne cieniowanie oznacza, że ​​tydzień jest młody, a nie, że mięsień jest świeży.",
   "This week is still running, and the band beside each muscle is made of your COMPLETE weeks — so a bar sitting below it today is not yet a shortfall.": "Ten tydzień wciąż trwa, a opaska obok każdego mięśnia składa się z CAŁEGO tygodnia — więc drążek znajdujący się pod nim dzisiaj nie jest jeszcze problemem.",
@@ -5053,7 +5051,6 @@
   "Shows each walk": "Pokazuje każdy spacer",
   "Shows the day's entries": "Pokazuje wpisy z dnia",
   "Something that explains it?": "Coś, co to wyjaśnia?",
-  "The night may not be fully synced yet.": "Noc może nie być jeszcze w pełni zsynchronizowana.",
   "Tomorrow: %@, %lld min.": "Jutro: %@, %lld min.",
   "Tomorrow: %@.": "Jutro: %@.",
   "Travelled": "Podróżowałem",
@@ -5063,7 +5060,6 @@
   "Was under stress": "Byłem zestresowany",
   "Write again": "Napisz ponownie",
   "Your morning note, written once a day after the night has synced. It also asks about yesterday when a planned session is still open.": "Twoja notatka poranna, pisana raz dziennie po synchronizacji nocy. Jeśli wczorajsza zaplanowana sesja jest otwarta, pyta o nią.",
-  "Your wake time and Charge can still change. If you woke at the time shown, say so.": "Godzina pobudki i Charge mogą się jeszcze zmienić. Jeśli obudziłeś się o pokazanej godzinie, potwierdź to.",
   "h walked": "h marszu",
   "After your workout — the coach got in touch": "Po treningu: coach się odezwał",
   "Your evening recap — the coach got in touch": "Twoje wieczorne podsumowanie: coach się odezwał",
@@ -5868,5 +5864,9 @@
   "Remove the picture": "Usuń obraz",
   "Those weeks met your plan for %@, or came close.": "Te tygodnie wypełniły Twój plan dla %@ albo były blisko.",
   "4.0, unconfirmed on real hardware": "4.0, niepotwierdzone na prawdziwym sprzęcie",
-  "The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Restart the strap from Devices, or fully charge it and reconnect; keep your phone's Clock alarm as your wake until it takes.": "Pasek wciąż zgłasza inny czas niż wysyła NOOP, więc alarm w jego oprogramowaniu nie włączy się o godzinie pobudki, zwykle dlatego, że jego zegar lub alarm został zresetowany. Uruchom pasek ponownie w Urządzeniach albo naładuj go do pełna i połącz ponownie; do tego czasu korzystaj z budzika w telefonie."
+  "The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Restart the strap from Devices, or fully charge it and reconnect; keep your phone's Clock alarm as your wake until it takes.": "Pasek wciąż zgłasza inny czas niż wysyła NOOP, więc alarm w jego oprogramowaniu nie włączy się o godzinie pobudki, zwykle dlatego, że jego zegar lub alarm został zresetowany. Uruchom pasek ponownie w Urządzeniach albo naładuj go do pełna i połącz ponownie; do tego czasu korzystaj z budzika w telefonie.",
+  "Still being scored": "Ocena jeszcze trwa",
+  "Data up to %@, still coming in.": "Dane do %@, wciąż przychodzą.",
+  "Data up to %@. The strap hasn't handed over the rest yet.": "Dane do %@. Pasek nie przekazał jeszcze reszty.",
+  "If that's not right, today's recovery is off — and so would any plan built on it be.": "Jeśli to nieprawda, dzisiejsza regeneracja jest błędna, a z nią każdy plan na niej oparty."
 }

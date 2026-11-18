@@ -28,6 +28,10 @@ struct MorningSuggestionCard: View {
     @Binding var showPlan: Bool
     @AppStorage("coach.morningSuggestion") private var morningOn = false
     @Environment(\.scenePhase) private var scenePhase
+    /// For one flag: whether an offload is running right now, which decides the reason the card gives.
+    /// The optional environment value, not an `EnvironmentObject`: a missing one must read as "nothing
+    /// is coming in", never as a crash on a card that only appears on a few mornings.
+    @Environment(\.dashboardAppModel) private var appModel
 
     /// `localDayKey`, NOT `logicalDayKey`: the card looks for a proposal on the *calendar* day, matching
     /// `propose_plan`'s default day. Between 00:00–04:00 the brief's own `logicalDayKey` gate still says
@@ -89,14 +93,14 @@ struct MorningSuggestionCard: View {
                 HStack(spacing: 8) {
                     Image(systemName: "moon.zzz").foregroundStyle(StrandPalette.metricAmber)
                         .accessibilityHidden(true)
-                    Text("Check last night first")
+                    Text(reading(detectedWake).headline)
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                     Spacer(minLength: 4)
                 }
-                Text("Your strap recorded you waking at \(wakeLabel(detectedWake)). If that's not right, today's recovery is off — and so would any plan built on it be.")
+                Text(reading(detectedWake).line)
                     .font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("This usually means the strap hasn't finished syncing yet.")
+                Text("If that's not right, today's recovery is off — and so would any plan built on it be.")
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 8) {
@@ -113,11 +117,12 @@ struct MorningSuggestionCard: View {
         }
     }
 
-    private func wakeLabel(_ ts: Int) -> String {
-        let df = DateFormatter()
-        df.timeStyle = .short
-        df.dateStyle = .none
-        return df.string(from: Date(timeIntervalSince1970: TimeInterval(ts)))
+    /// This card's own words for an unfinished night used to live here. They now come from
+    /// `UnsettledNightReadout`, which Forge's Today notice reads as well: the same state was worded
+    /// differently on the two screens, and only this one named the time the data stops at.
+    private func reading(_ detectedWake: Int) -> UnsettledNightReadout.Reading {
+        UnsettledNightReadout.reading(wakeTs: detectedWake,
+                                      fetching: appModel?.live.backfilling ?? false)
     }
 
     /// The user vouches for the detected time: stop asking today and let the brief run on it.

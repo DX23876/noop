@@ -3955,7 +3955,6 @@
   "Shows each walk": "展开每次步行",
   "Shows the day's entries": "展开当天的记录",
   "Something that explains it?": "有什么原因吗？",
-  "The night may not be fully synced yet.": "这一晚可能尚未完全同步。",
   "Tomorrow: %@, %lld min.": "明天：%@，%lld 分钟。",
   "Tomorrow: %@.": "明天：%@。",
   "Travelled": "出行了",
@@ -3965,7 +3964,6 @@
   "Was under stress": "有压力",
   "Write again": "重新撰写",
   "Your morning note, written once a day after the night has synced. It also asks about yesterday when a planned session is still open.": "你的晨间笔记，每天在夜间数据同步后写一次。若昨天计划的训练还未结束，它会询问。",
-  "Your wake time and Charge can still change. If you woke at the time shown, say so.": "醒来时间和 Charge 可能还会变化。若你确实在显示的时间醒来，请确认。",
   "h walked": "小时步行",
   "After your workout — the coach got in touch": "训练后：教练联系了你",
   "Your evening recap — the coach got in touch": "你的晚间回顾：教练联系了你",
@@ -4770,5 +4768,9 @@
   "Remove the picture": "移除图片",
   "Those weeks met your plan for %@, or came close.": "这些周达成了「%@」的计划，或接近达成。",
   "4.0, unconfirmed on real hardware": "4.0，未在真实设备上确认",
-  "The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Restart the strap from Devices, or fully charge it and reconnect; keep your phone's Clock alarm as your wake until it takes.": "手环报告的时间与 NOOP 发送的时间不一致，因此其固件闹钟不会在你的起床时间响起，通常是手环的时钟或闹钟被重置了。请在「设备」中重启手环，或将其充满电后重新连接；在生效之前，请继续使用手机的时钟闹钟。"
+  "The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Restart the strap from Devices, or fully charge it and reconnect; keep your phone's Clock alarm as your wake until it takes.": "手环报告的时间与 NOOP 发送的时间不一致，因此其固件闹钟不会在你的起床时间响起，通常是手环的时钟或闹钟被重置了。请在「设备」中重启手环，或将其充满电后重新连接；在生效之前，请继续使用手机的时钟闹钟。",
+  "Still being scored": "仍在评估中",
+  "Data up to %@, still coming in.": "数据到 %@，仍在接收。",
+  "Data up to %@. The strap hasn't handed over the rest yet.": "数据到 %@。手环还没有交出余下的部分。",
+  "If that's not right, today's recovery is off — and so would any plan built on it be.": "如果不对，今天的恢复就是错的，基于它的任何计划也是。"
 }

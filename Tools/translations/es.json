@@ -3854,7 +3854,6 @@
   "Shows each walk": "Muestra cada paseo",
   "Shows the day's entries": "Muestra las entradas del día",
   "Something that explains it?": "¿Algo que lo explique?",
-  "The night may not be fully synced yet.": "Puede que la noche aún no esté sincronizada del todo.",
   "Tomorrow: %@, %lld min.": "Mañana: %@, %lld min.",
   "Tomorrow: %@.": "Mañana: %@.",
   "Travelled": "Viajé",
@@ -3864,7 +3863,6 @@
   "Was under stress": "Estuve estresado",
   "Write again": "Volver a escribir",
   "Your morning note, written once a day after the night has synced. It also asks about yesterday when a planned session is still open.": "Tu nota de la mañana, escrita una vez al día cuando la noche se ha sincronizado. Si una sesión planificada de ayer sigue abierta, pregunta por ella.",
-  "Your wake time and Charge can still change. If you woke at the time shown, say so.": "Tu hora de despertar y tu Charge aún pueden cambiar. Si te despertaste a la hora indicada, confírmalo.",
   "h walked": "h caminando",
   "After your workout — the coach got in touch": "Tras tu entrenamiento: el coach te escribió",
   "Your evening recap — the coach got in touch": "Tu resumen de la noche: el coach te escribió",
@@ -4669,5 +4667,9 @@
   "Remove the picture": "Quitar la imagen",
   "Those weeks met your plan for %@, or came close.": "Esas semanas cumplieron tu plan de %@, o estuvieron cerca.",
   "4.0, unconfirmed on real hardware": "4.0, sin confirmar en hardware real",
-  "The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Restart the strap from Devices, or fully charge it and reconnect; keep your phone's Clock alarm as your wake until it takes.": "La correa sigue informando una hora distinta de la que envía NOOP, así que su alarma de firmware no sonará a tu hora de despertar, normalmente una correa cuyo reloj o alarma se ha reiniciado. Reinicia la correa desde Dispositivos, o cárgala por completo y vuelve a conectarla; mantén la alarma del Reloj de tu teléfono como despertador hasta que funcione."
+  "The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Restart the strap from Devices, or fully charge it and reconnect; keep your phone's Clock alarm as your wake until it takes.": "La correa sigue informando una hora distinta de la que envía NOOP, así que su alarma de firmware no sonará a tu hora de despertar, normalmente una correa cuyo reloj o alarma se ha reiniciado. Reinicia la correa desde Dispositivos, o cárgala por completo y vuelve a conectarla; mantén la alarma del Reloj de tu teléfono como despertador hasta que funcione.",
+  "Still being scored": "Todavía se está evaluando",
+  "Data up to %@, still coming in.": "Datos hasta las %@, siguen llegando.",
+  "Data up to %@. The strap hasn't handed over the rest yet.": "Datos hasta las %@. La correa todavía no ha entregado el resto.",
+  "If that's not right, today's recovery is off — and so would any plan built on it be.": "Si no es correcto, la recuperación de hoy está mal, y cualquier plan basado en ella también."
 }

@@ -798,7 +798,7 @@ struct ForgeTodayView: View {
             }
             explainBlock(key: notice.key, title: notice.headline, figures: notice.detail)
             if let title = notice.actionTitle, notice.action != .none {
-                Group {
+                HStack(spacing: 8) {
                     if notice.action == .charge {
                         NavigationLink(value: ForgeRoute.charge) {
                             Text(title).font(.system(.subheadline, weight: .medium)).foregroundStyle(ForgeColor.accent)
@@ -808,6 +808,11 @@ struct ForgeTodayView: View {
                         .buttonStyle(.plain)
                     } else {
                         ForgeChip(title: title, prominent: true) { perform(notice.action) }
+                    }
+                    // The second answer, where the notice has one: not prominent, because the first is the
+                    // one that needs no screen change.
+                    if let second = notice.secondaryActionTitle, notice.secondaryAction != .none {
+                        ForgeChip(title: second) { perform(notice.secondaryAction) }
                     }
                 }
                 .padding(.leading, 52)
@@ -1853,7 +1858,12 @@ struct ForgeTodayView: View {
             stepGoal: momentumStepGoal, live: DashboardMomentum.LiveInput(model: model))
         let momentum = MomentumResolver.feed(context: momentumContext, snoozedRaw: momentumSnoozedRaw,
                                              lastKind: momentumLastKind, lastAt: momentumLastAt, retrospective: false)
-        let nightPending = await coach.unconfirmedWakeNeedingReview(now: now) != nil
+        // The wake of a night that is still being scored, if there is one, with whether an offload is
+        // running right now: that decides which reason the card gives, and it is the one thing the
+        // headline cannot carry (`UnsettledNightReadout`).
+        let nightPending = await coach.unconfirmedWakeNeedingReview(now: now).map {
+            UnsettledNightReadout.reading(wakeTs: $0, fetching: model?.live.backfilling ?? false)
+        }
         input.notices = ForgeNotices.notices(momentum: momentum, nightPending: nightPending, day: todayKey, now: now)
         // The evening report, once the evening has begun: two hours before the planned bedtime, from 19:00.
         let bedtime = ForgeToday.plannedBedtime(now: now)

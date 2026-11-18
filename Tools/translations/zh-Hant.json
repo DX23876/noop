@@ -4009,7 +4009,6 @@
   "Shows each walk": "展開每次步行",
   "Shows the day's entries": "展開當天的記錄",
   "Something that explains it?": "有什麼原因嗎？",
-  "The night may not be fully synced yet.": "這一晚可能尚未完全同步。",
   "Tomorrow: %@, %lld min.": "明天：%@，%lld 分鐘。",
   "Tomorrow: %@.": "明天：%@。",
   "Travelled": "出行了",
@@ -4019,7 +4018,6 @@
   "Was under stress": "有壓力",
   "Write again": "重新撰寫",
   "Your morning note, written once a day after the night has synced. It also asks about yesterday when a planned session is still open.": "你的晨間筆記，每天在夜間資料同步後寫一次。若昨天計畫的訓練還未結束，它會詢問。",
-  "Your wake time and Charge can still change. If you woke at the time shown, say so.": "醒來時間和 Charge 可能還會變化。若你確實在顯示的時間醒來，請確認。",
   "h walked": "小時步行",
   "After your workout — the coach got in touch": "訓練後：教練聯絡了你",
   "Your evening recap — the coach got in touch": "你的晚間回顧：教練聯絡了你",
@@ -4824,5 +4822,9 @@
   "Remove the picture": "移除圖片",
   "Those weeks met your plan for %@, or came close.": "這幾週達成了「%@」的計畫，或接近達成。",
   "4.0, unconfirmed on real hardware": "4.0，未在真實裝置上確認",
-  "The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Restart the strap from Devices, or fully charge it and reconnect; keep your phone's Clock alarm as your wake until it takes.": "錶帶回報的時間與 NOOP 傳送的時間不一致，因此它的韌體鬧鐘不會在你的起床時間響起，通常是錶帶的時鐘或鬧鐘被重設了。請在「裝置」中重新啟動錶帶，或將它充飽電後重新連線；在生效之前，請繼續使用手機的時鐘鬧鐘。"
+  "The strap keeps reporting a different time than NOOP sends, so its firmware alarm won't fire at your wake time — usually a strap whose clock or alarm has reset. Restart the strap from Devices, or fully charge it and reconnect; keep your phone's Clock alarm as your wake until it takes.": "錶帶回報的時間與 NOOP 傳送的時間不一致，因此它的韌體鬧鐘不會在你的起床時間響起，通常是錶帶的時鐘或鬧鐘被重設了。請在「裝置」中重新啟動錶帶，或將它充飽電後重新連線；在生效之前，請繼續使用手機的時鐘鬧鐘。",
+  "Still being scored": "仍在評估中",
+  "Data up to %@, still coming in.": "資料到 %@，仍在接收。",
+  "Data up to %@. The strap hasn't handed over the rest yet.": "資料到 %@。錶帶還沒交出剩下的部分。",
+  "If that's not right, today's recovery is off — and so would any plan built on it be.": "如果不對，今天的恢復就是錯的，基於它的任何計畫也是。"
 }

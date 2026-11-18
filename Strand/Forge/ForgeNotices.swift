@@ -68,7 +68,12 @@ enum ForgeNotices {
     static let nightPendingKey = "nightPending"
 
     /// The admitted notices for `day`, placed at the moment each first appeared, and the log written back.
-    static func notices(momentum: [MomentumMessage], nightPending: Bool, day: String, now: Date,
+    ///
+    /// `nightPending` carries the READING for a night that is not finished scoring, or nil when there is
+    /// none: its wording belongs to `UnsettledNightReadout`, which the classic morning card reads too, so
+    /// one state cannot be described two ways.
+    static func notices(momentum: [MomentumMessage], nightPending: UnsettledNightReadout.Reading?,
+                        day: String, now: Date,
                         defaults: UserDefaults = .standard) -> [ForgeTimeline.Notice] {
         var candidates: [TimelineFeed.Candidate] = []
         var byKey: [String: ForgeTimeline.Notice] = [:]
@@ -84,18 +89,20 @@ enum ForgeNotices {
                 detail: [message.detail, message.actionLine].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " "),
                 action: action(message.action?.destination), actionTitle: message.action?.title)
         }
-        if nightPending {
+        if let pending = nightPending {
             // `isEvent` to skip the device topic's cooldown (a strap-battery notice must not hold this
             // back), `repeats` because it is a state and not news: its key is fixed, the night is pending
             // again tomorrow morning if the strap still holds it, and the wearer can only confirm the wake
             // time on a morning the notice is actually shown.
             candidates.append(.init(key: nightPendingKey, topic: .device, severity: 3,
                                     isEvent: true, repeats: true))
+            // Wording and the wake time from `UnsettledNightReadout`, the one place that owns them: the
+            // classic morning card reports this same state and used to word it differently.
             byKey[nightPendingKey] = ForgeTimeline.Notice(
                 key: nightPendingKey, date: now, topic: TimelineFeed.Topic.device.rawValue, tone: .caution,
-                headline: String(localized: "The night may not be fully synced yet."),
-                detail: String(localized: "Your wake time and Charge can still change. If you woke at the time shown, say so."),
-                action: .confirmWake, actionTitle: String(localized: "Wake time is right"))
+                headline: pending.headline, detail: pending.line,
+                action: .confirmWake, actionTitle: String(localized: "Wake time is right"),
+                secondaryAction: .sleep, secondaryActionTitle: String(localized: "Fix it"))
         }
         let muted = list(mutedKey, defaults), lessOften = list(lessOftenKey, defaults)
         candidates.removeAll { muted.contains($0.topic.rawValue) && $0.key != nightPendingKey }
@@ -108,9 +115,14 @@ enum ForgeNotices {
         }
         return result.admitted.compactMap { admitted in
             guard let base = byKey[admitted.candidate.key] else { return nil }
+            // EVERY field of `base` travels, only the date is the admitted one. A field-by-field copy
+            // silently drops whatever is added to `Notice` later: the secondary action was lost exactly
+            // this way on the day it was introduced, and only a test caught it.
             return ForgeTimeline.Notice(key: base.key, date: admitted.at, topic: base.topic, tone: base.tone,
                                         headline: base.headline, detail: base.detail, action: base.action,
-                                        actionTitle: base.actionTitle)
+                                        actionTitle: base.actionTitle,
+                                        secondaryAction: base.secondaryAction,
+                                        secondaryActionTitle: base.secondaryActionTitle)
         }
     }
 }
