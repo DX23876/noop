@@ -121,6 +121,16 @@ changes app code, a package or `project.yml` without a passing run for exactly t
   on its macOS leg) and watch it to green. Use `fork-testing-build.yml` only when the testers are meant
   to get a new build, because its `meta` job recreates `testing-latest` before the legs attach anything:
   a leg that fails leaves that release empty.
+  **And when no runner can be had, say so rather than claiming either colour.** On 2026-11-18 every
+  macOS leg of three separate runs — two testing builds and the `app-build.yml` dispatched for exactly
+  this rule — was dropped about fifteen minutes in with "The job was not acquired by Runner of type
+  hosted even after multiple attempts", beside GitHub's own "Due to capacity constraints, jobs targeting
+  macOS arm64 runners may experience longer queue times". `timeout-minutes` does not govern queue time,
+  so nothing in the workflow can buy a runner. While that lasts, the rule above cannot be satisfied: the
+  Apple side rests on the local run, which is weaker (it compiles under whatever Xcode this machine has,
+  not the pinned one), and a push made in that state is reported as pushed and NOT confirmed by CI,
+  never as green. Same shape as the disabled-workflows paragraph above: the absence of a run is its own
+  finding, and it is never evidence that the code is fine.
 
 ## Readout and CI invariants
 
