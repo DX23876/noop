@@ -70,6 +70,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.unit.toSize
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -414,23 +415,16 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
             CoreRead.series(CoreRead.Metric.SleepMinutes, date.minusDays(29).toString(), date.toString()).map { it.value / 60 }
         }
     }
-    // The measures that are not Key Metrics, read by catalogue key as iOS reads every tile. One series
-    // each, only for the ones actually placed, so an unplaced tile costs nothing.
-    val catalogPlaced = widgets.mapNotNull { it.key }.filter { it in TodayWidgets.catalogMeasures }.distinct().sorted()
-    val catalogSeries by produceState(emptyMap<String, List<Double>>(), date, catalogPlaced, coreRevision) {
-        value = if (catalogPlaced.isEmpty()) emptyMap() else withContext(Dispatchers.IO) {
-            catalogPlaced.associateWith { key ->
-                runCatching {
-                    viewModel.repo.resolvedSeries(key, "my-whoop", date.minusDays(59).toString(), date.toString(),
-                                                  strapDeviceId = viewModel.activeStrapId)
-                        .points.sortedBy { it.day }.map { it.value }
-                }.getOrDefault(emptyList())
-            }
-        }
-    }
     // The measures whose two-column form says a fact about the wearer's own recent past rather than the
     // usual-and-range line (owner, 2026-11-18). Read with their days, because "last weighed" is a date.
-    val factPlaced = widgets.mapNotNull { it.key }.filter { it in TodayWidgets.factMeasures }.distinct().sorted()
+    // EVERY placed measure, not only the ones with a fact line: the change chip is read from this series
+    // too. Until 2026-11-18 it was read from the drawn spark, whose length is the wearer's chosen trend
+    // window (7, 14 or 30 days), while the iPhone read 60 — so the same shared reading was handed
+    // different histories and the two phones printed different chips for the same measure (+25 against
+    // +26 for HRV, on identical data). Same window, same answer.
+    val factPlaced = widgets.mapNotNull { it.key }
+        .filter { it != TodayWidget.SLEEP_KEY && (KeyMetric.fromRaw(it) != null || it in TodayWidgets.catalogMeasures) }
+        .distinct().sorted()
     val factSeries by produceState(emptyMap<String, Pair<List<String>, List<Double>>>(), date, factPlaced, coreRevision) {
         value = if (factPlaced.isEmpty()) emptyMap() else withContext(Dispatchers.IO) {
             factPlaced.associateWith { raw ->
@@ -587,7 +581,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                                onSize = { update(widgets.map { if (it.id == w.id) it.nextSize() else it }) },
                                onShift = { by -> update(TodayWidgets.shift(widgets, w.id, by)) }) {
                         when (w.kind) {
-                            TodayWidget.Kind.Measure -> MeasureTile(w.key, keyTiles, sleepMinutes, sleepTrend, catalogSeries,
+                            TodayWidget.Kind.Measure -> MeasureTile(w.key, keyTiles, sleepMinutes, sleepTrend,
                                                                      factSeries, date.toString(), noData,
                                                                      dense = columns > 2, Modifier.fillMaxSize(),
                                                                      detailed = w.size == TodayWidget.Size.Medium,
@@ -691,7 +685,6 @@ private fun EditButton(icon: ImageVector, label: String, onClick: () -> Unit,
  */
 @Composable
 private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?, sleepTrend: List<Double>,
-                        catalogSeries: Map<String, List<Double>>,
                         factSeries: Map<String, Pair<List<String>, List<Double>>>, today: String, noData: String,
                         dense: Boolean, modifier: Modifier, detailed: Boolean = false, wide: Boolean = false,
                         onOpenSleep: () -> Unit = {}, onOpen: (CoreRead.Metric) -> Unit) {
@@ -704,12 +697,13 @@ private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?,
             "stress" -> StressDayWideCard()
             // Width, not size: the row-wide form is as tall as what it holds. With `fillMaxSize` a measure
             // with nothing stored stretched into a tall empty card, which reads as broken rather than empty.
-            else -> WideMeasureCard(key, keyTiles, catalogSeries[key].orEmpty(), noData, Modifier.fillMaxWidth())
+            else -> WideMeasureCard(key, keyTiles, factSeries[key]?.first.orEmpty(),
+                                    factSeries[key]?.second.orEmpty(), noData, Modifier.fillMaxWidth())
         }
         return
     }
     if (key != null && key in TodayWidgets.catalogMeasures) {
-        CatalogMeasureTile(key, catalogSeries[key].orEmpty(), noData, dense, modifier, detailed)
+        CatalogMeasureTile(key, factSeries[key]?.second.orEmpty(), noData, dense, modifier, detailed)
         return
     }
     if (key == TodayWidget.SLEEP_KEY) {
@@ -722,7 +716,9 @@ private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?,
     val metric = KeyMetric.fromRaw(key) ?: return
     val t = keyTiles.tiles[metric] ?: return
     val spark = keyTiles.sparks[metric]
-    val change = rememberTileDelta(metric.catalogKey(), spark)
+    // The 60-day series where it was read, the drawn spark otherwise: the chip must not depend on how
+    // many days the wearer chose to SEE.
+    val change = rememberTileDelta(metric.catalogKey(), factSeries[key]?.second ?: spark)
     // The measure's own fact first; the usual-and-range line stays for the measures whose fact is not
     // built yet, so nothing loses what it already said.
     val facts = if (detailed) rememberFactsLine(key, factSeries[key], today, t.unit.orEmpty()) else null
@@ -779,9 +775,13 @@ private fun CatalogMeasureTile(key: String, series: List<Double>, noData: String
  * one claim. A row-wide tile has its row to itself, so the taller curve stretches nothing else.
  */
 @Composable
-private fun WideMeasureCard(key: String?, keyTiles: KeyTiles, catalog: List<Double>, noData: String, modifier: Modifier) {
+private fun WideMeasureCard(key: String?, keyTiles: KeyTiles, days: List<String>, catalog: List<Double>,
+                            noData: String, modifier: Modifier) {
     val metric = KeyMetric.fromRaw(key)
-    val series = if (metric != null) keyTiles.sparks[metric].orEmpty() else catalog
+    // The 60-day series it was handed, never the drawn spark: the spark is as long as the wearer's chosen
+    // trend window, and reading the change from it made this tile print +26 where the small one beside it
+    // printed +25, on the same measure and the same day.
+    val series = catalog.ifEmpty { keyTiles.sparks[metric].orEmpty() }
     val tile = metric?.let { keyTiles.tiles[it] }
     val unit = tile?.unit.orEmpty()
     // Charge, Effort and Rest are whole numbers, as their rings say them; a Charge of "51.1" is noise.
@@ -791,14 +791,44 @@ private fun WideMeasureCard(key: String?, keyTiles: KeyTiles, catalog: List<Doub
     }
     val change = key?.let { rememberTileDelta(if (metric != null) metric.catalogKey() else it, series) }
     val displayMetric = metric ?: wholeRowMetric(key)
-    ForgeTodayTile(measureIcon(key.orEmpty()), displayMetric?.tileTint() ?: Forge.colors.charge, measureLabel(key.orEmpty()),
+    val tint = displayMetric?.tileTint() ?: Forge.colors.charge
+    val shown = series.takeLast(30)
+    ForgeTodayTile(measureIcon(key.orEmpty()), tint, measureLabel(key.orEmpty()),
                    value, unit, change?.summary?.let { summaryLine(it, unit) }, noData, dense = false,
                    modifier = modifier, delta = change?.text, deltaTone = change?.tone,
-                   trend = series.takeLast(30),
-                   // Only reserve the tall curve when there is a reading to head it. Without this a measure
-                   // with nothing stored stands on Today as a tall empty card, which says "broken" rather
-                   // than "no data yet" — seen on the emulator the day this was built.
-                   sparkHeightOverride = if (value != null && series.size > 1) 96.dp else null)
+                   // The row-wide form draws the dated chart below instead of the tile's own sparkline:
+                   // "the whole row shows the course" includes WHEN it was, which a bare curve does not say.
+                   trend = null,
+                   below = if (value != null && shown.size > 1) ({
+                       WideMeasureChart(days.takeLast(shown.size), shown, tint)
+                   }) else null)
+}
+
+/**
+ * The row-wide form's chart: the thirty days with their gridlines, the wearer's mean as a dashed rule, and
+ * the span written under it, so the curve says WHEN as well as how much (iOS draws its axis and dates; a
+ * bare curve was the gap the side-by-side showed).
+ *
+ * Reuses `ForgeTrends`' own chart rather than a second drawing of the same thing.
+ */
+@Composable
+private fun WideMeasureChart(days: List<String>, values: List<Double>, tint: Color) {
+    if (days.size != values.size || values.size < 2) return
+    val points = days.zip(values).map { (d, v) -> CoreRead.Point(d, v) }
+    val lo = values.min(); val hi = values.max()
+    val pad = ((hi - lo) * 0.1).takeIf { it > 0 } ?: 1.0
+    val formatter = remember { java.time.format.DateTimeFormatter.ofPattern("d. MMM") }
+    Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space1)) {
+        LineChart(points, days = points.size, lo = lo - pad, hi = hi + pad,
+                  average = values.average(), tint = tint,
+                  modifier = Modifier.fillMaxWidth().height(96.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            listOf(days.first(), days[days.size / 2], days.last()).forEach { day ->
+                Text(runCatching { java.time.LocalDate.parse(day).format(formatter) }.getOrDefault(day),
+                     style = Forge.type.caption, color = Forge.colors.textTertiary)
+            }
+        }
+    }
 }
 
 /**

@@ -25,7 +25,9 @@ class StressLineVerticalRampTest {
             val f = java.io.File(root, "android/app/src/main/java/com/noop/ui/StressScreen.kt")
             if (f.isFile) {
                 val body = f.readText()
-                    .substringAfter("private fun DaytimeStressLine(", "")
+                    // Visibility-agnostic: the drawing is what this pins, and the function was opened up on 2026-11-18
+                    // so Today's row-wide stress tile could reuse it rather than draw the same curve a second time.
+                    .substringAfter("fun DaytimeStressLine(", "")
                     .substringBefore("private fun daytimeLineDescription(", "")
                 check(body.isNotBlank()) { "DaytimeStressLine body not found - the anchors moved, fix this test" }
                 return body

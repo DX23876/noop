@@ -108,7 +108,9 @@ class ForgeTodayLayoutTest {
 
     @Test
     fun columnsFollowTheStoredChoiceTwoByDefaultAndOneForLargeText() {
-        assertEquals(2, TodayLayoutDefaults.keyMetricsColumns(null, largeText = false))
+        // Three without a stored choice since 2026-11-18, as iOS falls back: it was two here, so the same
+        // install drew a different grid on the two phones.
+        assertEquals(3, TodayLayoutDefaults.keyMetricsColumns(null, largeText = false))
         assertEquals(3, TodayLayoutDefaults.keyMetricsColumns(3, largeText = false))
         assertEquals(3, TodayLayoutDefaults.keyMetricsColumns(7, largeText = false))
         assertEquals(1, TodayLayoutDefaults.keyMetricsColumns(3, largeText = true))

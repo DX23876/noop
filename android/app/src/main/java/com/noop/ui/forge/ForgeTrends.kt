@@ -553,7 +553,7 @@ private fun TrendCard(titleRes: Int, unit: String, stats: TrendStats, days: Int,
 }
 
 @Composable
-private fun LineChart(points: List<CoreRead.Point>, days: Int, lo: Double, hi: Double, average: Double, tint: Color,
+internal fun LineChart(points: List<CoreRead.Point>, days: Int, lo: Double, hi: Double, average: Double, tint: Color,
                       modifier: Modifier) {
     val colors = Forge.colors
     val first = LocalDate.now().minusDays(days - 1L)
