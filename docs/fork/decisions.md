@@ -1778,3 +1778,43 @@ host preference the shared read has no access to; closing that needs it threaded
 figures only on a day with a dismissed auto-detected session.
 
 Analysis migration required: no. Nothing stored changes; this is the live read's window.
+
+## 2026-11-18 — The stress tile reaches Android's Today, and the release notes stop printing their own markup
+
+Two findings from putting the two Today screens side by side (iOS in the simulator, Android in the
+emulator), after the night's own work was done.
+
+**The release notes printed `**`.** Every changelog item is written `**Lead.** rest`. iOS hands the string
+to `LocalizedStringKey`, which renders the markup and looks the entry up in the String Catalog; the comment
+there records that a plain `Text(String)` had printed the asterisks on the card. The Kotlin twin was never
+brought along, so Android showed `**Effort, recalibrated.** One curve, fitted on 3,760 workouts…` on the
+first screen a wearer sees after an update. It now renders through `parseInline`, the inline Markdown the
+Coach bubbles already use, for the item and for the release title. The entries are translated before they
+get there (`uiString`), so only the markup was missing.
+
+**Stress was not offered on Today.** iOS seeds a new install with six measure tiles (hrv, rhr, steps, sleep,
+stress, weight). Android seeded five and carried a comment saying it had no stress tile. It has the data
+(the banked `stress` series both the Stress screen and the Health tile read), the colour (`colors.effort`),
+the icon and the word, so the tile is a tile, not a feature: the word rather than the figure, no unit
+("/3" beside "Medium" says nothing — iOS made the same call), the last 30 days as the trend, the usual
+range over 60 when it is two columns wide.
+
+Two things were deliberate. The word comes from `StressBand.forScore`, the Stress screen's own band, not
+from a second copy of the 1.0 / 2.0 thresholds; the Health tile had such a copy and now reads the same
+helper, so no two surfaces can put one score in different bands. That is narrower than it sounds, and the
+first draft of this entry claimed more: the two tiles read the banked series, while the Stress screen's own
+headline takes today's stored row, else derives one, else 1.5 (`StressModel.build`). On a day with nothing
+banked yet the tile can read Low and the page behind it Medium. iOS is arranged the same way — the widget
+reads the series, the screen builds the model — and the tile is the one that only reports what was banked,
+so the behaviour stays; what was wrong was the claim beside it.
+
+And the tile opens the Stress screen rather than iOS's generic metric page, as Android's Health tile already
+does: it is the page that explains the day's hours, and one measure opens one page on this platform.
+
+Both gates read the two sources, because neither call shape is reachable from the other platform's suite:
+`test_release_notes_render_their_markup` and `test_today_first_widget_set` in
+`Tools/test_android_ios_parity.py`, which runs unfiltered on every push. The seeded list is compared through
+a translation table, since Android stores a `KeyMetric` raw where iOS stores the catalog key.
+
+Analysis migration required: no. Both are display: one renders markup that was already stored, the other
+draws a series that is already banked.

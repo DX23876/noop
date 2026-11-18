@@ -142,6 +142,8 @@ internal data class TodayWidget(
 
     companion object {
         const val SLEEP_KEY = "sleep_total_min"
+        /** Day stress, the one measure tile that is not a [KeyMetric]: it reads a series, not a daily row. */
+        const val STRESS_KEY = "stress"
         /** iOS's kinds drawn as a tile, small or over two columns (`isWide` false). */
         val TILE_KINDS = setOf(Kind.Measure, Kind.LiveHeart, Kind.Breathe, Kind.Strap, Kind.Water, Kind.AgeLess)
     }
@@ -152,14 +154,15 @@ internal object TodayWidgets {
     const val KEY = "forge.today.widgets"
     private const val SEEDED_KEY = "forge.today.widgetsSeeded"
 
-    /** iOS's first set (hrv, rhr, steps, sleep, stress, weight) without stress, which Android has no tile for. */
+    /** iOS's first set, in iOS's order (`ForgeTodayWidgets`): hrv, rhr, steps, sleep, stress, weight. */
     val firstSet: List<TodayWidget> = listOf(KeyMetric.HRV.raw, KeyMetric.RESTING_HR.raw, KeyMetric.STEPS.raw,
-                                             TodayWidget.SLEEP_KEY, KeyMetric.WEIGHT.raw)
+                                             TodayWidget.SLEEP_KEY, TodayWidget.STRESS_KEY, KeyMetric.WEIGHT.raw)
         .map { TodayWidget(kind = TodayWidget.Kind.Measure, key = it) }
 
-    /** The measures the gallery offers, in iOS's order where Android has the tile. */
+    /** The measures the gallery offers, in iOS's order. */
     val measures: List<String> = listOf(KeyMetric.HRV.raw, KeyMetric.RESTING_HR.raw, KeyMetric.STEPS.raw,
-                                        TodayWidget.SLEEP_KEY, KeyMetric.WEIGHT.raw, KeyMetric.BLOOD_OXYGEN.raw,
+                                        TodayWidget.SLEEP_KEY, TodayWidget.STRESS_KEY,
+                                        KeyMetric.WEIGHT.raw, KeyMetric.BLOOD_OXYGEN.raw,
                                         KeyMetric.RESPIRATORY.raw, KeyMetric.SKIN_TEMP.raw, KeyMetric.CALORIES.raw,
                                         KeyMetric.CHARGE.raw, KeyMetric.EFFORT.raw, KeyMetric.REST.raw)
 
@@ -302,7 +305,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                                   onOpenBreathe: () -> Unit = {}, onOpenStrap: () -> Unit = {},
                                   onOpenInsights: () -> Unit = {}, onOpenTrends: () -> Unit = {},
                                   onOpenHydration: () -> Unit = {}, onOpenAgeLess: () -> Unit = {},
-                                  onOpenFood: () -> Unit = {}) {
+                                  onOpenFood: () -> Unit = {}, onOpenStress: () -> Unit = {}) {
     val context = LocalContext.current
     val widgets = remember { mutableStateListOf<TodayWidget>().apply { addAll(TodayWidgets.load(context)) } }
     fun update(list: List<TodayWidget>) { widgets.clear(); widgets.addAll(list); TodayWidgets.save(context, list) }
@@ -359,6 +362,25 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
             val end = date.plusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toEpochSecond()
             CoreRead.nights(end - 3 * 86_400, end).maxByOrNull { it.endTs }?.minutes
                 ?.let { m -> (m["light"] ?: 0.0) + (m["deep"] ?: 0.0) + (m["rem"] ?: 0.0) }?.takeIf { it > 0 }
+        }
+    }
+
+    // Day stress's 60 days, read only while a stress tile is placed; the tile draws the last 30 of them, as
+    // iOS's measure widget reads its 60 (`exploreSeries`).
+    //
+    // Not a `CoreRead.Metric` like the others: stress is banked as a metric series, the same series the
+    // Health tile reads, so those two cannot print different afternoons. The Stress screen is NOT a third
+    // reader of it. Its own headline takes today's stored row, else derives one from the RHR/HRV z-scores,
+    // else 1.5 (`StressModel.build`), so on a day with nothing banked yet the tile can say Low where the
+    // page behind it says Medium. That is iOS's arrangement too — there the widget reads the series and the
+    // screen builds the model — and the tile is the one that is only ever reporting what was banked.
+    val stressTrend by produceState(emptyList<Double>(), date, widgets.any { it.key == TodayWidget.STRESS_KEY }, coreRevision) {
+        value = if (widgets.none { it.key == TodayWidget.STRESS_KEY }) emptyList() else withContext(Dispatchers.IO) {
+            runCatching {
+                viewModel.repo.resolvedSeries(TodayWidget.STRESS_KEY, com.noop.data.WhoopRepository.WHOOP_SOURCE,
+                                              date.minusDays(59).toString(), date.toString(),
+                                              strapDeviceId = viewModel.activeStrapId).points.map { it.value }
+            }.getOrDefault(emptyList())
         }
     }
 
@@ -497,8 +519,10 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                                onSize = { update(widgets.map { if (it.id == w.id) it.nextSize() else it }) },
                                onShift = { by -> update(TodayWidgets.shift(widgets, w.id, by)) }) {
                         when (w.kind) {
-                            TodayWidget.Kind.Measure -> MeasureTile(w.key, keyTiles, sleepMinutes, sleepTrend, noData, dense = columns > 2, Modifier.fillMaxSize(),
-                                                                     detailed = w.size == TodayWidget.Size.Medium) { open = it }
+                            TodayWidget.Kind.Measure -> MeasureTile(w.key, keyTiles, sleepMinutes, sleepTrend, stressTrend, noData,
+                                                                     dense = columns > 2, Modifier.fillMaxSize(),
+                                                                     detailed = w.size == TodayWidget.Size.Medium,
+                                                                     onOpenStress = onOpenStress) { open = it }
                             TodayWidget.Kind.TrainingLoad -> TodayTrainingLoadForge(onOpenTrainingLoad)
                             TodayWidget.Kind.Goals -> TodayGoals()
                             TodayWidget.Kind.Energy -> TodayEnergy()
@@ -596,8 +620,23 @@ private fun EditButton(icon: ImageVector, label: String, onClick: () -> Unit,
  * latest night as the Sleep tab does.
  */
 @Composable
-private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?, sleepTrend: List<Double>, noData: String,
-                        dense: Boolean, modifier: Modifier, detailed: Boolean = false, onOpen: (CoreRead.Metric) -> Unit) {
+private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?, sleepTrend: List<Double>,
+                        stressTrend: List<Double>, noData: String,
+                        dense: Boolean, modifier: Modifier, detailed: Boolean = false, onOpenStress: () -> Unit = {},
+                        onOpen: (CoreRead.Metric) -> Unit) {
+    if (key == TodayWidget.STRESS_KEY) {
+        // The word, not the figure, and no unit: "/3" beside a word says nothing, which is the call iOS made
+        // on its own stress tile. It opens the Stress screen rather than a generic trend page, as the Health
+        // tile does here — the one page on Android that explains the day's hours.
+        // No change chip and no usual range, even over two columns: the shared reading
+        // (`MeasureTileReading`) returns nothing for a measure read as a word, on either platform, so asking
+        // it here could only ever come back empty.
+        val score = stressTrend.lastOrNull()
+        ForgeTodayTile(Icons.Rounded.Bolt, Forge.colors.effort, stringResource(R.string.nav_stress),
+                       score?.let { stressWord(it) }, "", null, noData, dense,
+                       modifier.clickable(role = Role.Button, onClick = onOpenStress), trend = stressTrend.takeLast(30))
+        return
+    }
     if (key == TodayWidget.SLEEP_KEY) {
         val sleepSummary = if (detailed) rememberTileDelta("sleep_total_min", sleepTrend.takeLast(60))?.summary else null
         ForgeTodayTile(Icons.Rounded.Bedtime, Forge.colors.rest, stringResource(R.string.forge_sleep),
@@ -645,7 +684,12 @@ private fun WidgetGallery(cycleOn: Boolean, onAdd: (TodayWidget) -> Unit, onClos
                 TodayWidgets.measures.forEachIndexed { i, key ->
                     if (i > 0) HubDivider()
                     val metric = KeyMetric.fromRaw(key)
-                    GalleryRow(metric?.icon ?: Icons.Rounded.Bedtime, metric?.tileLabel() ?: stringResource(R.string.forge_sleep),
+                    // The two measures that are not a [KeyMetric] name themselves: before stress joined them the
+                    // fallback was Sleep's icon and Sleep's name, which any further one would have worn too.
+                    val icon = metric?.icon ?: if (key == TodayWidget.STRESS_KEY) Icons.Rounded.Bolt else Icons.Rounded.Bedtime
+                    val label = metric?.tileLabel()
+                        ?: stringResource(if (key == TodayWidget.STRESS_KEY) R.string.nav_stress else R.string.forge_sleep)
+                    GalleryRow(icon, label,
                                stringResource(R.string.forge_g_measure_sub)) { onAdd(TodayWidget(kind = TodayWidget.Kind.Measure, key = key)) }
                 }
             }
