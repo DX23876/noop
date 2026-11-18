@@ -42,6 +42,10 @@ final class DemoDatasetTests: XCTestCase {
             XCTAssertFalse(plan.computedSeries.filter { $0.key == key }.isEmpty, "\(key) is missing from the demo")
         }
         XCTAssertFalse(plan.whoopWorkouts.isEmpty)
+        // The weigh-ins themselves, not only the series: the weight tile reads the weight store, and with
+        // the series alone it said "No data yet" beside a screen full of figures.
+        XCTAssertFalse(plan.weights.isEmpty)
+        XCTAssertLessThan(plan.weights.count, plan.daily.count, "not every day has a weigh-in, and the tile says how long ago the last one was")
         XCTAssertFalse(plan.apple.compactMap(\.steps).isEmpty)
         XCTAssertFalse(plan.apple.compactMap(\.vo2max).isEmpty)
     }

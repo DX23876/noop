@@ -50,6 +50,7 @@ public enum DemoDataset {
     static func seed(store: WhoopStore, today: Date) async throws {
         let plan = build(today: today)
         _ = try await store.upsertDailyMetrics(plan.daily, deviceId: deviceId)
+        _ = try await store.upsertBodyWeights(plan.weights)
         _ = try await store.upsertSleepSessions(plan.sleeps, deviceId: deviceId)
         _ = try await store.upsertMetricSeries(plan.series, deviceId: deviceId)
         _ = try await store.upsertMetricSeries(plan.computedSeries, deviceId: computedDeviceId)
@@ -61,6 +62,10 @@ public enum DemoDataset {
     /// Everything the seed writes, built without touching a store, so a test can read the figures.
     public struct Plan {
         public let daily: [DailyMetric]
+        /// The weigh-ins themselves, in the store the weight tile and the body page actually read. Without
+        /// them the tile said "No data yet" on a phone whose every other tile was full, which is precisely
+        /// the kind of hole this dataset exists to close.
+        public let weights: [BodyWeightRow]
         public let sleeps: [CachedSleepSession]
         public let series: [MetricPoint]
         public let computedSeries: [MetricPoint]
@@ -71,7 +76,7 @@ public enum DemoDataset {
 
     public static func build(today: Date = Date()) -> Plan {
         var rng = Generator(seed: 0xC0FFEE)
-        var daily: [DailyMetric] = [], sleeps: [CachedSleepSession] = []
+        var daily: [DailyMetric] = [], sleeps: [CachedSleepSession] = [], weights: [BodyWeightRow] = []
         var series: [MetricPoint] = [], computed: [MetricPoint] = []
         var apple: [AppleDaily] = [], whoopWorkouts: [WorkoutRow] = [], appleWorkouts: [WorkoutRow] = []
 
@@ -130,6 +135,13 @@ public enum DemoDataset {
 
             weight += rng.gauss(-0.02, 0.18)
             series.append(MetricPoint(day: day, key: "weightKg", value: round2(weight)))
+            // Not every day: a wearer steps on the scales now and then, and "last weighed two days ago" is
+            // one of the facts the wider tile is supposed to be able to say.
+            if i % 3 != 1 {
+                let at = Int(date.timeIntervalSince1970) + 7 * 3600
+                weights.append(BodyWeightRow(id: "demo-\(day)", deviceId: "noop-weight", day: day, takenAt: at,
+                                             weightKg: round2(weight), source: "noop-weight"))
+            }
             series.append(MetricPoint(day: day, key: "bodyFatPct",
                                       value: round1(clamp(18 - fitness * 0.2 + rng.gauss(0, 0.4), 10, 24))))
             let need = clamp(totalSleep + rng.gauss(25, 20), 420, 560)
@@ -205,8 +217,8 @@ public enum DemoDataset {
             }
         }
 
-        return Plan(daily: daily, sleeps: sleeps, series: series, computedSeries: computed, apple: apple,
-                    whoopWorkouts: whoopWorkouts, appleWorkouts: appleWorkouts)
+        return Plan(daily: daily, weights: weights, sleeps: sleeps, series: series, computedSeries: computed,
+                    apple: apple, whoopWorkouts: whoopWorkouts, appleWorkouts: appleWorkouts)
     }
 
     // MARK: - Shaping

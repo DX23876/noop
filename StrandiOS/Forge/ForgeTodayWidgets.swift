@@ -1141,6 +1141,10 @@ struct ForgeMeasureWidget: View {
                                                   to: Repository.localDayKey(now)).points
             metric = ForgeWidgetMeasures.descriptor(key, source)
             values = points.map(\.value)
+            // The days travel on this path too. Without them the steps tile asked `MeasureFacts` for a week
+            // it had no dates for, so it fell back to the usual-and-range line and the week never appeared —
+            // seen on the simulator the day it was built.
+            dayPoints = points.map { .init(day: $0.day, value: $0.value) }
             return
         }
         var candidates: [MetricDescriptor] = []
