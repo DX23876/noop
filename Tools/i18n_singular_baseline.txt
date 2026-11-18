@@ -7,10 +7,11 @@
 # a body measurement, days with a workout, days not measured, sessions, sessions a week, days a
 # week). These are what is left.
 #
-# A high number is not a backlog of bugs. Many of these can never show 1 ("%lld of %lld days" on a
-# 14-day baseline, "%lld days" in a fixed 7-day window), and deciding that one by one is worth less
-# than the floor this holds: a new string of this shape makes the count go up, and the gate says so.
-# Lower a number only together with the plurals that earned it.
+# These are not all bugs. The gate counts only where the noun is governed by the line's ONLY number,
+# so "1 of 4 nights" no longer counts, but a trailing window that is always 7, 14 or 30 days still
+# does. Deciding those case by case is worth less than the line this holds: a new string of the
+# shape makes the count go up, and the gate says so. Lower a number only together with the plurals
+# that earned it.
 
-android 74
-apple 197
+android 37
+apple 119

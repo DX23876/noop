@@ -7,9 +7,16 @@ wording it has is the plural one, whatever the number says.
 
 Both platforms have the machinery and use it elsewhere: Android `<plurals>` and the String Catalog's
 `variations.plural`. This counts the places that do not, per platform, against a baseline that may
-only shrink. It is a floor, not a verdict: plenty of these can never show 1 ("%lld of %lld days" on a
-14-day baseline), and one that cannot is still cheaper to leave counted than to argue about in a list
-that nobody re-reads. What the baseline stops is the number going UP.
+only shrink.
+
+Counted only where the noun is governed by the string's ONLY number. "%lld of %lld days" is not a
+fault however small the first number gets: the noun belongs to the second one, and "1 of 4 nights"
+is correct English. Counting those made the number twice as large and every one of them a false
+alarm, which is how a gate stops being read.
+
+Even so it is a floor, not a verdict: some of what is left can never show 1 either (a trailing window
+is 7, 14 or 30 days, never one), and arguing that case by case is worth less than the line this
+holds. What the baseline stops is the number going UP.
 
 Run with::
 
@@ -36,6 +43,12 @@ BASELINE = Path(__file__).resolve().parent / "i18n_singular_baseline.txt"
 NOUNS = ("weeks", "days", "months", "nights", "workouts", "minutes", "hours", "readings",
          "sessions", "times", "entries", "years", "sets", "reps", "sources", "steps")
 COUNT = re.compile(r"%(?:\d+\$)?(?:lld|llu|d|u)\s+(?:" + "|".join(NOUNS) + r")\b")
+NUMBER = re.compile(r"%(?:\d+\$)?(?:lld|llu|d|u)\b")
+
+
+def singular_blind(text: str) -> bool:
+    """True when a count stands against a plural noun AND is the only number in the line."""
+    return bool(COUNT.search(text)) and len(NUMBER.findall(text)) == 1
 
 
 def android_singular_blind() -> list[str]:
@@ -44,7 +57,7 @@ def android_singular_blind() -> list[str]:
     for el in root:
         if el.tag != "string" or not el.get("name"):
             continue
-        if COUNT.search("".join(el.itertext())):
+        if singular_blind("".join(el.itertext())):
             out.append(el.get("name"))
     return sorted(out)
 
@@ -56,7 +69,7 @@ def apple_singular_blind() -> list[str]:
         if not path.exists():
             continue
         for key, entry in json.loads(path.read_text(encoding="utf-8")).get("strings", {}).items():
-            if not COUNT.search(key):
+            if not singular_blind(key):
                 continue
             # An entry that carries plural variations anywhere has been dealt with.
             if '"plural"' in json.dumps(entry):
