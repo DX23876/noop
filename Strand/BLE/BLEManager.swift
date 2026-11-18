@@ -2033,6 +2033,11 @@ public final class BLEManager: NSObject, ObservableObject {
         // re-add and leaving a stale key behind for a strap the user removed. Re-latching costs the same
         // five refusals it always did, so a strap that genuinely cannot bond is no worse off.
         HelloSuppressionStore.setSuppressed(releasedUUID, false)
+        // The published uuid is that same kind of state, and this path does not run through
+        // `resetLinkState`: a release while Bluetooth is off gets no `didDisconnectPeripheral` at all, and a
+        // release with the link already down still leaves the last-connected uuid standing. Either way the
+        // coordinator would keep matching the strap the user just let go and adopt a link that is gone.
+        if releasedUUID == nil || connectedPeripheralUUID == releasedUUID { connectedPeripheralUUID = nil }
         bondGiveUp.reset()
         autoReconnectPausedForBondLoop = false
         bondLoopPausedAt = nil
@@ -2174,6 +2179,12 @@ public final class BLEManager: NSObject, ObservableObject {
     }
 
     #if DEBUG
+    /// Test seam: publish a connected strap's uuid the way `didConnect` does, without a `CBPeripheral`
+    /// (a test cannot make one). Only the publish, none of the connect's other work.
+    func noteConnectedPeripheralForTesting(_ uuid: String) {
+        connectedPeripheralUUID = uuid
+    }
+
     /// Test seam: latch the bond-loop pause the way a trip site does, without a CoreBluetooth link.
     func latchBondLoopPauseForTesting(cause: BondLoopPauseCause) {
         autoReconnectPausedForBondLoop = true
@@ -7169,6 +7180,14 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         state.connected = false
         ecgReadingLinkLost()
         state.encryptedBond = false   // cleared with didBond; next session must re-prove the bond (#69)
+        // The uuid of the strap that WAS on the other end must not outlive the link either. Nothing cleared
+        // it, so `SourceCoordinator` kept the last-connected uuid for the rest of the session and its
+        // adopt-in-place branch matched a strap re-added after a release: it re-pointed the targeting and
+        // left the connection "untouched" while nothing was connected, so nothing reconnected until the app
+        // was relaunched. The coordinator has handled the nil edge since #1527 (it is also where "last seen"
+        // is stamped, at the moment the strap was last in hand); this is the edge it never got. The Kotlin
+        // twin already publishes it (`SourceCoordinator.connectedPeripheralChanged(null)`).
+        connectedPeripheralUUID = nil
         state.charging = nil          // a stale charging flag must not outlive the link
         state.batteryMv = nil         // #592: a stale pack voltage must not outlive the link
         state.strapFirmware = nil     // a stale firmware version must not outlive the link
