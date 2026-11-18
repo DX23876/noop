@@ -7274,4 +7274,16 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="project_report_picture_add">Dodaj obraz</string>
     <string name="project_report_picture_detail">Zrzut ekranu tego, co poszło źle, mówi więcej niż dziennik</string>
     <string name="project_report_picture_remove">Usuń obraz</string>
+    <string name="forge_tile_week_total">W tym tygodniu %1$s · %2$s dziennie</string>
+    <string name="forge_tile_weighed">Ważenie %1$s</string>
+    <string name="forge_tile_weighed_change">Ważenie %1$s · %2$s w tym tygodniu</string>
+    <string name="forge_tile_week_average">Średnia z 7 dni %1$s</string>
+    <string name="forge_tile_today">dziś</string>
+    <string name="forge_tile_yesterday">wczoraj</string>
+    <plurals name="forge_tile_days_ago">
+        <item quantity="one">%1$d dzień temu</item>
+        <item quantity="few">%1$d dni temu</item>
+        <item quantity="many">%1$d dni temu</item>
+        <item quantity="other">%1$d dnia temu</item>
+    </plurals>
 </resources>

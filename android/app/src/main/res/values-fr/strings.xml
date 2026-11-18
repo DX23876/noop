@@ -7227,4 +7227,15 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="project_report_picture_add">Ajouter une image</string>
     <string name="project_report_picture_detail">Une capture de ce qui a mal tourné en dit plus qu\'un journal</string>
     <string name="project_report_picture_remove">Retirer l\'image</string>
+    <string name="forge_tile_week_total">Cette semaine %1$s · %2$s par jour</string>
+    <string name="forge_tile_weighed">Pesé %1$s</string>
+    <string name="forge_tile_weighed_change">Pesé %1$s · %2$s cette semaine</string>
+    <string name="forge_tile_week_average">Moyenne sur 7 jours %1$s</string>
+    <string name="forge_tile_today">aujourd’hui</string>
+    <string name="forge_tile_yesterday">hier</string>
+    <plurals name="forge_tile_days_ago">
+        <item quantity="one">il y a %1$d jour</item>
+        <item quantity="many">il y a %1$d jours</item>
+        <item quantity="other">il y a %1$d jours</item>
+    </plurals>
 </resources>

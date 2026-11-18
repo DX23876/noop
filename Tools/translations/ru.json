@@ -4648,5 +4648,9 @@
   "Still being scored": "Оценка ещё идёт",
   "Data up to %@, still coming in.": "Данные до %@, ещё поступают.",
   "Data up to %@. The strap hasn't handed over the rest yet.": "Данные до %@. Устройство ещё не отдало остальное.",
-  "If that's not right, today's recovery is off — and so would any plan built on it be.": "Если это не так, сегодняшнее восстановление неверно, как и любой план на его основе."
+  "If that's not right, today's recovery is off — and so would any plan built on it be.": "Если это не так, сегодняшнее восстановление неверно, как и любой план на его основе.",
+  "This week %1$@ · %2$@ a day": "На этой неделе %1$@ · %2$@ в день",
+  "Weighed %@": "Взвешивание %@",
+  "Weighed %1$@ · %2$@ this week": "Взвешивание %1$@ · %2$@ за неделю",
+  "7-day average %@": "Среднее за 7 дней %@"
 }

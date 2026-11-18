@@ -36,6 +36,38 @@ public enum CoreCall {
                                       tone: MeasureTileReading.tone(key: key, values: values)?.rawValue,
                                       summary: MeasureTileReading.summary(key: key, values: values)))
         }
+        if op == "tile.facts" {
+            // What a measure tile knows about itself beyond today's figure (`MeasureFacts`), so the week is
+            // averaged once for both phones rather than once per platform.
+            let args = (try? JSONSerialization.jsonObject(with: Data(argsJSON.utf8)) as? [String: Any]) ?? [:]
+            let days = (args["days"] as? [String]) ?? []
+            let values = (args["values"] as? [NSNumber])?.map(\.doubleValue) ?? []
+            let points = zip(days, values).map { MeasureFacts.Point(day: $0, value: $1) }
+            let facts = MeasureFacts.read(points: points,
+                                          today: args["today"] as? String ?? LogicalDay.key(Date()),
+                                          target: (args["target"] as? NSNumber)?.doubleValue)
+            // Formatted here as well as computed here: a figure rounded once on each phone is a figure
+            // that can read differently on the two, which is the thing this whole reading exists to stop.
+            let key = args["key"] as? String ?? ""
+            func text(_ value: Double?) -> String? {
+                value.map { MeasureTileReading.figure(key: key, value: $0) }
+            }
+            struct Wire: Encodable {
+                let today: Double?, weekAverage: Double?, weekTotal: Double?
+                let lastValue: Double?, lastDay: String?, daysSinceLast: Int?
+                let weekChange: Double?, target: Double?, targetLeft: Double?
+                let todayText: String?, weekAverageText: String?, weekTotalText: String?
+                let weekChangeText: String?, targetLeftText: String?
+            }
+            return CoreRead.json(Wire(today: facts.today, weekAverage: facts.weekAverage, weekTotal: facts.weekTotal,
+                                      lastValue: facts.lastValue, lastDay: facts.lastDay,
+                                      daysSinceLast: facts.daysSinceLast, weekChange: facts.weekChange,
+                                      target: facts.target, targetLeft: facts.targetLeft,
+                                      todayText: text(facts.today), weekAverageText: text(facts.weekAverage),
+                                      weekTotalText: text(facts.weekTotal),
+                                      weekChangeText: text(facts.weekChange.map(abs)),
+                                      targetLeftText: text(facts.targetLeft)))
+        }
         if op == "momentum.day" {
             return CoreRead.json(["day": LogicalDay.key(Date())])
         }

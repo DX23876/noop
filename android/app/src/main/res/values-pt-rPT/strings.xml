@@ -7223,4 +7223,14 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="project_report_picture_add">Adicionar uma imagem</string>
     <string name="project_report_picture_detail">Uma captura do que correu mal diz mais do que um registo</string>
     <string name="project_report_picture_remove">Remover a imagem</string>
+    <string name="forge_tile_week_total">Esta semana %1$s · %2$s por dia</string>
+    <string name="forge_tile_weighed">Pesado %1$s</string>
+    <string name="forge_tile_weighed_change">Pesado %1$s · %2$s esta semana</string>
+    <string name="forge_tile_week_average">Média de 7 dias %1$s</string>
+    <string name="forge_tile_today">hoje</string>
+    <string name="forge_tile_yesterday">ontem</string>
+    <plurals name="forge_tile_days_ago">
+        <item quantity="one">há %1$d dia</item>
+        <item quantity="other">há %1$d dias</item>
+    </plurals>
 </resources>

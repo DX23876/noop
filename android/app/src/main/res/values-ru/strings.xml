@@ -7230,4 +7230,16 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="project_report_picture_add">Добавить картинку</string>
     <string name="project_report_picture_detail">Снимок экрана говорит больше, чем журнал</string>
     <string name="project_report_picture_remove">Убрать картинку</string>
+    <string name="forge_tile_week_total">На этой неделе %1$s · %2$s в день</string>
+    <string name="forge_tile_weighed">Взвешивание %1$s</string>
+    <string name="forge_tile_weighed_change">Взвешивание %1$s · %2$s за неделю</string>
+    <string name="forge_tile_week_average">Среднее за 7 дней %1$s</string>
+    <string name="forge_tile_today">сегодня</string>
+    <string name="forge_tile_yesterday">вчера</string>
+    <plurals name="forge_tile_days_ago">
+        <item quantity="one">%1$d день назад</item>
+        <item quantity="few">%1$d дня назад</item>
+        <item quantity="many">%1$d дней назад</item>
+        <item quantity="other">%1$d дня назад</item>
+    </plurals>
 </resources>

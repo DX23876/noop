@@ -81,6 +81,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.noop.R
 import com.noop.core.CoreRead
+import com.noop.core.CoreTile
 import com.noop.ui.AppViewModel
 import com.noop.ui.KeyMetric
 import com.noop.ui.KeyMetricPrefs
@@ -183,6 +184,14 @@ internal object TodayWidgets {
      */
     val catalogMeasures: List<String> = listOf("vo2max_est", "stress", "fitness_age",
                                                "recovery", "strain", "sleep_performance")
+
+    /**
+     * The measures whose two-column form says a fact about the wearer's own recent past instead of the
+     * usual-and-range line (owner, 2026-11-18). The rest keep that line until their fact is built, so
+     * nothing loses what it already said. iOS's twin is `ForgeMeasureWidget.factsLine`.
+     */
+    val factMeasures: Set<String> = setOf(KeyMetric.HRV.raw, KeyMetric.RESTING_HR.raw, KeyMetric.BLOOD_OXYGEN.raw,
+                                          KeyMetric.RESPIRATORY.raw, KeyMetric.STEPS.raw, KeyMetric.WEIGHT.raw)
 
     /**
      * The measures the gallery offers, in iOS's order.
@@ -419,6 +428,22 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
             }
         }
     }
+    // The measures whose two-column form says a fact about the wearer's own recent past rather than the
+    // usual-and-range line (owner, 2026-11-18). Read with their days, because "last weighed" is a date.
+    val factPlaced = widgets.mapNotNull { it.key }.filter { it in TodayWidgets.factMeasures }.distinct().sorted()
+    val factSeries by produceState(emptyMap<String, Pair<List<String>, List<Double>>>(), date, factPlaced, coreRevision) {
+        value = if (factPlaced.isEmpty()) emptyMap() else withContext(Dispatchers.IO) {
+            factPlaced.associateWith { raw ->
+                runCatching {
+                    val points = viewModel.repo.resolvedSeries(KeyMetric.fromRaw(raw)?.catalogKey() ?: raw, "my-whoop",
+                                                               date.minusDays(59).toString(), date.toString(),
+                                                               strapDeviceId = viewModel.activeStrapId)
+                        .points.sortedBy { it.day }
+                    points.map { it.day } to points.map { it.value }
+                }.getOrDefault(emptyList<String>() to emptyList())
+            }
+        }
+    }
     val sleepMinutes by produceState<Double?>(null, date, widgets.any { it.key == TodayWidget.SLEEP_KEY }, coreRevision) {
         value = if (widgets.none { it.key == TodayWidget.SLEEP_KEY }) null else withContext(Dispatchers.IO) {
             val end = date.plusDays(1).atStartOfDay(java.time.ZoneId.systemDefault()).toEpochSecond()
@@ -562,7 +587,8 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                                onSize = { update(widgets.map { if (it.id == w.id) it.nextSize() else it }) },
                                onShift = { by -> update(TodayWidgets.shift(widgets, w.id, by)) }) {
                         when (w.kind) {
-                            TodayWidget.Kind.Measure -> MeasureTile(w.key, keyTiles, sleepMinutes, sleepTrend, catalogSeries, noData,
+                            TodayWidget.Kind.Measure -> MeasureTile(w.key, keyTiles, sleepMinutes, sleepTrend, catalogSeries,
+                                                                     factSeries, date.toString(), noData,
                                                                      dense = columns > 2, Modifier.fillMaxSize(),
                                                                      detailed = w.size == TodayWidget.Size.Medium,
                                                                      wide = w.size == TodayWidget.Size.Wide,
@@ -665,7 +691,8 @@ private fun EditButton(icon: ImageVector, label: String, onClick: () -> Unit,
  */
 @Composable
 private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?, sleepTrend: List<Double>,
-                        catalogSeries: Map<String, List<Double>>, noData: String,
+                        catalogSeries: Map<String, List<Double>>,
+                        factSeries: Map<String, Pair<List<String>, List<Double>>>, today: String, noData: String,
                         dense: Boolean, modifier: Modifier, detailed: Boolean = false, wide: Boolean = false,
                         onOpenSleep: () -> Unit = {}, onOpen: (CoreRead.Metric) -> Unit) {
     // The row-wide form, and its two named exceptions (2026-11-18). For sleep and stress thirty days is
@@ -696,8 +723,11 @@ private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?,
     val t = keyTiles.tiles[metric] ?: return
     val spark = keyTiles.sparks[metric]
     val change = rememberTileDelta(metric.catalogKey(), spark)
+    // The measure's own fact first; the usual-and-range line stays for the measures whose fact is not
+    // built yet, so nothing loses what it already said.
+    val facts = if (detailed) rememberFactsLine(key, factSeries[key], today, t.unit.orEmpty()) else null
     ForgeTodayTile(metric.icon, metric.tileTint(), metric.tileLabel(), t.value, t.unit.orEmpty(),
-                   if (detailed) change?.summary?.let { summaryLine(it, t.unit.orEmpty()) } else null, noData, dense,
+                   if (detailed) (facts ?: change?.summary?.let { summaryLine(it, t.unit.orEmpty()) }) else null, noData, dense,
                    modifier.then(t.opens?.let { m -> Modifier.clickable { onOpen(m) } } ?: Modifier),
                    delta = change?.text, deltaTone = change?.tone, trend = spark?.takeLast(30))
 }
@@ -831,6 +861,52 @@ private fun wholeRowMetric(key: String?): KeyMetric? = when (key) {
     "strain" -> KeyMetric.EFFORT
     "sleep_performance" -> KeyMetric.REST
     else -> null
+}
+
+/**
+ * What a two-column tile adds, per measure (owner, 2026-11-18): a fact about the wearer's own recent past
+ * rather than the same figure over a longer span. iOS's twin is `ForgeMeasureWidget.factsLine`.
+ *
+ * Null for a measure whose fact is not built yet, and the caller then keeps the usual-and-range line. The
+ * numbers come from the shared `MeasureFacts` through the core; only the words are written here.
+ */
+@Composable
+private fun rememberFactsLine(key: String?, series: Pair<List<String>, List<Double>>?, today: String,
+                              unit: String): String? {
+    if (key == null || series == null || series.first.isEmpty()) return null
+    val catalogKey = KeyMetric.fromRaw(key)?.catalogKey() ?: key
+    val facts by androidx.compose.runtime.produceState<CoreTile.Facts?>(null, key, series, today) {
+        value = withContext(Dispatchers.IO) {
+            runCatching { CoreTile.facts(catalogKey, series.first, series.second, today) }.getOrNull()
+        }
+    }
+    val f = facts ?: return null
+    fun withUnit(text: String) = if (unit.isEmpty() || unit.startsWith("/")) text else "$text $unit"
+    return when (key) {
+        KeyMetric.STEPS.raw -> {
+            val total = f.weekTotalText ?: return null
+            val average = f.weekAverageText ?: return null
+            stringResource(R.string.forge_tile_week_total, total, average)
+        }
+        KeyMetric.WEIGHT.raw -> {
+            val days = f.daysSinceLast ?: return null
+            val whenText = when {
+                days <= 0 -> stringResource(R.string.forge_tile_today)
+                days == 1 -> stringResource(R.string.forge_tile_yesterday)
+                else -> androidx.compose.ui.res.pluralStringResource(R.plurals.forge_tile_days_ago, days, days)
+            }
+            val change = f.weekChange ?: return stringResource(R.string.forge_tile_weighed, whenText)
+            // Signed on purpose: which way it went is the fact, and "0.4 kg" alone would not say it.
+            val sign = if (change > 0) "+" else if (change < 0) "−" else "±"
+            val moved = withUnit(sign + (f.weekChangeText ?: return null))
+            stringResource(R.string.forge_tile_weighed_change, whenText, moved)
+        }
+        KeyMetric.HRV.raw, KeyMetric.RESTING_HR.raw, KeyMetric.BLOOD_OXYGEN.raw, KeyMetric.RESPIRATORY.raw -> {
+            val average = f.weekAverageText ?: return null
+            stringResource(R.string.forge_tile_week_average, withUnit(average))
+        }
+        else -> null
+    }
 }
 
 /** "usually 53 bpm · range 51 to 58", from the shared `MeasureTileReading.summary`, as iOS's `summaryLine`. */

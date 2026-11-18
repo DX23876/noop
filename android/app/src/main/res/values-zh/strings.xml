@@ -7178,4 +7178,13 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="project_report_picture_add">添加图片</string>
     <string name="project_report_picture_detail">一张出错时的截图胜过一份日志</string>
     <string name="project_report_picture_remove">移除图片</string>
+    <string name="forge_tile_week_total">本周 %1$s · 每天 %2$s</string>
+    <string name="forge_tile_weighed">称重于%1$s</string>
+    <string name="forge_tile_weighed_change">称重于%1$s · 本周 %2$s</string>
+    <string name="forge_tile_week_average">7 天平均 %1$s</string>
+    <string name="forge_tile_today">今天</string>
+    <string name="forge_tile_yesterday">昨天</string>
+    <plurals name="forge_tile_days_ago">
+        <item quantity="other">%1$d 天前</item>
+    </plurals>
 </resources>

@@ -4772,5 +4772,9 @@
   "Still being scored": "仍在评估中",
   "Data up to %@, still coming in.": "数据到 %@，仍在接收。",
   "Data up to %@. The strap hasn't handed over the rest yet.": "数据到 %@。手环还没有交出余下的部分。",
-  "If that's not right, today's recovery is off — and so would any plan built on it be.": "如果不对，今天的恢复就是错的，基于它的任何计划也是。"
+  "If that's not right, today's recovery is off — and so would any plan built on it be.": "如果不对，今天的恢复就是错的，基于它的任何计划也是。",
+  "This week %1$@ · %2$@ a day": "本周 %1$@ · 每天 %2$@",
+  "Weighed %@": "称重于%@",
+  "Weighed %1$@ · %2$@ this week": "称重于%1$@ · 本周 %2$@",
+  "7-day average %@": "7 天平均 %@"
 }

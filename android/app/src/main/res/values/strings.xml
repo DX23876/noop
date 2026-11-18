@@ -7272,4 +7272,14 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="project_report_picture_add">Add a picture</string>
     <string name="project_report_picture_detail">A screenshot of what went wrong says more than a log</string>
     <string name="project_report_picture_remove">Remove the picture</string>
+    <string name="forge_tile_week_total">This week %1$s · %2$s a day</string>
+    <string name="forge_tile_weighed">Weighed %1$s</string>
+    <string name="forge_tile_weighed_change">Weighed %1$s · %2$s this week</string>
+    <string name="forge_tile_week_average">7-day average %1$s</string>
+    <string name="forge_tile_today">today</string>
+    <string name="forge_tile_yesterday">yesterday</string>
+    <plurals name="forge_tile_days_ago">
+        <item quantity="one">%1$d day ago</item>
+        <item quantity="other">%1$d days ago</item>
+    </plurals>
 </resources>

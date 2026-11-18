@@ -4672,5 +4672,9 @@
   "Still being scored": "Analyse en cours",
   "Data up to %@, still coming in.": "Données jusqu'à %@, la suite arrive.",
   "Data up to %@. The strap hasn't handed over the rest yet.": "Données jusqu'à %@. La sangle n'a pas encore livré le reste.",
-  "If that's not right, today's recovery is off — and so would any plan built on it be.": "Si ce n'est pas exact, la récupération du jour est fausse, et tout plan bâti dessus aussi."
+  "If that's not right, today's recovery is off — and so would any plan built on it be.": "Si ce n'est pas exact, la récupération du jour est fausse, et tout plan bâti dessus aussi.",
+  "This week %1$@ · %2$@ a day": "Cette semaine %1$@ · %2$@ par jour",
+  "Weighed %@": "Pesé %@",
+  "Weighed %1$@ · %2$@ this week": "Pesé %1$@ · %2$@ cette semaine",
+  "7-day average %@": "Moyenne sur 7 jours %@"
 }

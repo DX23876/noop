@@ -7247,4 +7247,14 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="project_report_picture_add">Bild hinzufügen</string>
     <string name="project_report_picture_detail">Ein Bildschirmfoto von dem, was schiefging, sagt mehr als ein Protokoll</string>
     <string name="project_report_picture_remove">Bild entfernen</string>
+    <string name="forge_tile_week_total">Diese Woche %1$s · %2$s pro Tag</string>
+    <string name="forge_tile_weighed">Gewogen %1$s</string>
+    <string name="forge_tile_weighed_change">Gewogen %1$s · %2$s diese Woche</string>
+    <string name="forge_tile_week_average">Schnitt 7 Tage %1$s</string>
+    <string name="forge_tile_today">heute</string>
+    <string name="forge_tile_yesterday">gestern</string>
+    <plurals name="forge_tile_days_ago">
+        <item quantity="one">vor %1$d Tag</item>
+        <item quantity="other">vor %1$d Tagen</item>
+    </plurals>
 </resources>

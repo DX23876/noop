@@ -923,6 +923,7 @@ struct ForgeMeasureWidget: View {
     var wide = false
     @EnvironmentObject private var repo: Repository
     @State private var values: [Double] = []
+    @State private var dayPoints: [MeasureFacts.Point] = []
     @State private var metric: MetricDescriptor?
 
     var body: some View {
@@ -1012,7 +1013,10 @@ struct ForgeMeasureWidget: View {
                            // Steps speak for themselves, and the word would crowd the number in a small tile; stress
                            // reads as a word ("Medium"), and "/3" beside a word said nothing.
                            unit: key == "steps" || key == "stress" ? "" : m.map(ForgeFocusView.unit) ?? "",
-                           caption: detailed ? Self.summaryLine(key: key, values: values, unit: m.map(ForgeFocusView.unit) ?? "") : nil,
+                           // The measure's own fact first; the usual-and-range line stays for the measures
+                           // whose fact is not built yet, so nothing loses what it already said.
+                           caption: detailed ? (Self.factsLine(key: key, points: dayPoints, unit: m.map(ForgeFocusView.unit) ?? "")
+                                                ?? Self.summaryLine(key: key, values: values, unit: m.map(ForgeFocusView.unit) ?? "")) : nil,
                            delta: Self.delta(key: key, values: values),
                            deltaColor: Self.deltaTone(key: key, values: values),
                            tint: Self.tint(key),
@@ -1026,6 +1030,43 @@ struct ForgeMeasureWidget: View {
     static func delta(key: String, values: [Double]) -> String? { MeasureTileReading.delta(key: key, values: values) }
 
     /// "usually 53 bpm · range 51 to 58", from the shared `MeasureTileReading.summary`.
+    /// What a tile over two columns adds, per measure (owner, 2026-11-18): a fact about the wearer's own
+    /// recent past rather than the same figure over a longer span.
+    ///
+    /// Nil for a measure whose fact is not built yet, and the caller then keeps the usual-and-range line,
+    /// so this can be filled in measure by measure without anything losing what it already said. The
+    /// numbers all come from `MeasureFacts`, which Android reads too; only the words are written here.
+    static func factsLine(key: String, points: [MeasureFacts.Point], unit: String) -> String? {
+        guard !points.isEmpty else { return nil }
+        let facts = MeasureFacts.read(points: points, today: Repository.localDayKey(Date()))
+        func figure(_ value: Double?) -> String? {
+            value.map { MeasureTileReading.figure(key: key, value: $0) }
+        }
+        func withUnit(_ text: String) -> String {
+            unit.isEmpty || unit.hasPrefix("/") ? text : "\(text) \(unit)"
+        }
+        switch key {
+        case "steps":
+            guard let total = figure(facts.weekTotal), let average = figure(facts.weekAverage) else { return nil }
+            return String(localized: "This week \(total) · \(average) a day")
+        case "weight":
+            guard let days = facts.daysSinceLast else { return nil }
+            let when = days <= 0 ? String(localized: "today")
+                     : days == 1 ? String(localized: "yesterday")
+                     : String(localized: "\(days) days ago")
+            guard let change = facts.weekChange else { return String(localized: "Weighed \(when)") }
+            // Signed on purpose: which way it went is the fact, and "0,4 kg" alone would not say it.
+            let sign = change > 0 ? "+" : change < 0 ? "−" : "±"
+            let moved = withUnit(sign + MeasureTileReading.figure(key: key, value: abs(change)))
+            return String(localized: "Weighed \(when) · \(moved) this week")
+        case "hrv", "rhr", "spo2", "resp_rate":
+            guard let average = figure(facts.weekAverage) else { return nil }
+            return String(localized: "7-day average \(withUnit(average))")
+        default:
+            return nil
+        }
+    }
+
     static func summaryLine(key: String, values: [Double], unit: String) -> String? {
         guard let s = MeasureTileReading.summary(key: key, values: values) else { return nil }
         let usual = unit.isEmpty || unit.hasPrefix("/") ? s.usual : "\(s.usual) \(unit)"
@@ -1113,6 +1154,9 @@ struct ForgeMeasureWidget: View {
             if !s.isEmpty {
                 metric = d
                 values = s.map(\.value)
+                // The days travel too, since the facts line asks when something was last recorded, not
+                // only what it was (`MeasureFacts`).
+                dayPoints = s.map { .init(day: $0.day, value: $0.value) }
                 return
             }
         }
