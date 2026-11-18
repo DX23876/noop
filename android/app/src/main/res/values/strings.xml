@@ -3935,12 +3935,30 @@
     <string name="forge_goals_to_go">%1$s to go · %2$d days left</string>
     <string name="forge_goals_first_week_prorated">First week, pro-rated: %1$s to go</string>
     <string name="forge_goals_first_month_prorated">First month, pro-rated: %1$s to go</string>
-    <string name="forge_goals_streak_weeks">%1$d weeks in a row</string>
-    <string name="forge_goals_streak_months">%1$d months in a row</string>
-    <string name="forge_goals_streak_weeks_best">%1$d weeks in a row · best %2$d</string>
-    <string name="forge_goals_streak_months_best">%1$d months in a row · best %2$d</string>
-    <string name="forge_goals_best_weeks">Best series so far: %1$d weeks</string>
-    <string name="forge_goals_best_months">Best series so far: %1$d months</string>
+    <plurals name="forge_goals_streak_weeks">
+        <item quantity="one">%1$d week in a row</item>
+        <item quantity="other">%1$d weeks in a row</item>
+    </plurals>
+    <plurals name="forge_goals_streak_months">
+        <item quantity="one">%1$d month in a row</item>
+        <item quantity="other">%1$d months in a row</item>
+    </plurals>
+    <plurals name="forge_goals_streak_weeks_best">
+        <item quantity="one">%1$d week in a row · best %2$d</item>
+        <item quantity="other">%1$d weeks in a row · best %2$d</item>
+    </plurals>
+    <plurals name="forge_goals_streak_months_best">
+        <item quantity="one">%1$d month in a row · best %2$d</item>
+        <item quantity="other">%1$d months in a row · best %2$d</item>
+    </plurals>
+    <plurals name="forge_goals_best_weeks">
+        <item quantity="one">Best series so far: %1$d week</item>
+        <item quantity="other">Best series so far: %1$d weeks</item>
+    </plurals>
+    <plurals name="forge_goals_best_months">
+        <item quantity="one">Best series so far: %1$d month</item>
+        <item quantity="other">Best series so far: %1$d months</item>
+    </plurals>
     <string name="forge_goals_s_achieved">Achieved</string>
     <string name="forge_goals_s_ahead">Ahead</string>
     <string name="forge_goals_s_on_track">On track</string>

@@ -3920,12 +3920,24 @@
     <string name="forge_goals_to_go">Zostało %1$s · %2$d dni</string>
     <string name="forge_goals_first_week_prorated">Pierwszy tydzień, proporcjonalnie: zostało %1$s</string>
     <string name="forge_goals_first_month_prorated">Pierwszy miesiąc, proporcjonalnie: zostało %1$s</string>
-    <string name="forge_goals_streak_weeks">%1$d tyg. z rzędu</string>
-    <string name="forge_goals_streak_months">%1$d mies. z rzędu</string>
-    <string name="forge_goals_streak_weeks_best">%1$d tygodni z rzędu · najlepiej %2$d</string>
-    <string name="forge_goals_streak_months_best">%1$d miesięcy z rzędu · najlepiej %2$d</string>
-    <string name="forge_goals_best_weeks">Najlepsza seria: %1$d tyg.</string>
-    <string name="forge_goals_best_months">Najlepsza seria: %1$d mies.</string>
+    <plurals name="forge_goals_streak_weeks">
+        <item quantity="other">%1$d tyg. z rzędu</item>
+    </plurals>
+    <plurals name="forge_goals_streak_months">
+        <item quantity="other">%1$d mies. z rzędu</item>
+    </plurals>
+    <plurals name="forge_goals_streak_weeks_best">
+        <item quantity="other">%1$d tyg. z rzędu · najlepiej %2$d</item>
+    </plurals>
+    <plurals name="forge_goals_streak_months_best">
+        <item quantity="other">%1$d mies. z rzędu · najlepiej %2$d</item>
+    </plurals>
+    <plurals name="forge_goals_best_weeks">
+        <item quantity="other">Najlepsza seria: %1$d tyg.</item>
+    </plurals>
+    <plurals name="forge_goals_best_months">
+        <item quantity="other">Najlepsza seria: %1$d mies.</item>
+    </plurals>
     <string name="forge_goals_s_achieved">Osiągnięto</string>
     <string name="forge_goals_s_ahead">Przed planem</string>
     <string name="forge_goals_s_on_track">Zgodnie z planem</string>

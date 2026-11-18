@@ -3799,12 +3799,36 @@
     <string name="forge_goals_to_go">Осталось %1$s · ещё %2$d дн.</string>
     <string name="forge_goals_first_week_prorated">Первая неделя, пропорционально: осталось %1$s</string>
     <string name="forge_goals_first_month_prorated">Первый месяц, пропорционально: осталось %1$s</string>
-    <string name="forge_goals_streak_weeks">%1$d недель подряд</string>
-    <string name="forge_goals_streak_months">%1$d месяцев подряд</string>
-    <string name="forge_goals_streak_weeks_best">%1$d недель подряд · лучшее %2$d</string>
-    <string name="forge_goals_streak_months_best">%1$d месяцев подряд · лучшее %2$d</string>
-    <string name="forge_goals_best_weeks">Лучшая серия: %1$d нед.</string>
-    <string name="forge_goals_best_months">Лучшая серия: %1$d мес.</string>
+    <plurals name="forge_goals_streak_weeks">
+        <item quantity="one">%1$d неделя подряд</item>
+        <item quantity="few">%1$d недели подряд</item>
+        <item quantity="many">%1$d недель подряд</item>
+        <item quantity="other">%1$d недели подряд</item>
+    </plurals>
+    <plurals name="forge_goals_streak_months">
+        <item quantity="one">%1$d месяц подряд</item>
+        <item quantity="few">%1$d месяца подряд</item>
+        <item quantity="many">%1$d месяцев подряд</item>
+        <item quantity="other">%1$d месяца подряд</item>
+    </plurals>
+    <plurals name="forge_goals_streak_weeks_best">
+        <item quantity="one">%1$d неделя подряд · лучшее %2$d</item>
+        <item quantity="few">%1$d недели подряд · лучшее %2$d</item>
+        <item quantity="many">%1$d недель подряд · лучшее %2$d</item>
+        <item quantity="other">%1$d недели подряд · лучшее %2$d</item>
+    </plurals>
+    <plurals name="forge_goals_streak_months_best">
+        <item quantity="one">%1$d месяц подряд · лучшее %2$d</item>
+        <item quantity="few">%1$d месяца подряд · лучшее %2$d</item>
+        <item quantity="many">%1$d месяцев подряд · лучшее %2$d</item>
+        <item quantity="other">%1$d месяца подряд · лучшее %2$d</item>
+    </plurals>
+    <plurals name="forge_goals_best_weeks">
+        <item quantity="other">Лучшая серия: %1$d нед.</item>
+    </plurals>
+    <plurals name="forge_goals_best_months">
+        <item quantity="other">Лучшая серия: %1$d мес.</item>
+    </plurals>
     <string name="forge_goals_s_achieved">Достигнуто</string>
     <string name="forge_goals_s_ahead">Впереди</string>
     <string name="forge_goals_s_on_track">На ходу</string>

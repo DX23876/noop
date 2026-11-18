@@ -65,6 +65,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
@@ -1312,14 +1313,19 @@ private fun remainingLine(goal: CoreGoals.Period): String {
 @Composable
 private fun streakLine(goal: CoreGoals.Period): String? {
     val week = goal.period == "week"
+    // Plurals, not strings: every one of these is reachable at 1, where "1 weeks in a row" and
+    // "Best series so far: 1 weeks" were what the card said. The count is both the quantity and the
+    // first value; Russian needs its own forms here, Polish and Chinese abbreviate and need none.
     return when {
         goal.currentStreak > 0 && goal.bestStreak > goal.currentStreak ->
-            stringResource(if (week) R.string.forge_goals_streak_weeks_best else R.string.forge_goals_streak_months_best,
-                           goal.currentStreak, goal.bestStreak)
+            pluralStringResource(if (week) R.plurals.forge_goals_streak_weeks_best else R.plurals.forge_goals_streak_months_best,
+                                 goal.currentStreak, goal.currentStreak, goal.bestStreak)
         goal.currentStreak > 0 ->
-            stringResource(if (week) R.string.forge_goals_streak_weeks else R.string.forge_goals_streak_months, goal.currentStreak)
+            pluralStringResource(if (week) R.plurals.forge_goals_streak_weeks else R.plurals.forge_goals_streak_months,
+                                 goal.currentStreak, goal.currentStreak)
         goal.bestStreak > 0 ->
-            stringResource(if (week) R.string.forge_goals_best_weeks else R.string.forge_goals_best_months, goal.bestStreak)
+            pluralStringResource(if (week) R.plurals.forge_goals_best_weeks else R.plurals.forge_goals_best_months,
+                                 goal.bestStreak, goal.bestStreak)
         else -> null
     }
 }

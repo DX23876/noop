@@ -3904,12 +3904,30 @@
     <string name="forge_goals_to_go">Faltan %1$s · quedan %2$d días</string>
     <string name="forge_goals_first_week_prorated">Primera semana, prorrateada: faltan %1$s</string>
     <string name="forge_goals_first_month_prorated">Primer mes, prorrateado: faltan %1$s</string>
-    <string name="forge_goals_streak_weeks">%1$d semanas seguidas</string>
-    <string name="forge_goals_streak_months">%1$d meses seguidos</string>
-    <string name="forge_goals_streak_weeks_best">%1$d semanas seguidas · mejor %2$d</string>
-    <string name="forge_goals_streak_months_best">%1$d meses seguidos · mejor %2$d</string>
-    <string name="forge_goals_best_weeks">Mejor racha hasta ahora: %1$d semanas</string>
-    <string name="forge_goals_best_months">Mejor racha hasta ahora: %1$d meses</string>
+    <plurals name="forge_goals_streak_weeks">
+        <item quantity="one">%1$d semana seguida</item>
+        <item quantity="other">%1$d semanas seguidas</item>
+    </plurals>
+    <plurals name="forge_goals_streak_months">
+        <item quantity="one">%1$d mes seguido</item>
+        <item quantity="other">%1$d meses seguidos</item>
+    </plurals>
+    <plurals name="forge_goals_streak_weeks_best">
+        <item quantity="one">%1$d semana seguida · mejor %2$d</item>
+        <item quantity="other">%1$d semanas seguidas · mejor %2$d</item>
+    </plurals>
+    <plurals name="forge_goals_streak_months_best">
+        <item quantity="one">%1$d mes seguido · mejor %2$d</item>
+        <item quantity="other">%1$d meses seguidos · mejor %2$d</item>
+    </plurals>
+    <plurals name="forge_goals_best_weeks">
+        <item quantity="one">Mejor racha hasta ahora: %1$d semana</item>
+        <item quantity="other">Mejor racha hasta ahora: %1$d semanas</item>
+    </plurals>
+    <plurals name="forge_goals_best_months">
+        <item quantity="one">Mejor racha hasta ahora: %1$d mes</item>
+        <item quantity="other">Mejor racha hasta ahora: %1$d meses</item>
+    </plurals>
     <string name="forge_goals_s_achieved">Logrado</string>
     <string name="forge_goals_s_ahead">Adelante</string>
     <string name="forge_goals_s_on_track">En camino</string>

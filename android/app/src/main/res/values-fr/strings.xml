@@ -3903,12 +3903,27 @@
     <string name="forge_goals_to_go">Encore %1$s · %2$d jours restants</string>
     <string name="forge_goals_first_week_prorated">Première semaine, au prorata : encore %1$s</string>
     <string name="forge_goals_first_month_prorated">Premier mois, au prorata : encore %1$s</string>
-    <string name="forge_goals_streak_weeks">%1$d semaines d’affilée</string>
-    <string name="forge_goals_streak_months">%1$d mois d’affilée</string>
-    <string name="forge_goals_streak_weeks_best">%1$d semaines d\'affilée · record %2$d</string>
-    <string name="forge_goals_streak_months_best">%1$d mois d\'affilée · record %2$d</string>
-    <string name="forge_goals_best_weeks">Meilleure série : %1$d semaines</string>
-    <string name="forge_goals_best_months">Meilleure série : %1$d mois</string>
+    <plurals name="forge_goals_streak_weeks">
+        <item quantity="one">%1$d semaine d’affilée</item>
+        <item quantity="other">%1$d semaines d’affilée</item>
+    </plurals>
+    <plurals name="forge_goals_streak_months">
+        <item quantity="other">%1$d mois d’affilée</item>
+    </plurals>
+    <plurals name="forge_goals_streak_weeks_best">
+        <item quantity="one">%1$d semaine d’affilée · record %2$d</item>
+        <item quantity="other">%1$d semaines d’affilée · record %2$d</item>
+    </plurals>
+    <plurals name="forge_goals_streak_months_best">
+        <item quantity="other">%1$d mois d’affilée · record %2$d</item>
+    </plurals>
+    <plurals name="forge_goals_best_weeks">
+        <item quantity="one">Meilleure série : %1$d semaine</item>
+        <item quantity="other">Meilleure série : %1$d semaines</item>
+    </plurals>
+    <plurals name="forge_goals_best_months">
+        <item quantity="other">Meilleure série : %1$d mois</item>
+    </plurals>
     <string name="forge_goals_s_achieved">Atteint</string>
     <string name="forge_goals_s_ahead">En avant</string>
     <string name="forge_goals_s_on_track">En bonne voie</string>
