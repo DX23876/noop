@@ -49,6 +49,16 @@ final class ForgeNightPendingNoticeTests: XCTestCase {
         XCTAssertNotEqual(running, idle)
     }
 
+    /// Today's hint card shows a notice's words but not its answers, and its body used to run the first
+    /// action on a plain tap: tapping "Still being scored" vouched for the detected wake time, which the
+    /// card never said. Any action that CHANGES something now has to name itself.
+    func testAnActionThatCommitsIsMarkedAsOne() {
+        XCTAssertTrue(ForgeTimeline.Notice.Action.confirmWake.commits)
+        for action in [ForgeTimeline.Notice.Action.none, .charge, .plan, .goals, .sleep] {
+            XCTAssertFalse(action.commits, "\(action) opens a screen; only a change needs a label")
+        }
+    }
+
     func testNoPendingNightMeansNoSuchNotice() {
         let out = ForgeNotices.notices(momentum: [], nightPending: nil, day: "2026-11-18",
                                        now: Date(timeIntervalSince1970: TimeInterval(wake + 3600)),

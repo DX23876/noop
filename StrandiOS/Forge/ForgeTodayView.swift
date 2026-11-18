@@ -1165,6 +1165,21 @@ struct ForgeTodayView: View {
                     .padding(.top, -10).padding(.trailing, -12)
                     .accessibilityLabel(Text("Dismiss"))
                 }
+                // A notice's answers travel with it. Until 2026-11-18 this card showed only the headline
+                // and the line, so the one notice that offers two of them — the night still being scored —
+                // arrived here with neither, and the only way to answer it was a tap that said nothing.
+                // `.charge` is left out: that one opens the Charge page, and the card body is already the
+                // link to it, so a chip beside it would be a second control for the same move.
+                if case .notice(let notice) = top.source, let title = notice.actionTitle,
+                   notice.action != .none, notice.action != .charge {
+                    HStack(spacing: 8) {
+                        ForgeChip(title: title, prominent: true) { perform(notice.action) }
+                        if let second = notice.secondaryActionTitle, notice.secondaryAction != .none {
+                            ForgeChip(title: second) { perform(notice.secondaryAction) }
+                        }
+                    }
+                    .padding(.leading, 52)
+                }
                 if hints.count > 1 {
                     if hintsOpen {
                         ForEach(hints.dropFirst()) { hint in
@@ -1211,6 +1226,10 @@ struct ForgeTodayView: View {
         switch hint.source {
         case .notice(let notice) where notice.action == .charge:
             NavigationLink(value: ForgeRoute.charge) { label() }.buttonStyle(.plain)
+        case .notice(let notice) where notice.action.commits:
+            // Inert on purpose: the card does not say what the action would do, and a tap that commits
+            // something unsaid is the defect. Its chips below carry the answers, in words.
+            label()
         case .notice(let notice):
             Button { perform(notice.action) } label: { label() }.buttonStyle(.plain)
         case .coach:

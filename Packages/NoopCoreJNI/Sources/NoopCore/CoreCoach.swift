@@ -879,6 +879,8 @@ struct MorningSuggestion: Encodable {
 extension CoreCoach {
     static let morningKey = "coach.morningSuggestion"
     private static var unsettledWake: Int?
+    /// When the verdict above was last read, so a card polled every 1.5 seconds does not re-read it.
+    private static var unsettledWakeAt: Date?
 
     /// Reads the card; `.set` switches it, `.decide` accepts or declines the waiting proposal, `.confirmWake`
     /// vouches for the detected wake. With `generate` it first runs the day's brief as Today opening does on
@@ -898,7 +900,16 @@ extension CoreCoach {
         let on = defaults.bool(forKey: morningKey)
         if generate, on, coach.isConfigured, coach.dataConsent, !coach.sending {
             await coach.startBriefIfNeeded()
+        }
+        // Outside every coach gate (2026-11-18): whether the strap has finished handing last night over is
+        // not a coach question. Inside them, the Android shell — which has no other home for this state —
+        // never told a wearer without a provider that their recovery was computed on a truncated night.
+        //
+        // At most once a minute, because the shell re-reads this card every 1.5 seconds while a brief is
+        // running and the verdict costs several store reads. The night does not change that fast.
+        if unsettledWakeAt.map({ Date().timeIntervalSince($0) > 60 }) ?? true {
             unsettledWake = await coach.unconfirmedWakeNeedingReview()
+            unsettledWakeAt = Date()
         }
         let scale = EffortScale(rawValue: args["effortScale"] as? String ?? "") ?? .hundred
         let state = MorningSuggestionState.resolve(
@@ -913,7 +924,14 @@ extension CoreCoach {
         let labels = [
             "setting": "Morning suggestion on Today", "note": "Needs a connected provider and data access, so the coach has something to suggest from.",
             "generating": "Working out today's session…", "accept": "Accept", "change": "Change", "decline": "Not this one",
-            "wakeTitle": "Check last night first", "wakeHint": "This usually means the strap hasn't finished syncing yet.",
+            // The unsettled-night card, worded as `UnsettledNightReadout` words it on Apple: the headline is
+            // about the RESULT, and the line underneath carries the reason, which is the one thing the
+            // headline cannot. Both lines travel, because only the Android shell knows whether an offload
+            // is running right now; it picks, it does not phrase.
+            "wakeTitle": "Still being scored",
+            "wakeHint": "If that's not right, today's recovery is off — and so would any plan built on it be.",
+            "wakeFetching": "Data up to %@, still coming in.",
+            "wakeIdle": "Data up to %@. The strap hasn't handed over the rest yet.",
             "confirm": "That's right", "fix": "Fix it",
         ].mapValues(\.localizedCatalogValue)
         var out = MorningSuggestion(on: on, kind: "hidden", labels: labels)
@@ -930,7 +948,9 @@ extension CoreCoach {
         case .confirmWake(let wake):
             out.kind = "confirmWake"
             out.wake = wake
-            out.wakeText = "Your strap recorded you waking at %@. If that's not right, today's recovery is off — and so would any plan built on it be.".localizedCatalogValue
+            // The idle wording, for a shell that does not pass its offload state: saying nothing is coming
+            // in is the safe half, since claiming otherwise is what must never happen.
+            out.wakeText = "Data up to %@. The strap hasn't handed over the rest yet.".localizedCatalogValue
         }
         return out
     }

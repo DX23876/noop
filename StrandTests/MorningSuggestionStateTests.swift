@@ -12,11 +12,29 @@ final class MorningSuggestionStateTests: XCTestCase {
 
     private func resolve(
         morningOn: Bool = true, configured: Bool = true, consent: Bool = true, toolsActive: Bool = true,
-        sending: Bool = false, pending: [PlanProposal] = []
+        sending: Bool = false, pending: [PlanProposal] = [], unsettledWake: Int? = nil
     ) -> MorningSuggestionState {
         MorningSuggestionState.resolve(
             morningOn: morningOn, configured: configured, consent: consent, toolsActive: toolsActive,
-            sending: sending, pending: pending, today: today)
+            sending: sending, pending: pending, today: today, unsettledWake: unsettledWake)
+    }
+
+    // MARK: - The unsettled night, which is not a coach question (2026-11-18)
+
+    /// The fault this fixes: the verdict sat behind every coach gate, so on Android — where this card is
+    /// the state's only home — a wearer without a provider was never told that today's recovery was
+    /// computed on a night the strap had not finished handing over.
+    func testTheUnsettledNightShowsWithoutACoach() {
+        XCTAssertEqual(resolve(morningOn: false, configured: false, consent: false, toolsActive: false,
+                               unsettledWake: 1_763_446_320),
+                       .confirmWake(detectedWake: 1_763_446_320))
+    }
+
+    /// A proposal is advice built on last night's numbers. While those are still moving, saying so comes
+    /// first.
+    func testTheUnsettledNightWinsOverAWaitingProposal() {
+        XCTAssertEqual(resolve(pending: [pending(day: today)], unsettledWake: 42),
+                       .confirmWake(detectedWake: 42))
     }
 
     // MARK: - Hidden gates

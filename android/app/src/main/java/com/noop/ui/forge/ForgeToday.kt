@@ -420,7 +420,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                               onWeight = { more.push(MoreRoute.Dest(MoreDest.Body)) })
                 if (hintCharge) ChargeBreakdownHost(viewModel, onDismiss = { hintCharge = false })
             }
-            if (shown == today) ForgeMorningSuggestion()
+            if (shown == today) ForgeMorningSuggestion(fetching = viewModel.live.collectAsState().value.backfilling)
             // iOS's layout choices: the timeline can be hidden, and the tiles can follow it instead of the rings.
             TodayWidgets.loadLayout(context)
             val showsTimeline by TodayWidgets.showsTimeline.collectAsState()
@@ -452,7 +452,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                             onCoach = if (coachOn) ({ more.push(MoreRoute.Dest(MoreDest.Coach)) }) else null,
                             onArrange = { arranging = style }, onPickDay = { dayPicker = true })
             if (shown == today) ForgeActivityPrompt()
-            if (shown == today) ForgeMorningSuggestion()
+            if (shown == today) ForgeMorningSuggestion(fetching = viewModel.live.collectAsState().value.backfilling)
             ForgeStyledDashboard(style, layoutRevision, shown, model?.day, viewModel,
                 onSection = { drawSection(it) },
                 onHealth = { more.push(MoreRoute.Dest(MoreDest.Health)) },
@@ -466,7 +466,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
         // Pinned above the arranged sections, as on iOS (`MorningSuggestionCard` before the `ForEach`); activity
         // detection's prompt first, so a suggestion waiting for an answer cannot be arranged below the fold.
         if (shown == today) ForgeActivityPrompt()
-        if (shown == today) ForgeMorningSuggestion()
+        if (shown == today) ForgeMorningSuggestion(fetching = viewModel.live.collectAsState().value.backfilling)
         // Every drawn section in the saved order (`TodayLayoutDefaults`); a hidden one keeps its stored place.
         sections.forEach { drawSection(it) }
         }

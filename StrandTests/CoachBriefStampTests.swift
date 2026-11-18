@@ -120,22 +120,30 @@ final class CoachBriefStampTests: XCTestCase {
             .confirmWake(detectedWake: wake))
     }
 
-    /// A proposal already waiting on the user is the more useful thing to show, so it still wins.
-    func testAWaitingProposalOutranksTheConfirmation() {
+    /// Reversed on 2026-11-18, by decision: the unsettled night is answered FIRST.
+    ///
+    /// It read as politeness to let a waiting proposal win. It is not: a proposal is advice built on last
+    /// night's numbers, and while those are still moving, handing them over without a word is the thing
+    /// worth avoiding. The proposal is one tap away under it either way.
+    func testTheUnsettledNightOutranksAWaitingProposal() {
         let p = PlanProposal(day: today, sport: "Ride", intent: .easy)
         XCTAssertEqual(
             MorningSuggestionState.resolve(morningOn: true, configured: true, consent: true,
                                            toolsActive: true, sending: false, pending: [p], today: today,
                                            unsettledWake: 1_700_000_000),
-            .waiting(p))
+            .confirmWake(detectedWake: 1_700_000_000))
     }
 
-    /// Someone who never opted into the proactive brief should not be handed a chore about it either.
-    func testNoConfirmationWithoutTheMorningOptIn() {
+    /// Also reversed on 2026-11-18. "Do not hand someone a chore they never asked for" was the right
+    /// instinct aimed at the wrong thing: whether the strap has finished handing last night over is not a
+    /// coach feature, and gating it behind the morning opt-in — and behind the provider, the consent and
+    /// tool calling — hid it from everyone who runs NOOP without a coach at all. On Android this card is
+    /// the state's only home, so there it was hidden outright.
+    func testTheUnsettledNightShowsWithoutTheMorningOptIn() {
         XCTAssertEqual(
-            MorningSuggestionState.resolve(morningOn: false, configured: true, consent: true,
-                                           toolsActive: true, sending: false, pending: [], today: today,
+            MorningSuggestionState.resolve(morningOn: false, configured: false, consent: false,
+                                           toolsActive: false, sending: false, pending: [], today: today,
                                            unsettledWake: 1_700_000_000),
-            .hidden)
+            .confirmWake(detectedWake: 1_700_000_000))
     }
 }

@@ -53,11 +53,22 @@ import java.util.Date
  * Which card shows is the shared `MorningSuggestionState`, read through `coach.morning`. Opening Today runs the day's
  * brief once when the wearer switched the suggestion on, as iOS does; while it runs the card reads the coach again
  * every second and a half so the spinner gives way to the proposal. No dismiss control: Not this one is the dismiss.
+ *
+ * One of its states is not the coach's at all: a night the strap has not finished handing over. That one shows
+ * whether or not a provider is set up (2026-11-18).
+ *
+ * @param fetching whether an offload is running right now (`LiveState.backfilling`). The core hands over both
+ *   wordings for the unsettled-night card and this picks one: only the shell knows whether anything is coming
+ *   in, and a line that claims it while the strap lies in the next room is the one thing that must not happen.
  */
 @Composable
-internal fun ForgeMorningSuggestion() {
+internal fun ForgeMorningSuggestion(fetching: Boolean = false) {
     val context = LocalContext.current
-    if (!NoopPrefs.coachEnabled(context)) return
+    // Not an early return any more (2026-11-18). One of this card's states is not about the coach at all:
+    // a night the strap has not finished handing over. Behind the coach switch it reached nobody who runs
+    // NOOP without a provider, and they were the ones left with a recovery computed on a truncated night
+    // and no way to learn it. The coach's own states are still gated, below.
+    val coachOn = NoopPrefs.coachEnabled(context)
     val scale = remember { UnitPrefs.effortScale(context).raw }
     val scope = rememberCoroutineScope()
     val selectTab = LocalForgeTabSelect.current
@@ -80,10 +91,12 @@ internal fun ForgeMorningSuggestion() {
     LaunchedEffect(resumes) {
         withContext(Dispatchers.IO) { CoreRead.open(context); CoreCoach.configureFromStores(context) }
         refresh()
-        if (card?.on == true) refresh(generate = true)
+        if (coachOn && card?.on == true) refresh(generate = true)
     }
 
     val c = card ?: return
+    // With the coach off, only the unsettled night speaks; the suggestion itself stays the coach's.
+    if (!coachOn && c.kind != "confirmWake") return
     val colors = Forge.colors
     when (c.kind) {
         "generating" -> ForgeCard(Modifier.fillMaxWidth()) {
@@ -118,7 +131,8 @@ internal fun ForgeMorningSuggestion() {
                     Text(c.labels["wakeTitle"].orEmpty(), style = Forge.type.subhead, color = colors.text)
                 }
                 val time = c.wake?.let { DateFormat.getTimeInstance(DateFormat.SHORT).format(Date(it * 1000)) }.orEmpty()
-                Text(c.wakeText.orEmpty().replace("%@", time), style = Forge.type.body, color = colors.text)
+                val line = (if (fetching) c.labels["wakeFetching"] else c.labels["wakeIdle"]) ?: c.wakeText
+                Text(line.orEmpty().replace("%@", time), style = Forge.type.body, color = colors.text)
                 Text(c.labels["wakeHint"].orEmpty(), style = Forge.type.footnote, color = colors.textSecondary)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     MorningAction(Icons.Rounded.Check, c.labels["confirm"].orEmpty(), prominent = true) {

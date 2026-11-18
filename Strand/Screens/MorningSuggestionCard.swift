@@ -205,7 +205,13 @@ struct MorningSuggestionCard: View {
     }
 
     private func maybeGenerate() async {
-        guard morningOn, coach.isConfigured, coach.dataConsent, !coach.sending else { return }
+        guard morningOn, coach.isConfigured, coach.dataConsent, !coach.sending else {
+            // No brief to write here, but the night still has to be asked about: whether the strap has
+            // finished handing it over is not a coach question, and reading it only inside this guard is
+            // what kept the card silent for anyone without a provider (2026-11-18).
+            unsettledWake = await coach.unconfirmedWakeNeedingReview()
+            return
+        }
         await coach.startBriefIfNeeded()
         // Ask AFTER the attempt: `startBriefIfNeeded` is the one that decides a night is unsettled, and
         // this reads the same verdict so the card and the gate cannot disagree about why nothing came.

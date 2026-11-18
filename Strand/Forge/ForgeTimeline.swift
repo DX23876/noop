@@ -111,7 +111,17 @@ enum ForgeTimeline {
     /// already admitted by `TimelineFeed.admit` and placed at the moment it first appeared.
     struct Notice: Equatable {
         enum Tone: String { case positive, neutral, caution, critical }
-        enum Action: Equatable { case none, charge, plan, goals, sleep, confirmWake }
+        enum Action: Equatable {
+            case none, charge, plan, goals, sleep, confirmWake
+
+            /// Whether running this action CHANGES something rather than opening a screen.
+            ///
+            /// Only a labelled control may carry one. Today's hint card learned that the hard way: it
+            /// shows a notice's headline and line but not its answers, and a tap on the card body ran the
+            /// first action — so tapping "Still being scored" vouched for the detected wake time, which
+            /// the card never said and the wearer never meant (2026-11-18).
+            var commits: Bool { self == .confirmWake }
+        }
         let key: String
         let date: Date
         let topic: String
