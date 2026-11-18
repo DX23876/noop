@@ -2557,7 +2557,7 @@
     <string name="today_driver_value_bpm">%1$d bpm</string>
     <string name="today_driver_value_percent">%1$d%%</string>
     <string name="today_driver_value_br_min">%1$s resp/min</string>
-    <string name="today_driver_value_temp_deviation">%1$s C rispetto alla linea di base</string>
+    <string name="today_driver_value_temp_deviation">%1$s rispetto alla linea di base</string>
     <string name="today_driver_baseline_ms">Linea di base %1$d ms</string>
     <string name="today_driver_baseline_bpm">Linea di base %1$d bpm</string>
     <string name="today_driver_baseline_br_min">Linea di base %1$s resp/min</string>
@@ -4851,7 +4851,7 @@
     <string name="forge_cb_pt">%1$d pt</string>
     <string name="forge_cb_zero">0 pt</string>
     <string name="forge_cb_skin">Temperatura della pelle</string>
-    <string name="forge_cb_vs_normal">%1$s%2$s C rispetto al tuo normale</string>
+    <string name="forge_cb_vs_normal">%1$s rispetto al tuo valore normale</string>
     <string name="forge_cb_warmer">Più calda della tua linea di base</string>
     <string name="forge_cb_cooler">Più fredda della tua linea di base</string>
     <string name="forge_cb_typical">Tipico per te</string>

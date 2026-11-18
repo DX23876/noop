@@ -1,6 +1,7 @@
 package com.noop.ui
 
 import android.content.Context
+import com.noop.analytics.SkinTempDisplay
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -376,6 +377,26 @@ object UnitFormatter {
         TemperatureUnit.CELSIUS -> decimalString(dc, decimals) + " °C"
         TemperatureUnit.FAHRENHEIT -> decimalString(dc * 9.0 / 5.0, decimals) + " °F"
     }
+
+    /**
+     * The skin-temperature deviation for a line that already names what it is measured against
+     * ("+0.3 °C vs baseline", "-0.5 °F vs your normal"): SIGNED, in the wearer's unit, with the plain
+     * degree symbol. Twin of Swift `ChargeBreakdownFormat.skinTempDeviationFigure`.
+     *
+     * The one resolver for every Charge surface. The Forge breakdown and the classic Today driver row
+     * each built this string themselves, and both printed the engine's Celsius figure with a bare "C"
+     * whatever unit the wearer had chosen, so a Fahrenheit reader was shown Celsius and told it was
+     * something else. Apple fixed the same thing with `displayDriver` (#622); this is that fix here.
+     *
+     * Not [temperatureDeltaFromCelsius], which is unsigned, and not [SkinTempDisplay.unitSymbol], whose
+     * "Δ°C" would say "deviation" a second time beside a sentence that already says it. The sign comes
+     * from [SkinTempDisplay.numberString], so a value that rounds to zero drops it (#1842), exactly as
+     * on every other skin-temp surface in the app.
+     */
+    fun skinTempDeviation(deviationC: Double, unit: TemperatureUnit): String =
+        SkinTempDisplay.numberString(deviationC, SkinTempDisplay.Kind.DEVIATION,
+                                     fahrenheit = unit == TemperatureUnit.FAHRENHEIT, decimals = 1) +
+            " " + temperatureUnit(unit)
 
     /** Temperature unit label only. "°C" / "°F". */
     fun temperatureUnit(unit: TemperatureUnit): String =

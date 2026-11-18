@@ -36,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -51,6 +52,8 @@ import com.noop.analytics.ChargeDriverVerdict
 import com.noop.analytics.RecoveryDrivers
 import com.noop.analytics.ScoreConfidence
 import com.noop.ui.AppViewModel
+import com.noop.ui.UnitFormatter
+import com.noop.ui.UnitPrefs
 import com.noop.ui.chargeConfidenceTier
 import com.noop.ui.recoveryChargeDrivers
 import java.util.Locale
@@ -222,7 +225,11 @@ private fun SkinTempDeviationRow(deviationC: Double) {
         deviationC < -band -> R.string.forge_cb_cooler
         else -> R.string.forge_cb_typical
     })
-    val text = stringResource(R.string.forge_cb_vs_normal, if (deviationC >= 0) "+" else "", String.format(Locale.getDefault(), "%.1f", deviationC))
+    // The figure carries its own sign and unit, in the unit the wearer chose (`UnitFormatter.skinTempDeviation`).
+    // It used to be built here as a bare Celsius number with a "C" in the string, which showed a Fahrenheit
+    // reader a Celsius figure and labelled it Celsius.
+    val text = stringResource(R.string.forge_cb_vs_normal,
+                              UnitFormatter.skinTempDeviation(deviationC, UnitPrefs.temperature(LocalContext.current)))
     Row(Modifier.padding(top = ForgeMetrics.space1), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Icon(Icons.Rounded.Thermostat, contentDescription = null, tint = amber, modifier = Modifier.size(14.dp))
@@ -253,8 +260,9 @@ internal fun driverValue(d: ChargeDriver): String = when (d.unit) {
     ChargeDriverUnit.PERCENT -> stringResource(R.string.today_driver_value_percent, d.value.roundToInt())
     ChargeDriverUnit.BREATHS_PER_MINUTE -> stringResource(R.string.today_driver_value_br_min,
         String.format(Locale.getDefault(), "%.1f", RecoveryDrivers.displayRounded(d.value, 1)))
+    // Same resolver as the skin-temp row above: signed, in the wearer's unit, never a bare "C".
     ChargeDriverUnit.CELSIUS_DEVIATION -> stringResource(R.string.today_driver_value_temp_deviation,
-        String.format(Locale.getDefault(), "%+.1f", d.value))
+        UnitFormatter.skinTempDeviation(d.value, UnitPrefs.temperature(LocalContext.current)))
 }
 
 @Composable

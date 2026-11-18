@@ -126,6 +126,26 @@ class UnitFormatterTest {
         assertEquals("0.6 °C", UnitFormatter.temperatureDeltaFromCelsius(0.6, TemperatureUnit.CELSIUS))
     }
 
+    @Test
+    fun skinTempDeviationCarriesSignAndTheChosenUnit() {
+        // The Charge breakdown used to print the engine's Celsius figure under a fixed "C", so a
+        // Fahrenheit reader was shown Celsius and told it was something else.
+        assertEquals("+0.3 °C", UnitFormatter.skinTempDeviation(0.3, TemperatureUnit.CELSIUS))
+        // A deviation scales by 9/5 with no offset: +0.3 °C is +0.54 °F → "+0.5 °F".
+        assertEquals("+0.5 °F", UnitFormatter.skinTempDeviation(0.3, TemperatureUnit.FAHRENHEIT))
+        assertEquals("-0.7 °C", UnitFormatter.skinTempDeviation(-0.7, TemperatureUnit.CELSIUS))
+        assertEquals("-1.3 °F", UnitFormatter.skinTempDeviation(-0.7, TemperatureUnit.FAHRENHEIT))
+    }
+
+    @Test
+    fun skinTempDeviationDropsTheSignAtZero() {
+        // #1842: "-0.0 °C" beside "vs baseline" reads as a fault rather than as "no change".
+        assertEquals("0.0 °C", UnitFormatter.skinTempDeviation(0.0, TemperatureUnit.CELSIUS))
+        assertEquals("0.0 °C", UnitFormatter.skinTempDeviation(-0.02, TemperatureUnit.CELSIUS))
+        // A real -0.1 keeps its sign.
+        assertEquals("-0.1 °C", UnitFormatter.skinTempDeviation(-0.1, TemperatureUnit.CELSIUS))
+    }
+
     // --- Preference resolution ---
 
     @Test

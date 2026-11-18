@@ -2406,7 +2406,7 @@
     <string name="today_driver_value_bpm">%1$d 次/分</string>
     <string name="today_driver_value_percent">%1$d%%</string>
     <string name="today_driver_value_br_min">%1$s 次呼吸/分</string>
-    <string name="today_driver_value_temp_deviation">相对基线 %1$s°C</string>
+    <string name="today_driver_value_temp_deviation">相对基线 %1$s</string>
     <string name="today_driver_baseline_ms">基线 %1$d 毫秒</string>
     <string name="today_driver_baseline_bpm">基线 %1$d 次/分</string>
     <string name="today_driver_baseline_br_min">基线 %1$s 次呼吸/分</string>
@@ -4853,7 +4853,7 @@
     <string name="forge_cb_pt">%1$d 分</string>
     <string name="forge_cb_zero">0 分</string>
     <string name="forge_cb_skin">皮肤温度</string>
-    <string name="forge_cb_vs_normal">%1$s%2$s C，相较你的正常水平</string>
+    <string name="forge_cb_vs_normal">%1$s，相较你的正常水平</string>
     <string name="forge_cb_warmer">高于你的基线温度</string>
     <string name="forge_cb_cooler">低于你的基线温度</string>
     <string name="forge_cb_typical">对你而言正常</string>

@@ -5053,9 +5053,12 @@ private fun DriverRow(driver: ChargeDriver) {
             R.string.today_driver_value_br_min,
             String.format(Locale.getDefault(), "%.1f", RecoveryDrivers.displayRounded(driver.value, 1)),
         )
+        // The figure carries its own sign and unit (`UnitFormatter.skinTempDeviation`), the same resolver
+        // the Forge breakdown uses. Built here as a bare Celsius number, it showed a Fahrenheit reader a
+        // Celsius figure under a "C".
         ChargeDriverUnit.CELSIUS_DEVIATION -> uiString(
             R.string.today_driver_value_temp_deviation,
-            String.format(Locale.getDefault(), "%+.1f", driver.value),
+            UnitFormatter.skinTempDeviation(driver.value, UnitPrefs.temperature(LocalContext.current)),
         )
     }
     val baselineText = driver.baseline?.let { baseline -> when (driver.unit) {

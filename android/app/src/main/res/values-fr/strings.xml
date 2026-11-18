@@ -2491,7 +2491,7 @@
     <string name="today_driver_value_bpm">%1$d bpm</string>
     <string name="today_driver_value_percent">%1$d%%</string>
     <string name="today_driver_value_br_min">%1$s resp./min</string>
-    <string name="today_driver_value_temp_deviation">%1$s °C par rapport à la référence</string>
+    <string name="today_driver_value_temp_deviation">%1$s par rapport à la référence</string>
     <string name="today_driver_baseline_ms">référence %1$d ms</string>
     <string name="today_driver_baseline_bpm">référence %1$d bpm</string>
     <string name="today_driver_baseline_br_min">référence %1$s resp./min</string>
@@ -4882,7 +4882,7 @@
     <string name="forge_cb_pt">%1$d pt</string>
     <string name="forge_cb_zero">0 pt</string>
     <string name="forge_cb_skin">Température cutanée</string>
-    <string name="forge_cb_vs_normal">%1$s%2$s C vs votre normale</string>
+    <string name="forge_cb_vs_normal">%1$s par rapport à votre normale</string>
     <string name="forge_cb_warmer">Plus chaud que votre référence</string>
     <string name="forge_cb_cooler">Plus frais que votre référence</string>
     <string name="forge_cb_typical">Typique pour vous</string>

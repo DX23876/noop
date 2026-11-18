@@ -2419,7 +2419,7 @@
     <string name="today_driver_value_ms">%1$d мс</string>
     <string name="today_driver_value_bpm">%1$d уд/мин</string>
     <string name="today_driver_value_br_min">%1$s вд/мин</string>
-    <string name="today_driver_value_temp_deviation">%1$s °C относительно нормы</string>
+    <string name="today_driver_value_temp_deviation">%1$s относительно нормы</string>
     <string name="today_driver_baseline_ms">норма %1$d мс</string>
     <string name="today_driver_baseline_bpm">норма %1$d уд/мин</string>
     <string name="today_driver_baseline_br_min">норма %1$s вд/мин</string>
@@ -4778,7 +4778,7 @@
     <string name="forge_cb_pt">%1$d балл</string>
     <string name="forge_cb_zero">0 баллов</string>
     <string name="forge_cb_skin">Температура кожи</string>
-    <string name="forge_cb_vs_normal">%1$s%2$s °C от вашей нормы</string>
+    <string name="forge_cb_vs_normal">%1$s от вашей нормы</string>
     <string name="forge_cb_warmer">Теплее вашей нормы</string>
     <string name="forge_cb_cooler">Холоднее вашей нормы</string>
     <string name="forge_cb_typical">Типично для вас</string>
