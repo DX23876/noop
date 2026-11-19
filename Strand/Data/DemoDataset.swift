@@ -1,4 +1,5 @@
 import Foundation
+import StrandTraining
 import WhoopStore
 
 /// A complete, self-contained demo account, written once into the store so every screen and every tile has
@@ -58,6 +59,13 @@ public enum DemoDataset {
         _ = try await store.upsertAppleDaily(plan.apple, deviceId: appleId)
         if !plan.whoopWorkouts.isEmpty { _ = try await store.upsertWorkouts(plan.whoopWorkouts, deviceId: deviceId) }
         if !plan.appleWorkouts.isEmpty { _ = try await store.upsertWorkouts(plan.appleWorkouts, deviceId: appleId) }
+        if !plan.cycle.isEmpty { _ = try await store.upsertMetricSeries(plan.cycle, deviceId: CycleTrackingStore.sourceId) }
+        // The plan last: its week references its routines, and `upsertTrainingPlan` is the call that
+        // writes them in that order. A demo store has none of its own, so nothing is being replaced.
+        if ((try? await store.trainingPrograms()) ?? []).isEmpty {
+            let p = program(today: today)
+            try await store.upsertTrainingPlan(p.program, routines: p.routines)
+        }
     }
 
     /// Everything the seed writes, built without touching a store, so a test can read the figures.
@@ -75,6 +83,87 @@ public enum DemoDataset {
         public let apple: [AppleDaily]
         public let whoopWorkouts: [WorkoutRow]
         public let appleWorkouts: [WorkoutRow]
+        /// What the wearer noted about their cycle, under its own isolated source
+        /// (`CycleTrackingStore`): period starts, the flow of the first days, and a few symptoms and
+        /// moods. Awareness only, as the cycle page is; none of it reaches a score.
+        ///
+        /// Seeded whatever the demo person's cycle looks like, because the card appears to anybody who has
+        /// logged a start (`!starts.isEmpty`), and a page nobody can reach in the demo is a page nobody
+        /// checks. The physiology is NOT shaped to a cycle here: that is what `--demo-cycle` does on the
+        /// Apple side, where the whole dataset is rebuilt around one.
+        public let cycle: [MetricPoint]
+    }
+
+    /// The demo's training plan with its two routines, so Training has a week and Today has a session to
+    /// name. Written through `upsertTrainingPlan`, which writes the routines before the week that
+    /// references them.
+    ///
+    /// The exercises are the shipped catalogue's own ids. `DemoDatasetTests` holds every one of them
+    /// against that catalogue, so a catalogue change cannot leave the demo plan pointing at nothing — the
+    /// plan would still write, and its days would simply be blank.
+    /// The demo's long-term goals, so the goals page, the Today goal card and the coach's goal reads have
+    /// something true to stand on.
+    ///
+    /// Three, all measurable from what this dataset already wrote, and all template-free kinds: a weight
+    /// goal whose baseline IS the dataset's last weigh-in, four sessions a week, and seven and a half
+    /// hours of sleep. A goal whose baseline disagreed with the history behind it would make every
+    /// progress reading in the app wrong at once, which is the opposite of what a demo account is for.
+    static func goals(today: Date = Date()) -> [CoachGoal] {
+        let weight = build(today: today).weights.last?.weightKg ?? 79.5
+        let created = today.addingTimeInterval(-42 * 86_400)
+        return [
+            CoachGoal(id: UUID(uuidString: "D0000000-0000-4000-B000-000000000001")!, kind: .weight,
+                      title: "Down to \(Int((weight - 4).rounded())) kg", baseline: weight,
+                      target: (weight - 4).rounded(), targetDate: today.addingTimeInterval(84 * 86_400),
+                      motivation: "Lighter on the hills.", createdAt: created),
+            CoachGoal(id: UUID(uuidString: "D0000000-0000-4000-B000-000000000002")!, kind: .consistency,
+                      title: "Train four times a week", baseline: 3, target: 4,
+                      targetDate: today.addingTimeInterval(56 * 86_400),
+                      motivation: "Keep the habit through the winter.", createdAt: created),
+            CoachGoal(id: UUID(uuidString: "D0000000-0000-4000-B000-000000000003")!, kind: .sleep,
+                      title: "Seven and a half hours a night", baseline: 7.1, target: 7.5,
+                      targetDate: today.addingTimeInterval(70 * 86_400), createdAt: created),
+        ]
+    }
+
+    /// Writes those goals through the one goal store both platforms read, unless the wearer has goals of
+    /// their own. Apple calls it on the demo launch; the Android core calls it inside the host that holds
+    /// the persisted goal image, which is the only place on that phone where this store is the real one.
+    @MainActor
+    @discardableResult
+    public static func seedGoalsIfEmpty(today: Date = Date()) -> Bool {
+        guard CoachGoalStore.shared.goals.isEmpty else { return false }
+        CoachGoalStore.shared.goals = goals(today: today)
+        return true
+    }
+
+    public static func program(today: Date = Date()) -> (program: TrainingProgram, routines: [TrainingRoutine]) {
+        func sets(_ count: Int, _ low: Int, _ high: Int, kg: Double) -> [RoutineSetPlan] {
+            (0..<count).map { _ in RoutineSetPlan(targetWeightKg: kg, repsMin: low, repsMax: high) }
+        }
+        let push = TrainingRoutine(
+            id: UUID(uuidString: "D0000000-0000-4000-A000-000000000001")!, title: "Push",
+            exercises: [
+                RoutineExercise(exerciseId: "exdb:0025", sets: sets(4, 5, 8, kg: 72.5), restSeconds: 180),
+                RoutineExercise(exerciseId: "exdb:0091", sets: sets(3, 8, 10, kg: 42.5), restSeconds: 150),
+                RoutineExercise(exerciseId: "exdb:0334", sets: sets(3, 12, 15, kg: 12), restSeconds: 90),
+                RoutineExercise(exerciseId: "exdb:0201", sets: sets(3, 10, 12, kg: 30), restSeconds: 90),
+            ])
+        let pull = TrainingRoutine(
+            id: UUID(uuidString: "D0000000-0000-4000-A000-000000000002")!, title: "Pull and legs",
+            exercises: [
+                RoutineExercise(exerciseId: "exdb:0043", sets: sets(4, 5, 8, kg: 95), restSeconds: 210),
+                RoutineExercise(exerciseId: "exdb:0085", sets: sets(3, 6, 8, kg: 85), restSeconds: 180),
+                RoutineExercise(exerciseId: "exdb:0027", sets: sets(3, 8, 10, kg: 60), restSeconds: 150),
+                RoutineExercise(exerciseId: "exdb:0017", sets: sets(3, 6, 10, kg: 0), restSeconds: 120),
+            ])
+        let program = TrainingProgram(
+            id: UUID(uuidString: "D0000000-0000-4000-A000-00000000000F")!, title: "Upper and lower, twice a week",
+            kind: .strength, notes: "The demo account's plan.",
+            schedule: [.monday: [push.id], .tuesday: [pull.id], .thursday: [push.id], .friday: [pull.id]],
+            isActive: true, createdAt: Int(today.timeIntervalSince1970) - 60 * 86_400,
+            updatedAt: Int(today.timeIntervalSince1970) - 7 * 86_400)
+        return (program, [push, pull])
     }
 
     /// The demo wearer's own facts, which live in the profile rather than in the store.
@@ -104,6 +193,7 @@ public enum DemoDataset {
     public static func build(today: Date = Date()) -> Plan {
         var rng = Generator(seed: 0xC0FFEE)
         var daily: [DailyMetric] = [], sleeps: [CachedSleepSession] = [], weights: [BodyWeightRow] = []
+        var cycle: [MetricPoint] = []
         var series: [MetricPoint] = [], computed: [MetricPoint] = [], hydration: [MetricPoint] = []
         var apple: [AppleDaily] = [], whoopWorkouts: [WorkoutRow] = [], appleWorkouts: [WorkoutRow] = []
 
@@ -254,8 +344,38 @@ public enum DemoDataset {
             }
         }
 
+        // The cycle log: a 28-day cycle with today on day 12, so the page has a start behind it and a next
+        // one ahead of it. Flow on the first four days of every cycle, and symptoms and moods on the most
+        // recent one only, which is how a log actually reads: the near past is noted, the far past is not.
+        for i in 0..<days {
+            let date = start.addingTimeInterval(Double(i) * 86_400)
+            let cycleDay = ((11 + i - (days - 1)) % 28 + 28) % 28 + 1
+            let day = dayKey(date)
+            if cycleDay == 1 {
+                cycle.append(MetricPoint(day: day, key: CycleTrackingStore.periodStartKey,
+                                         value: CycleTrackingStore.loggedValue))
+            }
+            if cycleDay <= 4 {
+                cycle.append(MetricPoint(day: day, key: CycleLog.flowKey, value: Double([3, 4, 3, 2][cycleDay - 1])))
+            }
+            guard i > days - 29 else { continue }
+            if cycleDay <= 3 {
+                for id in ["cramps", "tired"] {
+                    cycle.append(MetricPoint(day: day, key: CycleLog.symptomPrefix + id, value: 1))
+                }
+                cycle.append(MetricPoint(day: day, key: CycleLog.moodPrefix + "low", value: 1))
+            } else if cycleDay == 13 {
+                cycle.append(MetricPoint(day: day, key: CycleLog.ovulationTestKey, value: 1))
+                cycle.append(MetricPoint(day: day, key: CycleLog.moodPrefix + "happy", value: 1))
+            } else if cycleDay >= 25 {
+                cycle.append(MetricPoint(day: day, key: CycleLog.symptomPrefix + "bloating", value: 1))
+                cycle.append(MetricPoint(day: day, key: CycleLog.moodPrefix + "irritable", value: 1))
+            }
+        }
+
         return Plan(daily: daily, weights: weights, sleeps: sleeps, series: series, computedSeries: computed,
-                    hydration: hydration, apple: apple, whoopWorkouts: whoopWorkouts, appleWorkouts: appleWorkouts)
+                    hydration: hydration, apple: apple, whoopWorkouts: whoopWorkouts, appleWorkouts: appleWorkouts,
+                    cycle: cycle)
     }
 
     // MARK: - Shaping

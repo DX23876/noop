@@ -388,6 +388,8 @@ final class AppModel: ObservableObject {
         // asks the profile for a weight, and only onto a profile nobody has filled in.
         if CommandLine.arguments.contains("--demo-data") || CommandLine.arguments.contains("--demo-seed") {
             DemoPerson.applyIfUnset(to: profile)
+            // The same three goals the Android core writes, from the same shared list.
+            DemoDataset.seedGoalsIfEmpty()
         }
         #endif
         self.coach = AICoachEngine(repo: repo)

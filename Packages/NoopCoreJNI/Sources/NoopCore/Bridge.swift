@@ -130,6 +130,9 @@ public enum Bridge {
             }
             // A week of meals for the Food page, as the Apple demo has.
             await FoodDemoSeed.seedIfEmpty(store: reader.store)
+            // And the demo's goals, inside the host that holds the persisted goal image: on this phone
+            // that host is the only place where the shared goal store is the real one.
+            await CoreGoalHost.with(reader.store) { DemoDataset.seedGoalsIfEmpty() }
             done.signal()
         }
         done.wait()

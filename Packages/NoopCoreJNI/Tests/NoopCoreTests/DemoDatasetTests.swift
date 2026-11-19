@@ -1,5 +1,6 @@
 import XCTest
 @testable import NoopCore
+import StrandTraining
 
 /// The demo account both phones seed (`DemoDataset`). What is tested is what a comparison depends on:
 /// that it is the same account every time and on every platform, and that nothing it writes is empty.
@@ -110,5 +111,49 @@ final class DemoDatasetTests: XCTestCase {
     /// And the whole person is the same person every time, so both phones write one body.
     func testThePersonIsDeterministic() {
         XCTAssertEqual(DemoDataset.person(today: day), DemoDataset.person(today: day))
+    }
+
+    /// The cycle log: a start behind today and one ahead, with flow on the first days, so the cycle page
+    /// and its Today card both have something to read.
+    func testTheCycleLogHasStartsAroundToday() {
+        let plan = DemoDataset.build(today: day)
+        let starts = plan.cycle.filter { $0.key == CycleTrackingStore.periodStartKey }.map(\.day).sorted()
+        XCTAssertGreaterThanOrEqual(starts.count, 4, "a 28-day cycle over 120 days")
+        let today = DemoDataset.dayKey(day)
+        XCTAssertNotNil(starts.last { $0 < today }, "a start behind today, so there is a cycle day to be on")
+        let flow = plan.cycle.filter { $0.key == CycleLog.flowKey }
+        XCTAssertEqual(flow.count, starts.count * 4, "four flow days per start")
+        XCTAssertTrue(flow.allSatisfy { (1...4).contains(Int($0.value)) }, "flow is one of its four levels")
+        XCTAssertTrue(plan.cycle.contains { $0.key == CycleLog.ovulationTestKey })
+        XCTAssertTrue(plan.cycle.contains { $0.key.hasPrefix(CycleLog.symptomPrefix) })
+        XCTAssertTrue(plan.cycle.contains { $0.key.hasPrefix(CycleLog.moodPrefix) })
+    }
+
+    /// Every exercise the demo plan names must exist in the shipped catalogue. Without this the plan would
+    /// still write and its days would simply be blank, which reads as a broken screen rather than a demo.
+    func testTheDemoPlansExercisesAreInTheShippedCatalogue() throws {
+        let catalogue = Set(BundledExerciseCatalog.archive.exercises.map(\.id))
+        XCTAssertFalse(catalogue.isEmpty, "the catalogue is shipped with the package")
+        let p = DemoDataset.program(today: day)
+        let named = p.routines.flatMap { $0.exercises.map(\.exerciseId) }
+        XCTAssertEqual(named.count, 8)
+        for id in named {
+            XCTAssertTrue(catalogue.contains(id), "\(id) is not in the shipped exercise catalogue")
+        }
+        XCTAssertTrue(p.program.isActive, "the demo plan is the one being followed")
+        XCTAssertEqual(Set(p.program.schedule.values.flatMap { $0 }), Set(p.routines.map(\.id)),
+                       "the week references exactly the routines the plan carries")
+    }
+
+    /// The goals stand on the history this dataset wrote: the weight goal's baseline IS the last weigh-in.
+    func testTheGoalsBaselineIsTheDatasetsOwnHistory() throws {
+        let plan = DemoDataset.build(today: day)
+        let goals = DemoDataset.goals(today: day)
+        XCTAssertEqual(goals.count, 3)
+        let weight = try XCTUnwrap(goals.first { $0.kind == .weight })
+        XCTAssertEqual(weight.baseline, plan.weights.last?.weightKg)
+        XCTAssertLessThan(try XCTUnwrap(weight.target), try XCTUnwrap(weight.baseline))
+        XCTAssertTrue(goals.allSatisfy { $0.targetDate ?? day > day }, "every goal is still ahead")
+        XCTAssertTrue(goals.allSatisfy { $0.status == .active })
     }
 }
