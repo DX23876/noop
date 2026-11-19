@@ -229,6 +229,13 @@ internal fun rememberKeyTiles(model: TodayModel?, metrics: Collection<KeyMetric>
             }.toMap()
         }
     }
+    // The wrist temperature's own latest, since it is not a Key Metric of its own: it shares the skin
+    // tile with the deviation and only decides which of the two that tile leads with.
+    val latestSkinAbs by produceState<Double?>(null, date, latestFallback, coreRevision) {
+        value = if (!latestFallback) null else withContext(Dispatchers.IO) {
+            CoreRead.series(CoreRead.Metric.SkinTempAbs, date.minusDays(60).toString(), date.toString()).lastOrNull()?.value
+        }
+    }
     // No row for the day yet (the small hours, a morning before the sync): an empty one the latest values fill.
     val dayRow = model?.day ?: if (latestFallback) CoreRead.Day(date.toString(), null, null, null, null, null, null, null,
                                                               null, null, null, null, null, null, null) else null
@@ -238,11 +245,13 @@ internal fun rememberKeyTiles(model: TodayModel?, metrics: Collection<KeyMetric>
         restingHr = dayRow.restingHr ?: latest[KeyMetric.RESTING_HR]?.roundToInt(),
         spo2 = dayRow.spo2 ?: latest[KeyMetric.BLOOD_OXYGEN], respRate = dayRow.respRate ?: latest[KeyMetric.RESPIRATORY],
         steps = dayRow.steps ?: latest[KeyMetric.STEPS]?.roundToInt(), skinTempDev = dayRow.skinTempDev ?: latest[KeyMetric.SKIN_TEMP],
+        skinTempAbs = dayRow.skinTempAbs ?: latestSkinAbs,
     )
     val base = model?.baselines.orEmpty()
     val effortFormat = rememberEffortFormat()
     val units = remember { UnitPrefs.system(context) }
     val fahrenheit = remember { UnitPrefs.temperature(context) == TemperatureUnit.FAHRENHEIT }
+    val skinTempPreferred = remember { UnitPrefs.skinTempPreferred(context) }   // #1846
     val whole = remember { java.text.NumberFormat.getIntegerInstance(Locale.getDefault()) }
     val tiles: Map<KeyMetric, KeyTile> = KeyMetric.entries.associateWith { metric ->
         when (metric) {
@@ -263,10 +272,15 @@ internal fun rememberKeyTiles(model: TodayModel?, metrics: Collection<KeyMetric>
             KeyMetric.WEIGHT -> KeyTile(weightKg?.let { "%.1f".format(if (units == UnitSystem.IMPERIAL) UnitFormatter.kgToPounds(it) else it) },
                                         UnitFormatter.massUnit(units))
             KeyMetric.CALORIES -> KeyTile(energyTotal?.let { whole.format(kotlin.math.round(it).toLong()) }, "kcal", opensEnergy = true)
-            // The core keeps the night's deviation only, so the tile reads "+0.1 Δ°C" as the Apple tile does then.
-            KeyMetric.SKIN_TEMP -> KeyTile(day?.skinTempDev?.let {
-                SkinTempDisplay.formatReading(SkinTempDisplay.Reading(it, SkinTempDisplay.Kind.DEVIATION), fahrenheit)
-            }, null)
+            // The wrist temperature where the night measured one, the ±baseline move where it did not, and
+            // the wearer's own choice of which to try first (`SkinTempDisplay.leadReading`, #1844/#1846) —
+            // the same rule the classic cards and iOS apply. Both numbers come off the same row. Until the
+            // core carried the absolute (2026-11-19) this tile could only ever say "+0.1 Δ°C".
+            KeyMetric.SKIN_TEMP -> KeyTile(
+                SkinTempDisplay.leadReading(absC = day?.skinTempAbs, devC = day?.skinTempDev,
+                                            prefer = skinTempPreferred)
+                    ?.let { SkinTempDisplay.formatReading(it, fahrenheit) },
+                null)
         }
     }
     return KeyTiles(tiles, sparks)
@@ -327,7 +341,10 @@ internal fun ForgeMetricDetail(metric: CoreRead.Metric?, viewModel: com.noop.ui.
                         KeyMetric.BLOOD_OXYGEN.tileTint(), true, ask, onDismiss)
                     CoreRead.Metric.Steps -> ForgeMetricTrendPage(metric, R.string.today_metric_steps, "",
                         KeyMetric.STEPS.tileTint(), true, ask, onDismiss)
-                    CoreRead.Metric.SkinTemp -> Unit
+                    // Neither skin-temperature series opens a trend page: the tile leads with whichever of
+                    // the two the night measured, and a page charting one of them would be a second,
+                    // quieter answer to the same tap.
+                    CoreRead.Metric.SkinTemp, CoreRead.Metric.SkinTempAbs -> Unit
                 }
             }
         }

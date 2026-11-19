@@ -25,6 +25,11 @@ public enum CoreRead {
         public var sleepMinutes: Double?, deepMinutes: Double?, remMinutes: Double?, lightMinutes: Double?
         public var efficiency: Double?, restingHr: Int?, hrv: Double?, respRate: Double?, spo2: Double?
         public var skinTempDev: Double?, steps: Int?
+        /// The night's ABSOLUTE wrist temperature (`DailyMetric.skinTempC`), beside the deviation rather
+        /// than instead of it: a tile leads with the temperature where the night measured one and falls
+        /// back to the ±baseline where it did not (`SkinTempDisplay.leadReading`). Android could not show
+        /// a temperature at all while this was missing, and printed "+0.1 Δ°C" where iOS printed "33.8 °C".
+        public var skinTempAbs: Double? = nil
         /// Who supplied the Charge, Effort and Rest inputs, as the hero names them (`ScoreProvenance.heroLabels`):
         /// a name as is, or "#workoutFiles", "#nutrition" or "#cached" for the words each platform translates.
         public var heroSource: [String] = []
@@ -67,6 +72,9 @@ public enum CoreRead {
         /// The day rows' own SpO2, steps and skin-temperature deviation, as Today's detailed tiles draw them
         /// (`LiquidTodayView` `kSparks` "spo2", "steps", "skin_temp").
         case spo2, steps, skinTemp
+        /// The nightly absolute, charted on its own scale; mixing it into `skinTemp` would average two
+        /// different scales into one plausible-looking line (`SkinTempDisplay.dominantKind`).
+        case skinTempAbs
     }
 
     public static func day(_ day: String, reader: StoreReader) async -> Day? {
@@ -92,7 +100,7 @@ public enum CoreRead {
                    sleepMinutes: row.totalSleepMin, deepMinutes: row.deepMin, remMinutes: row.remMin,
                    lightMinutes: row.lightMin, efficiency: row.efficiency, restingHr: row.restingHr,
                    hrv: row.avgHrv, respRate: row.respRateBpm, spo2: spo2, skinTempDev: row.skinTempDevC,
-                   steps: steps,
+                   steps: steps, skinTempAbs: row.skinTempC,
                    heroSource: await ScoreProvenance.heroLabels(day: day, reader: reader).map(token))
     }
 
@@ -173,6 +181,7 @@ public enum CoreRead {
             case .spo2: row.spo2Pct
             case .steps: row.steps.map(Double.init)
             case .skinTemp: row.skinTempDevC
+            case .skinTempAbs: row.skinTempC
             case .rest: nil
             }
             return value.map { Point(day: row.day, value: $0) }

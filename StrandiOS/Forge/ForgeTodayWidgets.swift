@@ -1002,6 +1002,11 @@ struct ForgeMeasureWidget: View {
     @State private var values: [Double] = []
     @State private var dayPoints: [MeasureFacts.Point] = []
     @State private var metric: MetricDescriptor?
+    /// Which scale the skin-temperature tile is on, nil for every other measure. Skin temperature is the
+    /// one measure whose stored column holds two different things (#622), so the tile cannot take its
+    /// unit from the catalogue: it has to say which of the two it is showing.
+    @State private var skinKind: SkinTempDisplay.Kind?
+    @AppStorage(UnitPrefs.skinTempDisplayKey) private var skinTempDisplayRaw = ""
 
     var body: some View {
         let m = metric ?? ForgeWidgetMeasures.descriptor(key, source)
@@ -1027,7 +1032,7 @@ struct ForgeMeasureWidget: View {
     }
 
     @ViewBuilder private func wideChart(_ m: MetricDescriptor?) -> some View {
-        let unit = m.map(ForgeFocusView.unit) ?? ""
+        let unit = leadUnit(m)
         let series = Array(values.suffix(30))
         NavigationLink(value: TabRoute.metricSourced(key: m?.key ?? key, source: m?.source ?? source ?? Repository.whoopSource)) {
             VStack(alignment: .leading, spacing: 10) {
@@ -1038,7 +1043,7 @@ struct ForgeMeasureWidget: View {
                         .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
                     Spacer(minLength: 6)
                     // No stress branch here: stress has its own row-wide card and never reaches this one.
-                    if let value = m.flatMap({ ForgeFocusView.format(values.last, $0) }) {
+                    if let value = leadFigure(m) {
                         Text(verbatim: value).font(.system(.title3, weight: .semibold)).foregroundStyle(ForgeColor.text)
                         if !unit.isEmpty { Text(verbatim: unit).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary) }
                     }
@@ -1081,19 +1086,35 @@ struct ForgeMeasureWidget: View {
         return values.enumerated().map { TrendPoint(date: start.addingTimeInterval(Double($0.offset) * 86_400), value: $0.element) }
     }
 
+    /// The figure the tile leads with. Skin temperature is formatted on the scale it is actually on, so a
+    /// wrist temperature reads "33.8" and a baseline move "+0.1" — never a deviation under a °C heading.
+    private func leadFigure(_ m: MetricDescriptor?) -> String? {
+        if key == "stress" { return values.last.map { Self.stressWord($0) } }
+        if let kind = skinKind, let v = values.last {
+            return SkinTempDisplay.numberString(v, kind: kind, fahrenheit: Self.fahrenheit)
+        }
+        return m.flatMap { ForgeFocusView.format(values.last, $0) }
+    }
+
+    /// Steps speak for themselves, and the word would crowd the number in a small tile; stress reads as a
+    /// word ("Medium"), and "/3" beside a word said nothing. Skin temperature names its own scale.
+    private func leadUnit(_ m: MetricDescriptor?) -> String {
+        if key == "steps" || key == "stress" { return "" }
+        if let kind = skinKind { return SkinTempDisplay.unitSymbol(kind: kind, fahrenheit: Self.fahrenheit) }
+        return m.map(ForgeFocusView.unit) ?? ""
+    }
+
+    static var fahrenheit: Bool { ForgeToday.readerTemperatureUnit == .fahrenheit }
+
     @ViewBuilder private func tileBody(_ m: MetricDescriptor?) -> some View {
         NavigationLink(value: TabRoute.metricSourced(key: m?.key ?? key, source: m?.source ?? source ?? Repository.whoopSource)) {
             ForgeTodayTile(label: Self.shortTitle(key) ?? m?.title ?? key, symbol: m?.icon ?? "chart.xyaxis.line",
-                           value: key == "stress"
-                               ? values.last.map { Self.stressWord($0) }
-                               : m.flatMap { ForgeFocusView.format(values.last, $0) },
-                           // Steps speak for themselves, and the word would crowd the number in a small tile; stress
-                           // reads as a word ("Medium"), and "/3" beside a word said nothing.
-                           unit: key == "steps" || key == "stress" ? "" : m.map(ForgeFocusView.unit) ?? "",
+                           value: leadFigure(m),
+                           unit: leadUnit(m),
                            // The measure's own fact first; the usual-and-range line stays for the measures
                            // whose fact is not built yet, so nothing loses what it already said.
-                           caption: detailed ? (Self.factsLine(key: key, points: dayPoints, unit: m.map(ForgeFocusView.unit) ?? "")
-                                                ?? Self.summaryLine(key: key, values: values, unit: m.map(ForgeFocusView.unit) ?? "")) : nil,
+                           caption: detailed ? (Self.factsLine(key: key, points: dayPoints, unit: leadUnit(m))
+                                                ?? Self.summaryLine(key: key, values: values, unit: leadUnit(m))) : nil,
                            delta: Self.delta(key: key, values: values),
                            deltaColor: Self.deltaTone(key: key, values: values),
                            tint: Self.tint(key),
@@ -1224,6 +1245,29 @@ struct ForgeMeasureWidget: View {
             // it had no dates for, so it fell back to the usual-and-range line and the week never appeared —
             // seen on the simulator the day it was built.
             dayPoints = points.map { .init(day: $0.day, value: $0.value) }
+            return
+        }
+        if key == "skin_temp" {
+            // Both of the night's numbers, from the SAME row, and the one the wearer chose to lead with
+            // (`SkinTempDisplay.leadReading`, #1844/#1846) — the rule Today and Health already apply.
+            // The series the generic path reads is the bimodal stored column, which is why this tile used
+            // to print a baseline move under a °C heading.
+            metric = ForgeWidgetMeasures.descriptor(key, source)
+            let prefer = SkinTempDisplay.Kind(rawValue: skinTempDisplayRaw) ?? .absolute
+            let readings = repo.days.suffix(60).compactMap { row -> (day: String, reading: SkinTempDisplay.Reading)? in
+                SkinTempDisplay.leadReading(absC: row.skinTempC, devC: row.skinTempDevC, prefer: prefer)
+                    .map { (row.day, $0) }
+            }
+            // One scale only, newest wins: a mean or a range taken across a wrist temperature and a
+            // baseline move is arithmetic on two scales, and it looks entirely plausible (#1705). The kind
+            // is known here rather than guessed from the magnitude, which is the same rule, better fed.
+            guard let kind = readings.last?.reading.kind else {
+                skinKind = nil; values = []; dayPoints = []; return
+            }
+            let kept = readings.filter { $0.reading.kind == kind }
+            skinKind = kind
+            values = kept.map(\.reading.value)
+            dayPoints = kept.map { .init(day: $0.day, value: $0.reading.value) }
             return
         }
         var candidates: [MetricDescriptor] = []

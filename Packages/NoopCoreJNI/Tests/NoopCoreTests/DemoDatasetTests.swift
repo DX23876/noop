@@ -21,7 +21,8 @@ final class DemoDatasetTests: XCTestCase {
         XCTAssertEqual(plan.daily.count, DemoDataset.days)
         XCTAssertEqual(plan.sleeps.count, DemoDataset.days)
         XCTAssertEqual(plan.apple.count, DemoDataset.days)
-        for field in ["recovery", "strain", "avgHrv", "restingHr", "spo2Pct", "respRateBpm", "skinTempDevC"] {
+        for field in ["recovery", "strain", "avgHrv", "restingHr", "spo2Pct", "respRateBpm", "skinTempDevC",
+                      "skinTempC"] {
             let filled: Int
             switch field {
             case "recovery": filled = plan.daily.compactMap(\.recovery).count
@@ -30,7 +31,10 @@ final class DemoDatasetTests: XCTestCase {
             case "restingHr": filled = plan.daily.compactMap(\.restingHr).count
             case "spo2Pct": filled = plan.daily.compactMap(\.spo2Pct).count
             case "respRateBpm": filled = plan.daily.compactMap(\.respRateBpm).count
-            default: filled = plan.daily.compactMap(\.skinTempDevC).count
+            case "skinTempDevC": filled = plan.daily.compactMap(\.skinTempDevC).count
+            // The wrist temperature, not only the deviation: the tile leads with it, and a demo without
+            // it showed every skin tile on its fallback scale ("+0.1 Δ°C") on both phones.
+            default: filled = plan.daily.compactMap(\.skinTempC).count
             }
             XCTAssertEqual(filled, DemoDataset.days, "\(field) has holes, and a tile reading it would look broken")
         }
@@ -60,6 +64,9 @@ final class DemoDatasetTests: XCTestCase {
             XCTAssert((42...70).contains(d.restingHr ?? -1), "resting hr \(d.restingHr ?? -1)")
             XCTAssert((300...540).contains(d.totalSleepMin ?? -1), "sleep \(d.totalSleepMin ?? -1)")
             XCTAssert((93...100).contains(d.spo2Pct ?? -1), "spo2 \(d.spo2Pct ?? -1)")
+        }
+        for d in plan.daily {
+            XCTAssert((30...36).contains(d.skinTempC ?? -1), "wrist temperature \(d.skinTempC ?? -1) is not a worn one")
         }
         for s in plan.sleeps { XCTAssertGreaterThan(s.endTs, s.startTs) }
         for w in plan.whoopWorkouts {

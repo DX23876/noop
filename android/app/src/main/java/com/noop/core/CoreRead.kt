@@ -26,6 +26,12 @@ object CoreRead {
         val sleepMinutes: Double?, val deepMinutes: Double?, val remMinutes: Double?, val lightMinutes: Double?,
         val efficiency: Double?, val restingHr: Int?, val hrv: Double?, val respRate: Double?, val spo2: Double?,
         val skinTempDev: Double?, val steps: Int?,
+        /**
+         * The night's ABSOLUTE wrist temperature, beside the deviation rather than instead of it: a tile
+         * leads with the temperature where the night measured one (`SkinTempDisplay.leadReading`). Last,
+         * with a default, so the positional calls that build an empty day keep working.
+         */
+        val skinTempAbs: Double? = null,
         /** Who supplied the scores' inputs, as the hero names them: names, or "#workoutFiles", "#nutrition", "#cached". */
         val heroSource: List<String> = emptyList(),
     )
@@ -55,6 +61,8 @@ object CoreRead {
     enum class Metric(val key: String) {
         Charge("charge"), Effort("effort"), Rest("rest"), Hrv("hrv"), RestingHr("restingHr"),
         SleepMinutes("sleepMinutes"), RespRate("respRate"), Spo2("spo2"), Steps("steps"), SkinTemp("skinTemp"),
+        /** The nightly absolute on its own scale; it must never be averaged together with the deviation. */
+        SkinTempAbs("skinTempAbs"),
     }
 
     /**
@@ -102,7 +110,7 @@ object CoreRead {
             remMinutes = o.double("remMinutes"), lightMinutes = o.double("lightMinutes"),
             efficiency = o.double("efficiency"), restingHr = o.int("restingHr"), hrv = o.double("hrv"),
             respRate = o.double("respRate"), spo2 = o.double("spo2"), skinTempDev = o.double("skinTempDev"),
-            steps = o.int("steps"),
+            steps = o.int("steps"), skinTempAbs = o.double("skinTempAbs"),
             heroSource = o.optJSONArray("heroSource")?.let { a -> (0 until a.length()).map(a::getString) }.orEmpty(),
         )
     }

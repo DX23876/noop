@@ -110,7 +110,11 @@ public enum DemoDataset {
             let hrv = clamp(rng.gauss(78 + fitness * 1.5, 12) + (weekend ? 6 : 0) - Double(workoutCount) * 4, 28, 150)
             let rhr = Int(clamp(rng.gauss(56 - fitness * 0.4, 3) + Double(workoutCount) * 1.2, 42, 70))
             let spo2 = clamp(rng.gauss(96.5, 0.8), 93, 100)
+            // Both skin-temperature numbers, from one draw: the deviation the live pipeline computes and
+            // the wrist temperature it is a deviation FROM. A demo with the deviation alone made every
+            // tile say "+0.1 Δ°C", which is the thing the real app only falls back to (#1844).
             let skinTemp = clamp(rng.gauss(0, 0.25), -1.2, 1.4)
+            let skinAbs = round2(33.6 + skinTemp)
             let resp = clamp(rng.gauss(14.6, 0.9), 11, 19)
 
             let recovery = clamp(40 + (hrv - 70) * 0.55 + (efficiency - 85) * 0.6 + (totalSleep - 420) * 0.03
@@ -124,7 +128,8 @@ public enum DemoDataset {
                                      disturbances: disturbances, restingHr: rhr, avgHrv: round1(hrv),
                                      recovery: round1(recovery), strain: round1(strain),
                                      exerciseCount: workoutCount, spo2Pct: round1(spo2),
-                                     skinTempDevC: round2(skinTemp), respRateBpm: round1(resp)))
+                                     skinTempDevC: round2(skinTemp), respRateBpm: round1(resp),
+                                     skinTempC: skinAbs))
 
             // The night before this day, about 23:10, drifting half an hour either way.
             let bedtime = calendar.date(bySettingHour: 23, minute: 10, second: 0,
