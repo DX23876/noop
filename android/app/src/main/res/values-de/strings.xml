@@ -2948,6 +2948,10 @@
     <string name="forge_next_night">Nächste Nacht</string>
     <string name="forge_no_nights">Noch keine Nächte. Trag den Strap im Bett und synchronisiere morgens.</string>
     <string name="forge_in_bed">%1$s im Bett · %2$d %% Effizienz</string>
+    <string name="forge_sl_in_bed_full">%1$s im Bett · %2$d %% Effizienz · %3$s</string>
+    <string name="forge_sl_stages_approx">Stadien ungefähr (auf dem Gerät)</string>
+    <string name="forge_sl_stages_raw">Rohe Stadien vom Gerät</string>
+    <string name="forge_sl_usually_only">sonst %1$s</string>
     <string name="forge_duration_hm">%1$d Std. %2$02d Min.</string>
     <string name="forge_night_range">%1$s → %2$s</string>
     <string name="forge_trends_subtitle">Dein Verlauf über die Zeit.</string>

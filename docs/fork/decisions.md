@@ -1855,3 +1855,88 @@ signed with the release certificate, which is the opposite of the distinction ab
 a download name the testing documents and past release notes give out, so it waits for the owner.
 
 Analysis migration required: no
+
+## 2026-11-19 — Three tester reports: a heap death nobody could attribute, Effort counting yesterday's evening, and the night's figures missing from the Sleep page
+
+The owner forwarded an Android crash report and two notes from the iPhone tester iSoBank.
+
+### 1. The out-of-memory report names the wrong call, so the bridge now carries its own evidence
+
+`java.lang.OutOfMemoryError` in `com.noop.core.SwiftCore.call`, Android 16 on an OPPO CPH2499, app
+13.0.0. Retraced against the R8 mapping of that release, the frame is the Today coach card:
+`ForgeTodayCoach.kt:65` → `CoreCoach.todayCard()` → `CoreCoach.call("coach.today")`, whose answer is
+eight short strings. The failing allocation was **592 bytes**, with the heap at its 256 MB growth limit.
+That call did not fill the heap; it asked for the next thing after something else had. A heap death
+names the next allocation, never the one that did it, and nothing in the report said what the load was.
+
+So the evidence, not a guess at a culprit:
+
+- **`CoreCallTrail`** keeps the call in flight and the last eight that finished, each with the size of
+  what crossed and how long ago, and `CrashCapture` writes it under a new `heap:` line (used, taken,
+  limit). `SwiftCore.call` is now a Kotlin wrapper around `nativeCall`, so no call site has to remember.
+- **`CoreSql.query` has a ceiling** (`maxRows`, `maxValueBytes`). A read had none: the host hands in a
+  statement, every row is gathered, encoded into one string, copied to the Java heap and parsed there
+  again, so the rows exist four times at the peak — while writes have been chunked since the day they
+  were written (`CoreDb.BATCH`, "so one JSON hand-over stays a few megabytes"). Past the ceiling the
+  core refuses with `tooLarge` and the host throws with the row count and the statement. It is set far
+  above any honest screen read, so it catches a runaway, not a feature.
+- **Heart rate is read in chunks** (`WhoopRepository.hrInChunks`, 20,000 rows a hand-over). The screens
+  ask for 100,000 (`DEFAULT_LIMIT`) to 200,000 rows — the full-day chart, the Stress screen, Today — and
+  at that size the JSON text and its parsed tree are the larger part of the app's heap while the rows are
+  being built. The statement orders ascending and its limit keeps the earliest rows, so reading forward
+  from a timestamp cursor returns the same rows; `hrSample` is keyed on (deviceId, ts), so nothing falls
+  between two chunks. `HrChunkedReadTest` asserts the result against a single read.
+
+Not done: `android:largeHeap="true"`. It moves the line and hides the cause.
+
+Analysis migration required: no
+
+### 2. Effort counted the hours before bed into the next day
+
+"effort is 47 when i woke up just now and didnt get out of bed" — the tester's night ran 04:41 to 13:19.
+
+In sleep-onset mode, which is the default, a day begins when the wearer falls asleep, and the nightly
+pass scores each cycle from its onset. Two readouts of today's Effort did not: `LiveEffortScore.window`
+and `DailyAnalysis.performCurrentDayActivityRefresh` both ran from local midnight. For anyone who goes
+to bed after midnight those hours belong to the cycle BEFORE this one, so they were counted twice — once
+in yesterday's stored cycle, once in today's live figure — and since `StrainScorer.effectiveEffort`
+floors at the stored row, and the refresh writes `max(new, existing)`, the inflated number stayed up.
+Sleep itself contributes nothing (below 50 % of heart-rate reserve nothing counts outside a workout), so
+47 of 100 is about an hour above zone 1: his waking hours before bed, not his night.
+
+`CycleDayWindow` now answers "what span is the day in progress, and which day is it filed under", from
+the evidence the pass itself uses: the stored onset markers (`DayCycleIntelligenceIntegration.onsetKey`)
+and, for the morning after a night no pass has seen yet, the nights the store already holds; whichever
+opened later wins, and a night still running does not roll the day. `DayCycleResolver.activeWindow`
+decides the span, including its 40-hour safety cap, so this adds no second rule. The live score (both
+phones, through `LiveEffortScore` and `read.liveEffort`) and the refresh read it; without a cycle the
+logical day stands exactly as before, and midnight mode is untouched.
+
+Analysis migration required: **yes**, riding on AI-36. The input window of a stored derived value
+changed. AI-36 landed on 2026-11-18 and has not shipped — the testing build of that afternoon never
+produced an artifact, so the testers' newest build is the one of 11-14 with AI-35 — and the rule is that
+an analysis change rides on a recipe that has not shipped rather than bumping again. **If the owner's own
+iPhone already runs a build with AI-36, this needs AI-37 instead**, as AI-35 did for the same reason.
+The rebuild re-scores every day with raw data, which is what clears the Effort values already stored too
+high.
+
+### 3. The night's figures are back on the Sleep page
+
+The same tester: the Forge Sleep page shows efficiency and restorative sleep as percentage rings and
+hours asleep as a tile without a usual, and the figures he wanted — time in bed, how long he slept and
+how much of that was restorative, each against his own usual — were reachable only through Health,
+Sleep, Sleep details. He is right: they were not on the page that is about last night.
+
+They are now in the night card, above the stages, and the numbers come from `NightSummaryFacts` in the
+core. That matters more than the card: the old screen's "Stage breakdown" header, its twin in
+`SleepView`, and the Forge breakdown had each written their own version. Two private copies of the
+restorative typical, and an efficiency that preferred the stored session value on one screen while
+recomputing it from the stages on another, so one night could read 95 % in one place and 94 % in the
+next. One resolver now, read by all of them, with the restorative typical averaged per night rather than
+as the sum of two separate means. While removing the copies, `SleepView`'s efficiency stopped falling
+back to `repo.today`, which is the newest day whatever night is on screen.
+
+Android reads the same resolver through `sleep.nightFacts`: the night's own minutes go in from the
+screen, every figure and both usuals come back from the core, so no average exists twice.
+
+Analysis migration required: no

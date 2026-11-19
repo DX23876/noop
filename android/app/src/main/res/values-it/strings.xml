@@ -2903,6 +2903,10 @@
     <string name="forge_next_night">Notte successiva</string>
     <string name="forge_no_nights">Ancora nessuna notte. Indossa lo strap a letto e sincronizza al mattino.</string>
     <string name="forge_in_bed">%1$s a letto · efficienza %2$d%%</string>
+    <string name="forge_sl_in_bed_full">%1$s a letto · efficienza %2$d%% · %3$s</string>
+    <string name="forge_sl_stages_approx">fasi approssimative (sul dispositivo)</string>
+    <string name="forge_sl_stages_raw">fasi grezze dal dispositivo</string>
+    <string name="forge_sl_usually_only">di solito %1$s</string>
     <string name="forge_duration_hm">%1$d h %2$02d min</string>
     <string name="forge_night_range">%1$s → %2$s</string>
     <string name="forge_trends_subtitle">Il tuo andamento nel tempo.</string>

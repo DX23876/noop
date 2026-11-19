@@ -599,6 +599,29 @@ public enum CoreCall {
                                                          dismissed: args["dismissedWorkouts"] as? [String] ?? [], reader: reader))
         case "sleep.debt":
             return CoreRead.json(await CoreSleepDebt.read(reader: reader))
+        case "sleep.nightFacts":
+            // What the Sleep page states about one night in figures rather than shares: time in bed,
+            // efficiency, hours asleep and restorative sleep, each against the wearer's usual
+            // (`NightSummaryFacts`). The night's own minutes come from the screen, so the card states the
+            // night it is showing; the usual comes from here, so neither phone keeps its own version of it.
+            func minutes(_ key: String) -> Double { (args[key] as? NSNumber)?.doubleValue ?? 0 }
+            // The same span the Apple screens hold in memory (`Repository.refresh(days: 120)`), of which
+            // the resolver takes the last thirty rows, so both phones average the same nights.
+            let today = StoreReader.localDayKey(Date())
+            let from = StoreReader.localDayKey(Date().addingTimeInterval(-120 * 86_400))
+            let facts = NightSummaryFacts.read(
+                night: NightSummaryFacts.Night(inBedMin: minutes("inBedMin"), asleepMin: minutes("asleepMin"),
+                                               deepMin: minutes("deepMin"), remMin: minutes("remMin"),
+                                               storedEfficiency: (args["storedEfficiency"] as? NSNumber)?.doubleValue),
+                days: await CoreRead.dailyRows(from: from, to: today, reader: reader))
+            struct Wire: Encodable {
+                let inBedMin: Double, asleepMin: Double, restorativeMin: Double
+                let efficiencyPct: Double?, typicalAsleepMin: Double?, typicalRestorativeMin: Double?
+            }
+            return CoreRead.json(Wire(inBedMin: facts.inBedMin, asleepMin: facts.asleepMin,
+                                      restorativeMin: facts.restorativeMin, efficiencyPct: facts.efficiencyPct,
+                                      typicalAsleepMin: facts.typicalAsleepMin,
+                                      typicalRestorativeMin: facts.typicalRestorativeMin))
         case "energy.today":
             guard let s = await CoreEnergyDetail.today(reader: reader, settings: CoreGoalEnergy.settings(args)) else { return "null" }
             return CoreRead.json(s)

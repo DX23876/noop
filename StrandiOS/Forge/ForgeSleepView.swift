@@ -262,6 +262,7 @@ struct ForgeSleepView: View {
             if night.stages.total > 0 {
                 // The breakdown below reads the night in full, so the chart opens nothing else.
                 VStack(alignment: .leading, spacing: 10) {
+                        nightFigures(night)
                         Hypnogram(intervals: night.intervals, height: 170, showsStageAxis: true, showsHover: false,
                                   nightStart: night.onsetDate, showsTimeAxis: true, filled: filled, stagePalette: palette)
                             .padding(10)
@@ -294,6 +295,68 @@ struct ForgeSleepView: View {
             }
         }
         .forgeCard(radius: ForgeRadius.card, padding: 16)
+    }
+
+    /// Time in bed, efficiency, and the night in hours: how long asleep and how much of it restorative,
+    /// each against the wearer's usual.
+    ///
+    /// The page had the last two only as percentage rings, and the hours only in the Highlights carousel
+    /// and only when a stage was ten minutes off the usual. A tester asked for them back (2026-11-19):
+    /// the figures were reachable only through Health, Sleep, Sleep details, which is three taps away
+    /// from the page that is about last night. The numbers are `NightSummaryFacts`', the same resolver
+    /// the old screen's "Stage breakdown" header reads, so the two cards cannot state different hours
+    /// for one night.
+    @ViewBuilder private func nightFigures(_ night: Night) -> some View {
+        let facts = NightSummaryFacts.read(
+            night: NightSummaryFacts.Night(inBedMin: night.timeInBed, asleepMin: night.stages.asleep,
+                                           deepMin: night.stages.deep, remMin: night.stages.rem,
+                                           storedEfficiency: night.session.efficiency),
+            days: repo.days)
+        // An Oura night's stages are the ring's own classification, not NOOP's approximation, and the
+        // old screen says so in its own words; a night without the stager's segments gets neither line.
+        let caption = (night.realSegments?.count ?? 0) >= 2
+            ? (repo.activeDeviceIsOura ? String(localized: "raw on-device stages")
+                                       : String(localized: "stages approximate (on-device)"))
+            : nil
+        VStack(alignment: .leading, spacing: 10) {
+            Text(caption.map {
+                String(localized: "\(Self.durationText(facts.inBedMin)) in bed · \(Self.percentText(facts.efficiencyPct)) efficiency · \($0)")
+            } ?? String(localized: "\(Self.durationText(facts.inBedMin)) in bed · \(Self.percentText(facts.efficiencyPct)) efficiency"))
+                .font(ForgeFont.caption)
+                .foregroundStyle(ForgeColor.secondary)
+            HStack(alignment: .top, spacing: 16) {
+                figure(String(localized: "Time asleep"), minutes: facts.asleepMin,
+                       typical: facts.typicalAsleepMin, tint: ForgeColor.text)
+                figure(String(localized: "Restorative sleep"), minutes: facts.restorativeMin,
+                       typical: facts.typicalRestorativeMin,
+                       tint: StrandPalette.sleepStageColor(.rem))
+                Spacer(minLength: 0)
+            }
+        }
+    }
+
+    private func figure(_ label: String, minutes: Double, typical: Double?, tint: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(Self.durationText(minutes)).font(ForgeFont.figure(26)).foregroundStyle(tint)
+                .lineLimit(1).minimumScaleFactor(0.7)
+            Text(label).font(.system(.caption, weight: .semibold)).foregroundStyle(ForgeColor.text)
+            if let typical {
+                Text("usually \(Self.durationText(typical))")
+                    .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// "8h 13m", worded as the Sleep screen's own breakdown words it.
+    static func durationText(_ minutes: Double) -> String {
+        let m = max(0, Int(minutes.rounded()))
+        if m < 60 { return String(localized: "\(m)m") }
+        return String(localized: "\(m / 60)h \(m % 60)m")
+    }
+
+    static func percentText(_ value: Double?) -> String {
+        value.map { "\(Int($0.rounded()))%" } ?? "—"
     }
 
     // MARK: Naps

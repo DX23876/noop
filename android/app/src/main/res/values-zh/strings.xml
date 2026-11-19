@@ -2905,6 +2905,10 @@
     <string name="forge_next_night">后一晚</string>
     <string name="forge_no_nights">还没有夜间数据。睡觉时佩戴 strap，早上同步。</string>
     <string name="forge_in_bed">卧床 %1$s · 效率 %2$d%%</string>
+    <string name="forge_sl_in_bed_full">卧床 %1$s · 效率 %2$d%% · %3$s</string>
+    <string name="forge_sl_stages_approx">睡眠阶段为设备估算</string>
+    <string name="forge_sl_stages_raw">设备原始阶段数据</string>
+    <string name="forge_sl_usually_only">通常 %1$s</string>
     <string name="forge_duration_hm">%1$d 小时 %2$02d 分</string>
     <string name="forge_night_range">%1$s → %2$s</string>
     <string name="forge_trends_subtitle">你随时间的变化。</string>

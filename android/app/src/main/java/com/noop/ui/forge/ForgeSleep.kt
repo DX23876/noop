@@ -789,7 +789,9 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
     }
     if (night != null && wakeDay != null) {
         val key = wakeDay.toString()
-        SleepNightCard(night, isLatest, zone, onEdit = { editing = night })
+        SleepNightCard(night, isLatest, zone,
+                       isOura = com.noop.data.DeviceBrandCatalog.isOura(viewModel.activeStrapId),
+                       onEdit = { editing = night })
         DayNaps(night, wakeDay, zone, onDelete = { nap ->
             scope.launch {
                 val group = withContext(Dispatchers.IO) {

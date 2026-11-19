@@ -2830,6 +2830,10 @@
     <string name="forge_next_night">Следующая ночь</string>
     <string name="forge_no_nights">Пока нет ночей. Носите strap во сне и синхронизируйте утром.</string>
     <string name="forge_in_bed">%1$s в постели · эффективность %2$d%%</string>
+    <string name="forge_sl_in_bed_full">%1$s в постели · эффективность %2$d%% · %3$s</string>
+    <string name="forge_sl_stages_approx">фазы приблизительно (на устройстве)</string>
+    <string name="forge_sl_stages_raw">необработанные фазы с устройства</string>
+    <string name="forge_sl_usually_only">обычно %1$s</string>
     <string name="forge_duration_hm">%1$d ч %2$02d мин</string>
     <string name="forge_night_range">%1$s → %2$s</string>
     <string name="forge_trends_subtitle">Ваша динамика во времени.</string>

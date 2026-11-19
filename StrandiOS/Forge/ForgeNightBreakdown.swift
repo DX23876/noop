@@ -2,6 +2,7 @@
 import SwiftUI
 import StrandDesign
 import StrandAnalytics
+import StrandCore
 import WhoopStore
 
 /// The rest of one night on the redesign's Sleep tab (prototype board "SleepNight"): the stages against the
@@ -17,9 +18,11 @@ struct ForgeNightBreakdown: View {
     private var wakeKey: String { Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(night.session.endTs))) }
     private var row: DailyMetric? { repo.days.last { $0.day == wakeKey } }
 
-    /// Share of the time in bed spent asleep, from the night's own stages.
+    /// Share of the time in bed spent asleep, through the one resolver the sleep screens read
+    /// (`NightSummaryFacts.efficiencyPct`): the night's own stored value, else its stages.
     static func efficiency(_ night: Night) -> Double? {
-        night.stages.total > 0 ? night.stages.asleep / night.stages.total * 100 : nil
+        NightSummaryFacts.efficiencyPct(asleepMin: night.stages.asleep, inBedMin: night.timeInBed,
+                                        stored: night.session.efficiency)
     }
 
     var body: some View {

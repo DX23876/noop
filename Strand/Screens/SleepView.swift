@@ -1299,8 +1299,8 @@ struct SleepView: View {
                     .font(StrandFont.overline)
                     .tracking(StrandFont.overlineTracking)
                     .foregroundStyle(StrandPalette.textTertiary)
-                if let t = stageTypical(nil) {
-                    Text("typically \(durationText(t.mean))")
+                if let t = NightSummaryFacts.typicalAsleepMin(repo.days) {
+                    Text("typically \(durationText(t))")
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
                 }
@@ -1313,7 +1313,7 @@ struct SleepView: View {
                     .font(StrandFont.overline)
                     .tracking(StrandFont.overlineTracking)
                     .foregroundStyle(StrandPalette.textTertiary)
-                if let t = restorativeTypical() {
+                if let t = NightSummaryFacts.typicalRestorativeMin(repo.days) {
                     Text("typically \(durationText(t))")
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
@@ -1392,15 +1392,6 @@ struct SleepView: View {
     }
 
     /// 30-day mean restorative minutes (deep + REM per scored night).
-    private func restorativeTypical() -> Double? {
-        let values: [Double] = repo.days.suffix(30).compactMap { d in
-            guard let deep = d.deepMin, let rem = d.remMin else { return nil }
-            let v = deep + rem
-            return v > 0 ? v : nil
-        }
-        guard values.count >= 5 else { return nil }
-        return values.reduce(0, +) / Double(values.count)
-    }
 
     /// One WHOOP stage row: header (STAGE · coloured % · right-aligned duration) above a hatched
     /// night-long track with solid segments where the stage occurred. Tap toggles the highlight:
@@ -1747,14 +1738,15 @@ struct SleepView: View {
         return e.map { "\(Int($0.rounded()))%" } ?? "—"
     }
 
-    /// Efficiency in percent. Prefer the stored session value, else asleep / time-in-bed.
+    /// Efficiency in percent, through the one resolver every sleep screen reads
+    /// (`NightSummaryFacts.efficiencyPct`).
+    ///
+    /// It takes the SHOWN night's own stored value. It used to fall back to `repo.today`, which is the
+    /// newest day whatever night is on screen, so paging back a week could put today's efficiency under
+    /// a night from last Tuesday.
     private func efficiencyPct(_ night: Night) -> Double? {
-        if let stored = night.session.efficiency ?? repo.today?.efficiency {
-            return stored <= 1.0 ? stored * 100 : stored
-        }
-        let bed = night.timeInBed
-        guard bed > 0 else { return nil }
-        return Swift.min(100, night.stages.asleep / bed * 100)
+        NightSummaryFacts.efficiencyPct(asleepMin: night.stages.asleep, inBedMin: night.timeInBed,
+                                        stored: night.session.efficiency)
     }
 
     private func durationText(_ minutes: Double) -> String {

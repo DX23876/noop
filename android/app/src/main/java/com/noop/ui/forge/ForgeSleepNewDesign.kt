@@ -165,7 +165,8 @@ private fun stageParts(night: CoreRead.Night): List<StagePart> {
  * them, the night's make-up as one bar and each stage's total.
  */
 @Composable
-internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: ZoneId, onEdit: (() -> Unit)? = null) {
+internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: ZoneId, isOura: Boolean = false,
+                            onEdit: (() -> Unit)? = null) {
     val colors = Forge.colors
     val clock = rememberClockFormatter()
     fun at(ts: Long) = Instant.ofEpochSecond(ts).atZone(zone).format(clock)
@@ -187,6 +188,7 @@ internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: Zone
             Text(stringResource(R.string.forge_sl_no_stages), style = Forge.type.body, color = colors.textSecondary)
             return@ForgeCard
         }
+        NightFigures(night, isOura)
         // The lanes need the stretches themselves; a night stored only as minutes per stage keeps the bar and totals.
         if (night.stages.isNotEmpty()) {
         StageLanes(night)
@@ -229,6 +231,55 @@ internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: Zone
                     }
                 }
             }
+        }
+    }
+}
+
+/**
+ * Time in bed, efficiency, and the night in hours: how long asleep and how much of it restorative, each against the
+ * wearer's usual, as iOS's `nightFigures` states them.
+ *
+ * The page had the last two as percentage shares only, and a tester asked for the figures back (2026-11-19): they
+ * were reachable only through Health, Sleep, Sleep details. Every number is the core's (`NightFacts`).
+ */
+@Composable
+private fun NightFigures(night: CoreRead.Night, isOura: Boolean) {
+    val colors = Forge.colors
+    val facts = rememberNightFacts(night) ?: return
+    val efficiency = facts.efficiencyPct?.roundToInt()
+    val inBed = TodayTimeline.hoursMinutes(facts.inBedMin)
+    // An Oura night's stages are the ring's own classification, not NOOP's approximation, and it is said in its
+    // own words; a night stored as minutes per stage, with no stretches, gets neither line.
+    val caption = if (night.stages.isEmpty()) null
+        else stringResource(if (isOura) R.string.forge_sl_stages_raw else R.string.forge_sl_stages_approx)
+    Text(
+        when {
+            efficiency == null -> inBed
+            caption == null -> stringResource(R.string.forge_in_bed, inBed, efficiency)
+            else -> stringResource(R.string.forge_sl_in_bed_full, inBed, efficiency, caption)
+        },
+        style = Forge.type.caption, color = colors.textSecondary,
+    )
+    Spacer(Modifier.height(ForgeMetrics.space3))
+    Row(Modifier.fillMaxWidth()) {
+        NightFigure(stringResource(R.string.forge_sl_time_asleep), facts.asleepMin,
+                    facts.typicalAsleepMin, colors.text, Modifier.weight(1f))
+        NightFigure(stringResource(R.string.forge_sl_restorative), facts.restorativeMin,
+                    facts.typicalRestorativeMin, colors.sleepRem, Modifier.weight(1f))
+    }
+    Spacer(Modifier.height(ForgeMetrics.space3))
+}
+
+@Composable
+private fun NightFigure(label: String, minutes: Double, typical: Double?, tint: Color, modifier: Modifier) {
+    val colors = Forge.colors
+    Column(modifier.semantics(mergeDescendants = true) { }) {
+        Text(TodayTimeline.hoursMinutes(minutes), style = Forge.type.title1, color = tint, maxLines = 1)
+        Text(label, style = Forge.type.caption.copy(fontWeight = FontWeight.SemiBold), color = colors.text,
+             maxLines = 2)
+        if (typical != null) {
+            Text(stringResource(R.string.forge_sl_usually_only, TodayTimeline.hoursMinutes(typical)),
+                 style = Forge.type.caption, color = colors.textSecondary, maxLines = 1)
         }
     }
 }
