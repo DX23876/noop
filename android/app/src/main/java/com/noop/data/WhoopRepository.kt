@@ -1368,7 +1368,8 @@ class WhoopRepository(
     // MARK: - Reads
 
     suspend fun hrSamplesForDevice(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT) =
-        dao.hrSamples(deviceId, from, to, limit)
+        hrInChunks(from, to, limit) { f, t, n -> dao.hrSamples(deviceId, f, t, n) }
+
 
     /** #856: HR samples over an EXPLICIT id list, deduped by ts with earlier ids winning — the sample
      *  twin of [hrBucketsFor], so a workout's ZONE MINUTES bin the same rows its chart plots and its
@@ -1376,7 +1377,7 @@ class WhoopRepository(
     suspend fun hrSamplesFor(deviceIds: List<String>, from: Long, to: Long, limit: Int = DEFAULT_LIMIT):
         List<HrSample> =
         if (deviceIds.isEmpty()) emptyList()
-        else mergeHrByTs(deviceIds.map { dao.hrSamples(it, from, to, limit) })
+        else mergeHrByTs(deviceIds.map { id -> hrInChunks(from, to, limit) { f, t, n -> dao.hrSamples(id, f, t, n) } })
 
     /** Count and newest timestamp of measured HR per source [hrSamplesUnion] reads, as one opaque string:
      *  an index-only witness of whether a window's heart rate changed, without fetching a row.
@@ -1425,11 +1426,12 @@ class WhoopRepository(
      * A single-WHOOP install resolves [activeDeviceId] to "my-whoop" ⇒ ONE id ⇒ byte-identical read.
      */
     suspend fun hrSamplesUnion(activeDeviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT):
-        List<HrSample> = mergeHrByTs(rawWhoopSourceIds(activeDeviceId).map { dao.hrSamples(it, from, to, limit) })
+        List<HrSample> = mergeHrByTs(rawWhoopSourceIds(activeDeviceId)
+            .map { id -> hrInChunks(from, to, limit) { f, t, n -> dao.hrSamples(id, f, t, n) } })
 
     /** Raw measured HR only (no v26 PPG-derived union) for the raw-sensor diagnostic export. */
     suspend fun rawHrSamples(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT) =
-        dao.rawHrSamples(deviceId, from, to, limit)
+        hrInChunks(from, to, limit) { f, t, n -> dao.rawHrSamples(deviceId, f, t, n) }
 
     /** v26 PPG-derived HR samples (own stream) for the raw-sensor diagnostic export. (#156) */
     suspend fun ppgHrSamples(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT) =
@@ -2740,6 +2742,43 @@ class WhoopRepository(
 
         /** Default row cap on range reads. Matches the Swift call sites' bounded scans. */
         const val DEFAULT_LIMIT = 100_000
+
+        /** Rows per hand-over in [hrInChunks]; a few hundred kilobytes of JSON rather than tens of MB. */
+        const val HR_CHUNK = 20_000
+
+        /**
+         * One window's heart rate, fetched as several smaller reads rather than one.
+         *
+         * Every row of a read crosses to the core as JSON and is parsed back here, so while a read is in
+         * flight the same rows exist as text, as a parsed tree and as objects at once. The screens ask for a
+         * lot of them: the full-day chart and the Stress screen for up to 200,000, Today for [DEFAULT_LIMIT].
+         * At that size the text and the tree together are the larger part of the app's heap, and they are
+         * alive only until the rows are built — which is the shape of the out-of-memory report of
+         * 2026-11-19, whose own throwing frame was a 592-byte allocation in an unrelated call.
+         *
+         * The result is the same list, row for row. The statement orders by timestamp ascending and the
+         * limit keeps the earliest rows, so reading forward from a cursor and stopping at [limit] selects
+         * exactly the same rows; `hrSample` is keyed on (deviceId, ts) and the PPG union leaves out a
+         * timestamp the measured stream already has, so no row shares a timestamp with the next chunk's
+         * first, and `ts + 1` skips nothing.
+         */
+        internal suspend fun hrInChunks(from: Long, to: Long, limit: Int,
+                                        read: suspend (Long, Long, Int) -> List<HrSample>): List<HrSample> {
+            if (limit <= HR_CHUNK) return read(from, to, limit)
+            val out = ArrayList<HrSample>(HR_CHUNK)
+            var cursor = from
+            while (out.size < limit && cursor <= to) {
+                val want = minOf(HR_CHUNK, limit - out.size)
+                val chunk = read(cursor, to, want)
+                out.addAll(chunk)
+                // Short of what was asked for means the window is exhausted, whatever is left of the limit.
+                if (chunk.size < want) break
+                val last = chunk.last().ts
+                if (last >= to) break
+                cursor = last + 1
+            }
+            return out
+        }
 
         /**
          * #1911: rolling retention for the v27 PPG waveform table (Swift twin

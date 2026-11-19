@@ -39,6 +39,13 @@ object CrashCapture {
                         manufacturer = Build.MANUFACTURER,
                         model = Build.MODEL,
                     ))
+                    // What the heap looked like and what the core bridge last moved. A heap death names
+                    // the next allocation, not the one that filled the heap, so without these two the
+                    // report blames whichever small call happened to be in flight (2026-11-19).
+                    val runtime = Runtime.getRuntime()
+                    appendLine(heapLine(max = runtime.maxMemory(), total = runtime.totalMemory(),
+                                        free = runtime.freeMemory()))
+                    com.noop.core.CoreCallTrail.report()?.let { append(it) }
                     appendLine(sw.toString())
                 }
                 File(appContext.filesDir, FILE).writeText(text)
@@ -115,6 +122,15 @@ object CrashCapture {
     internal fun fingerprint(text: String): String = MessageDigest.getInstance("SHA-256")
         .digest(text.toByteArray(Charsets.UTF_8))
         .joinToString("") { "%02x".format(it) }
+
+    /**
+     * The Java heap at the moment of the crash. Written for every crash, not only an out-of-memory one:
+     * a heap near its limit is context for a crash that reads as something else, and it costs one line.
+     */
+    internal fun heapLine(max: Long, total: Long, free: Long): String {
+        fun mb(bytes: Long) = "${bytes / (1024 * 1024)} MB"
+        return "heap:   ${mb(total - free)} used of ${mb(total)} taken, limit ${mb(max)}"
+    }
 
     internal fun crashHeader(
         whenText: String,

@@ -11,7 +11,24 @@ import WhoopStore
 enum CoreSql {
     struct Statement { let sql: String; let arguments: StatementArguments }
 
-    /// The rows `sql` returns, as `{"columns": [...], "rows": [[...], ...]}`.
+    /// Most rows one answer may carry, and the size it may reach while being built.
+    ///
+    /// A read has no ceiling of its own: the host sends a statement, every row is gathered here, encoded
+    /// into one string, copied onto the Java heap and parsed there a second time, so the same rows exist
+    /// four times over at the peak. Writes have been chunked since they were written (`CoreDb.BATCH`,
+    /// "so one JSON hand-over stays a few megabytes"); reads never were, and the host's own reads ask for
+    /// up to 200,000 sample rows at a time.
+    ///
+    /// These are deliberately far above any honest screen read — a day of heart rate is a few thousand
+    /// rows — so this is not a budget callers have to plan against. It is the line past which an answer
+    /// has stopped being a screen's data, where a refused read with a message beats an out-of-memory
+    /// kill the report cannot attribute (2026-11-19).
+    static let maxRows = 250_000
+    static let maxValueBytes = 48 * 1_024 * 1_024
+
+    /// The rows `sql` returns, as `{"columns": [...], "rows": [[...], ...]}`, or `{"error": "tooLarge"}`
+    /// once the answer passes `maxRows` or `maxValueBytes`. The error names the statement so the host can
+    /// say which read it was.
     static func query(_ args: [String: Any]) async -> String {
         guard let writer = ShadowSession.storeAndPath?.0.registryWriter else { return #"{"error":"noStore"}"# }
         guard let statement = statement(args) else { return #"{"error":"invalid"}"# }
@@ -20,15 +37,33 @@ enum CoreSql {
                 let cursor = try Row.fetchCursor(db, sql: statement.sql, arguments: statement.arguments)
                 var columns: [String]?
                 var rows: [[Any]] = []
+                var bytes = 0
                 while let row = try cursor.next() {
                     if columns == nil { columns = Array(row.columnNames) }
-                    rows.append(row.databaseValues.map(json))
+                    let values = row.databaseValues
+                    bytes += values.reduce(0) { $0 + size($1) }
+                    if rows.count >= maxRows || bytes > maxValueBytes {
+                        return ["error": "tooLarge", "rows": rows.count, "bytes": bytes,
+                                "sql": String(statement.sql.prefix(120))]
+                    }
+                    rows.append(values.map(json))
                 }
                 return ["columns": columns ?? [], "rows": rows]
             }
             return encode(result)
         } catch {
             return encode(["error": "sql", "detail": String(describing: error)])
+        }
+    }
+
+    /// Roughly what one value will weigh in the answer. Not exact and does not need to be: it decides
+    /// whether an answer has run away, and an escape or a quotation mark either way changes nothing.
+    static func size(_ value: DatabaseValue) -> Int {
+        switch value.storage {
+        case .null: return 4
+        case .int64, .double: return 8
+        case .string(let s): return s.utf8.count + 2
+        case .blob(let data): return (data.count + 2) / 3 * 4 + 9
         }
     }
 

@@ -128,8 +128,20 @@ object CoreDb {
         if (!CoreShadow.openStore(context)) throw SqlException("the shared core is not available")
         val answer = SwiftCore.call(op, args.toString()) ?: throw SqlException("no answer from the core")
         val json = JSONObject(answer)
-        if (json.has("error")) throw SqlException("${json.optString("error")}: ${json.optString("detail")}")
+        if (json.has("error")) throw SqlException(failure(json))
         return json
+    }
+
+    /**
+     * What an error answer says, in words. `tooLarge` gets its own sentence because it is the one the
+     * reader has to act on: the core refused to gather the rows rather than let the heap die on them
+     * (`CoreSql.maxRows`), so the statement, not the device, is what needs changing.
+     */
+    internal fun failure(json: JSONObject): String = when (json.optString("error")) {
+        "tooLarge" -> "the answer grew past what one hand-over carries: " +
+            "${json.optInt("rows")} rows, ${json.optInt("bytes") / (1024 * 1024)} MB, " +
+            "read it in chunks (${json.optString("sql")})"
+        else -> "${json.optString("error")}: ${json.optString("detail")}"
     }
 
     /** The rows a reading statement returns. */

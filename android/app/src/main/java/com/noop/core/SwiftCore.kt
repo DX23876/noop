@@ -64,7 +64,29 @@ object SwiftCore {
     external fun shadowAwaitQueuedEvents(): Boolean
     external fun shadowToday(): String?
     /** `CoreCall`: one shared-code operation by name with JSON arguments, a JSON answer (Android parity plan 1.2). */
-    external fun call(op: String, args: String): String?
+    private external fun nativeCall(op: String, args: String): String?
+
+    /**
+     * One shared-code operation, with the trail [CoreCallTrail] keeps for the crash report.
+     *
+     * The trail is here rather than at the call sites because of what an out-of-memory report looks like
+     * without it. On 2026-11-19 a tester's report named `SwiftCore.call` as the throwing frame, and the
+     * failing allocation was 592 bytes: the answer being built was a small one, the heap was already at its
+     * limit, and nothing in the report said what had filled it. The frame a heap death lands on is the next
+     * allocation, not the cause, so the report has to carry what the bridge moved BEFORE it.
+     */
+    fun call(op: String, args: String): String? {
+        val started = System.nanoTime()
+        CoreCallTrail.begin(op, args.length)
+        var answer: String? = null
+        try {
+            answer = nativeCall(op, args)
+            return answer
+        } finally {
+            CoreCallTrail.done(op, args.length, answer?.length ?: -1,
+                               (System.nanoTime() - started) / 1_000_000)
+        }
+    }
     /** Waits up to [timeoutMs] for the core to have banked the history chunk ending in [endData]. */
     external fun shadowAwaitBanked(endData: ByteArray, timeoutMs: Long): Boolean
 

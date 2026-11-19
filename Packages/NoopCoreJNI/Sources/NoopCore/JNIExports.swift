@@ -201,7 +201,8 @@ public func jniReadHeartRate(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclas
     return json(env, Bridge.readHeartRate(from: Int(from), to: Int(to)))
 }
 
-@_cdecl("Java_com_noop_core_SwiftCore_call")
+// `SwiftCore.call` wraps this one in Kotlin, so every crossing lands in `CoreCallTrail`.
+@_cdecl("Java_com_noop_core_SwiftCore_nativeCall")
 public func jniCall(_ env: UnsafeMutablePointer<JNIEnv?>?, _ cls: jclass?, _ op: jstring?, _ args: jstring?) -> jstring? {
     guard let env, let op, let args, let o = string(env, op), let a = string(env, args) else { return nil }
     return json(env, Bridge.call(o, a))

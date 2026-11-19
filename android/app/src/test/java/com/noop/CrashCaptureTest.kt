@@ -40,6 +40,17 @@ class CrashCaptureTest {
         assertTrue(header.contains("thread: DefaultDispatcher-worker-6"))
     }
 
+    /**
+     * The heap, in the report. An out-of-memory kill names the allocation that failed, which is usually a
+     * small one in whatever ran next (2026-11-19: 592 bytes, in the Today coach card). Without this line
+     * the report cannot even say how much of the heap was gone.
+     */
+    @Test
+    fun crashHeaderCarriesTheHeapAtTheCrash() {
+        val line = CrashCapture.heapLine(max = 268_435_456, total = 268_435_456, free = 1_969_232)
+        assertTrue(line, line.contains("254 MB used of 256 MB taken, limit 256 MB"))
+    }
+
     // ---- hardening (follow-up to the recovery screen) ----
 
     /**
