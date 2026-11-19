@@ -70,7 +70,7 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
     }
 
     /// How much of a row the widget takes, as the editor switches it.
-    enum Size { case small, medium, wide }
+    enum Size: Hashable { case small, medium, wide }
 
     /// A shrinkable card is never small: it has two facts, not one, and two columns is where they fit.
     var size: Size {
@@ -1108,8 +1108,14 @@ struct ForgeMeasureWidget: View {
                         if !unit.isEmpty { Text(verbatim: unit).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary) }
                     }
                 }
-                // The range is this chart's caption rather than a second claim beside it.
-                if let line = Self.summaryLine(key: key, values: values, unit: unit) {
+                // The caption describes the picture under it, so it is scoped to what that picture
+                // covers. A day total draws its WEEK, and the usual-and-range line is read over thirty
+                // readings: seven bars between 6.800 and 11.200 under "range 4.300 to 16.900" names two
+                // ends a reader cannot find (2026-11-19). Those measures say the week's daily average
+                // instead, which is the window the bars show AND the one thing the strip under them does
+                // not already carry; every other measure draws thirty days and keeps the range, which is
+                // read over exactly those thirty.
+                if let line = Self.wideCaption(key: key, points: dayPoints, values: values, unit: unit) {
                     Text(verbatim: line).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 }
                 if Self.isDayTotal(key) {
@@ -1351,6 +1357,18 @@ struct ForgeMeasureWidget: View {
                 return entry.text.map { (String(localized: "Left today"), $0, nil) }
             }
         }
+    }
+
+    /// The row-wide card's caption, scoped to the window its picture draws and to what the strip under it
+    /// does not already say. Thirty days of line keep the usual and the range; the week's seven bars take
+    /// the daily average, because the strip beside them already carries the week's total and its best.
+    static func wideCaption(key: String, points: [MeasureFacts.Point], values: [Double], unit: String) -> String? {
+        guard isDayTotal(key) else { return summaryLine(key: key, values: values, unit: unit) }
+        let facts = MeasureFacts.read(points: points, today: Repository.localDayKey(Date()))
+        guard let average = facts.weekAverage else { return nil }
+        let text = MeasureTileReading.figure(key: key, value: average)
+        let withUnit = unit.isEmpty || unit.hasPrefix("/") ? text : "\(text) \(unit)"
+        return String(localized: "\(withUnit) a day")
     }
 
     /// A day key as the strip writes it: day and month, no year, because every mark is inside thirty days.

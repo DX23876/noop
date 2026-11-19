@@ -109,6 +109,9 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}) {
     var planWeek by remember { mutableStateOf<CoreDietPlan.Outcome?>(null) }
     var planWeekApplied by remember { mutableStateOf(false) }
     var planInputs by remember { mutableStateOf<Pair<Double?, Double?>>(null to null) }
+    // The energy plan, held rather than asked for twice: it reads a month of day summaries and a balance
+    // estimate over half a year, and the goal below needs the same one the burn figures came from.
+    var energyPlan by remember { mutableStateOf<CoreEnergyPlan.Plan?>(null) }
     var planning by remember { mutableStateOf(false) }
     var showPlan by remember { mutableStateOf(false) }
     // The day as the plan reads it (core `food.planDay`): its phase, training-day shift and active-day extra.
@@ -149,6 +152,7 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}) {
             CoreFood.prepare()
             FoodHealthConnect.importDays(context)
             val plan = CoreEnergyPlan.plan(context, dismissedTrainingWorkouts(context))
+            energyPlan = plan
             burnedByDay = plan?.burnedByDay ?: emptyMap()
             planInputs = planInputs(plan)
             // Once a day: the weekly look at the plan. Simple mode with Forge steering applies the change (with undo).
@@ -178,11 +182,10 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}) {
             }
         }
     }
-    LaunchedEffect(day, dietPlan, planInputs, burnedByDay, revision) {
+    LaunchedEffect(day, dietPlan, planInputs, burnedByDay, energyPlan, revision) {
         goals = withContext(Dispatchers.IO) {
             CoreDietPlan.dayGoal(context, dietPlan, dietPerson(context), planInputs.first, planInputs.second,
-                                 burnedByDay, day.toString(), dismissedTrainingWorkouts(context),
-                                 CoreEnergyPlan.plan(context, dismissedTrainingWorkouts(context)))
+                                 burnedByDay, day.toString(), dismissedTrainingWorkouts(context), energyPlan)
         }
     }
     // This week's suggestions (iOS `DietAdviceCard`), from the shared core over the same reads as the plan's day.

@@ -41,7 +41,11 @@ extension StoreReader {
         // (2026-11-19): the same fact, answered twice, differently. The source argument is immaterial here
         // by design, because for these keys there is one answer per day and this is where it is given.
         if let field = NutritionField(key: key) {
-            let resolved = await NutritionReads.nutritionByDay(store: store, from: from, to: to)
+            // Only the field this measure IS: the precedence is decided per field, so the answer for this
+            // one is the same whether the other three were read or not, and the catalogue sweep asks for
+            // each of the four separately.
+            let resolved = await NutritionReads.nutritionByDay(store: store, from: from, to: to,
+                                                               fields: [key])
             return resolved.keys.sorted().compactMap { day in
                 field.value(in: resolved[day]).map { (day: day, value: $0) }
             }

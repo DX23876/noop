@@ -222,7 +222,26 @@ class TodayTileGalleryTests(unittest.TestCase):
         self.assertIn("CoreTile.units[key]", tile)
         self.assertIn("rememberFactsLine(key, history, today, unit, calendarAge)", tile)
         core = (ROOT / "Packages/NoopCoreJNI/Sources/NoopCore/CoreCall.swift").read_text(encoding="utf-8")
-        self.assertRegex(core, r'case "tile\.units":[\s\S]{0,600}MetricCatalog\.all')
+        self.assertRegex(core, r'case "tile\.units":[\s\S]{0,1200}MetricCatalog\.all')
+
+    def test_a_day_totals_caption_describes_the_week_its_bars_draw(self):
+        """The row-wide card's caption is scoped to the window its picture covers, and must not repeat what
+        the strip under it already says. A day total draws seven bars; the usual-and-range line is read over
+        thirty readings, so it named two ends the reader could not find, and the week's total is already a
+        block in the strip."""
+        apple = (ROOT / "StrandiOS/Forge/ForgeTodayWidgets.swift").read_text(encoding="utf-8")
+        caption = apple[apple.index("static func wideCaption("):]
+        caption = caption[:caption.index("\n    }")]
+        self.assertIn("guard isDayTotal(key) else { return summaryLine(", caption)
+        self.assertIn("facts.weekAverage", caption)
+        kotlin = (ROOT / "android/app/src/main/java/com/noop/ui/forge/ForgeTodayWidgets.kt").read_text(encoding="utf-8")
+        card = kotlin[kotlin.index("private fun WideMeasureCard"):]
+        card = card[:card.index("\n}")]
+        self.assertIn("if (isDayTotal(key)) facts?.weekAverageText", card)
+        # And the card's own figure and unit come from the core, not from a local format: it wrote a bare
+        # "91.1" where the iPhone wrote "91 g".
+        self.assertIn("facts?.todayText ?: facts?.lastValueText", card)
+        self.assertIn("CoreTile.units[key].orEmpty()", card)
 
     def test_android_never_names_a_source_for_a_tile_itself(self):
         """Android asks the core by key (`CoreTile.history`). The moment it passes a source of its own, the

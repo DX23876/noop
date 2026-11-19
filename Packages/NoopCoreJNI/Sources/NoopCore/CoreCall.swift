@@ -284,15 +284,18 @@ public enum CoreCall {
             // The unit each measure is written in, from the one catalogue. Asked once and held, like the
             // colours. Without it Android's catalogue tiles stood with no unit at all: "91" beside the
             // iPhone's "91 g", on one account (2026-11-19).
-            return CoreRead.json(Dictionary(uniqueKeysWithValues: TileMeasures.keys.compactMap { key in
+            // `uniquingKeysWith`, not `uniqueKeysWithValues`: the same measure offered under two gallery
+            // sections is a display question, and a trap inside the core would answer it by taking the
+            // app down on the first tile that asks for its unit.
+            return CoreRead.json(Dictionary(TileMeasures.keys.compactMap { key in
                 MetricCatalog.all.first { $0.key == key }.map { (key, $0.unit) }
-            }))
+            }, uniquingKeysWith: { first, _ in first }))
         case "tile.tints":
             // Which colour each measure is drawn in, by name. The palette is each phone's own; which
             // measure gets which name is one decision, and it is `TileMeasures.tint`. Asked once and
             // held, because it never changes while the app runs.
-            return CoreRead.json(Dictionary(uniqueKeysWithValues:
-                TileMeasures.keys.map { ($0, TileMeasures.tint(forKey: $0).rawValue) }))
+            return CoreRead.json(Dictionary(TileMeasures.keys.map { ($0, TileMeasures.tint(forKey: $0).rawValue) },
+                                            uniquingKeysWith: { first, _ in first }))
         case "demo.person":
             // The demo account's body, from the shared dataset, so the emulator's profile and the
             // iPhone's hold one person. Kotlin writes it into its own prefs file; the figures are not

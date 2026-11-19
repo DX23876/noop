@@ -2693,6 +2693,20 @@ final class Repository: ObservableObject {
 
     // MARK: - Cross-source resolver (PR#196)
 
+    /// One Today tile's history, by the route that measure needs (`StoreReader.tileHistory`): the one step
+    /// resolver for steps, one skin-temperature scale, the gallery's source then any other catalogue source
+    /// for the rest. The same door Android reads through, so the two phones cannot fetch a tile's history
+    /// from different places.
+    func tileHistory(key: String, days: Int, skinTempPrefer: SkinTempDisplay.Kind = .absolute) async -> TileHistory {
+        guard let store = await ensureStore() else { return .none }
+        let now = Date()
+        let from = Self.dayString(now.addingTimeInterval(-Double(days) * 86_400))
+        let to = Self.dayString(now.addingTimeInterval(86_400))
+        return await storeReader(store).tileHistory(key: key, from: from, to: to, dailyRows: self.days,
+                                                    suppressedSleepWakeDays: suppressedSleepWakeDays,
+                                                    skinTempPrefer: skinTempPrefer)
+    }
+
     /// Product-facing daily series for a metric across every COMPATIBLE source, freshest-wins. Use this
     /// on surfaces where the user expects the best available signal (Compare/Insights/Stress/Explore/
     /// Today); use `series(key:source:)` where a single source must be honoured verbatim. Precedence is
@@ -2777,20 +2791,6 @@ final class Repository: ObservableObject {
     /// regardless of `days`; false (the default) honours `days` exactly as before, so existing callers are
     /// byte-identical. The flag is forwarded to the non-strap `series(...)` delegation below so every source
     /// path honours it.
-    /// One Today tile's history, by the route that measure needs (`StoreReader.tileHistory`): the one step
-    /// resolver for steps, one skin-temperature scale, the gallery's source then any other catalogue source
-    /// for the rest. The same door Android reads through, so the two phones cannot fetch a tile's history
-    /// from different places.
-    func tileHistory(key: String, days: Int, skinTempPrefer: SkinTempDisplay.Kind = .absolute) async -> TileHistory {
-        guard let store = await ensureStore() else { return .none }
-        let now = Date()
-        let from = Self.dayString(now.addingTimeInterval(-Double(days) * 86_400))
-        let to = Self.dayString(now.addingTimeInterval(86_400))
-        return await storeReader(store).tileHistory(key: key, from: from, to: to, dailyRows: self.days,
-                                                    suppressedSleepWakeDays: suppressedSleepWakeDays,
-                                                    skinTempPrefer: skinTempPrefer)
-    }
-
     func exploreSeries(key: String, source: String, days: Int = 4000, fullHistory: Bool = false) async -> [(day: String, value: Double)] {
         guard let store = await ensureStore() else { return [] }
         let now = Date()

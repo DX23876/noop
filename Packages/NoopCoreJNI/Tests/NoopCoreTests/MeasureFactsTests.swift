@@ -132,6 +132,28 @@ final class MeasureFactsTests: XCTestCase {
         XCTAssertEqual(f.weekDaysWithEntry, 4)
         XCTAssertNil(MeasureFacts.read(points: p, today: "2026-11-18").daysAboveTarget,
                      "without a goal there is nothing to be above")
+        // And the strip says the same denominator the caption does. A fixed seven read "3 of 7" under a
+        // caption saying "3 of 4 days reached", on one card.
+        let block = MeasureFacts.strip(key: "steps", facts: f, values: p.map(\.value))
+            .first { $0.item == .daysOverGoal }
+        XCTAssertEqual(block?.count, 3)
+        XCTAssertEqual(block?.total, 4)
+    }
+
+    /// The blocks under a week of bars are the week's, because the list that decides the picture is the
+    /// one that decides them. Protein draws its week and used to fall to the default blocks: a range read
+    /// over thirty readings under seven bars, and the daily average its caption already carries.
+    func testAMeasureDrawnAsAWeekTakesTheWeeksBlocks() {
+        let days = (12...18).map { ("2026-11-\(String(format: "%02d", $0))", Double(100 + $0)) }
+        let f = MeasureFacts.read(points: points(days), today: "2026-11-18", target: 120,
+                                  direction: .higherIsBetter)
+        for key in ["protein_g", "steps", "calories_in", "water_ml"] {
+            XCTAssertTrue(MeasureFacts.drawsTheWeek(forKey: key), key)
+            let items = MeasureFacts.strip(key: key, facts: f, values: days.map(\.1)).map(\.item)
+            XCTAssertEqual(items, [.best, .daysOverGoal, .weekTotal], key)
+        }
+        let hrv = MeasureFacts.strip(key: "hrv", facts: f, values: days.map(\.1)).map(\.item)
+        XCTAssertFalse(hrv.contains(.weekTotal), "a measure drawn as thirty days keeps its own blocks")
     }
 
     /// "7 of the last 10 nights above your usual" needs eleven readings before it can be said, since the

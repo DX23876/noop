@@ -105,12 +105,6 @@ enum MeasureFacts {
         }
     }
 
-    /// The day's goal for the measures that have one, from the one place it is stored.
-    ///
-    /// Read here rather than on each phone: the step goal lives under one key both apps already write
-    /// (`momentum.stepGoal`, Android's `CorePrefs.STEP_GOAL`), and a tile that read it itself would be a
-    /// second readout of a number the goals screen owns. Zero or unset means no goal, which is not the same
-    /// as a goal of nothing: the tile then shows no goal bar and no count of days over it.
     /// Whether a measure's goal has to be RESOLVED rather than read from a key.
     ///
     /// Protein is the only one: its goal is the day's macro goal, which comes out of the diet plan's own
@@ -120,6 +114,12 @@ enum MeasureFacts {
     /// protein goal.
     static func resolvesItsTarget(forKey key: String) -> Bool { key == "protein_g" }
 
+    /// The day's goal for the measures that have one, from the one place it is stored.
+    ///
+    /// Read here rather than on each phone: the step goal lives under one key both apps already write
+    /// (`momentum.stepGoal`, Android's `CorePrefs.STEP_GOAL`), and a tile that read it itself would be a
+    /// second readout of a number the goals screen owns. Zero or unset means no goal, which is not the same
+    /// as a goal of nothing: the tile then shows no goal bar and no count of days over it.
     static func storedTarget(forKey key: String, defaults: UserDefaults = .standard) -> Double? {
         switch key {
         case "steps":
@@ -184,9 +184,14 @@ enum MeasureFacts {
     /// say" differently, which is the same class of fault as two figures for one fact. A block whose data is
     /// missing is dropped rather than drawn empty, so a measure with a short history simply says less.
     static func strip(key: String, facts: Facts, values: [Double]) -> [StripEntry] {
+        // A measure whose picture is the WEEK takes the week's blocks, and that is read from the one list
+        // that decides the picture rather than from a second list beside it. The two had already parted:
+        // protein draws its week and fell to the default blocks, so under seven bars it offered a range
+        // read over thirty readings and repeated the daily average its caption carries (2026-11-19).
+        if drawsTheWeek(forKey: key) {
+            return assembled([.best, .daysOverGoal, .weekTotal], key: key, facts: facts, values: values)
+        }
         let wanted: [StripItem] = switch key {
-        case "steps", "active_kcal", "calories_in", "hr_zones13_min", "hr_zones45_min":
-            [.best, .daysOverGoal, .weekTotal]
         case "hrv", "spo2", "sleep_performance", "recovery":
             [.best, .aboveUsual, .weekAverage]
         case "rhr", "resp_rate":
@@ -203,6 +208,13 @@ enum MeasureFacts {
         default:
             [.best, .range, .weekAverage]
         }
+        return assembled(wanted, key: key, facts: facts, values: values)
+    }
+
+    /// The chosen blocks with their figures filled in. A block whose data is missing is dropped rather
+    /// than drawn empty, so a measure with a short history simply says less.
+    private static func assembled(_ wanted: [StripItem], key: String, facts: Facts,
+                                  values: [Double]) -> [StripEntry] {
         let summary = MeasureTileReading.summary(key: key, values: values)
         func figure(_ value: Double?) -> String? {
             value.map { MeasureTileReading.figure(key: key, value: $0) }
@@ -228,8 +240,11 @@ enum MeasureFacts {
                 guard let change = item == .weekChange ? facts.weekChange : facts.quarterChange else { return nil }
                 return StripEntry(item, text: figure(abs(change)), count: change > 0 ? 1 : change < 0 ? -1 : 0)
             case .daysOverGoal:
-                guard let count = facts.daysAboveTarget else { return nil }
-                return StripEntry(.daysOverGoal, count: count, total: 7)
+                // Out of the days that HAVE a reading, which is what `daysAboveTarget` counts and what
+                // every other reader of this fact says. A fixed seven read "3 of 7" in the strip under a
+                // caption saying "3 of 4 days reached", on one card (2026-11-19).
+                guard let count = facts.daysAboveTarget, facts.weekDaysWithEntry > 0 else { return nil }
+                return StripEntry(.daysOverGoal, count: count, total: facts.weekDaysWithEntry)
             case .daysWithEntry:
                 guard facts.daysWithEntry > 0 else { return nil }
                 return StripEntry(.daysWithEntry, count: facts.daysWithEntry, total: 30)

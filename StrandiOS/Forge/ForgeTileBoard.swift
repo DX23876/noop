@@ -41,12 +41,13 @@ struct ForgeTileBoardView: View {
         }
         guard !measuresOnly else { return out }
         for kind in ForgeTodayWidget.Kind.allCases where kind != .measure {
-            let small = ForgeTodayWidget(kind: kind)
-            var sizes = [small]
-            if small.size != .medium { sizes.append(ForgeTodayWidget(kind: kind, span: 2)) }
-            if ForgeTodayWidget(kind: kind, wide: true).size == .wide {
-                sizes.append(ForgeTodayWidget(kind: kind, wide: true))
-            }
+            // The three candidates reduced to the sizes the kind actually HAS. Most cards answer wide to
+            // every candidate (their `isWide` is unconditional), and listing those three times filled the
+            // board with triplicates of one card, which is the opposite of what it is for.
+            var seen: Set<ForgeTodayWidget.Size> = []
+            let sizes = [ForgeTodayWidget(kind: kind),
+                         ForgeTodayWidget(kind: kind, span: 2),
+                         ForgeTodayWidget(kind: kind, wide: true)].filter { seen.insert($0.size).inserted }
             out.append((kind.rawValue, sizes))
         }
         return out

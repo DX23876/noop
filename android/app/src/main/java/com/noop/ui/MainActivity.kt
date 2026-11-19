@@ -144,13 +144,20 @@ class MainActivity : ComponentActivity() {
         // Both seeders refuse a store that already holds days, so it was never a conflict, only a race —
         // and a race decides which account the wearer gets.
         if (BuildConfig.ENABLE_DEMO) {
+            // The demo account's body, from the same shared dataset, because a history without a person
+            // leaves the calorie goal, the zones and the body pages with nothing to start from.
+            //
+            // Written HERE, before the first screen composes, and not on a background thread beside the
+            // rest: the tiles read the profile (through the energy plan) the moment they appear, so a
+            // person that lands a moment later arrives after the reading that needed it. On a fresh demo
+            // install the Nutrition tile and the Food page both showed a day with no goal until the next
+            // launch (2026-11-19). It is a prefs write and one store-free call into the core, in a demo
+            // build only, and it runs once because it refuses a profile anybody has filled in.
+            runCatching { DemoPerson.seedIfUnset(applicationContext) }
             lifecycleScope.launch(Dispatchers.IO) {
                 runCatching {
                     DemoSeeder.seedDemoDeviceIfNeeded((application as NoopApplication).deviceRegistry)
                 }
-                // And the demo account's body, from the same shared dataset, because a history without a
-                // person leaves the calorie goal, the zones and the body pages with nothing to start from.
-                runCatching { DemoPerson.seedIfUnset(applicationContext) }
             }
         }
 

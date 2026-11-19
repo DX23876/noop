@@ -7228,6 +7228,7 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="project_report_picture_detail">Une capture de ce qui a mal tourné en dit plus qu\'un journal</string>
     <string name="project_report_picture_remove">Retirer l\'image</string>
     <string name="forge_tile_week_total">Cette semaine %1$s · %2$s par jour</string>
+    <string name="forge_tile_a_day">%1$s par jour</string>
     <string name="forge_tile_of_goal_today">%1$s sur %2$s aujourd’hui</string>
     <string name="forge_tile_days_reached">atteint %1$d jours sur %2$d</string>
     <string name="forge_tile_weighed">Pesé %1$s</string>

@@ -56,18 +56,26 @@ public enum NutritionReads {
 
     /// Resolve nutrition per field. A deliberate manual correction wins only the field it contains; its absent
     /// macros continue to use the imported values instead of being erased.
+    /// `fields` limits the read to the keys the caller needs, which is all a single-measure read wants:
+    /// the precedence is decided field by field anyway, so asking for one gives the same answer for that
+    /// one. The catalogue sweep reads the four nutrition measures separately, and reading all four fields
+    /// each time made it twenty-five queries per measure instead of six.
     public static func nutritionByDay(store: WhoopStore, from: String, to: String,
-                                      healthSourceNames: [String: String] = [:]) async -> [String: NutritionDay] {
+                                      healthSourceNames: [String: String] = [:],
+                                      fields: Set<String>? = nil) async -> [String: NutritionDay] {
         let sources: [(id: String, source: NutritionDay.Source)] = [
             (MetricResolver.appleHealthSource, .appleHealth), (MetricResolver.healthConnectSource, .healthConnect),
             (csvIntakeSource, .csv),
             (WhoopStore.foodLogSourceId, .foodLog), (manualIntakeSource, .manual),
         ]
+        let wanted = [caloriesKey, proteinKey, carbsKey, fatKey].filter { fields?.contains($0) ?? true }
         var byDay: [String: NutritionDay] = [:]
         for candidate in sources {
-            let markerDays = Set(((try? await store.metricSeries(
-                deviceId: candidate.id, key: loggedKey, from: from, to: to)) ?? []).map(\.day))
-            for key in [caloriesKey, proteinKey, carbsKey, fatKey] {
+            // Only the typed lane is gated on the marker, so only the typed lane has to read it.
+            let markerDays = candidate.source != .manual ? Set<String>()
+                : Set(((try? await store.metricSeries(
+                    deviceId: candidate.id, key: loggedKey, from: from, to: to)) ?? []).map(\.day))
+            for key in wanted {
                 let rows = (try? await store.metricSeries(deviceId: candidate.id, key: key, from: from, to: to)) ?? []
                 // The food log banks a day only when it has entries, so its zero is a logged zero (water, black
                 // coffee), not a gap; the other sources write zero for days nobody logged.

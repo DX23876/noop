@@ -927,21 +927,32 @@ private fun WideMeasureCard(key: String?, keyTiles: KeyTiles, history: CoreTile.
     val series = catalog.ifEmpty { keyTiles.sparks[metric].orEmpty() }
     val tile = (if (key == KeyMetric.SKIN_TEMP.raw) skinLead(history) else null)
         ?: metric?.let { keyTiles.tiles[it] }
-    val unit = tile?.unit.orEmpty()
+    // The Key Metric's own unit where it has one, else the catalogue's, which is where a measure that is
+    // not a Key Metric keeps it. Without the second half this card wrote a bare "91" where the iPhone
+    // wrote "91 g", and its caption said "130 a day" (2026-11-19).
+    val unit = tile?.unit?.takeIf { it.isNotEmpty() } ?: CoreTile.units[key].orEmpty()
     // Charge, Effort and Rest are whole numbers, as their rings say them; a Charge of "51.1" is noise.
     val whole = wholeRowMetric(key) != null
-    val value = tile?.value ?: series.lastOrNull()?.let {
-        if (whole) kotlin.math.round(it).toInt().toString() else java.text.DecimalFormat("#.#").format(it)
-    }
     val change = key?.let { rememberTileDelta(if (metric != null) metric.catalogKey() else it, series) }
     val displayMetric = metric ?: wholeRowMetric(key)
     val tint = displayMetric?.tileTint() ?: measureTint(key.orEmpty())
     val shown = series.takeLast(30)
-    // One facts read for the whole card: the goal under the bars, the blocks under the chart and the
-    // caption all stand on the same numbers (`MeasureFacts`), so they cannot disagree with each other.
+    // One facts read for the whole card: the goal under the bars, the blocks under the chart, the caption
+    // and the figure itself all stand on the same numbers (`MeasureFacts`), so they cannot disagree.
     val facts = rememberFacts(key, history, today)
+    // The figure as the CORE writes it, which decides the decimals per measure; the local format is only
+    // what stands there until the core answers.
+    val value = tile?.value ?: facts?.todayText ?: facts?.lastValueText ?: series.lastOrNull()?.let {
+        if (whole) kotlin.math.round(it).toInt().toString() else java.text.DecimalFormat("#.#").format(it)
+    }
+    // The caption describes the picture under it. Thirty days of line keep the usual and the range; the
+    // week's seven bars take the week's daily average instead, which is the window the bars show and the
+    // one thing the strip beside them does not already carry (iOS's `wideCaption`, 2026-11-19).
+    val caption = if (isDayTotal(key)) facts?.weekAverageText?.let {
+        stringResource(R.string.forge_tile_a_day, if (unit.isEmpty() || unit.startsWith("/")) it else "$it $unit")
+    } else change?.summary?.let { summaryLine(it, unit) }
     ForgeTodayTile(measureIcon(key.orEmpty()), tint, measureLabel(key.orEmpty()),
-                   value, unit, change?.summary?.let { summaryLine(it, unit) }, noData, dense = false,
+                   value, unit, caption, noData, dense = false,
                    modifier = modifier, delta = change?.text, deltaTone = change?.tone,
                    // The row-wide form draws the dated chart below instead of the tile's own sparkline:
                    // "the whole row shows the course" includes WHEN it was, which a bare curve does not say.
