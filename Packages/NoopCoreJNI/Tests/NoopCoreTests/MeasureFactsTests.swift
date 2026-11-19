@@ -88,6 +88,64 @@ final class MeasureFactsTests: XCTestCase {
         XCTAssertTrue(f.last30.isEmpty)
     }
 
+    // MARK: - The kit round's facts (owner, 2026-11-19)
+
+    /// The best mark follows the measure, not the arithmetic: the highest HRV and the lowest resting pulse
+    /// are both "best", and a tile must not call a high resting pulse a record.
+    func testTheBestMarkFollowsTheMeasuresOwnDirection() {
+        let p = points([("2026-11-14", 40), ("2026-11-15", 62), ("2026-11-16", 51)])
+        let up = MeasureFacts.read(points: p, today: "2026-11-18", direction: .higherIsBetter)
+        XCTAssertEqual(up.best, 62)
+        XCTAssertEqual(up.bestDay, "2026-11-15")
+        let down = MeasureFacts.read(points: p, today: "2026-11-18", direction: .lowerIsBetter)
+        XCTAssertEqual(down.best, 40)
+        XCTAssertEqual(down.bestDay, "2026-11-14")
+    }
+
+    /// Weight and skin temperature claim no best at all, which is the point of asking the direction rather
+    /// than taking the maximum of whatever is there.
+    func testAMeasureWithNoBetterDirectionClaimsNoBest() {
+        let f = MeasureFacts.read(points: points([("2026-11-17", 97.2), ("2026-11-18", 98.0)]), today: "2026-11-18")
+        XCTAssertNil(f.best); XCTAssertNil(f.bestDay)
+        XCTAssertEqual(MeasureFacts.direction(forKey: "weight"), .neither)
+        XCTAssertEqual(MeasureFacts.direction(forKey: "skin_temp"), .neither)
+        XCTAssertEqual(MeasureFacts.direction(forKey: "hrv"), .higherIsBetter)
+        XCTAssertEqual(MeasureFacts.direction(forKey: "rhr"), .lowerIsBetter)
+    }
+
+    /// The best mark names a day inside the thirty the chart draws, not the best entry in the whole history:
+    /// a record from last spring under a thirty-day curve is a figure the picture cannot show.
+    func testTheBestMarkStaysInsideTheDrawnWindow() {
+        let p = points([("2026-05-01", 99), ("2026-11-10", 61), ("2026-11-18", 55)])
+        let f = MeasureFacts.read(points: p, today: "2026-11-18", direction: .higherIsBetter)
+        XCTAssertEqual(f.best, 61)
+        XCTAssertEqual(f.daysWithEntry, 2, "only the two days inside the window count")
+    }
+
+    /// "5 of 7 days over the goal": both numbers come from the same read, so the count and what it is out
+    /// of cannot disagree.
+    func testTheDaysOverTheGoalAreCountedAgainstTheDaysThatHaveOne() {
+        let p = points([("2026-11-13", 12000), ("2026-11-15", 4000), ("2026-11-16", 11000),
+                        ("2026-11-18", 9000)])
+        let f = MeasureFacts.read(points: p, today: "2026-11-18", target: 8000)
+        XCTAssertEqual(f.daysAboveTarget, 3)
+        XCTAssertEqual(f.weekDaysWithEntry, 4)
+        XCTAssertNil(MeasureFacts.read(points: p, today: "2026-11-18").daysAboveTarget,
+                     "without a goal there is nothing to be above")
+    }
+
+    /// "7 of the last 10 nights above your usual" needs eleven readings before it can be said, since the
+    /// usual itself is read from the ones before the newest.
+    func testTheCountAgainstTheUsualWaitsUntilThereAreTenToCount() {
+        let short = (1...10).map { ("2026-11-\(String(format: "%02d", $0))", Double(50)) }
+        XCTAssertNil(MeasureFacts.read(points: points(short), today: "2026-11-18").aboveUsualRecently)
+        // Eleven days: ten at 50, then a run above the median of the ones before it.
+        var pairs = (1...6).map { ("2026-11-\(String(format: "%02d", $0))", Double(50)) }
+        pairs += (7...11).map { ("2026-11-\(String(format: "%02d", $0))", Double(60)) }
+        let f = MeasureFacts.read(points: points(pairs), today: "2026-11-11")
+        XCTAssertEqual(f.aboveUsualRecently, 5)
+    }
+
     /// Day keys are labels, not moments: shifting one must not depend on the phone's zone or on a clock
     /// change, which is why the shift runs in UTC.
     func testDayKeysShiftAcrossMonthAndYearEnds() {

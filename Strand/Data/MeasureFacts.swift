@@ -48,6 +48,43 @@ enum MeasureFacts {
         let targetLeft: Double?
         /// The last thirty readings in order, for the row-wide form's curve.
         let last30: [Double]
+        /// The best of the last thirty readings and the day it fell on, in the direction that counts as
+        /// better for THIS measure (`direction(forKey:)`). Nil where no direction can be claimed: whether
+        /// a weight going up is good depends on the wearer's goal, and a skin temperature is read by how
+        /// far it is from its own baseline, not by being high or low.
+        let best: Double?
+        let bestDay: String?
+        /// Of the days in the week that have a reading, how many reached the goal. Nil without a goal.
+        let daysAboveTarget: Int?
+        /// How many of the seven days have a reading at all, so "5 of 7 days" can say what the 7 counts.
+        let weekDaysWithEntry: Int
+        /// How many of the last thirty days have a reading. What "days with a weigh-in" means.
+        let daysWithEntry: Int
+        /// Of the last ten readings, how many are above the usual (the median of the thirty before the
+        /// newest, the same usual the change chip is read against). Nil under eleven readings, because a
+        /// count out of ten that is really out of four says something untrue about its own denominator.
+        let aboveUsualRecently: Int?
+    }
+
+    /// Which way is better for a measure, decided in one place because both phones word a best mark from it.
+    ///
+    /// Unlisted means `neither`, on purpose: a tile then shows no best mark at all rather than calling the
+    /// highest of thirty days a record when nobody said high was good. Weight and skin temperature are the
+    /// worked examples — a weight going up is good or bad depending on the goal, and a skin temperature is
+    /// read by its distance from its own baseline.
+    enum Direction: String, Sendable { case higherIsBetter, lowerIsBetter, neither }
+
+    static func direction(forKey key: String) -> Direction {
+        switch key {
+        case "hrv", "steps", "spo2", "sleep_total_min", "sleep_performance", "recovery", "vo2max_est",
+             "water_ml", "protein_g", "mood", "lean_mass":
+            return .higherIsBetter
+        case "rhr", "resp_rate", "fitness_age", "body_age", "vitality", "stress", "sleep_debt_min",
+             "body_fat":
+            return .lowerIsBetter
+        default:
+            return .neither
+        }
     }
 
     /// Read one measure's facts from its series.
@@ -58,7 +95,11 @@ enum MeasureFacts {
     ///   - today: the logical day key the caller counts from, passed in rather than read, so a test can
     ///     place "today" where it wants it and the two platforms cannot disagree about when today is.
     ///   - target: the day's goal, where the caller has one.
-    static func read(points: [Point], today: String, target: Double? = nil) -> Facts {
+    ///   - direction: which way counts as better, for the best mark. Taken from `direction(forKey:)` by
+    ///     the callers that have a catalogue key; passed in so a caller with a goal of its own (a weight
+    ///     plan going down) can say so.
+    static func read(points: [Point], today: String, target: Double? = nil,
+                     direction: Direction = .neither) -> Facts {
         let ordered = points.sorted { $0.day < $1.day }
         let todayValue = ordered.last(where: { $0.day == today })?.value
         let last = ordered.last
@@ -77,12 +118,35 @@ enum MeasureFacts {
         }
         let left = target.flatMap { t in todayValue.map { max(0, t - $0) } }
 
+        // The last thirty days by day key, as the row-wide chart draws them, so a best mark names a day
+        // inside the drawn window rather than the thirtieth entry back in a gappy series.
+        let windowStart = dayKey(today, minusDays: 29)
+        let window = ordered.filter { $0.day >= windowStart && $0.day <= today }
+        let best: Point? = switch direction {
+        case .higherIsBetter: window.max { $0.value < $1.value }
+        case .lowerIsBetter: window.min { $0.value < $1.value }
+        case .neither: nil
+        }
+        let above = target.map { t in week.filter { $0.value >= t }.count }
+        // The same usual the change chip is read against (`MeasureTileReading`): the median of the thirty
+        // readings before the newest. Both counts then stand on one number instead of two.
+        let recent = ordered.suffix(11)
+        let aboveUsual: Int? = {
+            guard ordered.count >= 11 else { return nil }
+            let before = ordered.dropLast().suffix(30).map(\.value).sorted()
+            let usual = before[before.count / 2]
+            return recent.suffix(10).filter { $0.value > usual }.count
+        }()
+
         return Facts(today: todayValue,
                      weekAverage: weekValues.isEmpty ? nil : weekValues.reduce(0, +) / Double(weekValues.count),
                      weekTotal: weekValues.isEmpty ? nil : weekValues.reduce(0, +),
                      lastValue: last?.value, lastDay: last?.day, daysSinceLast: daysSince,
                      weekChange: change, target: target, targetLeft: left,
-                     last30: Array(ordered.suffix(30).map(\.value)))
+                     last30: Array(ordered.suffix(30).map(\.value)),
+                     best: best?.value, bestDay: best?.day, daysAboveTarget: above,
+                     weekDaysWithEntry: week.count, daysWithEntry: window.count,
+                     aboveUsualRecently: aboveUsual)
     }
 
     // MARK: - Day keys

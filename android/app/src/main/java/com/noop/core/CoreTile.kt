@@ -27,7 +27,16 @@ object CoreTile {
                      val weekChange: Double?, val target: Double?, val targetLeft: Double?,
                      /** The same figures as the tile writes them, formatted in the core so both phones round alike. */
                      val todayText: String?, val weekAverageText: String?, val weekTotalText: String?,
-                     val weekChangeText: String?, val targetLeftText: String?)
+                     val weekChangeText: String?, val targetLeftText: String?,
+                     /**
+                      * The kit round's three (owner, 2026-11-19): the best of the last thirty days with the day it
+                      * fell on, how many of the week's days reached the goal out of how many have a reading at all,
+                      * how many of the last thirty days have one, and how many of the last ten readings are above
+                      * the wearer's usual. [best] is null where no direction counts as better for the measure.
+                      */
+                     val best: Double? = null, val bestDay: String? = null, val bestText: String? = null,
+                     val daysAboveTarget: Int? = null, val weekDaysWithEntry: Int = 0,
+                     val daysWithEntry: Int = 0, val aboveUsualRecently: Int? = null)
 
     /**
      * [days] and [values] are one series, oldest first and the same length; [today] is the logical day key.
@@ -43,10 +52,13 @@ object CoreTile {
             val o = JSONObject(json)
             fun d(name: String): Double? = if (o.isNull(name)) null else o.optDouble(name)
             fun t(name: String): String? = if (o.isNull(name)) null else o.optString(name)
+            fun i(name: String): Int? = if (o.isNull(name)) null else o.optInt(name)
             Facts(d("today"), d("weekAverage"), d("weekTotal"), d("lastValue"),
-                  t("lastDay"), if (o.isNull("daysSinceLast")) null else o.optInt("daysSinceLast"),
+                  t("lastDay"), i("daysSinceLast"),
                   d("weekChange"), d("target"), d("targetLeft"),
-                  t("todayText"), t("weekAverageText"), t("weekTotalText"), t("weekChangeText"), t("targetLeftText"))
+                  t("todayText"), t("weekAverageText"), t("weekTotalText"), t("weekChangeText"), t("targetLeftText"),
+                  d("best"), t("bestDay"), t("bestText"), i("daysAboveTarget"),
+                  o.optInt("weekDaysWithEntry"), o.optInt("daysWithEntry"), i("aboveUsualRecently"))
         }.getOrNull()
     }
 

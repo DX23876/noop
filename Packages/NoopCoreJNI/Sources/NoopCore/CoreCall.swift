@@ -43,12 +43,13 @@ public enum CoreCall {
             let days = (args["days"] as? [String]) ?? []
             let values = (args["values"] as? [NSNumber])?.map(\.doubleValue) ?? []
             let points = zip(days, values).map { MeasureFacts.Point(day: $0, value: $1) }
+            let key = args["key"] as? String ?? ""
             let facts = MeasureFacts.read(points: points,
                                           today: args["today"] as? String ?? LogicalDay.key(Date()),
-                                          target: (args["target"] as? NSNumber)?.doubleValue)
+                                          target: (args["target"] as? NSNumber)?.doubleValue,
+                                          direction: MeasureFacts.direction(forKey: key))
             // Formatted here as well as computed here: a figure rounded once on each phone is a figure
             // that can read differently on the two, which is the thing this whole reading exists to stop.
-            let key = args["key"] as? String ?? ""
             func text(_ value: Double?) -> String? {
                 value.map { MeasureTileReading.figure(key: key, value: $0) }
             }
@@ -58,6 +59,9 @@ public enum CoreCall {
                 let weekChange: Double?, target: Double?, targetLeft: Double?
                 let todayText: String?, weekAverageText: String?, weekTotalText: String?
                 let weekChangeText: String?, targetLeftText: String?
+                let best: Double?, bestDay: String?, bestText: String?
+                let daysAboveTarget: Int?, weekDaysWithEntry: Int, daysWithEntry: Int
+                let aboveUsualRecently: Int?
             }
             return CoreRead.json(Wire(today: facts.today, weekAverage: facts.weekAverage, weekTotal: facts.weekTotal,
                                       lastValue: facts.lastValue, lastDay: facts.lastDay,
@@ -66,7 +70,12 @@ public enum CoreCall {
                                       todayText: text(facts.today), weekAverageText: text(facts.weekAverage),
                                       weekTotalText: text(facts.weekTotal),
                                       weekChangeText: text(facts.weekChange.map(abs)),
-                                      targetLeftText: text(facts.targetLeft)))
+                                      targetLeftText: text(facts.targetLeft),
+                                      best: facts.best, bestDay: facts.bestDay, bestText: text(facts.best),
+                                      daysAboveTarget: facts.daysAboveTarget,
+                                      weekDaysWithEntry: facts.weekDaysWithEntry,
+                                      daysWithEntry: facts.daysWithEntry,
+                                      aboveUsualRecently: facts.aboveUsualRecently))
         }
         if op == "momentum.day" {
             return CoreRead.json(["day": LogicalDay.key(Date())])
