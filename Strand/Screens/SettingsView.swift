@@ -133,6 +133,10 @@ private struct SettingsPageContent: View, Equatable {
     /// single-subject so far. Display-only; never feeds recovery/illness. See
     /// [PuffinExperiment.stressPersonalBaselineKey].
     @AppStorage(PuffinExperiment.stressPersonalBaselineKey) private var stressPersonalBaselineEnabled = false
+    #if os(iOS) && DEBUG
+    /// The debug-only comparison board, presented from Lab.
+    @State private var showsTileBoard = false
+    #endif
     /// [PuffinExperiment.exerciseVO2maxKey].
     @AppStorage(PuffinExperiment.exerciseVO2maxKey) private var exerciseVO2maxEnabled = false
     /// [PuffinExperiment.effortStrengthBonusKey].
@@ -3844,6 +3848,22 @@ private struct SettingsPageContent: View, Equatable {
                 Divider().overlay(StrandPalette.hairline)
                 #endif
 
+                #if os(iOS) && DEBUG
+                // The comparison board (debug only): every tile at every size on one page, so the two
+                // phones can be held against each other without first arranging a layout by hand on both.
+                Button { showsTileBoard = true } label: {
+                    Text("Tile board")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.accent)
+                }
+                .buttonStyle(.plain)
+                Text("Every Today tile at every size, drawn by the views Today uses. Debug builds only.")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Divider().overlay(StrandPalette.hairline)
+                #endif
+
                 // MARK: #463 Personal daytime-stress baseline — score today's timeline vs a personal
                 //       cross-day baseline instead of the day's own calm hours. Off by default.
                 Toggle(isOn: $stressPersonalBaselineEnabled) {
@@ -3931,6 +3951,9 @@ private struct SettingsPageContent: View, Equatable {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
+        #if os(iOS) && DEBUG
+        .sheet(isPresented: $showsTileBoard) { ForgeTileBoardView() }
+        #endif
     }
 
     // MARK: - Help & Diagnostics
