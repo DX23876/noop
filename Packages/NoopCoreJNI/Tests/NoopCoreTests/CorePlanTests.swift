@@ -79,16 +79,21 @@ final class CoreMorningSuggestionTests: XCTestCase {
         XCTAssertEqual(card.rationale, "Low charge")
     }
 
-    func testUnsettledNightAsksAboutTheWakeOnlyWhenSwitchedOn() {
-        let off = MorningSuggestionState.resolve(morningOn: false, configured: true, consent: true, toolsActive: true,
-                                                 sending: false, pending: [], today: today, unsettledWake: 1_800_000_000)
-        XCTAssertEqual(CoreCoach.card(off, on: false, scale: .hundred).kind, "hidden")
-        let on = MorningSuggestionState.resolve(morningOn: true, configured: true, consent: true, toolsActive: true,
-                                                sending: false, pending: [], today: today, unsettledWake: 1_800_000_000)
-        let card = CoreCoach.card(on, on: true, scale: .hundred)
-        XCTAssertEqual(card.kind, "confirmWake")
-        XCTAssertEqual(card.wake, 1_800_000_000)
-        XCTAssertTrue(card.wakeText?.contains("%@") == true)
+    /// The unsettled night is asked about whatever the coach's switches say (2026-11-18). It used to sit
+    /// behind them, which this test pinned: a night the strap has not finished handing over has nothing to
+    /// do with a coach, and on Android the state has no other home, so every wearer without a provider was
+    /// left with a recovery scored on a truncated night and no way to see it.
+    func testUnsettledNightIsAskedAboutWhateverTheCoachSwitchesSay() {
+        for (morningOn, configured, consent, tools) in [(true, true, true, true), (false, true, true, true),
+                                                        (false, false, false, false)] {
+            let state = MorningSuggestionState.resolve(morningOn: morningOn, configured: configured, consent: consent,
+                                                       toolsActive: tools, sending: false, pending: [], today: today,
+                                                       unsettledWake: 1_800_000_000)
+            let card = CoreCoach.card(state, on: morningOn, scale: .hundred)
+            XCTAssertEqual(card.kind, "confirmWake", "morningOn \(morningOn), configured \(configured)")
+            XCTAssertEqual(card.wake, 1_800_000_000)
+            XCTAssertTrue(card.wakeText?.contains("%@") == true)
+        }
     }
 
     func testNoProviderHidesEverything() {

@@ -120,8 +120,13 @@ public enum Bridge {
         let box = Box()
         let done = DispatchSemaphore(value: 0)
         Task.detached {
-            if let n = try? await CoreDemo.seedIfEmpty(store: reader.store, deviceId: reader.activeDeviceId) {
-                box.value = Int32(n)
+            // The SHARED demo account (`DemoDataset`), the one iOS writes for `--demo-data`, so the two
+            // phones show the same figures and a screen can be held against its twin. This used to write
+            // `CoreDemo`'s own six weeks instead, under a different device id, so the demo build carried
+            // two accounts at once and Android's Today read figures the iPhone never had (owner saw it as
+            // a step count that differed, 2026-11-19).
+            if let wrote = try? await DemoDataset.seedIfEmpty(store: reader.store) {
+                box.value = wrote ? Int32(DemoDataset.days) : 0
             }
             // A week of meals for the Food page, as the Apple demo has.
             await FoodDemoSeed.seedIfEmpty(store: reader.store)

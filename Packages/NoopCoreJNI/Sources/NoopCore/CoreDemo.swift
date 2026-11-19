@@ -4,9 +4,13 @@ import WhoopProtocol
 import StrandCore
 import WhoopStore
 
-/// The demo build's history in the core's store (Android plan E-3): six weeks of scored days, nights with stages
-/// and Rest, so the screens show something on an emulator without a strap. Deterministic, so a screenshot taken
-/// twice on the same day matches; written only into an empty store and only by the demo flavour.
+/// Six weeks of scored days, nights with stages and Rest, written only into an empty store.
+///
+/// A TEST FIXTURE since 2026-11-19, not the demo build's account: the demo build and iOS both seed
+/// `DemoDataset`, the one shared account, so a screen on one phone can be held against its twin. This
+/// one stays because the core's own tests want a small, closed history with heart-rate streams in it,
+/// and it must never be seeded beside the shared account again — two demo accounts in one store read as
+/// one muddled account.
 public enum CoreDemo {
     public static let days = 42
 
