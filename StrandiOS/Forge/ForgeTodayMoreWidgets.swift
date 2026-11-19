@@ -62,10 +62,25 @@ struct ForgeWidgetCard<Route: Hashable, Content: View>: View {
 
 /// Tonight: bedtime for the full night and tomorrow's alarm, drawn as the night they span. Opens Alarms.
 struct ForgeTonightWidget: View {
+    /// Small: the bedtime. Over two columns: the alarm beside it.
+    var compact: TileSize? = nil
+
     var body: some View {
         let bed = ForgeToday.plannedBedtime(now: Date())
         let wake = Self.wake
         let wakeText = wake.formatted(Date.FormatStyle(date: .omitted, time: .shortened).locale(AppLanguage.activeLocale))
+        if let compact {
+            return AnyView(ForgeCardTile(
+                symbol: "moon.stars.fill", label: String(localized: "Tonight"),
+                value: bed.map { $0.formatted(Date.FormatStyle(date: .omitted, time: .shortened)
+                                                  .locale(AppLanguage.activeLocale)) },
+                caption: compact == .medium ? String(localized: "Alarm \(wakeText)") : nil,
+                tint: ForgeColor.rest, route: Optional<ForgeRoute>.none))
+        }
+        return AnyView(fullBody(bed: bed, wake: wake, wakeText: wakeText))
+    }
+
+    @ViewBuilder private func fullBody(bed: Date?, wake: Date, wakeText: String) -> some View {
         ForgeWidgetCard(title: String(localized: "Tonight"), route: MoreDestination.alarms) {
             if let bed {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {

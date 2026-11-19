@@ -111,8 +111,12 @@ internal data class TodayWidget(
     val key: String? = null,
     /** 2: a small tile over two columns. */
     val span: Int = 1,
-    /** Live heart rate across the whole row instead of a tile. */
-    val wide: Boolean = false,
+    /**
+     * Across the whole row instead of a tile. Null means "as this kind is placed": a card that can shrink
+     * starts wide, so null must not read as small, or every tile placed before 2026-11-18 would have been
+     * rearranged overnight.
+     */
+    val wide: Boolean? = null,
 ) {
     enum class Kind(val raw: String) {
         Measure("measure"), TrainingLoad("trainingLoad"), Goals("goals"), Energy("energy"), LiveHeart("liveHeart"),
@@ -133,18 +137,26 @@ internal data class TodayWidget(
     val isWholeRowMeasure: Boolean get() = kind == Kind.Measure && key in WHOLE_ROW_MEASURES
 
     val size: Size get() = when {
+        kind in SHRINKABLE_CARDS -> if (wide != false) Size.Wide else if (span == 2) Size.Medium else Size.Small
         kind !in TILE_KINDS -> Size.Wide
         isWholeRowMeasure -> Size.Wide
-        (kind == Kind.LiveHeart || kind == Kind.AgeLess || kind == Kind.Measure) && wide -> Size.Wide
+        (kind == Kind.LiveHeart || kind == Kind.AgeLess || kind == Kind.Measure) && wide == true -> Size.Wide
         span == 2 -> Size.Medium
         else -> Size.Small
+    }
+
+    /** The narrow size a shrunk card is drawn at, or null while it is wide. */
+    val compactSize: TileSize? get() = when (size) {
+        Size.Wide -> null
+        Size.Medium -> TileSize.Medium
+        Size.Small -> TileSize.Small
     }
 
     /**
      * A whole-row measure answers false: it has one size, so a size control on it would be a button that
      * does nothing, and a control that does nothing says something untrue about the thing it sits on.
      */
-    val resizable: Boolean get() = kind in TILE_KINDS && !isWholeRowMeasure
+    val resizable: Boolean get() = (kind in TILE_KINDS || kind in SHRINKABLE_CARDS) && !isWholeRowMeasure
 
     /** Drawn as a tile in a row (iOS's non-wide kinds), so its row takes the tallest tile's height. */
     val isTile: Boolean get() = size != Size.Wide
@@ -152,8 +164,10 @@ internal data class TodayWidget(
     /** One tap on the size control: small, two columns, the whole row where the kind has a card for it, small. */
     fun nextSize(): TodayWidget = when (size) {
         Size.Small -> copy(span = 2, wide = false)
-        // A measure grows across the row too since 2026-11-18, where it draws its thirty days.
-        Size.Medium -> if (kind == Kind.LiveHeart || kind == Kind.AgeLess || kind == Kind.Measure) copy(span = 1, wide = true)
+        // A measure grows across the row too since 2026-11-18, where it draws its thirty days; a card that
+        // can shrink returns to the width it was placed at.
+        Size.Medium -> if (kind == Kind.LiveHeart || kind == Kind.AgeLess || kind == Kind.Measure ||
+                           kind in SHRINKABLE_CARDS) copy(span = 1, wide = true)
                        else copy(span = 1, wide = false)
         Size.Wide -> copy(span = 1, wide = false)
     }
@@ -162,6 +176,12 @@ internal data class TodayWidget(
         const val SLEEP_KEY = "sleep_total_min"
         /** Charge, Effort and Rest as the catalogue keys them; iOS's `wholeRowMeasures`. */
         val WHOLE_ROW_MEASURES = setOf("recovery", "strain", "sleep_performance")
+        /**
+         * EMPTY until each small form meets the content rule (owner, 2026-11-19): a card given more room
+         * has to say more, and the forms built so far say one figure on a large surface. The forms stay in
+         * the files because the kit round fills them; until then no card offers a size it cannot fill.
+         */
+        val SHRINKABLE_CARDS = emptySet<Kind>()
         /** iOS's kinds drawn as a tile, small or over two columns (`isWide` false). */
         val TILE_KINDS = setOf(Kind.Measure, Kind.LiveHeart, Kind.Breathe, Kind.Strap, Kind.Water, Kind.AgeLess)
     }
@@ -213,7 +233,7 @@ internal object TodayWidgets {
         JSONObject().put("id", w.id).put("kind", w.kind.raw).apply {
             w.key?.let { put("key", it) }
             if (w.span != 1) put("span", w.span)
-            if (w.wide) put("wide", true)
+            w.wide?.let { put("wide", it) }
         }
     }).toString()
 
@@ -225,7 +245,8 @@ internal object TodayWidgets {
                 val o = a.getJSONObject(i)
                 val kind = TodayWidget.Kind.of(o.optString("kind")) ?: return@mapNotNull null
                 TodayWidget(o.optString("id").ifEmpty { UUID.randomUUID().toString() }, kind,
-                            o.optString("key").ifEmpty { null }, o.optInt("span", 1), o.optBoolean("wide"))
+                            o.optString("key").ifEmpty { null }, o.optInt("span", 1),
+                            if (o.has("wide")) o.optBoolean("wide") else null)
             }
         }.getOrDefault(emptyList())
     }
@@ -598,7 +619,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                             TodayWidget.Kind.Momentum -> ForgeTodayMomentum(viewModel)
                             TodayWidget.Kind.LastWorkout -> TodayWorkoutsForge(viewModel)
                             TodayWidget.Kind.Cycle -> TodayCycleForge(viewModel)
-                            TodayWidget.Kind.LastNight -> TodayLastNightForge(onOpenSleep)
+                            TodayWidget.Kind.LastNight -> TodayLastNightForge(onOpenSleep, w.compactSize)
                             TodayWidget.Kind.Tonight -> TodayTonightForge(viewModel, onOpenAlarms)
                             TodayWidget.Kind.WeekPlan -> TodayWeekPlanForge(viewModel, onOpenTraining)
                             TodayWidget.Kind.Breathe -> TodayBreatheTile(onOpenBreathe, dense = columns > 2, modifier = Modifier.fillMaxSize())
@@ -806,6 +827,22 @@ private fun WideMeasureCard(key: String?, keyTiles: KeyTiles, days: List<String>
                    below = if (value != null && shown.size > 1) ({
                        WideMeasureChart(days.takeLast(shown.size), shown, tint)
                    }) else null)
+}
+
+/** Which of the two narrow sizes a shrunk card is drawn at, iOS's `TileSize`. */
+internal enum class TileSize { Small, Medium }
+
+/**
+ * A card shrunk to its one leading figure (owner, 2026-11-18), iOS's `ForgeCardTile`.
+ *
+ * One tile for all of them, so a shrunk Last night and a shrunk Energy sit on the same grid as the measures
+ * beside them rather than each inventing its own small card.
+ */
+@Composable
+internal fun ForgeCardTile(icon: ImageVector, label: String, value: String?, unit: String, caption: String?,
+                           tint: Color, onOpen: () -> Unit) {
+    ForgeTodayTile(icon, tint, label, value, unit, caption, stringResource(R.string.forge_no_data),
+                   dense = false, modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen), trend = null)
 }
 
 /**

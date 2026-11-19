@@ -113,6 +113,52 @@ class TodayWidgetsTest {
         assertEquals(true, m("a").resizable)
     }
 
+    /**
+     * No card offers a narrow size yet (owner, 2026-11-19): a card given more room has to say more, and
+     * the small forms built so far say one figure on a large surface. The machinery below stays tested, so
+     * the kit round only has to fill the forms and name the kinds here.
+     */
+    @Test fun noCardOffersASizeItCannotFill() {
+        assertEquals(emptySet<TodayWidget.Kind>(), TodayWidget.SHRINKABLE_CARDS)
+        for (kind in listOf(TodayWidget.Kind.LastNight, TodayWidget.Kind.Energy)) {
+            val placed = TodayWidget("x", kind)
+            assertEquals(kind.name, TodayWidget.Size.Wide, placed.size)
+            assertEquals(kind.name, false, placed.resizable)
+        }
+    }
+
+    /**
+     * And when they do: a card that can shrink starts wide and stays wide until it is shrunk, because
+     * null must never read as small, or every tile placed before the ladder existed would have been
+     * rearranged overnight. Checked on a kind standing in for a future one.
+     */
+    @Test fun aCardThatCanShrinkWouldStartWide() {
+        val card = TodayWidget("x", TodayWidget.Kind.LastNight)
+        assertEquals(TodayWidget.Size.Wide, card.size)
+        assertEquals(TodayWidget.Size.Wide, card.copy(wide = null).size)
+    }
+
+    /** A card that carries a sentence keeps its one size and shows no size control. */
+    @Test fun aCardThatIsASentenceDoesNotShrink() {
+        for (kind in listOf(TodayWidget.Kind.Momentum, TodayWidget.Kind.WeekPlan, TodayWidget.Kind.CoachNote,
+                            TodayWidget.Kind.NextSession, TodayWidget.Kind.Changes, TodayWidget.Kind.WhatWorks)) {
+            val w = TodayWidget("x", kind)
+            assertEquals(kind.name, TodayWidget.Size.Wide, w.size)
+            assertEquals(kind.name, false, w.resizable)
+        }
+    }
+
+    /**
+     * "wide" has to be stored as written, false included, not left out: a tile shrunk by the wearer must
+     * not come back wide after a restart, and a tile never touched must keep its null.
+     */
+    @Test fun theStoredFormKeepsWhatTheWearerChose() {
+        val shrunk = TodayWidget("a", TodayWidget.Kind.LiveHeart, wide = false)
+        assertEquals(listOf(shrunk), TodayWidgets.decode(TodayWidgets.encode(listOf(shrunk))))
+        val untouched = TodayWidget("b", TodayWidget.Kind.LastNight)
+        assertEquals(null, TodayWidgets.decode(TodayWidgets.encode(listOf(untouched))).first().wide)
+    }
+
     @Test fun everyMetricEitherCarriesOrIsOneOfTheThree() {
         for (metric in KeyMetric.entries) {
             val carried = metric.measureKey

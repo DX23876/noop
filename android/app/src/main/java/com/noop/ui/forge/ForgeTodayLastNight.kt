@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -41,7 +42,7 @@ import kotlinx.coroutines.withContext
  * of the stages in proportion and the deep, light and REM totals under it. Tapping opens the Sleep tab.
  */
 @Composable
-internal fun TodayLastNightForge(onOpen: () -> Unit) {
+internal fun TodayLastNightForge(onOpen: () -> Unit, compact: TileSize? = null) {
     val context = LocalContext.current
     val colors = Forge.colors
     val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
@@ -58,6 +59,16 @@ internal fun TodayLastNightForge(onOpen: () -> Unit) {
     val rem = m["rem"] ?: 0.0
     val awake = m["wake"] ?: 0.0
     val asleep = Math.round(deep + light + rem).toInt()
+    if (compact != null) {
+        // Shrunk to its one leading figure, as iOS's `ForgeLastNightWidget(compact:)`: the hours, and over
+        // two columns the span of the night beside them.
+        ForgeCardTile(Icons.Rounded.Bedtime, stringResource(R.string.forge_w_last_night),
+                      if (asleep > 0) "${asleep / 60}:${"%02d".format(asleep % 60)}" else null, "h",
+                      if (compact == TileSize.Medium && night != null)
+                          "${clockOf(night!!.startTs)} – ${clockOf(night!!.endTs)}" else null,
+                      colors.rest, onOpen)
+        return
+    }
     ForgeCard(Modifier.fillMaxWidth().clickable(onClick = onOpen)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.forge_w_last_night), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),

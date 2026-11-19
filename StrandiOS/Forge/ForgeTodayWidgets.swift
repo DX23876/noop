@@ -41,12 +41,27 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
     /// Whether this is one of those three.
     var isWholeRowMeasure: Bool { kind == .measure && Self.wholeRowMeasures.contains(key ?? "") }
 
+    /// Cards that carry ONE leading figure and have a small form of it (owner, 2026-11-18): last night's
+    /// hours, tonight's bedtime, the latest workout's length, the day's burn.
+    ///
+    /// Goals, training load, the cycle and the diet goal are NOT here yet. Not because the rule excludes
+    /// them, but because their figure lives inside a shared section or behind an enum that needs its own
+    /// small design, and a size control that offers a size nothing can draw is worse than no control.
+    /// The rest carry a sentence or an action, and a shortened sentence is not a smaller fact.
+    /// EMPTY until each small form meets the content rule (owner, 2026-11-19): a card given more room has
+    /// to say more, and the four forms below say one figure on a large surface. They stay in the file
+    /// because the kit round fills them; until then no card offers a size it cannot fill.
+    static let shrinkableCards: Set<Kind> = []
+
     var isWide: Bool {
         switch kind {
         case .measure: return isWholeRowMeasure || wide == true
         case .water, .breathe, .strap: return false
         case .liveHeart, .ageless: return wide == true
-        default: return true
+        // A card that can shrink starts wide and STAYS wide unless the wearer shrank it: `wide` is nil on
+        // every tile placed before today, and reading nil as "small" would have rearranged their Today
+        // overnight, which is the one thing this release promised not to do.
+        default: return Self.shrinkableCards.contains(kind) ? (wide ?? true) : true
         }
     }
 
@@ -54,6 +69,15 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
     enum Size { case small, medium, wide }
 
     var size: Size { isWide ? .wide : (span == 2 ? .medium : .small) }
+
+    /// The narrow size a shrinkable card is drawn at, or nil while it is wide.
+    var compactSize: TileSize? {
+        switch size {
+        case .wide: return nil
+        case .medium: return .medium
+        case .small: return .small
+        }
+    }
 
     /// Kinds drawn as a tile: they come small or over two columns, and some also across the row.
     ///
@@ -63,7 +87,7 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
         if isWholeRowMeasure { return false }
         switch kind {
         case .measure, .water, .breathe, .strap, .liveHeart, .ageless: return true
-        default: return false
+        default: return Self.shrinkableCards.contains(kind)
         }
     }
 
@@ -73,7 +97,8 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
         switch size {
         case .small: return .medium
         // A measure grows across the row too since 2026-11-18, where it draws its thirty days.
-        case .medium: return (kind == .liveHeart || kind == .ageless || kind == .measure) ? .wide : .small
+        case .medium: return (kind == .liveHeart || kind == .ageless || kind == .measure
+                              || Self.shrinkableCards.contains(kind)) ? .wide : .small
         case .wide: return .small
         }
     }
@@ -460,7 +485,7 @@ struct ForgeTodayWidgetView: View {
         case .trainingLoad: LiquidTrainingLoadSection(surfaceOpacity: surfaceOpacity ?? Double(opacityPercent) / 100)
         // The name inside the card, as every other widget carries it.
         case .goals: GoalsTodaySection(headerOutside: false)
-        case .energy: ForgeEnergyWidget()
+        case .energy: ForgeEnergyWidget(compact: widget.compactSize)
         case .water: ForgeWaterWidget(detailed: widget.size == .medium)
         case .liveHeart:
             switch widget.size {
@@ -469,15 +494,15 @@ struct ForgeTodayWidgetView: View {
             case .small: ForgeLiveHeartWidget()
             }
         case .momentum: ForgeMomentumWidget()
-        case .lastNight: ForgeLastNightWidget()
+        case .lastNight: ForgeLastNightWidget(compact: widget.compactSize)
         case .weekPlan: ForgeWeekPlanWidget()
         case .dietGoal: ForgeDietGoalWidget()
         case .coachNote: ForgeCoachNoteWidget()
         case .ageless:
             if widget.isWide { ForgeAgeLessWideWidget() } else { ForgeAgeLessWidget(detailed: widget.size == .medium) }
-        case .lastWorkout: ForgeLastWorkoutWidget()
+        case .lastWorkout: ForgeLastWorkoutWidget(compact: widget.compactSize)
         case .cycle: ForgeCycleWidget()
-        case .tonight: ForgeTonightWidget()
+        case .tonight: ForgeTonightWidget(compact: widget.compactSize)
         case .breathe: ForgeBreatheWidget()
         case .nextSession: ForgeNextSessionWidget()
         case .changes: ForgeChangesWidget()
@@ -714,6 +739,41 @@ struct ForgeStressDayWidget: View {
     }
 }
 
+/// Which of the two narrow sizes a shrunk card is drawn at: one column, or two.
+enum TileSize { case small, medium }
+
+/// A card shrunk to its one leading figure (owner, 2026-11-18).
+///
+/// The rule the owner set: a card may shrink only where it HAS one leading figure, and the small form is
+/// that figure with its name. A card that carries a sentence keeps its one size, because a shortened
+/// sentence is not a smaller fact.
+///
+/// One tile for all of them, so a shrunk Training load and a shrunk Last night sit on the same grid as the
+/// measures beside them rather than each inventing its own small card.
+struct ForgeCardTile: View {
+    let symbol: String
+    let label: String
+    let value: String?
+    var unit: String = ""
+    /// Added over two columns, where there is room for the second fact.
+    var caption: String? = nil
+    let tint: Color
+    let route: ForgeRoute?
+    var tabRoute: TabRoute? = nil
+
+    var body: some View {
+        let tile = ForgeTodayTile(label: label, symbol: symbol, value: value, unit: unit,
+                                  caption: caption, tint: tint)
+        if let route {
+            NavigationLink(value: route) { tile }.buttonStyle(LiquidPressStyle())
+        } else if let tabRoute {
+            NavigationLink(value: tabRoute) { tile }.buttonStyle(LiquidPressStyle())
+        } else {
+            tile
+        }
+    }
+}
+
 /// The last main night: hours asleep, its stages, bedtime to wake. Opens the Rest page.
 struct ForgeLastNightWidget: View {
     @EnvironmentObject private var repo: Repository
@@ -721,7 +781,24 @@ struct ForgeLastNightWidget: View {
 
     private var asleep: Int? { night.map { Int($0.asleepMinutes) } }
 
+    /// Small: the hours. Over two columns: bedtime to wake beside them.
+    var compact: TileSize? = nil
+
     var body: some View {
+        if let compact {
+            ForgeCardTile(symbol: "moon.fill", label: String(localized: "Last night"),
+                          value: asleep.map { "\($0 / 60):\(String(format: "%02d", $0 % 60))" }, unit: "h",
+                          caption: compact == .medium ? night.map { "\(Self.time($0.start)) – \(Self.time($0.end))" } : nil,
+                          tint: ForgeColor.rest, route: ForgeRoute.rest(nil))
+                .task(id: repo.refreshSeq) {
+                    night = await ForgeRecentSleep.load(repo: repo, days: 3).nights.max { $0.end < $1.end }
+                }
+        } else {
+            full
+        }
+    }
+
+    @ViewBuilder private var full: some View {
         ForgeWidgetCard(title: String(localized: "Last night"), route: ForgeRoute.rest(nil)) {
             if let night, let asleep {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
@@ -1224,10 +1301,18 @@ struct ForgeLastWorkoutWidget: View {
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
     @State private var row: WorkoutRow?
     @State private var loaded = false
+    /// Small: how long it was. Over two columns: the sport beside it.
+    var compact: TileSize? = nil
 
     var body: some View {
         Group {
-            if let row {
+            if let compact {
+                ForgeCardTile(symbol: "figure.run", label: String(localized: "Latest workout"),
+                              value: row?.durationS.map { ForgeTodayView.hoursMinutes($0 / 60) },
+                              caption: compact == .medium ? row?.sport : nil,
+                              tint: ForgeColor.effort,
+                              route: row.map { ForgeRoute.workout(startTs: $0.startTs, sport: $0.sport) } ?? ForgeRoute.workouts)
+            } else if let row {
                 ForgeWidgetCard(title: String(localized: "Latest workout"),
                                 route: ForgeRoute.workout(startTs: row.startTs, sport: row.sport)) { card(row) }
             } else {
@@ -1288,8 +1373,22 @@ struct ForgeEnergyWidget: View {
     @State private var usual: Double?
     @State private var eaten: Double?
     @State private var loaded = false
+    /// Small: what the day has burned. Over two columns: what was eaten beside it.
+    var compact: TileSize? = nil
 
     var body: some View {
+        if let compact {
+            ForgeCardTile(symbol: "flame.fill", label: String(localized: "Energy"),
+                          value: summary?.totalBurnedSoFar.map { String(Int($0.rounded())) }, unit: "kcal",
+                          caption: compact == .medium ? eaten.map { String(localized: "\(Int($0.rounded())) kcal eaten") } : nil,
+                          tint: ForgeColor.effort, route: Optional<ForgeRoute>.none, tabRoute: TabRoute.energy)
+                .task(id: repo.refreshSeq) { await loadEnergy() }
+        } else {
+            full
+        }
+    }
+
+    @ViewBuilder private var full: some View {
         NavigationLink(value: TabRoute.energy) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
@@ -1337,14 +1436,17 @@ struct ForgeEnergyWidget: View {
             .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
         .buttonStyle(LiquidPressStyle())
-        .task(id: repo.refreshSeq) {
-            let today = Repository.logicalDayKey(Date())
-            let all = await repo.energySummaries(days: 30, profile: Repository.analyticsProfile(profile))
-            summary = all.first { $0.day == today }
-            usual = ForgeEnergyView.usualTotal(all, today: today)
-            eaten = await repo.intakeByDay(from: today, to: today)[today]
-            loaded = true
-        }
+        .task(id: repo.refreshSeq) { await loadEnergy() }
+    }
+
+    /// One loader for both forms, so the small tile and the card can never show different burns.
+    private func loadEnergy() async {
+        let today = Repository.logicalDayKey(Date())
+        let all = await repo.energySummaries(days: 30, profile: Repository.analyticsProfile(profile))
+        summary = all.first { $0.day == today }
+        usual = ForgeEnergyView.usualTotal(all, today: today)
+        eaten = await repo.intakeByDay(from: today, to: today)[today]
+        loaded = true
     }
 
     private func figure(_ color: Color, _ title: String, _ value: Double?) -> some View {
