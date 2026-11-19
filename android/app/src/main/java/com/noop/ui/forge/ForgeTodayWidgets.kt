@@ -90,6 +90,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.noop.R
 import com.noop.core.CoreRead
+import com.noop.core.CoreStress
 import com.noop.core.CoreTile
 import com.noop.analytics.SkinTempDisplay
 import com.noop.ui.AppViewModel
@@ -97,6 +98,7 @@ import com.noop.ui.KeyMetric
 import com.noop.ui.KeyMetricPrefs
 import com.noop.ui.NoopPrefs
 import com.noop.ui.UnitPrefs
+import kotlin.math.roundToInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -866,7 +868,18 @@ private fun CatalogMeasureTile(key: String, history: CoreTile.History, today: St
     // 2026-11-19 these four were the only tiles whose two-column form could say nothing about the week.
     val context = LocalContext.current
     val calendarAge = remember { com.noop.ui.NoopPrefs.of(context).getInt("age", 0).takeIf { it > 0 }?.toDouble() }
-    val facts = if (detailed) rememberFactsLine(key, history, today, "", calendarAge) else null
+    // Stress over two columns says how much of today was calm (owner's table, 2026-11-19): a daily stress
+    // figure as a word says what it is, the share of the day says how it got there. Read only where a
+    // stress tile is actually placed and detailed.
+    val calm by androidx.compose.runtime.produceState<Double?>(null, key, detailed) {
+        // `this.value`, not `value`: the tile's own figure is called that too, and the outer one wins.
+        this.value = if (key != "stress" || !detailed) null else withContext(Dispatchers.IO) {
+            runCatching { CoreStress.day(NoopPrefs.stressPersonalBaseline(context))?.calmShare }.getOrNull()
+        }
+    }
+    val facts = if (!detailed) null
+                else if (key == "stress") calm?.let { stringResource(R.string.forge_tile_calm_share, (it * 100).roundToInt()) }
+                else rememberFactsLine(key, history, today, "", calendarAge)
     ForgeTodayTile(measureIcon(key), tint, measureLabel(key), value, "",
                    if (detailed) (facts ?: change?.summary?.let { summaryLine(it, "") }) else null, noData, dense, modifier,
                    // The word carries no direction, so a change chip beside it would be two readings of one

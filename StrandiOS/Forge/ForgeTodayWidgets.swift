@@ -1051,6 +1051,8 @@ struct ForgeMeasureWidget: View {
     /// unit from the catalogue: it has to say which of the two it is showing.
     @State private var skinKind: SkinTempDisplay.Kind?
     @AppStorage(UnitPrefs.skinTempDisplayKey) private var skinTempDisplayRaw = ""
+    /// How much of today was calm, for the stress tile alone (`DaytimeStress.calmShare`).
+    @State private var calmShare: Double?
     /// The wearer's calendar age, which the two ages measured in years are read against.
     @EnvironmentObject private var profile: ProfileStore
 
@@ -1175,9 +1177,7 @@ struct ForgeMeasureWidget: View {
                            unit: leadUnit(m),
                            // The measure's own fact first; the usual-and-range line stays for the measures
                            // whose fact is not built yet, so nothing loses what it already said.
-                           caption: detailed ? (Self.factsLine(key: key, points: dayPoints, unit: leadUnit(m),
-                                                                 calendarAge: profile.age > 0 ? Double(profile.age) : nil)
-                                                ?? Self.summaryLine(key: key, values: values, unit: leadUnit(m))) : nil,
+                           caption: caption(m),
                            delta: Self.delta(key: key, values: values),
                            deltaColor: Self.deltaTone(key: key, values: values),
                            tint: Self.tint(key),
@@ -1185,6 +1185,22 @@ struct ForgeMeasureWidget: View {
         }
         .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) { await load() }
+    }
+
+    /// What the tile says under its figure over two columns: the measure's own fact first, and the
+    /// usual-and-range line for the measures whose fact is not built yet, so nothing loses what it said.
+    private func caption(_ m: MetricDescriptor?) -> String? {
+        guard detailed else { return nil }
+        if key == "stress" {
+            // What two columns add for stress (owner's table): the word alone says what today is, the
+            // share says how it got there.
+            return calmShare.map { share in
+                String(localized: "\(share.formatted(.percent.precision(.fractionLength(0)).locale(AppLanguage.activeLocale))) of today calm")
+            }
+        }
+        return Self.factsLine(key: key, points: dayPoints, unit: leadUnit(m),
+                              calendarAge: profile.age > 0 ? Double(profile.age) : nil)
+            ?? Self.summaryLine(key: key, values: values, unit: leadUnit(m))
     }
 
     /// The change against the wearer's usual and its colour, from the reading Android shares (`MeasureTileReading`).
@@ -1395,6 +1411,15 @@ struct ForgeMeasureWidget: View {
         }
         values = history.values
         dayPoints = history.points
+        if key == "stress" {
+            // Over two columns stress says how much of today was calm (owner's table, 2026-11-19): a daily
+            // figure as a word says what it is, the share of the day says how it got there. The same hours
+            // the row-wide card draws, through the same resolver.
+            let hours = await StressDayCurve.today(repo: repo,
+                                                   personalBaseline: PuffinExperiment.stressPersonalBaselineEnabled)?
+                .result.hours
+            calmShare = DaytimeStress.calmShare(hours ?? [])
+        }
     }
 }
 

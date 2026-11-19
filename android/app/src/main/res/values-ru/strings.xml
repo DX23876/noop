@@ -7281,4 +7281,5 @@ NOOP не задаёт фиксированный порог, а берёт ег
         <item quantity="many">На %1$d лет старше возраста</item>
         <item quantity="other">На %1$d лет старше возраста</item>
     </plurals>
+    <string name="forge_tile_calm_share">%1$d %% дня спокойно</string>
 </resources>

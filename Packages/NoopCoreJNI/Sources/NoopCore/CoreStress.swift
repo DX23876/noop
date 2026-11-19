@@ -20,6 +20,9 @@ public enum CoreStress {
         public var sustainedHigh: Bool, sustainedRun: Int, dayMean: Double?, peak: Hour?
         public var activityMaskedHours: Int, highStressMinutes: Int, hrOnlyFallback: Bool
         public var usesPersonalBaseline: Bool
+        /// How much of the scored day was calm (`DaytimeStress.calmShare`), 0 to 1, nil before any hour
+        /// scores. Carried rather than recomputed in Kotlin, so the two phones say one share.
+        public var calmShare: Double?
     }
 
     /// The union heart-rate fingerprint of today so far; empty when nothing could be read.
@@ -46,6 +49,7 @@ public enum CoreStress {
         Output(hours: r.hours.map(Hour.init), timeline: r.timeline.map(Hour.init), sustainedHigh: r.sustainedHigh,
                sustainedRun: r.sustainedRun, dayMean: r.dayMean, peak: r.peak.map(Hour.init),
                activityMaskedHours: r.activityMaskedHours, highStressMinutes: r.highStressMinutes,
-               hrOnlyFallback: r.hrOnlyFallback, usesPersonalBaseline: personal)
+               hrOnlyFallback: r.hrOnlyFallback, usesPersonalBaseline: personal,
+               calmShare: DaytimeStress.calmShare(r.hours))
     }
 }

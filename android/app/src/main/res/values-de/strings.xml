@@ -7292,4 +7292,5 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
         <item quantity="one">%1$d Jahr über deinem Alter</item>
         <item quantity="other">%1$d Jahre über deinem Alter</item>
     </plurals>
+    <string name="forge_tile_calm_share">%1$d %% des Tages ruhig</string>
 </resources>

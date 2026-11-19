@@ -342,6 +342,20 @@ public enum DaytimeStress {
     ///     The Stress screen reads `hours` and draws its own interactive timeline; making it pay for a
     ///     second pass of bucketing and one RMSSD per extra window, on the screen that already does three
     ///     200 000-row reads, would be cost for nothing. The widget and the Today card ask for it.
+    /// How much of the scored day was calm: the share of hours whose level sits in the low band, over the
+    /// hours that have a level at all. Nil before any hour scores.
+    ///
+    /// Shared because both phones say it in words on the stress tile, and a share each of them counted for
+    /// itself would be the same fact with two answers. Hours an activity masked are left out: they are not
+    /// calm, they are not scored, and counting them either way would be a claim about minutes the method
+    /// deliberately did not read. The band is the one the whole app reads stress in: under one of three.
+    public static func calmShare(_ hours: [HourPoint]) -> Double? {
+        let scored = hours.filter { $0.level != nil && !$0.maskedForActivity }
+        guard !scored.isEmpty else { return nil }
+        let calm = scored.filter { ($0.level ?? 0) < 1 }.count
+        return Double(calm) / Double(scored.count)
+    }
+
     public static func analyze(hr: [HRSample], rr: [RRInterval],
                                gravity: [GravitySample] = [],
                                tzOffsetSeconds: Int = 0,

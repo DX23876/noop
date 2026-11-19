@@ -7268,4 +7268,5 @@ Traçar cada série como variação face à sua própria primeira medição colo
         <item quantity="one">%1$d ano acima da sua idade</item>
         <item quantity="other">%1$d anos acima da sua idade</item>
     </plurals>
+    <string name="forge_tile_calm_share">%1$d %% do dia em calma</string>
 </resources>

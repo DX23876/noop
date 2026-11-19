@@ -7318,4 +7318,5 @@ Plotting each series as change from its own first reading puts them on one scale
         <item quantity="one">%1$d year over your age</item>
         <item quantity="other">%1$d years over your age</item>
     </plurals>
+    <string name="forge_tile_calm_share">%1$d %% of today calm</string>
 </resources>

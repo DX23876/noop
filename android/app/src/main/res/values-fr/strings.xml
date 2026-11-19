@@ -7273,4 +7273,5 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
         <item quantity="one">%1$d an au-dessus de votre âge</item>
         <item quantity="other">%1$d ans au-dessus de votre âge</item>
     </plurals>
+    <string name="forge_tile_calm_share">%1$d %% de la journée au calme</string>
 </resources>

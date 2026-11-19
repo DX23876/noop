@@ -7243,4 +7243,5 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
         <item quantity="one">%1$d anno sopra la tua età</item>
         <item quantity="other">%1$d anni sopra la tua età</item>
     </plurals>
+    <string name="forge_tile_calm_share">%1$d %% della giornata calmo</string>
 </resources>

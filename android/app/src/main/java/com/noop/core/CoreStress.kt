@@ -11,7 +11,11 @@ import org.json.JSONObject
  * core is not available; the caller then keeps its Room path. Blocking; call off the main thread.
  */
 object CoreStress {
-    data class Day(val result: DaytimeStress.Result, val usesPersonalBaseline: Boolean)
+    data class Day(val result: DaytimeStress.Result, val usesPersonalBaseline: Boolean,
+                   /** How much of the scored day was calm, 0 to 1, null before any hour scores. Carried
+                    *  from the core (`DaytimeStress.calmShare`) rather than counted here, so the two phones
+                    *  say one share. */
+                   val calmShare: Double? = null)
 
     fun day(personalBaseline: Boolean): Day? {
         if (!SwiftCore.available) return null
@@ -39,6 +43,7 @@ object CoreStress {
                 timeline = o.optJSONArray("timeline")?.let { hours(it) } ?: hours,
             ),
             usesPersonalBaseline = o.optBoolean("usesPersonalBaseline"),
+            calmShare = o.dbl("calmShare"),
         )
     }
 

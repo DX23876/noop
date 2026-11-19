@@ -7325,4 +7325,5 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
         <item quantity="many">%1$d lat powyżej twojego wieku</item>
         <item quantity="other">%1$d lat powyżej twojego wieku</item>
     </plurals>
+    <string name="forge_tile_calm_share">%1$d %% dnia spokojnie</string>
 </resources>

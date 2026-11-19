@@ -7220,4 +7220,5 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <plurals name="forge_tile_years_over">
         <item quantity="other">比实际年龄大 %1$d 岁</item>
     </plurals>
+    <string name="forge_tile_calm_share">今天 %1$d %% 平静</string>
 </resources>

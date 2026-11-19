@@ -7276,4 +7276,5 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
         <item quantity="one">%1$d año por encima de tu edad</item>
         <item quantity="other">%1$d años por encima de tu edad</item>
     </plurals>
+    <string name="forge_tile_calm_share">%1$d %% del día en calma</string>
 </resources>
