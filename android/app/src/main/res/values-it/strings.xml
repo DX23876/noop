@@ -7234,7 +7234,13 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="forge_m_vitality">Vitalità</string>
     <string name="forge_m_body_age">Età corporea</string>
     <string name="forge_m_mood">Umore</string>
-    <string name="forge_tile_years_under">%1$d anni sotto la tua età</string>
-    <string name="forge_tile_years_over">%1$d anni sopra la tua età</string>
     <string name="forge_tile_years_same">Esattamente la tua età</string>
+    <plurals name="forge_tile_years_under">
+        <item quantity="one">%1$d anno sotto la tua età</item>
+        <item quantity="other">%1$d anni sotto la tua età</item>
+    </plurals>
+    <plurals name="forge_tile_years_over">
+        <item quantity="one">%1$d anno sopra la tua età</item>
+        <item quantity="other">%1$d anni sopra la tua età</item>
+    </plurals>
 </resources>

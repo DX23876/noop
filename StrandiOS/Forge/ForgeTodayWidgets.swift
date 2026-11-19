@@ -1230,6 +1230,8 @@ struct ForgeMeasureWidget: View {
         case "fitness_age", "body_age":
             guard let age = calendarAge, let reading = facts.today ?? facts.lastValue else { return nil }
             let gap = (age - reading).rounded()
+            // Plural forms, not a count beside a bare plural noun: "1 years under your age" is not a
+            // sentence, and the Tools gate says so.
             let line = gap > 0 ? String(localized: "\(Int(gap)) years under your age")
                      : gap < 0 ? String(localized: "\(Int(-gap)) years over your age")
                      : String(localized: "Right at your age")

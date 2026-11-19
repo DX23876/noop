@@ -1253,8 +1253,8 @@ private fun rememberFactsLine(key: String?, history: CoreTile.History?, today: S
             val reading = f.today ?: f.lastValue ?: return null
             val gap = kotlin.math.round(age - reading).toInt()
             val line = when {
-                gap > 0 -> stringResource(R.string.forge_tile_years_under, gap)
-                gap < 0 -> stringResource(R.string.forge_tile_years_over, -gap)
+                gap > 0 -> androidx.compose.ui.res.pluralStringResource(R.plurals.forge_tile_years_under, gap, gap)
+                gap < 0 -> androidx.compose.ui.res.pluralStringResource(R.plurals.forge_tile_years_over, -gap, -gap)
                 else -> stringResource(R.string.forge_tile_years_same)
             }
             val change = f.quarterChange ?: return line

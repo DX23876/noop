@@ -7267,7 +7267,13 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_m_vitality">Vitalidad</string>
     <string name="forge_m_body_age">Edad corporal</string>
     <string name="forge_m_mood">Ánimo</string>
-    <string name="forge_tile_years_under">%1$d años por debajo de tu edad</string>
-    <string name="forge_tile_years_over">%1$d años por encima de tu edad</string>
     <string name="forge_tile_years_same">Justo en tu edad</string>
+    <plurals name="forge_tile_years_under">
+        <item quantity="one">%1$d año por debajo de tu edad</item>
+        <item quantity="other">%1$d años por debajo de tu edad</item>
+    </plurals>
+    <plurals name="forge_tile_years_over">
+        <item quantity="one">%1$d año por encima de tu edad</item>
+        <item quantity="other">%1$d años por encima de tu edad</item>
+    </plurals>
 </resources>

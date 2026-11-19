@@ -7312,7 +7312,17 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_m_vitality">Witalność</string>
     <string name="forge_m_body_age">Wiek ciała</string>
     <string name="forge_m_mood">Nastrój</string>
-    <string name="forge_tile_years_under">%1$d lat poniżej twojego wieku</string>
-    <string name="forge_tile_years_over">%1$d lat powyżej twojego wieku</string>
     <string name="forge_tile_years_same">Dokładnie twój wiek</string>
+    <plurals name="forge_tile_years_under">
+        <item quantity="one">%1$d rok poniżej twojego wieku</item>
+        <item quantity="few">%1$d lata poniżej twojego wieku</item>
+        <item quantity="many">%1$d lat poniżej twojego wieku</item>
+        <item quantity="other">%1$d lat poniżej twojego wieku</item>
+    </plurals>
+    <plurals name="forge_tile_years_over">
+        <item quantity="one">%1$d rok powyżej twojego wieku</item>
+        <item quantity="few">%1$d lata powyżej twojego wieku</item>
+        <item quantity="many">%1$d lat powyżej twojego wieku</item>
+        <item quantity="other">%1$d lat powyżej twojego wieku</item>
+    </plurals>
 </resources>

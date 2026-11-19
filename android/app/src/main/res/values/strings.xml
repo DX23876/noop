@@ -7309,7 +7309,13 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_m_vitality">Vitality</string>
     <string name="forge_m_body_age">Body Age</string>
     <string name="forge_m_mood">Mood</string>
-    <string name="forge_tile_years_under">%1$d years under your age</string>
-    <string name="forge_tile_years_over">%1$d years over your age</string>
     <string name="forge_tile_years_same">Right at your age</string>
+    <plurals name="forge_tile_years_under">
+        <item quantity="one">%1$d year under your age</item>
+        <item quantity="other">%1$d years under your age</item>
+    </plurals>
+    <plurals name="forge_tile_years_over">
+        <item quantity="one">%1$d year over your age</item>
+        <item quantity="other">%1$d years over your age</item>
+    </plurals>
 </resources>

@@ -7283,7 +7283,13 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_m_vitality">Vitalität</string>
     <string name="forge_m_body_age">Körperalter</string>
     <string name="forge_m_mood">Stimmung</string>
-    <string name="forge_tile_years_under">%1$d Jahre unter deinem Alter</string>
-    <string name="forge_tile_years_over">%1$d Jahre über deinem Alter</string>
     <string name="forge_tile_years_same">Genau dein Alter</string>
+    <plurals name="forge_tile_years_under">
+        <item quantity="one">%1$d Jahr unter deinem Alter</item>
+        <item quantity="other">%1$d Jahre unter deinem Alter</item>
+    </plurals>
+    <plurals name="forge_tile_years_over">
+        <item quantity="one">%1$d Jahr über deinem Alter</item>
+        <item quantity="other">%1$d Jahre über deinem Alter</item>
+    </plurals>
 </resources>
