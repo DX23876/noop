@@ -7251,4 +7251,17 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="forge_strip_over_90_days">Sur 90 jours</string>
     <string name="forge_tile_over_90_days">%1$s sur 90 jours</string>
     <string name="forge_unit_kcal">kcal</string>
+    <string name="forge_sec_heart">Cœur</string>
+    <string name="forge_sec_body">Corps</string>
+    <string name="forge_sec_food">Alimentation</string>
+    <string name="forge_sec_mind">Esprit</string>
+    <string name="forge_g_measure_wide_sub">Large · ses trente jours</string>
+    <string name="forge_m_sleep_debt">Dette de sommeil</string>
+    <string name="forge_m_zones13">Zones FC 1-3</string>
+    <string name="forge_m_zones45">Zones FC 4-5</string>
+    <string name="forge_m_body_fat">Masse grasse</string>
+    <string name="forge_m_lean_mass">Masse maigre</string>
+    <string name="forge_m_vitality">Vitalité</string>
+    <string name="forge_m_body_age">Âge corporel</string>
+    <string name="forge_m_mood">Humeur</string>
 </resources>

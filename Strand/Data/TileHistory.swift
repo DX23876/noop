@@ -13,19 +13,52 @@ import WhoopStore
 ///
 /// Pure data. Analysis migration required: no.
 enum TileMeasures {
-    /// Catalogue key and preferred source, in the gallery's order. Charge, Effort and Rest are last: they
-    /// are only ever drawn across the whole row, since the three rings above already say today's number.
-    static let all: [(key: String, source: String)] = [
-        ("hrv", MetricResolver.whoopSource), ("rhr", MetricResolver.whoopSource),
-        ("steps", MetricResolver.whoopSource), ("sleep_total_min", MetricResolver.whoopSource),
-        ("vo2max_est", MetricResolver.whoopSource), ("stress", MetricResolver.whoopSource),
-        ("weight", "noop-weight"), ("spo2", MetricResolver.whoopSource),
-        ("resp_rate", MetricResolver.whoopSource), ("skin_temp", MetricResolver.whoopSource),
-        ("active_kcal", MetricResolver.appleHealthSource), ("calories_in", "nutrition-csv"),
-        ("fitness_age", MetricResolver.whoopSource),
-        ("recovery", MetricResolver.whoopSource), ("strain", MetricResolver.whoopSource),
-        ("sleep_performance", MetricResolver.whoopSource),
+
+    /// The catalogue's own groups, which the gallery now shows as sections (owner, 2026-11-18). A list of
+    /// twenty-odd measures in one run is a list nobody reads to the end.
+    enum Section: String, CaseIterable, Sendable {
+        case charge, rest, effort, heart, body, food, mind
+    }
+
+    /// Catalogue key, preferred source and the section it is offered under, in the gallery's order.
+    ///
+    /// Charge, Effort and Rest lead their own sections and are only ever drawn across the whole row, since
+    /// the three rings above already say today's number.
+    static let all: [(key: String, source: String, section: Section)] = [
+        ("recovery", MetricResolver.whoopSource, .charge),
+
+        ("sleep_performance", MetricResolver.whoopSource, .rest),
+        ("sleep_total_min", MetricResolver.whoopSource, .rest),
+        ("sleep_debt_min", MetricResolver.whoopSource, .rest),
+
+        ("strain", MetricResolver.whoopSource, .effort),
+        ("steps", MetricResolver.whoopSource, .effort),
+        ("active_kcal", MetricResolver.appleHealthSource, .effort),
+        ("hr_zones13_min", MetricResolver.whoopSource, .effort),
+        ("hr_zones45_min", MetricResolver.whoopSource, .effort),
+
+        ("hrv", MetricResolver.whoopSource, .heart),
+        ("rhr", MetricResolver.whoopSource, .heart),
+        ("spo2", MetricResolver.whoopSource, .heart),
+        ("resp_rate", MetricResolver.whoopSource, .heart),
+        ("vo2max_est", MetricResolver.whoopSource, .heart),
+        ("stress", MetricResolver.whoopSource, .heart),
+
+        ("weight", "noop-weight", .body),
+        ("body_fat", MetricResolver.appleHealthSource, .body),
+        ("lean_mass", MetricResolver.appleHealthSource, .body),
+        ("skin_temp", MetricResolver.whoopSource, .body),
+        ("fitness_age", MetricResolver.whoopSource, .body),
+        ("vitality", MetricResolver.whoopSource, .body),
+        ("body_age", MetricResolver.whoopSource, .body),
+
+        ("calories_in", "nutrition-csv", .food),
+
+        ("mood", "noop-mood", .mind),
     ]
+
+    /// The keys alone, in the same order.
+    static var keys: [String] { all.map(\.key) }
 
     /// The source a key is read from, the strap's for anything the gallery does not name.
     static func source(forKey key: String) -> String {

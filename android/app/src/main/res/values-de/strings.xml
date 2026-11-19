@@ -7270,4 +7270,17 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_strip_over_90_days">Über 90 Tage</string>
     <string name="forge_tile_over_90_days">%1$s über 90 Tage</string>
     <string name="forge_unit_kcal">kcal</string>
+    <string name="forge_sec_heart">Herz</string>
+    <string name="forge_sec_body">Körper</string>
+    <string name="forge_sec_food">Ernährung</string>
+    <string name="forge_sec_mind">Kopf</string>
+    <string name="forge_g_measure_wide_sub">Breit · die dreißig Tage</string>
+    <string name="forge_m_sleep_debt">Schlafschuld</string>
+    <string name="forge_m_zones13">Pulszonen 1-3</string>
+    <string name="forge_m_zones45">Pulszonen 4-5</string>
+    <string name="forge_m_body_fat">Körperfett</string>
+    <string name="forge_m_lean_mass">Magermasse</string>
+    <string name="forge_m_vitality">Vitalität</string>
+    <string name="forge_m_body_age">Körperalter</string>
+    <string name="forge_m_mood">Stimmung</string>
 </resources>

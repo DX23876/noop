@@ -34,36 +34,43 @@ KEY_METRIC_CATALOG = {
 }
 
 
-def swift_pairs() -> list[tuple[str, str]]:
-    """`TileMeasures.all` as (key, source), in source order."""
+def swift_rows() -> list[tuple[str, str, str]]:
+    """`TileMeasures.all` as (key, source, section), in source order."""
     text = SWIFT.read_text(encoding="utf-8")
-    start = text.index("static let all: [(key: String, source: String)] = [")
+    start = text.index("static let all: [(key: String, source: String, section: Section)] = [")
     body = text[start:text.index("\n    ]", start)]
     sources = {"MetricResolver.whoopSource": "my-whoop",
                "MetricResolver.appleHealthSource": "apple-health",
                "MetricResolver.healthConnectSource": "health-connect"}
-    pairs = []
-    for key, source in re.findall(r'\("([a-z0-9_]+)",\s*([^)]+)\)', body):
+    rows = []
+    for key, source, section in re.findall(r'\("([a-z0-9_]+)",\s*([^,]+),\s*\.([a-z]+)\)', body):
         source = source.strip()
-        pairs.append((key, sources.get(source, source.strip('"'))))
-    return pairs
+        rows.append((key, sources.get(source, source.strip('"')), section))
+    return rows
+
+
+def swift_pairs() -> list[tuple[str, str]]:
+    return [(key, source) for key, source, _ in swift_rows()]
+
+
+def kotlin_sections() -> list[tuple[str, list[str]]]:
+    """`TodayWidgets.sections` as (section, keys), in source order."""
+    text = KOTLIN.read_text(encoding="utf-8")
+    start = text.index("val sections: List<Pair<Section, List<String>>> = listOf(")
+    body = text[start:text.index("\n    )", start)]
+    out = []
+    for section, keys in re.findall(r"Section\.(\w+) to listOf\(([^)]*)\)", body, re.S):
+        names = []
+        for raw in (part.strip() for part in keys.split(",")):
+            if not raw:
+                continue
+            names.append(raw.strip('"') if raw.startswith('"') else KEY_METRIC_CATALOG.get(raw, raw))
+        out.append((section.lower(), names))
+    return out
 
 
 def kotlin_keys() -> list[str]:
-    """`TodayWidgets.measures` as catalogue keys, in source order."""
-    text = KOTLIN.read_text(encoding="utf-8")
-    start = text.index("val measures: List<String> = listOf(")
-    body = text[start:text.index(")\n", start)]
-    body = body[body.index("listOf(") + len("listOf("):]
-    keys = []
-    for raw in (part.strip() for part in body.split(",")):
-        if not raw:
-            continue
-        if raw.startswith('"'):
-            keys.append(raw.strip('"'))
-        else:
-            keys.append(KEY_METRIC_CATALOG.get(raw, raw))
-    return keys
+    return [key for _, keys in kotlin_sections() for key in keys]
 
 
 class TodayTileGalleryTests(unittest.TestCase):
@@ -74,6 +81,20 @@ class TodayTileGalleryTests(unittest.TestCase):
                          "Today's tile gallery differs between the phones. Add the measure to both "
                          "TileMeasures.all (Strand/Data/TileHistory.swift) and TodayWidgets.measures "
                          "(ForgeTodayWidgets.kt), in the same place.")
+
+    def test_both_phones_group_the_gallery_the_same_way(self):
+        """The sections too, not only the measures: a measure under another heading is a different gallery."""
+        swift = []
+        for _, _, section in swift_rows():
+            if not swift or swift[-1][0] != section:
+                swift.append((section, []))
+            swift[-1][1].append(section)
+        swift_order = [section for section, _ in swift]
+        self.assertEqual(swift_order, [section for section, _ in kotlin_sections()])
+        by_section: dict[str, list[str]] = {}
+        for key, _, section in swift_rows():
+            by_section.setdefault(section, []).append(key)
+        self.assertEqual(by_section, {section: keys for section, keys in kotlin_sections()})
 
     def test_every_entry_names_a_source(self):
         for key, source in swift_pairs():

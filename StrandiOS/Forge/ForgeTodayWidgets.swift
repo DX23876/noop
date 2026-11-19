@@ -238,7 +238,48 @@ final class ForgeTodayWidgetStore: ObservableObject {
 /// today's number, so a small tile would be the same fact twice, while thirty days of it is something the
 /// rings do not show.
 enum ForgeWidgetMeasures {
-    static let all: [(key: String, source: String)] = TileMeasures.all
+    static let all: [(key: String, source: String, section: TileMeasures.Section)] = TileMeasures.all
+
+    /// One section of the gallery: the catalogue group and the measures offered under it.
+    struct Group: Identifiable {
+        let section: TileMeasures.Section
+        let measures: [Measure]
+        var id: TileMeasures.Section { section }
+    }
+
+    /// One row of a section.
+    struct Measure: Identifiable {
+        let key: String
+        let source: String
+        var id: String { key }
+    }
+
+    /// The gallery's sections in the catalogue's own order, each with the measures it offers.
+    static var sections: [Group] {
+        var out: [Group] = []
+        for section in TileMeasures.Section.allCases {
+            var measures: [Measure] = []
+            for row in TileMeasures.all where row.section == section {
+                measures.append(Measure(key: row.key, source: row.source))
+            }
+            if !measures.isEmpty { out.append(Group(section: section, measures: measures)) }
+        }
+        return out
+    }
+
+    /// What a section is called on screen. The words are the catalogue's, so a measure sits under the same
+    /// heading here as on the page it opens.
+    static func title(_ section: TileMeasures.Section) -> String {
+        switch section {
+        case .charge: return String(localized: "Charge")
+        case .rest: return String(localized: "Rest")
+        case .effort: return String(localized: "Effort")
+        case .heart: return String(localized: "Heart")
+        case .body: return String(localized: "Body")
+        case .food: return String(localized: "Food")
+        case .mind: return String(localized: "Mind")
+        }
+    }
 
     static func descriptor(_ key: String, _ source: String?) -> MetricDescriptor? {
         source.flatMap { MetricCatalog.metric(key: key, source: $0) } ?? MetricCatalog.all.first { $0.key == key }
@@ -1671,15 +1712,22 @@ struct ForgeWidgetGallery: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    ForEach(ForgeWidgetMeasures.all, id: \.key) { m in
-                        if let d = ForgeWidgetMeasures.descriptor(m.key, m.source) {
-                            row(symbol: d.icon, title: d.title, subtitle: String(localized: "Small · the latest value and its month")) {
-                                store.add(.init(kind: .measure, key: m.key, source: m.source))
+                // One section per catalogue group (owner, 2026-11-18): twenty-odd measures in a single run
+                // is a list nobody reads to the end.
+                ForEach(ForgeWidgetMeasures.sections) { group in
+                    Section {
+                        ForEach(group.measures) { m in
+                            if let d = ForgeWidgetMeasures.descriptor(m.key, m.source) {
+                                row(symbol: d.icon, title: d.title,
+                                    subtitle: ForgeTodayWidget.wholeRowMeasures.contains(m.key)
+                                        ? String(localized: "Wide · its thirty days")
+                                        : String(localized: "Small · the latest value and its month")) {
+                                    store.add(.init(kind: .measure, key: m.key, source: m.source))
+                                }
                             }
                         }
-                    }
-                } header: { Text("Measures") }
+                    } header: { Text(verbatim: ForgeWidgetMeasures.title(group.section)) }
+                }
                 Section {
                     row(symbol: "chart.bar.fill", title: String(localized: "Training load"),
                         subtitle: String(localized: "Wide · both lanes against your usual")) { store.add(.init(kind: .trainingLoad)) }

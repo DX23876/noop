@@ -7246,4 +7246,17 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="forge_strip_over_90_days">Em 90 dias</string>
     <string name="forge_tile_over_90_days">%1$s em 90 dias</string>
     <string name="forge_unit_kcal">kcal</string>
+    <string name="forge_sec_heart">Coração</string>
+    <string name="forge_sec_body">Corpo</string>
+    <string name="forge_sec_food">Alimentação</string>
+    <string name="forge_sec_mind">Mente</string>
+    <string name="forge_g_measure_wide_sub">Largo · os seus trinta dias</string>
+    <string name="forge_m_sleep_debt">Dívida de sono</string>
+    <string name="forge_m_zones13">Zonas FC 1-3</string>
+    <string name="forge_m_zones45">Zonas FC 4-5</string>
+    <string name="forge_m_body_fat">Gordura corporal</string>
+    <string name="forge_m_lean_mass">Massa magra</string>
+    <string name="forge_m_vitality">Vitalidade</string>
+    <string name="forge_m_body_age">Idade corporal</string>
+    <string name="forge_m_mood">Humor</string>
 </resources>

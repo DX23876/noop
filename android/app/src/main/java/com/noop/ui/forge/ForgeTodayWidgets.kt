@@ -25,6 +25,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddCircle
 import androidx.compose.material.icons.rounded.MonitorHeart
+import androidx.compose.material.icons.rounded.Mood
+import androidx.compose.material.icons.rounded.Scale
 import androidx.compose.material.icons.rounded.HourglassBottom
 import androidx.compose.material.icons.rounded.Terrain
 import androidx.compose.material.icons.automirrored.rounded.ShowChart
@@ -219,6 +221,8 @@ internal object TodayWidgets {
      * different things and "the same customisation on both phones" was not true.
      */
     val catalogMeasures: List<String> = listOf("vo2max_est", "stress", "calories_in", "fitness_age",
+                                               "sleep_debt_min", "hr_zones13_min", "hr_zones45_min",
+                                               "body_fat", "lean_mass", "vitality", "body_age", "mood",
                                                "recovery", "strain", "sleep_performance")
 
     /**
@@ -230,22 +234,34 @@ internal object TodayWidgets {
                                           KeyMetric.RESPIRATORY.raw, KeyMetric.SKIN_TEMP.raw, KeyMetric.STEPS.raw,
                                           KeyMetric.CALORIES.raw, KeyMetric.WEIGHT.raw)
 
+    /** The gallery's sections, the catalogue's own groups, in its order (`TileMeasures.Section`). */
+    enum class Section(val raw: String) {
+        Charge("charge"), Rest("rest"), Effort("effort"), Heart("heart"),
+        Body("body"), Food("food"), Mind("mind")
+    }
+
     /**
-     * The measures the gallery offers, in iOS's order.
-     *
-     * Charge, Effort and Rest are at the end and only ever drawn across the whole row
-     * ([TodayWidget.WHOLE_ROW_MEASURES]), since the three rings above already say today's number.
+     * The measures the gallery offers, grouped as the catalogue groups them: a list of twenty-odd in one
+     * run is a list nobody reads to the end (owner, 2026-11-18).
      *
      * The list is `TileMeasures.all` in Swift, which the iPhone reads and which answers this phone's reads;
      * `Tools/test_today_tile_gallery.py` holds the two against each other on every push, since a measure
      * added to one side alone is exactly how they drifted apart before.
      */
-    val measures: List<String> = listOf(KeyMetric.HRV.raw, KeyMetric.RESTING_HR.raw, KeyMetric.STEPS.raw,
-                                        TodayWidget.SLEEP_KEY, "vo2max_est", "stress",
-                                        KeyMetric.WEIGHT.raw, KeyMetric.BLOOD_OXYGEN.raw,
-                                        KeyMetric.RESPIRATORY.raw, KeyMetric.SKIN_TEMP.raw,
-                                        KeyMetric.CALORIES.raw, "calories_in", "fitness_age",
-                                        "recovery", "strain", "sleep_performance")
+    val sections: List<Pair<Section, List<String>>> = listOf(
+        Section.Charge to listOf("recovery"),
+        Section.Rest to listOf("sleep_performance", TodayWidget.SLEEP_KEY, "sleep_debt_min"),
+        Section.Effort to listOf("strain", KeyMetric.STEPS.raw, KeyMetric.CALORIES.raw,
+                                 "hr_zones13_min", "hr_zones45_min"),
+        Section.Heart to listOf(KeyMetric.HRV.raw, KeyMetric.RESTING_HR.raw, KeyMetric.BLOOD_OXYGEN.raw,
+                                KeyMetric.RESPIRATORY.raw, "vo2max_est", "stress"),
+        Section.Body to listOf(KeyMetric.WEIGHT.raw, "body_fat", "lean_mass", KeyMetric.SKIN_TEMP.raw,
+                               "fitness_age", "vitality", "body_age"),
+        Section.Food to listOf("calories_in"),
+        Section.Mind to listOf("mood"),
+    )
+
+    val measures: List<String> = sections.flatMap { it.second }
 
     fun encode(list: List<TodayWidget>): String = JSONArray(list.map { w ->
         JSONObject().put("id", w.id).put("kind", w.kind.raw).apply {
@@ -1126,6 +1142,14 @@ private fun measureLabel(key: String): String = when (key) {
     "stress" -> stringResource(R.string.forge_vt_stress)
     "fitness_age" -> stringResource(R.string.today_card_fitness_age)
     "calories_in" -> stringResource(R.string.forge_mc_calories_in)
+    "sleep_debt_min" -> stringResource(R.string.forge_m_sleep_debt)
+    "hr_zones13_min" -> stringResource(R.string.forge_m_zones13)
+    "hr_zones45_min" -> stringResource(R.string.forge_m_zones45)
+    "body_fat" -> stringResource(R.string.forge_m_body_fat)
+    "lean_mass" -> stringResource(R.string.forge_m_lean_mass)
+    "vitality" -> stringResource(R.string.forge_m_vitality)
+    "body_age" -> stringResource(R.string.forge_m_body_age)
+    "mood" -> stringResource(R.string.forge_m_mood)
     else -> (KeyMetric.fromRaw(key) ?: wholeRowMetric(key))?.tileLabel() ?: key
 }
 
@@ -1134,7 +1158,24 @@ private fun measureIcon(key: String): ImageVector = when (key) {
     "stress" -> Icons.Rounded.Bolt
     "fitness_age" -> Icons.Rounded.Favorite
     "calories_in" -> Icons.Rounded.LocalFireDepartment
+    "sleep_debt_min", "body_age" -> Icons.Rounded.HourglassBottom
+    "hr_zones13_min", "hr_zones45_min" -> Icons.Rounded.Favorite
+    "body_fat", "lean_mass" -> Icons.Rounded.Scale
+    "vitality" -> Icons.Rounded.Bolt
+    "mood" -> Icons.Rounded.Mood
     else -> (KeyMetric.fromRaw(key) ?: wholeRowMetric(key))?.icon ?: Icons.Rounded.Bedtime
+}
+
+/** What a gallery section is called on screen; the catalogue's own words, so a measure sits under the same
+ *  heading here as on the page it opens. */
+private fun sectionTitle(section: TodayWidgets.Section): Int = when (section) {
+    TodayWidgets.Section.Charge -> R.string.today_metric_charge
+    TodayWidgets.Section.Rest -> R.string.today_metric_rest
+    TodayWidgets.Section.Effort -> R.string.today_metric_effort
+    TodayWidgets.Section.Heart -> R.string.forge_sec_heart
+    TodayWidgets.Section.Body -> R.string.forge_sec_body
+    TodayWidgets.Section.Food -> R.string.forge_sec_food
+    TodayWidgets.Section.Mind -> R.string.forge_sec_mind
 }
 
 /**
@@ -1248,12 +1289,20 @@ private fun WidgetGallery(cycleOn: Boolean, onAdd: (TodayWidget) -> Unit, onClos
                      color = colors.accent, modifier = Modifier.align(Alignment.CenterEnd).clickable(role = Role.Button, onClick = onClose)
                          .padding(ForgeMetrics.space2))
             }
-            GalleryHeading(stringResource(R.string.forge_g_measures))
-            ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
-                TodayWidgets.measures.forEachIndexed { i, key ->
-                    if (i > 0) HubDivider()
-                    GalleryRow(measureIcon(key), measureLabel(key),
-                               stringResource(R.string.forge_g_measure_sub)) { onAdd(TodayWidget(kind = TodayWidget.Kind.Measure, key = key)) }
+            // One group per catalogue section, as iOS lists them: twenty-odd measures in a single run is a
+            // list nobody reads to the end.
+            val measureSub = stringResource(R.string.forge_g_measure_sub)
+            val wideSub = stringResource(R.string.forge_g_measure_wide_sub)
+            TodayWidgets.sections.forEach { (section, keys) ->
+                GalleryHeading(stringResource(sectionTitle(section)))
+                ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
+                    keys.forEachIndexed { i, key ->
+                        if (i > 0) HubDivider()
+                        GalleryRow(measureIcon(key), measureLabel(key),
+                                   if (key in TodayWidget.WHOLE_ROW_MEASURES) wideSub else measureSub) {
+                            onAdd(TodayWidget(kind = TodayWidget.Kind.Measure, key = key))
+                        }
+                    }
                 }
             }
             val coach = com.noop.ui.BottomBarStyleStore.coachEnabled

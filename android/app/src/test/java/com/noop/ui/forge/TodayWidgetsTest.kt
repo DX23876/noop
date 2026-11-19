@@ -74,17 +74,29 @@ class TodayWidgetsTest {
     }
 
     /**
-     * The gallery is iOS's list. The catalogue measures are the ones Android could always have shown and did
-     * not, and Charge, Effort and Rest are in it only as whole-row tiles. `calories_in` closed the last gap
-     * on 2026-11-19; `Tools/test_today_tile_gallery.py` now holds this list against the Swift one on every
-     * push, since pinning it here alone said nothing about the side it drifted from.
+     * The gallery is iOS's list, grouped as the catalogue groups it (owner, 2026-11-18). The sections and
+     * their order are part of it: a measure under another heading is a different gallery.
+     * `Tools/test_today_tile_gallery.py` holds this against the Swift list on every push, since pinning it
+     * here alone said nothing about the side it drifted from.
      */
-    @Test fun theGalleryOffersIosList() {
-        assertEquals(listOf("hrv", "restingHr", "steps", "sleep_total_min", "vo2max_est", "stress",
-                            "weight", "bloodOxygen", "respiratory", "skinTemp", "calories", "calories_in",
-                            "fitness_age", "recovery", "strain", "sleep_performance"),
+    @Test fun theGalleryOffersIosListInIosSections() {
+        assertEquals(listOf("recovery",
+                            "sleep_performance", "sleep_total_min", "sleep_debt_min",
+                            "strain", "steps", "calories", "hr_zones13_min", "hr_zones45_min",
+                            "hrv", "restingHr", "bloodOxygen", "respiratory", "vo2max_est", "stress",
+                            "weight", "body_fat", "lean_mass", "skinTemp", "fitness_age", "vitality", "body_age",
+                            "calories_in",
+                            "mood"),
                      TodayWidgets.measures)
-        assertEquals(TodayWidgets.catalogMeasures, TodayWidgets.measures.filter { it in TodayWidgets.catalogMeasures })
+        assertEquals(listOf(TodayWidgets.Section.Charge, TodayWidgets.Section.Rest, TodayWidgets.Section.Effort,
+                            TodayWidgets.Section.Heart, TodayWidgets.Section.Body, TodayWidgets.Section.Food,
+                            TodayWidgets.Section.Mind),
+                     TodayWidgets.sections.map { it.first })
+        // Every measure the Key Metrics reading does not carry has to be in the catalogue list, or its tile
+        // is drawn by a path that has no number for it.
+        val carried = KeyMetric.entries.map { it.raw } + TodayWidget.SLEEP_KEY
+        assertEquals(emptyList<String>(),
+                     TodayWidgets.measures.filter { it !in carried && it !in TodayWidgets.catalogMeasures })
     }
 
     // The size ladder (owner, 2026-11-18): small, two columns, the whole row, and back.

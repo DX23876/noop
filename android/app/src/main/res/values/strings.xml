@@ -7296,4 +7296,17 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_strip_over_90_days">Over 90 days</string>
     <string name="forge_tile_over_90_days">%1$s over 90 days</string>
     <string name="forge_unit_kcal">kcal</string>
+    <string name="forge_sec_heart">Heart</string>
+    <string name="forge_sec_body">Body</string>
+    <string name="forge_sec_food">Food</string>
+    <string name="forge_sec_mind">Mind</string>
+    <string name="forge_g_measure_wide_sub">Wide · its thirty days</string>
+    <string name="forge_m_sleep_debt">Sleep Debt</string>
+    <string name="forge_m_zones13">HR Zones 1-3</string>
+    <string name="forge_m_zones45">HR Zones 4-5</string>
+    <string name="forge_m_body_fat">Body Fat</string>
+    <string name="forge_m_lean_mass">Lean Mass</string>
+    <string name="forge_m_vitality">Vitality</string>
+    <string name="forge_m_body_age">Body Age</string>
+    <string name="forge_m_mood">Mood</string>
 </resources>
