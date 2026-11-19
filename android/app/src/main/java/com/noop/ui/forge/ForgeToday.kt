@@ -351,7 +351,8 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                             onProfile = { openSettings?.invoke() ?: run { settingsOpen = true } }, onQuickActions = { logOpen = true },
                             onWorkout = { if (viewModel.activeWorkout.value != null) liveWorkout = true else startWorkout = true },
                             workoutRunning = viewModel.activeWorkout.collectAsState().value != null,
-                            onCustomize = { editingWidgets = true })
+                            onCustomize = { editingWidgets = true }, viewModel = viewModel,
+                            onBattery = { openMore?.invoke() ?: selectTab(ForgeTab.More) })
             // A running import, above everything: it is the answer to "why is nothing here yet" and the
             // page it was started from is not the page the wearer waits on. Draws nothing when none runs,
             // and it is shown on a past day too, because the import is not about the day on screen.
@@ -484,7 +485,8 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
  */
 @Composable
 private fun NewDesignHeader(date: LocalDate, isToday: Boolean, backfilling: Boolean, onProfile: () -> Unit,
-                            onQuickActions: () -> Unit, onWorkout: () -> Unit, workoutRunning: Boolean, onCustomize: () -> Unit) {
+                            onQuickActions: () -> Unit, onWorkout: () -> Unit, workoutRunning: Boolean, onCustomize: () -> Unit,
+                            viewModel: AppViewModel, onBattery: () -> Unit) {
     val locale = Locale.getDefault()
     val sceneShadow = if (Forge.sceneInk.dark) Shadow(Color.Black.copy(alpha = 0.55f), Offset(0f, 1f), 8f) else null
     Column(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4)) {
@@ -504,7 +506,7 @@ private fun NewDesignHeader(date: LocalDate, isToday: Boolean, backfilling: Bool
                 overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
             )
             // As iOS's `addMenu`: start (or return to) a workout, add an entry, customise Today behind one plus.
-            TodayHeaderButtons(onProfile, onQuickActions) { close ->
+            TodayHeaderButtons(onProfile, onQuickActions, viewModel = viewModel, onBattery = onBattery) { close ->
                 ForgeMenuItem(stringResource(if (workoutRunning) R.string.forge_log_back_to_workout else R.string.forge_qa_start_workout),
                               Icons.AutoMirrored.Rounded.DirectionsRun) { close(); onWorkout() }
                 ForgeMenuItem(stringResource(R.string.forge_log_add_entry), Icons.Rounded.EditNote) { close(); onQuickActions() }

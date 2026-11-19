@@ -395,8 +395,9 @@ struct ForgeLargeHeader<Trailing: View>: View {
             }
             .legibleOnPhoto()
             Spacer(minLength: 8)
-            // The level as a figure beside the ring, as the prototype shows it: a ring alone had to be read.
-            DashboardBatteryButton(size: 34, showsPercent: true)
+            // The level INSIDE the ring (owner, 2026-11-19), so the strap and the profile are the same
+            // size and the header reads as two round controls rather than a pill and a photo.
+            DashboardBatteryButton(size: 32, showsPercent: false, percentInside: true)
                 .frame(minWidth: 44, minHeight: 44)
                 .contentShape(Rectangle())
             trailing()

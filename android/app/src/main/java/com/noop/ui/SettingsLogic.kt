@@ -75,9 +75,14 @@ internal fun strapStatusDetail(
     else -> "No strap connected. Put your WHOOP nearby and tap Re-scan to pair."
 }
 
+/**
+ * The canonical charge bands, iOS's `StrapBatteryDisplayState.tone`. Android carried the older pair
+ * (`<=15` / `<=30`) that iOS retired when its dashboard control was found disagreeing with Today: the
+ * same strap at 32 % read amber here and green there. One reading, one band.
+ */
 internal fun batteryTone(pct: Double): StrandTone = when {
-    pct <= 15 -> StrandTone.Critical
-    pct <= 30 -> StrandTone.Warning
+    pct < 15 -> StrandTone.Critical
+    pct < 35 -> StrandTone.Warning
     else -> StrandTone.Positive
 }
 

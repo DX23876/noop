@@ -2,6 +2,7 @@ package com.noop.ui.forge
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -23,7 +25,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.Restaurant
+import androidx.compose.material.icons.rounded.Battery0Bar
 import androidx.compose.material.icons.rounded.BatteryFull
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.MoreHoriz
 import androidx.compose.material.icons.rounded.DirectionsRun
 import androidx.compose.material.icons.rounded.EditNote
 import androidx.compose.material.icons.rounded.MonitorHeart
@@ -53,28 +58,39 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.ui.platform.LocalContext
 import com.noop.R
 import com.noop.ui.AppViewModel
 import com.noop.ui.ProfileAvatar
+import com.noop.ui.batteryTone
 import kotlin.math.roundToInt
 
 /** What the Today header's "+" opens, after the iOS `QuickAction`. */
 enum class QuickAction { Battery, Live, Workout, Journal, Food, Breathe, Goals, LiveSession, CustomizeToday }
 
-/** The header's trailing pair after iOS (`headerProfileButton`, `LiquidAddButton`): the profile photo, then "+". */
+/**
+ * The header's trailing controls, in iOS's order (`DashboardBatteryButton`, `LiquidAddButton`,
+ * `headerProfileButton`): the strap's charge, then "+", then the profile photo. Android drew the photo
+ * first and no charge at all; both were put right on 2026-11-19 at the owner's word, because a wearer
+ * moving between the two phones reaches for the control that sits where the other one has it.
+ *
+ * [viewModel] and [onBattery] are optional because only the new design's header carries the charge; a
+ * caller that passes neither gets the pair it always had.
+ */
 @Composable
 internal fun TodayHeaderButtons(onProfile: () -> Unit, onQuickActions: () -> Unit, modifier: Modifier = Modifier,
+                                viewModel: AppViewModel? = null, onBattery: (() -> Unit)? = null,
                                 menu: (@Composable ColumnScope.(close: () -> Unit) -> Unit)? = null) {
     val colors = Forge.colors
     val profileLabel = stringResource(R.string.forge_qa_profile_settings)
     val quickLabel = stringResource(if (menu != null) R.string.forge_log_add else R.string.forge_qa_quick_actions)
     var menuOpen by remember { mutableStateOf(false) }
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space3), verticalAlignment = Alignment.CenterVertically) {
-        ProfileAvatar(size = HEADER_BUTTON, contentDescription = profileLabel,
-                      modifier = Modifier.clickable(role = Role.Button, onClick = onProfile))
+        if (viewModel != null && onBattery != null) TodayHeaderBattery(viewModel, onBattery)
         Box {
             Box(Modifier.size(HEADER_BUTTON).background(colors.heroFill, CircleShape).border(1.dp, colors.heroBorder, CircleShape)
                     .clickable(role = Role.Button) { if (menu != null) menuOpen = true else onQuickActions() }
@@ -88,6 +104,66 @@ internal fun TodayHeaderButtons(onProfile: () -> Unit, onQuickActions: () -> Uni
                     menu { menuOpen = false }
                 }
             }
+        }
+        ProfileAvatar(size = HEADER_BUTTON, contentDescription = profileLabel,
+                      modifier = Modifier.clickable(role = Role.Button, onClick = onProfile))
+    }
+}
+
+/**
+ * The strap's charge as a ring the width of the profile picture, with the level INSIDE it: the twin of
+ * iOS's `DashboardBatteryButton(percentInside: true)`. A ring with the figure beside it says the same
+ * thing twice and makes the header's widest element (owner, 2026-11-19).
+ *
+ * Which arm is drawn comes from [StrapRowStatus], the rule the quick-action sheet's battery row states in
+ * words, so the two cannot disagree about one strap. In particular a percentage that outlived the link is
+ * not shown: `Disconnected` wins over a stale number, as iOS's `offline` does.
+ */
+@Composable
+private fun TodayHeaderBattery(viewModel: AppViewModel, onBattery: () -> Unit) {
+    val colors = Forge.colors
+    val live by viewModel.live.collectAsState()
+    val name by viewModel.activeDeviceName.collectAsState()
+    val row = StrapRowStatus.of(named = name != null, onAir = live.connected || live.bonded,
+                                syncing = live.backfilling, charging = live.charging, batteryPct = live.batteryPct)
+    if (row == StrapRow.None) return
+    val charging = live.charging == true
+    val pct = if (row == StrapRow.Disconnected) null else live.batteryPct
+    // Spoken with the words the sheet's own battery row uses, so nothing new has to be translated for a
+    // control that says what that row says. A charging strap with a reading is announced by its reading:
+    // the number is the thing a wearer wants, and the bolt beside it is on screen for everyone else.
+    val label = when {
+        pct != null -> stringResource(R.string.forge_qa_connected_battery, pct.roundToInt())
+        row == StrapRow.Disconnected -> stringResource(R.string.forge_qa_not_connected)
+        charging -> stringResource(R.string.forge_qa_charging)
+        else -> stringResource(R.string.forge_qa_connected)
+    }
+    Box(Modifier.size(HEADER_BUTTON).background(colors.heroFill, CircleShape).border(1.dp, colors.heroBorder, CircleShape)
+            .clickable(role = Role.Button, onClick = onBattery)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center) {
+        if (pct != null) {
+            val tint = batteryTone(pct).color
+            // The arc from the top, clockwise, and never a hairline: a strap at 1 % must still draw
+            // something, or the ring reads as "no reading" (iOS's `max(0.015, pct / 100)`).
+            Canvas(Modifier.fillMaxSize().padding(3.dp)) {
+                val stroke = 3.dp.toPx()
+                drawArc(color = tint, startAngle = -90f, sweepAngle = maxOf(5.4f, (pct / 100 * 360).toFloat()),
+                        useCenter = false, topLeft = androidx.compose.ui.geometry.Offset(stroke / 2, stroke / 2),
+                        size = androidx.compose.ui.geometry.Size(size.width - stroke, size.height - stroke),
+                        style = Stroke(width = stroke, cap = StrokeCap.Round))
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (charging) Icon(Icons.Rounded.Bolt, contentDescription = null, tint = tint, modifier = Modifier.size(10.dp))
+                // The number alone, without the per-cent sign: at this size the sign costs a third of the
+                // room and says nothing the ring has not already said.
+                Text(pct.roundToInt().toString(), style = Forge.type.captionNumber.copy(fontWeight = FontWeight.SemiBold),
+                     color = tint, maxLines = 1)
+            }
+        } else {
+            Icon(if (charging) Icons.Rounded.Bolt else if (row == StrapRow.Disconnected) Icons.Rounded.Battery0Bar else Icons.Rounded.MoreHoriz,
+                 contentDescription = null, modifier = Modifier.size(16.dp),
+                 tint = if (charging) ForgeTokens.Color.systemGreen.resolve() else colors.textSecondary)
         }
     }
 }

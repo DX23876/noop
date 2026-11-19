@@ -93,6 +93,10 @@ struct DashboardBatteryButton: View {
     var size: CGFloat = 36
     /// The number beside the ring. The redesign's crowded header draws the ring alone.
     var showsPercent = true
+    /// The level INSIDE the ring instead of beside it (owner, 2026-11-19). A ring with the figure next to
+    /// it says the same thing twice and makes the header's widest element; inside, the ring is exactly as
+    /// wide as the profile picture it sits beside and still carries its number.
+    var percentInside = false
 
     private var state: StrapBatteryDisplayState {
         .resolve(activeIsWhoop: live.activeIsWhoop, connected: live.connected,
@@ -153,9 +157,25 @@ struct DashboardBatteryButton: View {
                     .stroke(tint(pct), style: StrokeStyle(lineWidth: max(2.5, size * 0.09), lineCap: .round))
                     .rotationEffect(.degrees(-90))
                     .padding(3)
-                Image(systemName: charging ? "bolt.fill" : "battery.100")
-                    .font(.system(size: size * 0.32, weight: .semibold))
+                if percentInside {
+                    // The number alone, without the per-cent sign: at this size the sign costs a third of
+                    // the room and says nothing the ring has not already said.
+                    HStack(spacing: 1) {
+                        if charging {
+                            Image(systemName: "bolt.fill").font(.system(size: size * 0.26, weight: .bold))
+                        }
+                        Text(verbatim: String(Int(pct.rounded())))
+                            .font(.system(size: size * 0.34, weight: .semibold, design: .rounded))
+                            .monospacedDigit()
+                    }
                     .foregroundStyle(tint(pct))
+                    .minimumScaleFactor(0.7)
+                    .lineLimit(1)
+                } else {
+                    Image(systemName: charging ? "bolt.fill" : "battery.100")
+                        .font(.system(size: size * 0.32, weight: .semibold))
+                        .foregroundStyle(tint(pct))
+                }
             }
         }
         .frame(width: size, height: size)
