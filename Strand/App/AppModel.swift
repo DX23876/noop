@@ -381,6 +381,15 @@ final class AppModel: ObservableObject {
         // the registry active id once the store opens. Single-device install keeps "my-whoop" throughout.
         self.ble = BLEManager(state: live, deviceId: deviceId)
         self.repo = Repository(deviceId: deviceId)
+        #if DEBUG
+        // A demo build's account needs a body as much as it needs a history: the calorie goal, the
+        // heart-rate zones, the body composition and AgeLess all start from the profile, and an empty one
+        // leaves them reading nothing while every tile around them is full. Written here, before anything
+        // asks the profile for a weight, and only onto a profile nobody has filled in.
+        if CommandLine.arguments.contains("--demo-data") || CommandLine.arguments.contains("--demo-seed") {
+            DemoPerson.applyIfUnset(to: profile)
+        }
+        #endif
         self.coach = AICoachEngine(repo: repo)
         // Route the engine's per-day scoring diagnostic into the SAME shareable strap log every other
         // subsystem writes to (PII-scrubbed by `live.append(log:)`), so a bug report ships proof of what

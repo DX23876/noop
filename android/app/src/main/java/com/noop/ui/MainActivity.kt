@@ -148,6 +148,9 @@ class MainActivity : ComponentActivity() {
                 runCatching {
                     DemoSeeder.seedDemoDeviceIfNeeded((application as NoopApplication).deviceRegistry)
                 }
+                // And the demo account's body, from the same shared dataset, because a history without a
+                // person leaves the calorie goal, the zones and the body pages with nothing to start from.
+                runCatching { DemoPerson.seedIfUnset(applicationContext) }
             }
         }
 

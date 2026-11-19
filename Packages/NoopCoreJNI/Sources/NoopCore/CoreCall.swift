@@ -279,6 +279,11 @@ public enum CoreCall {
         case "media.cancel": await CoreExerciseMedia.shared.cancel(); return ok(true)
         case "media.disabled": await CoreExerciseMedia.shared.setDisabled(args["disabled"] as? Bool ?? false); return ok(true)
         case "media.delete": return ok(await CoreExerciseMedia.shared.delete())
+        case "demo.person":
+            // The demo account's body, from the shared dataset, so the emulator's profile and the
+            // iPhone's hold one person. Kotlin writes it into its own prefs file; the figures are not
+            // its to choose.
+            return CoreRead.json(DemoDataset.person())
         case "prefs.read": return CorePrefs.readJSON()
         case "prefs.write": return ok(CorePrefs.write(key: string("key"), value: args["value"]))
         case "provider.defaults": return CoreRead.json(CoreExerciseProvider.Defaults())

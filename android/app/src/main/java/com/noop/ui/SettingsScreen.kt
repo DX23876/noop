@@ -442,6 +442,12 @@ class ProfileStore(private val prefs: SharedPreferences) {
         }
     }
 
+    /** Whether nobody has said who this is yet: none of the three keys the profile treats as set (the
+     *  #146 date of birth, the legacy age it mirrors, and the weight). The demo seed asks before it writes
+     *  a synthetic person, so a wearer who once started a demo build keeps their own figures. */
+    fun isUnset(): Boolean =
+        !prefs.contains(KEY_DOB) && !prefs.contains(KEY_AGE) && !prefs.contains(KEY_WEIGHT)
+
     companion object {
         internal const val PREFS = "noop_profile"
         /** Date of birth as epoch millis — the #146 source of truth for [age]. */

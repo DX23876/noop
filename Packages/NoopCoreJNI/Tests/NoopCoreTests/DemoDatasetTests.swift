@@ -95,4 +95,20 @@ final class DemoDatasetTests: XCTestCase {
         let vo2 = plan.computedSeries.filter { $0.key == "vo2max_est" }.map(\.value)
         XCTAssertGreaterThan(vo2.last ?? 0, vo2.first ?? 99, "VO₂max should climb across the window")
     }
+
+    /// The demo person's weight is the demo's own last weigh-in, not a figure beside it: a profile that
+    /// disagreed with the scale is the fault this dataset exists to expose, not one to ship inside it.
+    func testThePersonsWeightIsTheLastWeighIn() {
+        let plan = DemoDataset.build(today: day)
+        let person = DemoDataset.person(today: day)
+        XCTAssertEqual(person.weightKg, plan.weights.last?.weightKg)
+        XCTAssertEqual(person.sex, "male")
+        XCTAssertGreaterThan(person.heightCm, 100)
+        XCTAssertGreaterThan(person.ageYears, 13)
+    }
+
+    /// And the whole person is the same person every time, so both phones write one body.
+    func testThePersonIsDeterministic() {
+        XCTAssertEqual(DemoDataset.person(today: day), DemoDataset.person(today: day))
+    }
 }

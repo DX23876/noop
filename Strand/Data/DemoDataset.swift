@@ -77,6 +77,30 @@ public enum DemoDataset {
         public let appleWorkouts: [WorkoutRow]
     }
 
+    /// The demo wearer's own facts, which live in the profile rather than in the store.
+    ///
+    /// Without them the demo account has a history and no body, and every screen that needs one reads
+    /// empty while everything around it is full: the calorie goal (its formula burn needs a weight, a
+    /// height, years and a cohort), the heart-rate zones, the body composition, AgeLess. That is how the
+    /// Nutrition tile came to say "– left today" over seven logged days, on both phones at once
+    /// (2026-11-19). Synthetic throughout; nobody's figures.
+    ///
+    /// The weight is NOT a figure of its own: it is the last weigh-in this dataset wrote. A profile weight
+    /// that disagreed with the scale would be precisely the fault this dataset exists to expose.
+    public struct Person: Equatable, Sendable, Codable {
+        public let ageYears: Int
+        /// "male" or "female", as the profile stores it.
+        public let sex: String
+        public let heightCm: Double
+        public let waistCm: Double
+        public let weightKg: Double
+    }
+
+    public static func person(today: Date = Date()) -> Person {
+        Person(ageYears: 34, sex: "male", heightCm: 182, waistCm: 86,
+               weightKg: build(today: today).weights.last?.weightKg ?? 79.5)
+    }
+
     public static func build(today: Date = Date()) -> Plan {
         var rng = Generator(seed: 0xC0FFEE)
         var daily: [DailyMetric] = [], sleeps: [CachedSleepSession] = [], weights: [BodyWeightRow] = []
