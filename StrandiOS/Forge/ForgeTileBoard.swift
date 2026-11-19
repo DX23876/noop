@@ -56,7 +56,7 @@ struct ForgeTileBoardView: View {
         NavigationStack {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 24) {
-                    Text("Every tile at every size, drawn by the same views Today uses. The account is the one this build carries.")
+                    Text("Every Today tile at every size, drawn by the views Today uses. Debug builds only.")
                         .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                     ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
                         VStack(alignment: .leading, spacing: 8) {
@@ -73,7 +73,7 @@ struct ForgeTileBoardView: View {
                 .padding(16)
             }
             .background(ForgeColor.canvas.ignoresSafeArea())
-            .navigationTitle("Tile board")
+            .navigationTitle(Text("Tile board"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {

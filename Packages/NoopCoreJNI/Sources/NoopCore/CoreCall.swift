@@ -280,6 +280,13 @@ public enum CoreCall {
         case "media.cancel": await CoreExerciseMedia.shared.cancel(); return ok(true)
         case "media.disabled": await CoreExerciseMedia.shared.setDisabled(args["disabled"] as? Bool ?? false); return ok(true)
         case "media.delete": return ok(await CoreExerciseMedia.shared.delete())
+        case "tile.units":
+            // The unit each measure is written in, from the one catalogue. Asked once and held, like the
+            // colours. Without it Android's catalogue tiles stood with no unit at all: "91" beside the
+            // iPhone's "91 g", on one account (2026-11-19).
+            return CoreRead.json(Dictionary(uniqueKeysWithValues: TileMeasures.keys.compactMap { key in
+                MetricCatalog.all.first { $0.key == key }.map { (key, $0.unit) }
+            }))
         case "tile.tints":
             // Which colour each measure is drawn in, by name. The palette is each phone's own; which
             // measure gets which name is one decision, and it is `TileMeasures.tint`. Asked once and

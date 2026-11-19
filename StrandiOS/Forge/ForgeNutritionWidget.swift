@@ -137,9 +137,25 @@ struct ForgeNutritionReading {
     /// cycle card only to the people it is for: an empty tile would be a goal with nothing to weigh.
     var logged: Bool { (eatenKcal ?? 0) > 0 || weekKcal.contains { $0.kcal > 0 } }
 
+    /// The last reading, for the refresh it was read in. Today can hold three tiles that need this same
+    /// answer (the Nutrition tile, the protein tile's goal, the energy card), and the energy plan behind
+    /// it reads a month of summaries and a balance estimate over half a year. One resolver, asked once per
+    /// refresh, rather than three loads of the same thing on one screen.
+    @MainActor
+    private static var cached: (seq: Int, day: String, reading: ForgeNutritionReading?)?
+
     /// Main-actor because the energy plan model is: the tile's own `.task` already runs there.
     @MainActor
     static func load(repo: Repository, profile: ProfileStore) async -> ForgeNutritionReading? {
+        let todayKey = Repository.localDayKey(Date())
+        if let cached, cached.seq == repo.refreshSeq, cached.day == todayKey { return cached.reading }
+        let reading = await read(repo: repo, profile: profile)
+        cached = (repo.refreshSeq, todayKey, reading)
+        return reading
+    }
+
+    @MainActor
+    private static func read(repo: Repository, profile: ProfileStore) async -> ForgeNutritionReading? {
         guard let store = await repo.storeHandle() else { return nil }
         let today = Repository.localDayKey(Date())
         let analytics = Repository.analyticsProfile(profile)

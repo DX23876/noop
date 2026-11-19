@@ -165,7 +165,7 @@ object CoreDietPlan {
                "carbsPercent" to pct(prefs, "food.goal.carbsPercent"),
                "fatPercent" to pct(prefs, "food.goal.fatPercent"))
             .forEach { (k, v) -> v?.let { args.put(k, it) } }
-        val json = call("food.dayGoal", args) ?: return null
+        val json = call("food.planDayGoal", args) ?: return null
         return CoreFood.Goals(json.optDouble("kcal"), json.optString("basis"), json.optDouble("burnKcal"),
                               json.optDouble("planDeltaKcal"), json.num("proteinG"), json.num("carbsG"),
                               json.num("fatG"))

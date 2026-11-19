@@ -874,6 +874,9 @@ private fun CatalogMeasureTile(key: String, history: CoreTile.History, today: St
         else -> tileFacts?.todayText ?: tileFacts?.lastValueText ?: decimal.format(latest)
     }
     val tint = measureTint(key)
+    // The measure's unit, from the one catalogue (`CoreTile.units`), so the tile and the facts line under
+    // it write what the iPhone writes.
+    val unit = CoreTile.units[key].orEmpty()
     val change = rememberTileDelta(key, series)
     // The measure's own fact first, as every other tile has it; the range line stays as the fallback. Until
     // 2026-11-19 these four were the only tiles whose two-column form could say nothing about the week.
@@ -895,9 +898,9 @@ private fun CatalogMeasureTile(key: String, history: CoreTile.History, today: St
     }
     val factsLine = if (!detailed) null
                     else if (key == "stress") calm?.let { stringResource(R.string.forge_tile_calm_share, (it * 100).roundToInt()) }
-                    else rememberFactsLine(key, history, today, "", calendarAge)
-    ForgeTodayTile(measureIcon(key), tint, measureLabel(key), value, "",
-                   if (detailed) (factsLine ?: change?.summary?.let { summaryLine(it, "") }) else null, noData, dense, modifier,
+                    else rememberFactsLine(key, history, today, unit, calendarAge)
+    ForgeTodayTile(measureIcon(key), tint, measureLabel(key), value, if (key == "stress") "" else unit,
+                   if (detailed) (factsLine ?: change?.summary?.let { summaryLine(it, unit) }) else null, noData, dense, modifier,
                    // The word carries no direction, so a change chip beside it would be two readings of one
                    // thing in two languages.
                    delta = if (key == "stress") null else change?.text,

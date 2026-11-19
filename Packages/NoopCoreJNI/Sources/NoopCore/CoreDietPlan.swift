@@ -186,7 +186,7 @@ enum CoreDietPlan {
                 wire.completeDays = days; wire.weighIns = weighIns
             }
             return CoreRead.json(wire)
-        case "food.dayGoal":
+        case "food.planDayGoal":
             // The day's calorie and macro goal, in the ONE order the app resolves it
             // (`FoodTargets.dayGoal`): the plan's own day first, because it knows the phase, the
             // training-day shift and the active-day extra, then the plan resolved without that day's

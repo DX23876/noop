@@ -150,7 +150,20 @@ class TodayTileGalleryTests(unittest.TestCase):
         self.assertIn("CoreTile.resolvesItsTarget(catalogKey)", kotlin)
         self.assertIn("CoreDietPlan.dayGoal(", kotlin)
         core = (ROOT / "Packages/NoopCoreJNI/Sources/NoopCore/CoreDietPlan.swift").read_text(encoding="utf-8")
-        self.assertRegex(core, r'case "food\.dayGoal":[\s\S]{0,2000}FoodTargets\.dayGoal\(')
+        self.assertRegex(core, r'case "food\.planDayGoal":[\s\S]{0,2500}FoodTargets\.dayGoal\(')
+
+    def test_every_diet_plan_op_is_named_so_the_dispatcher_reaches_it(self):
+        """The dispatcher sends "food.plan*" to CoreDietPlan and every other "food.*" to CoreFood. An op
+        in this file under any other name answers `unknownOp`, silently: the goal resolver spent a day
+        named `food.dayGoal`, and Android's Food page and Nutrition tile both showed a day with no goal
+        while the iPhone showed one."""
+        core = (ROOT / "Packages/NoopCoreJNI/Sources/NoopCore/CoreDietPlan.swift").read_text(encoding="utf-8")
+        ops = re.findall(r'case "(food\.[A-Za-z]+)"', core)
+        self.assertNotEqual([], ops)
+        self.assertEqual([], [op for op in ops if not op.startswith("food.plan")],
+                         "an op in CoreDietPlan that is not named food.plan* never reaches it")
+        dispatcher = (ROOT / "Packages/NoopCoreJNI/Sources/NoopCore/CoreCall.swift").read_text(encoding="utf-8")
+        self.assertIn('if op.hasPrefix("food.plan") { return await CoreDietPlan.run(', dispatcher)
 
     def test_android_resolves_a_days_goal_only_through_the_core(self):
         """The Kotlin `when` that held the goal order beside the Swift one is gone, and must stay gone."""
@@ -199,6 +212,17 @@ class TodayTileGalleryTests(unittest.TestCase):
         self.assertEqual([], [m for m in re.findall(r'"([a-z0-9_]+)"', body)
                               if m not in {"charge", "effort", "rest", "cyan", "rose", "amber", "energy"}],
                          "the Kotlin side maps names to colours, it does not name measures")
+
+    def test_android_takes_a_measures_unit_from_the_catalogue(self):
+        """The unit belongs to the catalogue both phones read. Android's catalogue tiles passed an empty
+        one, so protein stood as "91" beside the iPhone's "91 g", from the same number."""
+        kotlin = (ROOT / "android/app/src/main/java/com/noop/ui/forge/ForgeTodayWidgets.kt").read_text(encoding="utf-8")
+        tile = kotlin[kotlin.index("private fun CatalogMeasureTile"):]
+        tile = tile[:tile.index("\n}")]
+        self.assertIn("CoreTile.units[key]", tile)
+        self.assertIn("rememberFactsLine(key, history, today, unit, calendarAge)", tile)
+        core = (ROOT / "Packages/NoopCoreJNI/Sources/NoopCore/CoreCall.swift").read_text(encoding="utf-8")
+        self.assertRegex(core, r'case "tile\.units":[\s\S]{0,600}MetricCatalog\.all')
 
     def test_android_never_names_a_source_for_a_tile_itself(self):
         """Android asks the core by key (`CoreTile.history`). The moment it passes a source of its own, the

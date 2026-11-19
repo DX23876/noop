@@ -62,20 +62,28 @@ object CoreTile {
      */
     fun resolvesItsTarget(key: String): Boolean = key == "protein_g"
 
+    /** The unit each measure is written in, from the one catalogue the iPhone reads too. Without it the
+     *  catalogue tiles stood with no unit at all: "91" beside the iPhone's "91 g". */
+    val units: Map<String, String> by lazy { nameMap("tile.units") }
+
     /**
      * Which colour each measure is drawn in, by NAME ("charge", "effort", "rest", "cyan", "rose",
      * "amber", "energy"), from the shared table. The palette stays this phone's; which measure gets
      * which name is one decision and the core holds it, because the two tables had drifted apart.
      *
-     * Asked once and held: it cannot change while the app runs.
+     * Both are asked once and held: neither can change while the app runs.
      */
-    val tints: Map<String, String> by lazy {
-        val json = if (SwiftCore.available) SwiftCore.call("tile.tints", "{}") else null
-        runCatching {
+    val tints: Map<String, String> by lazy { nameMap("tile.tints") }
+
+    private fun nameMap(op: String): Map<String, String> {
+        val json = if (SwiftCore.available) SwiftCore.call(op, "{}") else null
+        return runCatching {
             val o = JSONObject(json ?: return@runCatching emptyMap<String, String>())
             o.keys().asSequence().associateWith { o.optString(it) }
         }.getOrDefault(emptyMap())
     }
+
+
 
     /**
      * [days] and [values] are one series, oldest first and the same length; [today] is the logical day key.

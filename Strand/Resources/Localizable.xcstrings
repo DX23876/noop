@@ -187,6 +187,70 @@
         }
       }
     },
+    "Every Today tile at every size, drawn by the views Today uses. Debug builds only." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jede Kachel von Heute in jeder Größe, gezeichnet von den Ansichten, die Heute benutzt. Nur in Testbauten."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every Today tile at every size, drawn by the views Today uses. Debug builds only."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada ficha de Hoy en todos sus tamaños, dibujada por las vistas que usa Hoy. Solo en compilaciones de prueba."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chaque tuile d’Aujourd’hui dans toutes ses tailles, dessinée par les vues qu’Aujourd’hui utilise. Versions de test uniquement."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ogni riquadro di Oggi in ogni dimensione, disegnato dalle viste che Oggi usa. Solo nelle build di prova."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Każdy kafelek Dziś w każdym rozmiarze, rysowany przez widoki, których używa Dziś. Tylko w kompilacjach testowych."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada mosaico de Hoje em todos os tamanhos, desenhado pelas vistas que Hoje usa. Apenas em compilações de teste."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Каждая плитка «Сегодня» во всех размерах, нарисованная теми же представлениями. Только в отладочных сборках."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“今天”的每张卡片的每种尺寸，由“今天”所用的视图绘制。仅限调试版本。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「今天」的每張卡片的每種尺寸，由「今天」所用的視圖繪製。僅限除錯版本。"
+          }
+        }
+      }
+    },
     "P %1$@ · C %2$@ · F %3$@ g" : {
       "localizations" : {
         "de" : {
@@ -299,6 +363,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "蛋白 %1$@/%2$@ · 碳水 %3$@/%4$@ · 脂肪 %5$@/%6$@ 克"
+          }
+        }
+      }
+    },
+    "Tile board" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kacheltafel"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tile board"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tablero de fichas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tableau des tuiles"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tavola dei riquadri"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tablica kafelków"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Painel de mosaicos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Доска плиток"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片总览"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "卡片總覽"
           }
         }
       }
