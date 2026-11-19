@@ -1370,9 +1370,12 @@ struct ForgeMeasureWidget: View {
         case "rhr": return StrandPalette.metricRose
         case "steps": return StrandPalette.chargeColor
         case "sleep_total_min": return StrandPalette.restColor
-        case "weight", "skin_temp": return StrandPalette.metricAmber
+        case "weight", "skin_temp", "body_fat", "lean_mass": return StrandPalette.metricAmber
         case "active_kcal", "calories_in": return StrandPalette.energyHighlight
         case "stress": return StrandPalette.effortColor
+        case "hr_zones13_min", "hr_zones45_min": return StrandPalette.metricRose
+        case "mood": return StrandPalette.metricCyan
+        case "vo2max_est": return StrandPalette.chargeColor
         default: return StrandPalette.accent
         }
     }

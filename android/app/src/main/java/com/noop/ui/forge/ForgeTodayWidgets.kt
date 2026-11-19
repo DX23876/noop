@@ -858,16 +858,17 @@ private fun CatalogMeasureTile(key: String, history: CoreTile.History, today: St
         key == "fitness_age" -> kotlin.math.round(latest).toInt().toString()
         else -> decimal.format(latest)
     }
-    val tint = when (key) {
-        "vo2max_est" -> colors.charge
-        "stress" -> colors.effort
-        else -> colors.rest
-    }
+    val tint = measureTint(key)
     val change = rememberTileDelta(key, series)
     // The measure's own fact first, as every other tile has it; the range line stays as the fallback. Until
     // 2026-11-19 these four were the only tiles whose two-column form could say nothing about the week.
     val context = LocalContext.current
-    val calendarAge = remember { com.noop.ui.NoopPrefs.of(context).getInt("age", 0).takeIf { it > 0 }?.toDouble() }
+    // The wearer's years live in the profile prefs, not the app's ("noop_profile", the file Settings
+    // writes). Reading them from the wrong file answered zero, so the age line never appeared at all.
+    val calendarAge = remember {
+        context.getSharedPreferences("noop_profile", android.content.Context.MODE_PRIVATE)
+            .getInt("age", 0).takeIf { it > 0 }?.toDouble()
+    }
     // Stress over two columns says how much of today was calm (owner's table, 2026-11-19): a daily stress
     // figure as a word says what it is, the share of the day says how it got there. Read only where a
     // stress tile is actually placed and detailed.
@@ -916,7 +917,7 @@ private fun WideMeasureCard(key: String?, keyTiles: KeyTiles, history: CoreTile.
     }
     val change = key?.let { rememberTileDelta(if (metric != null) metric.catalogKey() else it, series) }
     val displayMetric = metric ?: wholeRowMetric(key)
-    val tint = displayMetric?.tileTint() ?: Forge.colors.charge
+    val tint = displayMetric?.tileTint() ?: measureTint(key.orEmpty())
     val shown = series.takeLast(30)
     // One facts read for the whole card: the goal under the bars, the blocks under the chart and the
     // caption all stand on the same numbers (`MeasureFacts`), so they cannot disagree with each other.
@@ -1166,6 +1167,24 @@ private fun measureLabel(key: String): String = when (key) {
     "body_age" -> stringResource(R.string.forge_m_body_age)
     "mood" -> stringResource(R.string.forge_m_mood)
     else -> (KeyMetric.fromRaw(key) ?: wholeRowMetric(key))?.tileLabel() ?: key
+}
+
+/**
+ * A catalogue measure's colour, for every size it is drawn at.
+ *
+ * One resolver, because the two forms used to answer differently: the two-column Fitness Age came out in
+ * the Rest colour and the row-wide one in Charge's, so one measure wore two colours on one screen (seen in
+ * the side-by-side on 2026-11-19). iOS's twin is `ForgeMeasureWidget.tint`.
+ */
+@Composable
+private fun measureTint(key: String): Color = when (key) {
+    "vo2max_est" -> Forge.colors.charge
+    "stress" -> Forge.colors.effort
+    "calories_in" -> ForgeTokens.StrandPalette.energyHighlight.resolve()
+    "body_fat", "lean_mass" -> ForgeTokens.StrandPalette.metricAmber.resolve()
+    "hr_zones13_min", "hr_zones45_min" -> ForgeTokens.StrandPalette.metricRose.resolve()
+    "mood" -> ForgeTokens.StrandPalette.metricCyan.resolve()
+    else -> Forge.colors.rest
 }
 
 private fun measureIcon(key: String): ImageVector = when (key) {
