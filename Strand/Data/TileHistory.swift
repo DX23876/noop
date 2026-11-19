@@ -52,6 +52,9 @@ enum TileMeasures {
         ("vitality", MetricResolver.whoopSource, .body),
         ("body_age", MetricResolver.whoopSource, .body),
 
+        // The two nutrition keys name a lane here only for the route they open; what they SHOW is
+        // resolved for every reader in `NutritionReads` (Apple Health, an import, the food log, a typed
+        // correction), so the tile cannot hold different days from the Food page.
         ("calories_in", "nutrition-csv", .food),
         // The one macro with a goal of its own in the core, so the only one worth a tile beside the
         // Nutrition card (owner, 2026-11-18).
