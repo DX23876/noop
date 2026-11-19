@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Adaptive launcher background: WHOOP-dark tile (the green loop mark lives in the foreground). -->
+<!-- Adaptive launcher background for the Forge icon: the stone wash the iOS icon stands on
+     (`StrandiOS/Resources/Assets.xcassets/AppIcon.appiconset/icon_1024.png`, sampled top and bottom).
+     The mark itself is the foreground, cut from that same artwork. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp" android:height="108dp"
@@ -7,7 +9,7 @@
     <path android:pathData="M0,0h108v108h-108z">
         <aapt:attr name="android:fillColor">
             <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="0" android:endY="108"
-                android:startColor="#1C2128" android:endColor="#0E1116"/>
+                android:startColor="#FAF9F7" android:endColor="#ECEAE6"/>
         </aapt:attr>
     </path>
 </vector>

@@ -196,7 +196,8 @@
           point is split into two <activity-alias> elements below (.IconDefault / .IconNavy), each
           carrying the LAUNCHER filter and a different launcher icon. Settings → "App Icon" enables
           exactly one alias at runtime via PackageManager.setComponentEnabledSetting, which is what
-          lets the user swap the machined-titanium and blued-titanium icons without a reinstall. The
+          lets the user swap the two icons without a reinstall, as iOS swaps `AppIcon` for
+          `AppIcon-Navy`; both are cut from that same iOS artwork (2026-11-19). The
           activity stays exported so the enabled alias can target it. (#v3-titanium-gold)
         -->
         <activity
@@ -218,8 +219,8 @@
 
         <!--
           Launcher icon aliases. Exactly one is ever enabled (see SettingsScreen "App Icon"):
-            .IconDefault — machined-titanium icon (@mipmap/ic_launcher), enabled by default.
-            .IconNavy    — blued/dark-blue titanium icon (@mipmap/ic_launcher_navy), disabled.
+            .IconDefault — the Forge mark on stone (@mipmap/ic_launcher), enabled by default.
+            .IconNavy    — the gold loop on navy (@mipmap/ic_launcher_navy), disabled.
           Both target MainActivity and carry the MAIN/LAUNCHER filter, so whichever is enabled is the
           one home-screen entry point. Toggling them is what re-paints the launcher icon at runtime.
         -->
