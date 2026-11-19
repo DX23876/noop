@@ -145,7 +145,8 @@ internal data class TodayWidget(
     val isWholeRowMeasure: Boolean get() = kind == Kind.Measure && key in WHOLE_ROW_MEASURES
 
     val size: Size get() = when {
-        kind in SHRINKABLE_CARDS -> if (wide != false) Size.Wide else if (span == 2) Size.Medium else Size.Small
+        // Never Small: a card has two facts, not one, and two columns is where they fit.
+        kind in SHRINKABLE_CARDS -> if (wide != false) Size.Wide else Size.Medium
         kind !in TILE_KINDS -> Size.Wide
         isWholeRowMeasure -> Size.Wide
         (kind == Kind.LiveHeart || kind == Kind.AgeLess || kind == Kind.Measure) && wide == true -> Size.Wide
@@ -177,7 +178,9 @@ internal data class TodayWidget(
         Size.Medium -> if (kind == Kind.LiveHeart || kind == Kind.AgeLess || kind == Kind.Measure ||
                            kind in SHRINKABLE_CARDS) copy(span = 1, wide = true)
                        else copy(span = 1, wide = false)
-        Size.Wide -> copy(span = 1, wide = false)
+        // A card has only the two sizes, so its control goes back to two columns rather than to a small
+        // form it does not have.
+        Size.Wide -> if (kind in SHRINKABLE_CARDS) copy(span = 2, wide = false) else copy(span = 1, wide = false)
     }
 
     companion object {
@@ -185,11 +188,15 @@ internal data class TodayWidget(
         /** Charge, Effort and Rest as the catalogue keys them; iOS's `wholeRowMeasures`. */
         val WHOLE_ROW_MEASURES = setOf("recovery", "strain", "sleep_performance")
         /**
-         * EMPTY until each small form meets the content rule (owner, 2026-11-19): a card given more room
-         * has to say more, and the forms built so far say one figure on a large surface. The forms stay in
-         * the files because the kit round fills them; until then no card offers a size it cannot fill.
+         * Cards that can be drawn over TWO COLUMNS, each saying the two facts the owner's table gives it
+         * (2026-11-19): last night's hours and its span, tonight's bedtime and its alarm, the latest
+         * session's length and sport, the day's burn with its resting and active parts.
+         *
+         * Two columns, never one. A card has no change chip and no sparkline, so it can never meet the
+         * floor a SMALL tile has to meet, and a single figure on a square was exactly what the owner
+         * rejected the evening before. Over two columns it says two things, which is what that size is for.
          */
-        val SHRINKABLE_CARDS = emptySet<Kind>()
+        val SHRINKABLE_CARDS = setOf(Kind.LastNight, Kind.Tonight, Kind.LastWorkout, Kind.Energy)
         /** iOS's kinds drawn as a tile, small or over two columns (`isWide` false). */
         val TILE_KINDS = setOf(Kind.Measure, Kind.LiveHeart, Kind.Breathe, Kind.Strap, Kind.Water, Kind.AgeLess)
     }
@@ -211,7 +218,7 @@ internal object TodayWidgets {
      * Training tab, the fitness age in AgeLess — they simply had no tile, so the two galleries offered
      * different things and "the same customisation on both phones" was not true.
      */
-    val catalogMeasures: List<String> = listOf("vo2max_est", "stress", "fitness_age", "calories_in",
+    val catalogMeasures: List<String> = listOf("vo2max_est", "stress", "calories_in", "fitness_age",
                                                "recovery", "strain", "sleep_performance")
 
     /**
@@ -623,16 +630,16 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                                                                      onOpenSleep = onOpenSleep) { open = it }
                             TodayWidget.Kind.TrainingLoad -> TodayTrainingLoadForge(onOpenTrainingLoad)
                             TodayWidget.Kind.Goals -> TodayGoals()
-                            TodayWidget.Kind.Energy -> TodayEnergy()
+                            TodayWidget.Kind.Energy -> TodayEnergy(w.compactSize)
                             TodayWidget.Kind.LiveHeart ->
                                 if (w.size == TodayWidget.Size.Wide) HeartCard(viewModel, date, live = date == com.noop.ui.logicalDayNow())
                                 else LiveHeartTile(viewModel, showsCurve = w.size == TodayWidget.Size.Medium, dense = columns > 2,
                                                    modifier = Modifier.fillMaxSize(), onOpen = { open = CoreRead.Metric.RestingHr })
                             TodayWidget.Kind.Momentum -> ForgeTodayMomentum(viewModel)
-                            TodayWidget.Kind.LastWorkout -> TodayWorkoutsForge(viewModel)
+                            TodayWidget.Kind.LastWorkout -> TodayWorkoutsForge(viewModel, w.compactSize)
                             TodayWidget.Kind.Cycle -> TodayCycleForge(viewModel)
                             TodayWidget.Kind.LastNight -> TodayLastNightForge(onOpenSleep, w.compactSize)
-                            TodayWidget.Kind.Tonight -> TodayTonightForge(viewModel, onOpenAlarms)
+                            TodayWidget.Kind.Tonight -> TodayTonightForge(viewModel, onOpenAlarms, w.compactSize)
                             TodayWidget.Kind.WeekPlan -> TodayWeekPlanForge(viewModel, onOpenTraining)
                             TodayWidget.Kind.Breathe -> TodayBreatheTile(onOpenBreathe, dense = columns > 2, modifier = Modifier.fillMaxSize())
                             TodayWidget.Kind.NextSession -> TodayNextSessionForge(onOpenTraining)

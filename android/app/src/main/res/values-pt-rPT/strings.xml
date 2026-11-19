@@ -7245,4 +7245,5 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="forge_strip_count">%1$d de %2$d</string>
     <string name="forge_strip_over_90_days">Em 90 dias</string>
     <string name="forge_tile_over_90_days">%1$s em 90 dias</string>
+    <string name="forge_unit_kcal">kcal</string>
 </resources>

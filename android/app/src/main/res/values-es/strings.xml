@@ -7253,4 +7253,5 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_strip_count">%1$d de %2$d</string>
     <string name="forge_strip_over_90_days">En 90 días</string>
     <string name="forge_tile_over_90_days">%1$s en 90 días</string>
+    <string name="forge_unit_kcal">kcal</string>
 </resources>

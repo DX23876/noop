@@ -7298,4 +7298,5 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_strip_count">%1$d z %2$d</string>
     <string name="forge_strip_over_90_days">W 90 dniach</string>
     <string name="forge_tile_over_90_days">%1$s w 90 dniach</string>
+    <string name="forge_unit_kcal">kcal</string>
 </resources>

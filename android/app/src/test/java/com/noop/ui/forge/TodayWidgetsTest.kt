@@ -115,25 +115,30 @@ class TodayWidgetsTest {
     }
 
     /**
-     * No card offers a narrow size yet (owner, 2026-11-19): a card given more room has to say more, and
-     * the small forms built so far say one figure on a large surface. The machinery below stays tested, so
-     * the kit round only has to fill the forms and name the kinds here.
+     * The four cards whose two-column form says the two facts the owner's table gives it (2026-11-19).
+     * They offer TWO sizes, never a small one: a card has no change chip and no sparkline, so it cannot
+     * meet the floor a small tile has to meet, and one figure on a square is what the owner rejected.
      */
-    @Test fun noCardOffersASizeItCannotFill() {
-        assertEquals(emptySet<TodayWidget.Kind>(), TodayWidget.SHRINKABLE_CARDS)
-        for (kind in listOf(TodayWidget.Kind.LastNight, TodayWidget.Kind.Energy)) {
+    @Test fun aCardOffersTwoColumnsButNeverOne() {
+        assertEquals(setOf(TodayWidget.Kind.LastNight, TodayWidget.Kind.Tonight,
+                           TodayWidget.Kind.LastWorkout, TodayWidget.Kind.Energy),
+                     TodayWidget.SHRINKABLE_CARDS)
+        for (kind in TodayWidget.SHRINKABLE_CARDS) {
             val placed = TodayWidget("x", kind)
             assertEquals(kind.name, TodayWidget.Size.Wide, placed.size)
-            assertEquals(kind.name, false, placed.resizable)
+            assertEquals(kind.name, true, placed.resizable)
+            // Wide, two columns, wide: the control never offers the size there is no form for.
+            assertEquals(kind.name, TodayWidget.Size.Medium, placed.nextSize().size)
+            assertEquals(kind.name, TodayWidget.Size.Wide, placed.nextSize().nextSize().size)
+            // Even a stored span of one reads as two columns, so an old entry cannot draw a form that
+            // does not exist.
+            assertEquals(kind.name, TodayWidget.Size.Medium, placed.copy(span = 1, wide = false).size)
         }
     }
 
-    /**
-     * And when they do: a card that can shrink starts wide and stays wide until it is shrunk, because
-     * null must never read as small, or every tile placed before the ladder existed would have been
-     * rearranged overnight. Checked on a kind standing in for a future one.
-     */
-    @Test fun aCardThatCanShrinkWouldStartWide() {
+    /** A card that was never resized starts wide: null must not read as small, or every Today placed
+     * before the ladder existed would have been rearranged overnight. */
+    @Test fun aCardThatCanShrinkStartsWide() {
         val card = TodayWidget("x", TodayWidget.Kind.LastNight)
         assertEquals(TodayWidget.Size.Wide, card.size)
         assertEquals(TodayWidget.Size.Wide, card.copy(wide = null).size)

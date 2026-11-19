@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.DirectionsRun
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -69,8 +70,9 @@ private fun Classic(content: @Composable () -> Unit) {
 private fun latest(days: List<DailyMetric>, pick: (DailyMetric) -> Any?): DailyMetric? = days.lastOrNull { pick(it) != null }
 
 @Composable
-internal fun TodayWorkoutsForge(viewModel: AppViewModel) {
+internal fun TodayWorkoutsForge(viewModel: AppViewModel, compact: TileSize? = null) {
     val workouts by viewModel.workouts.collectAsState()
+    if (compact != null) { LatestWorkoutTile(workouts, compact); return }
     if (ForgeDesign.preview) { LatestWorkoutCard(workouts); return }
     Classic {
         Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
@@ -230,6 +232,22 @@ internal fun ForgeLiveSessionCover(viewModel: AppViewModel, onClose: () -> Unit)
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Classic { com.noop.ui.LiveSessionScreen(vm = viewModel, onClose = onClose) }
     }
+}
+
+/**
+ * The latest session over two columns: how long it was, and what it was (owner's table, 2026-11-19).
+ * iOS's twin is `ForgeLastWorkoutWidget(compact:)`. The same sixty-day window and the same newest-first
+ * pick as the full card, so the two forms cannot name different sessions.
+ */
+@Composable
+private fun LatestWorkoutTile(workouts: List<com.noop.data.WorkoutRow>, compact: TileSize) {
+    val now = System.currentTimeMillis() / 1000
+    val row = workouts.filter { it.endTs >= now - 60 * 86_400 }.maxByOrNull { it.endTs }
+    val minutes = row?.let { ((it.durationS ?: (it.endTs - it.startTs).coerceAtLeast(0).toDouble()) / 60) }
+    ForgeCardTile(Icons.Rounded.DirectionsRun, stringResource(R.string.forge_lw_title),
+                  minutes?.let { TodayTimeline.hoursMinutes(it) }, "",
+                  if (compact == TileSize.Medium) row?.sport else null,
+                  Forge.colors.effort) { }
 }
 
 /**

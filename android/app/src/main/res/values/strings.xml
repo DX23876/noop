@@ -7295,4 +7295,5 @@ Plotting each series as change from its own first reading puts them on one scale
     </plurals>
     <string name="forge_strip_over_90_days">Over 90 days</string>
     <string name="forge_tile_over_90_days">%1$s over 90 days</string>
+    <string name="forge_unit_kcal">kcal</string>
 </resources>

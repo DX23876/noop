@@ -7254,4 +7254,5 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_strip_count">%1$d из %2$d</string>
     <string name="forge_strip_over_90_days">За 90 дней</string>
     <string name="forge_tile_over_90_days">%1$s за 90 дней</string>
+    <string name="forge_unit_kcal">kcal</string>
 </resources>

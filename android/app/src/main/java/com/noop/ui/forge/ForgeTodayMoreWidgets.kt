@@ -79,7 +79,7 @@ private fun WidgetHead(title: String) {
  * A band runs from the moon to the sun, and under it how long until bed and the alarm time. Opens the alarms.
  */
 @Composable
-internal fun TodayTonightForge(viewModel: AppViewModel, onOpen: () -> Unit) {
+internal fun TodayTonightForge(viewModel: AppViewModel, onOpen: () -> Unit, compact: TileSize? = null) {
     val context = LocalContext.current
     val colors = Forge.colors
     val wakeBase by viewModel.phoneAlarmTargetMinutes.collectAsState()
@@ -94,6 +94,16 @@ internal fun TodayTonightForge(viewModel: AppViewModel, onOpen: () -> Unit) {
     val wake: ZonedDateTime = tomorrow.atStartOfDay(zone).plusMinutes((overrides[dow] ?: wakeBase).toLong())
     val bed = wake.minusMinutes(need.toLong())
     val clock = rememberClockFormatter()
+    if (compact != null) {
+        // Over two columns: the bedtime, and the alarm it counts back from (owner's table, 2026-11-19).
+        // Both come off the one wake time the card itself uses, so the two forms cannot name different
+        // nights.
+        ForgeCardTile(Icons.Rounded.Bedtime, stringResource(R.string.forge_w_tonight),
+                      bed.format(clock), "",
+                      if (compact == TileSize.Medium) stringResource(R.string.forge_tn_alarm, wake.format(clock)) else null,
+                      colors.rest, onOpen)
+        return
+    }
     ForgeCard(Modifier.fillMaxWidth().clickable(onClick = onOpen)) {
         WidgetHead(stringResource(R.string.forge_w_tonight))
         Row(verticalAlignment = Alignment.Bottom) {

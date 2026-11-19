@@ -7269,4 +7269,5 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_strip_count">%1$d von %2$d</string>
     <string name="forge_strip_over_90_days">Über 90 Tage</string>
     <string name="forge_tile_over_90_days">%1$s über 90 Tage</string>
+    <string name="forge_unit_kcal">kcal</string>
 </resources>

@@ -7199,4 +7199,5 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_strip_count">%1$d / %2$d</string>
     <string name="forge_strip_over_90_days">90 天内</string>
     <string name="forge_tile_over_90_days">90 天内 %1$s</string>
+    <string name="forge_unit_kcal">kcal</string>
 </resources>

@@ -41,17 +41,19 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
     /// Whether this is one of those three.
     var isWholeRowMeasure: Bool { kind == .measure && Self.wholeRowMeasures.contains(key ?? "") }
 
-    /// Cards that carry ONE leading figure and have a small form of it (owner, 2026-11-18): last night's
-    /// hours, tonight's bedtime, the latest workout's length, the day's burn.
+    /// Cards that can be drawn over TWO COLUMNS, each saying the two facts the owner's table gives it
+    /// (2026-11-19): last night's hours and its span, tonight's bedtime and its alarm, the latest session's
+    /// length and sport, the day's burn with its resting and active parts.
     ///
-    /// Goals, training load, the cycle and the diet goal are NOT here yet. Not because the rule excludes
-    /// them, but because their figure lives inside a shared section or behind an enum that needs its own
-    /// small design, and a size control that offers a size nothing can draw is worse than no control.
-    /// The rest carry a sentence or an action, and a shortened sentence is not a smaller fact.
-    /// EMPTY until each small form meets the content rule (owner, 2026-11-19): a card given more room has
-    /// to say more, and the four forms below say one figure on a large surface. They stay in the file
-    /// because the kit round fills them; until then no card offers a size it cannot fill.
-    static let shrinkableCards: Set<Kind> = []
+    /// Two columns, never one. A card has no change chip and no sparkline, so it can never meet the floor
+    /// a SMALL tile has to meet, and a single figure on a square was exactly what the owner rejected the
+    /// evening before. Over two columns it says two things, which is what that size is for.
+    ///
+    /// Goals, training load, the cycle and the diet goal are not here: their figure lives inside a shared
+    /// section or behind an enum that needs its own form, and a size control offering a size nothing can
+    /// draw is worse than no control. The rest carry a sentence or an action, and a shortened sentence is
+    /// not a smaller fact.
+    static let shrinkableCards: Set<Kind> = [.lastNight, .tonight, .lastWorkout, .energy]
 
     var isWide: Bool {
         switch kind {
@@ -68,7 +70,12 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
     /// How much of a row the widget takes, as the editor switches it.
     enum Size { case small, medium, wide }
 
-    var size: Size { isWide ? .wide : (span == 2 ? .medium : .small) }
+    /// A shrinkable card is never small: it has two facts, not one, and two columns is where they fit.
+    var size: Size {
+        if isWide { return .wide }
+        if Self.shrinkableCards.contains(kind) { return .medium }
+        return span == 2 ? .medium : .small
+    }
 
     /// The narrow size a shrinkable card is drawn at, or nil while it is wide.
     var compactSize: TileSize? {
@@ -99,7 +106,9 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
         // A measure grows across the row too since 2026-11-18, where it draws its thirty days.
         case .medium: return (kind == .liveHeart || kind == .ageless || kind == .measure
                               || Self.shrinkableCards.contains(kind)) ? .wide : .small
-        case .wide: return .small
+        // A card has only the two sizes, so its control goes back to two columns rather than to a small
+        // form it does not have.
+        case .wide: return Self.shrinkableCards.contains(kind) ? .medium : .small
         }
     }
 }
@@ -1548,19 +1557,31 @@ struct ForgeEnergyWidget: View {
     @State private var usual: Double?
     @State private var eaten: Double?
     @State private var loaded = false
-    /// Small: what the day has burned. Over two columns: what was eaten beside it.
+    /// Over two columns: what the day has burned, with the resting and active parts that make it up.
+    ///
+    /// Not what was eaten. The Nutrition tile carries the eating (owner, 2026-11-18), so the day's intake
+    /// is not stated twice on one page, and Android's energy card has the same two parts to say.
     var compact: TileSize? = nil
 
     var body: some View {
         if let compact {
             ForgeCardTile(symbol: "flame.fill", label: String(localized: "Energy"),
                           value: summary?.totalBurnedSoFar.map { String(Int($0.rounded())) }, unit: "kcal",
-                          caption: compact == .medium ? eaten.map { String(localized: "\(Int($0.rounded())) kcal eaten") } : nil,
+                          caption: compact == .medium ? Self.partsLine(summary) : nil,
                           tint: ForgeColor.effort, route: Optional<ForgeRoute>.none, tabRoute: TabRoute.energy)
                 .task(id: repo.refreshSeq) { await loadEnergy() }
         } else {
             full
         }
+    }
+
+    /// "Resting 1.620 · Active 480", from the same summary the full card draws its ring from.
+    static func partsLine(_ summary: DailyEnergySummary?) -> String? {
+        guard let summary, let resting = summary.basalBurnedSoFar, let active = summary.activeBurnedSoFar
+        else { return nil }
+        let r = String(localized: "Resting") + " " + String(Int(resting.rounded()))
+        let a = String(localized: "Active") + " " + String(Int(active.rounded()))
+        return r + " · " + a
     }
 
     @ViewBuilder private var full: some View {

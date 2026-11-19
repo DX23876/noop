@@ -7250,4 +7250,5 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="forge_strip_count">%1$d sur %2$d</string>
     <string name="forge_strip_over_90_days">Sur 90 jours</string>
     <string name="forge_tile_over_90_days">%1$s sur 90 jours</string>
+    <string name="forge_unit_kcal">kcal</string>
 </resources>

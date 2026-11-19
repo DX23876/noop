@@ -745,7 +745,7 @@ object HeroRingLayout {
 
 /** The Energy card after `EnergyCard`: today's total so far, resting, active and projected; tap opens the detail. */
 @Composable
-internal fun TodayEnergy() {
+internal fun TodayEnergy(compact: TileSize? = null) {
     val context = LocalContext.current
     var summary by remember { mutableStateOf<com.noop.core.CoreEnergyDetail.Summary?>(null) }
     var open by remember { mutableStateOf(false) }
@@ -759,6 +759,23 @@ internal fun TodayEnergy() {
     val s = summary ?: return
     val whole = java.text.NumberFormat.getIntegerInstance(Locale.getDefault())
     fun kcal(v: Double?) = v?.let { whole.format(kotlin.math.round(it).toLong()) } ?: "—"
+    if (compact != null) {
+        // Over two columns: what the day has burned, and under it the resting and active parts that make it
+        // up (owner's table, 2026-11-18). Not what was eaten: the Nutrition tile carries the eating, so the
+        // day's intake is not stated twice on one page.
+        ForgeCardTile(Icons.Rounded.LocalFireDepartment, stringResource(R.string.forge_ew_energy),
+                      s.total?.let { kcal(it) }, stringResource(R.string.forge_unit_kcal),
+                      if (compact == TileSize.Medium && s.total != null)
+                          stringResource(R.string.forge_pair_words,
+                                         stringResource(R.string.forge_ew_resting) + " " + kcal(s.basal ?: s.bmr24h),
+                                         "· " + stringResource(R.string.forge_ew_active) + " " + kcal(s.active))
+                      else null,
+                      Forge.colors.effort) { open = true }
+        if (open) ForgeOverlayPage(onDismiss = { open = false }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) { ForgeEnergyDetailPage(onBack = { open = false }) }
+        }
+        return
+    }
     if (ForgeDesign.preview) {
         // The new design's card, as iOS's ForgeEnergyWidget: the name with its arrow, then before anything is
         // measured one quiet line with the flame, else the resting and active burn so far, each beside its colour.
