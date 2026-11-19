@@ -531,13 +531,19 @@ class HomeLocalizationTest(unittest.TestCase):
         ]
         joined = "\n".join(values)
         self.assertNotIn("Erholungherz", joined)
+        self.assertNotIn("Rest-HF", joined)        # the resting pulse is the Ruhepuls, never the score
         self.assertNotIn("Erholungqualität", joined)
         self.assertNotIn("Erholung- und Live-Herzfrequenz", joined)
         for key, expected in {
-            "Charge": "Energie",
-            "Effort": "Belastung",
-            "Rest": "Erholung",
-            "How Rest is calculated": "So wird Erholung berechnet",
+            # The owner named these on 2026-11-19: all three keep their English names. Each German word
+            # for them is already the translation of a general concept in this same app - "Energie" is
+            # the calorie feature ("Energy", "Energy today", "aktive Energie"), "Erholung" renders
+            # "recovery" in 202 strings and "Belastung" renders "load" or "strain" in 187 - so a score
+            # sharing one of those names would read as that concept wherever the two met.
+            "Charge": "Charge",
+            "Effort": "Effort",
+            "Rest": "Rest",
+            "How Rest is calculated": "So wird Rest berechnet",
         }.items():
             self.assertEqual(expected, strings[key]["localizations"]["de"]["stringUnit"]["value"])
 

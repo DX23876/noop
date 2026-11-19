@@ -1192,12 +1192,28 @@ FORMAT_SPECIFIER_PATTERN = re.compile(r"%(?:\d+\$)?[@#0\-+ ]*[\d.]*(?:ll|l|h)?[@
 BRAND_PHRASES = ("iCloud Drive", "Apple Health", "Garmin Connect", "WHOOP Blue", "WHOOP MG", "NOOP Forge",
                  "Open Food Facts")
 
+# Single words the product deliberately keeps in English in every locale, plus the unit abbreviations
+# that travel with them. The two-word floor below lets ONE such word through on its own ("HRV"); it
+# cannot see a string made of TWO of them, so "Charge · cal" reads as an untranslated echo when it is
+# the correct German. "Charge" is here because the owner named the three daily scores on 2026-11-19:
+# Effort and Rest are translated (Belastung, Erholung), Charge keeps its name, because the German word
+# for it ("Energie") is already the name of the app's calorie feature. As with [BRAND_PHRASES], only a
+# string that is ENTIRELY these terms is exempt, so "Charge adds the context" stays gated.
+TRAVELLING_TERMS = ("Charge", "Effort", "Rest", "bpm", "kcal", "cal")
+
+
+def _strip_travelling_terms(text: str) -> str:
+    """Remove whole-word [TRAVELLING_TERMS]. Whole words only: "Rest" is a score name here, and a
+    substring replace would also eat the "Rest" inside "Restzeit" and misjudge that string."""
+    return re.sub(r"\b(?:" + "|".join(TRAVELLING_TERMS) + r")\b", " ", text)
+
 
 def _is_pure_brand_phrase(text: str) -> bool:
     """Whether a string is nothing but brand names, placeholders and punctuation."""
     stripped = FORMAT_SPECIFIER_PATTERN.sub(" ", text)
     for brand in BRAND_PHRASES:
         stripped = stripped.replace(brand, " ")
+    stripped = _strip_travelling_terms(stripped)
     return not re.search(r"[^\W\d_]{2,}", stripped, flags=re.UNICODE)
 
 
@@ -1212,6 +1228,11 @@ def _has_translatable_words(text: str) -> bool:
     if _is_pure_brand_phrase(text):
         return False
     stripped = FORMAT_SPECIFIER_PATTERN.sub(" ", text)
+    # A term the product keeps in English contributes no translatable word, so it must not push a
+    # string over the two-word floor on its own: "HRV \u2194 Charge" has nothing in it to translate.
+    # Only [TRAVELLING_TERMS] are removed here, never [BRAND_PHRASES] \u2014 "Apple Health sync" stays
+    # gated on "sync", which is the case that rule exists for.
+    stripped = _strip_travelling_terms(stripped)
     return len(re.findall(r"[^\W\d_]{2,}", stripped, flags=re.UNICODE)) >= 2
 
 
