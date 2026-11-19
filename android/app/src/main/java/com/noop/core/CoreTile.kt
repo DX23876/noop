@@ -24,10 +24,11 @@ object CoreTile {
      */
     data class Facts(val today: Double?, val weekAverage: Double?, val weekTotal: Double?,
                      val lastValue: Double?, val lastDay: String?, val daysSinceLast: Int?,
-                     val weekChange: Double?, val target: Double?, val targetLeft: Double?,
+                     val weekChange: Double?, val quarterChange: Double?,
+                     val target: Double?, val targetLeft: Double?,
                      /** The same figures as the tile writes them, formatted in the core so both phones round alike. */
                      val todayText: String?, val weekAverageText: String?, val weekTotalText: String?,
-                     val weekChangeText: String?, val targetLeftText: String?,
+                     val weekChangeText: String?, val quarterChangeText: String?, val targetLeftText: String?,
                      /**
                       * The kit round's three (owner, 2026-11-19): the best of the last thirty days with the day it
                       * fell on, how many of the week's days reached the goal out of how many have a reading at all,
@@ -36,7 +37,21 @@ object CoreTile {
                       */
                      val best: Double? = null, val bestDay: String? = null, val bestText: String? = null,
                      val daysAboveTarget: Int? = null, val weekDaysWithEntry: Int = 0,
-                     val daysWithEntry: Int = 0, val aboveUsualRecently: Int? = null)
+                     val daysWithEntry: Int = 0, val aboveUsualRecently: Int? = null,
+                     /**
+                      * What the row-wide form puts under its chart, in order, chosen in the core so both phones
+                      * say the same things in the same order (`MeasureFacts.strip`). Figures arrive formatted;
+                      * only the words around them are written here.
+                      */
+                     val strip: List<StripEntry> = emptyList())
+
+    /**
+     * One block of the strip. [item] names it ("best", "weekAverage", "weekTotal", "range", "weekChange",
+     * "daysOverGoal", "daysWithEntry", "aboveUsual", "targetLeft"); the fields a block does not use are null.
+     * For "weekChange" [count] is the direction: 1 up, -1 down, 0 unchanged.
+     */
+    data class StripEntry(val item: String, val text: String?, val text2: String?, val day: String?,
+                          val count: Int?, val total: Int?)
 
     /**
      * [days] and [values] are one series, oldest first and the same length; [today] is the logical day key.
@@ -55,11 +70,54 @@ object CoreTile {
             fun i(name: String): Int? = if (o.isNull(name)) null else o.optInt(name)
             Facts(d("today"), d("weekAverage"), d("weekTotal"), d("lastValue"),
                   t("lastDay"), i("daysSinceLast"),
-                  d("weekChange"), d("target"), d("targetLeft"),
-                  t("todayText"), t("weekAverageText"), t("weekTotalText"), t("weekChangeText"), t("targetLeftText"),
+                  d("weekChange"), d("quarterChange"), d("target"), d("targetLeft"),
+                  t("todayText"), t("weekAverageText"), t("weekTotalText"), t("weekChangeText"),
+                  t("quarterChangeText"), t("targetLeftText"),
                   d("best"), t("bestDay"), t("bestText"), i("daysAboveTarget"),
-                  o.optInt("weekDaysWithEntry"), o.optInt("daysWithEntry"), i("aboveUsualRecently"))
+                  o.optInt("weekDaysWithEntry"), o.optInt("daysWithEntry"), i("aboveUsualRecently"),
+                  o.optJSONArray("strip").let { a ->
+                      (0 until (a?.length() ?: 0)).map { idx ->
+                          val e = a!!.getJSONObject(idx)
+                          fun s(name: String): String? = if (e.isNull(name)) null else e.optString(name)
+                          fun n(name: String): Int? = if (e.isNull(name)) null else e.optInt(name)
+                          StripEntry(e.optString("item"), s("text"), s("text2"), s("day"), n("count"), n("total"))
+                      }
+                  })
         }.getOrNull()
+    }
+
+    /**
+     * One Today tile's history as the iPhone's tile reads it: the days with a reading, oldest first, their
+     * values, and which of skin temperature's two scales they are on (null for every other measure).
+     *
+     * Only the catalogue [key] travels. The source each measure is read from, and the routes that are not a
+     * plain series read (the one step resolver, one skin-temperature scale), live in the core, so this phone
+     * cannot read a tile's history from somewhere else than the iPhone does. Before 2026-11-19 it asked for
+     * every measure under the strap's source and its weight tile got nothing back at all.
+     */
+    data class History(val days: List<String>, val values: List<Double>, val skinKind: String?) {
+        val isEmpty: Boolean get() = days.isEmpty()
+        companion object { val none = History(emptyList(), emptyList(), null) }
+    }
+
+    /**
+     * The window is the core's too: how far back a tile reads is part of "where its history comes from",
+     * and four measures need a year rather than the usual sixty days (`TileMeasures.windowDays`).
+     */
+    fun history(key: String, skinTempPrefer: String? = null): History {
+        if (!SwiftCore.available) return History.none
+        val args = JSONObject().put("key", key)
+        if (skinTempPrefer != null) args.put("skinTempPrefer", skinTempPrefer)
+        val json = SwiftCore.call("read.tileHistory", args.toString()) ?: return History.none
+        return runCatching {
+            val o = JSONObject(json)
+            val d = o.getJSONArray("days"); val v = o.getJSONArray("values")
+            // A day without its value, or the other way round, is no history at all: a tile that drew the
+            // two lists against each other would date every figure wrongly.
+            if (d.length() != v.length()) return@runCatching History.none
+            History((0 until d.length()).map { d.getString(it) }, (0 until v.length()).map { v.getDouble(it) },
+                    if (o.isNull("skinKind")) null else o.optString("skinKind"))
+        }.getOrDefault(History.none)
     }
 
     /** [key] is the shared catalog key ("hrv", "rhr", "spo2", "resp_rate", "skin_temp", "weight", ...). */

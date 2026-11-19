@@ -7276,10 +7276,23 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_tile_weighed">Weighed %1$s</string>
     <string name="forge_tile_weighed_change">Weighed %1$s · %2$s this week</string>
     <string name="forge_tile_week_average">7-day average %1$s</string>
+    <!-- The kit's strip under a row-wide tile's chart (owner, 2026-11-19): a quiet label over its figure. -->
+    <string name="forge_strip_highest">Highest</string>
+    <string name="forge_strip_lowest">Lowest</string>
+    <string name="forge_strip_week_average">7-day average</string>
+    <string name="forge_strip_this_week">This week</string>
+    <string name="forge_strip_range">Range</string>
+    <string name="forge_strip_over_goal">Over goal</string>
+    <string name="forge_strip_days_logged">Days logged</string>
+    <string name="forge_strip_above_usual">Above usual</string>
+    <string name="forge_strip_left_today">Left today</string>
+    <string name="forge_strip_count">%1$d of %2$d</string>
     <string name="forge_tile_today">today</string>
     <string name="forge_tile_yesterday">yesterday</string>
     <plurals name="forge_tile_days_ago">
         <item quantity="one">%1$d day ago</item>
         <item quantity="other">%1$d days ago</item>
     </plurals>
+    <string name="forge_strip_over_90_days">Over 90 days</string>
+    <string name="forge_tile_over_90_days">%1$s over 90 days</string>
 </resources>

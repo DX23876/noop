@@ -7238,4 +7238,16 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
         <item quantity="many">il y a %1$d jours</item>
         <item quantity="other">il y a %1$d jours</item>
     </plurals>
+    <string name="forge_strip_highest">Maximum</string>
+    <string name="forge_strip_lowest">Minimum</string>
+    <string name="forge_strip_week_average">Moyenne sur 7 jours</string>
+    <string name="forge_strip_this_week">Cette semaine</string>
+    <string name="forge_strip_range">Amplitude</string>
+    <string name="forge_strip_over_goal">Objectif dépassé</string>
+    <string name="forge_strip_days_logged">Jours enregistrés</string>
+    <string name="forge_strip_above_usual">Au-dessus de la normale</string>
+    <string name="forge_strip_left_today">Reste aujourd\'hui</string>
+    <string name="forge_strip_count">%1$d sur %2$d</string>
+    <string name="forge_strip_over_90_days">Sur 90 jours</string>
+    <string name="forge_tile_over_90_days">%1$s sur 90 jours</string>
 </resources>

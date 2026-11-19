@@ -7241,4 +7241,16 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
         <item quantity="one">hace %1$d día</item>
         <item quantity="other">hace %1$d días</item>
     </plurals>
+    <string name="forge_strip_highest">Máximo</string>
+    <string name="forge_strip_lowest">Mínimo</string>
+    <string name="forge_strip_week_average">Media de 7 días</string>
+    <string name="forge_strip_this_week">Esta semana</string>
+    <string name="forge_strip_range">Rango</string>
+    <string name="forge_strip_over_goal">Objetivo superado</string>
+    <string name="forge_strip_days_logged">Días registrados</string>
+    <string name="forge_strip_above_usual">Sobre lo habitual</string>
+    <string name="forge_strip_left_today">Queda hoy</string>
+    <string name="forge_strip_count">%1$d de %2$d</string>
+    <string name="forge_strip_over_90_days">En 90 días</string>
+    <string name="forge_tile_over_90_days">%1$s en 90 días</string>
 </resources>

@@ -7208,4 +7208,16 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
         <item quantity="one">%1$d giorno fa</item>
         <item quantity="other">%1$d giorni fa</item>
     </plurals>
+    <string name="forge_strip_highest">Massimo</string>
+    <string name="forge_strip_lowest">Minimo</string>
+    <string name="forge_strip_week_average">Media 7 giorni</string>
+    <string name="forge_strip_this_week">Questa settimana</string>
+    <string name="forge_strip_range">Intervallo</string>
+    <string name="forge_strip_over_goal">Obiettivo superato</string>
+    <string name="forge_strip_days_logged">Giorni registrati</string>
+    <string name="forge_strip_above_usual">Sopra il solito</string>
+    <string name="forge_strip_left_today">Resta oggi</string>
+    <string name="forge_strip_count">%1$d di %2$d</string>
+    <string name="forge_strip_over_90_days">In 90 giorni</string>
+    <string name="forge_tile_over_90_days">%1$s in 90 giorni</string>
 </resources>

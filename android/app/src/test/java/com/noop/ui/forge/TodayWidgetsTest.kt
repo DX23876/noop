@@ -74,14 +74,15 @@ class TodayWidgetsTest {
     }
 
     /**
-     * The gallery is iOS's list (2026-11-18). The three catalogue measures are the ones Android could
-     * always have shown and did not, and Charge, Effort and Rest are out because they come back as
-     * whole-row tiles. `calories_in` is the one entry iOS still has and Android does not.
+     * The gallery is iOS's list. The catalogue measures are the ones Android could always have shown and did
+     * not, and Charge, Effort and Rest are in it only as whole-row tiles. `calories_in` closed the last gap
+     * on 2026-11-19; `Tools/test_today_tile_gallery.py` now holds this list against the Swift one on every
+     * push, since pinning it here alone said nothing about the side it drifted from.
      */
     @Test fun theGalleryOffersIosList() {
         assertEquals(listOf("hrv", "restingHr", "steps", "sleep_total_min", "vo2max_est", "stress",
-                            "weight", "bloodOxygen", "respiratory", "skinTemp", "calories", "fitness_age",
-                            "recovery", "strain", "sleep_performance"),
+                            "weight", "bloodOxygen", "respiratory", "skinTemp", "calories", "calories_in",
+                            "fitness_age", "recovery", "strain", "sleep_performance"),
                      TodayWidgets.measures)
         assertEquals(TodayWidgets.catalogMeasures, TodayWidgets.measures.filter { it in TodayWidgets.catalogMeasures })
     }

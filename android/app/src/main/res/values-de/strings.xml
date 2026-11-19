@@ -7257,4 +7257,16 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
         <item quantity="one">vor %1$d Tag</item>
         <item quantity="other">vor %1$d Tagen</item>
     </plurals>
+    <string name="forge_strip_highest">Höchster</string>
+    <string name="forge_strip_lowest">Niedrigster</string>
+    <string name="forge_strip_week_average">7-Tage-Schnitt</string>
+    <string name="forge_strip_this_week">Diese Woche</string>
+    <string name="forge_strip_range">Spanne</string>
+    <string name="forge_strip_over_goal">Über Ziel</string>
+    <string name="forge_strip_days_logged">Tage erfasst</string>
+    <string name="forge_strip_above_usual">Über üblich</string>
+    <string name="forge_strip_left_today">Heute übrig</string>
+    <string name="forge_strip_count">%1$d von %2$d</string>
+    <string name="forge_strip_over_90_days">Über 90 Tage</string>
+    <string name="forge_tile_over_90_days">%1$s über 90 Tage</string>
 </resources>

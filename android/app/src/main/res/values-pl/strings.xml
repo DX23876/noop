@@ -7286,4 +7286,16 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
         <item quantity="many">%1$d dni temu</item>
         <item quantity="other">%1$d dnia temu</item>
     </plurals>
+    <string name="forge_strip_highest">Najwyższy</string>
+    <string name="forge_strip_lowest">Najniższy</string>
+    <string name="forge_strip_week_average">Średnia z 7 dni</string>
+    <string name="forge_strip_this_week">Ten tydzień</string>
+    <string name="forge_strip_range">Zakres</string>
+    <string name="forge_strip_over_goal">Powyżej celu</string>
+    <string name="forge_strip_days_logged">Dni z wpisem</string>
+    <string name="forge_strip_above_usual">Powyżej zwykłego</string>
+    <string name="forge_strip_left_today">Zostało dziś</string>
+    <string name="forge_strip_count">%1$d z %2$d</string>
+    <string name="forge_strip_over_90_days">W 90 dniach</string>
+    <string name="forge_tile_over_90_days">%1$s w 90 dniach</string>
 </resources>

@@ -42,6 +42,9 @@ enum MeasureFacts {
         /// The newest reading minus the newest one at least seven days older, nil without both. The honest
         /// way to say "which way it has gone this week" for a measure that is not recorded daily.
         let weekChange: Double?
+        /// The same against a reading at least ninety days older. What a measure that moves too slowly for a
+        /// week to show can say instead: VO2max, the fitness age, the body ages.
+        let quarterChange: Double?
         /// The day's goal, when the caller has one (calories, protein, water, steps).
         let target: Double?
         /// `target` minus today's reading, floored at zero, nil without both.
@@ -87,6 +90,130 @@ enum MeasureFacts {
         }
     }
 
+    /// The day's goal for the measures that have one, from the one place it is stored.
+    ///
+    /// Read here rather than on each phone: the step goal lives under one key both apps already write
+    /// (`momentum.stepGoal`, Android's `CorePrefs.STEP_GOAL`), and a tile that read it itself would be a
+    /// second readout of a number the goals screen owns. Zero or unset means no goal, which is not the same
+    /// as a goal of nothing: the tile then shows no goal bar and no count of days over it.
+    static func storedTarget(forKey key: String, defaults: UserDefaults = .standard) -> Double? {
+        switch key {
+        case "steps":
+            let goal = defaults.integer(forKey: "momentum.stepGoal")
+            return goal > 0 ? Double(goal) : nil
+        default:
+            return nil
+        }
+    }
+
+    // MARK: - What the wider forms put beside the chart
+
+    /// One of the kit's named blocks (owner, 2026-11-19). A row-wide tile must say at least five things, so
+    /// the figure, its change and its chart are not enough on their own; these are what goes underneath.
+    enum StripItem: String, Sendable, Encodable {
+        /// The best of the drawn thirty days, with the day it fell on.
+        case best
+        /// The mean of the days in the last seven that have a reading.
+        case weekAverage
+        /// The sum over the last seven days, for a measure that is a day total.
+        case weekTotal
+        /// The lowest and highest of the drawn thirty days.
+        case range
+        /// How the newest reading sits against the wearer's usual.
+        case weekChange
+        /// The same over ninety days, for a measure a week cannot move.
+        case quarterChange
+        /// How many of the week's days reached the goal, out of how many have a reading.
+        case daysOverGoal
+        /// How many of the drawn thirty days have a reading at all.
+        case daysWithEntry
+        /// How many of the last ten readings are above the usual.
+        case aboveUsual
+        /// What is left of today's goal.
+        case targetLeft
+    }
+
+    /// A block with its figures already formatted, so the two phones round alike and each only writes the
+    /// words around them. Every field is nil unless the block uses it.
+    struct StripEntry: Equatable, Sendable, Encodable {
+        let item: StripItem
+        /// The figure, as the tile writes it.
+        let text: String?
+        /// A second figure, where the block is a span (the range's high).
+        let text2: String?
+        /// The day the figure fell on, "yyyy-MM-dd", for the best mark. Each phone writes the date itself.
+        let day: String?
+        /// A count and what it is out of, for the two counting blocks.
+        let count: Int?
+        let total: Int?
+
+        init(_ item: StripItem, text: String? = nil, text2: String? = nil, day: String? = nil,
+             count: Int? = nil, total: Int? = nil) {
+            self.item = item; self.text = text; self.text2 = text2
+            self.day = day; self.count = count; self.total = total
+        }
+    }
+
+    /// Which blocks a measure puts under its chart, in order, from the owner's table of 2026-11-19.
+    ///
+    /// Decided here and not per platform: the two phones would otherwise answer "what else does this tile
+    /// say" differently, which is the same class of fault as two figures for one fact. A block whose data is
+    /// missing is dropped rather than drawn empty, so a measure with a short history simply says less.
+    static func strip(key: String, facts: Facts, values: [Double]) -> [StripEntry] {
+        let wanted: [StripItem] = switch key {
+        case "steps", "active_kcal", "calories_in":
+            [.best, .daysOverGoal, .weekTotal]
+        case "hrv", "spo2", "sleep_performance", "recovery":
+            [.best, .aboveUsual, .weekAverage]
+        case "rhr", "resp_rate":
+            [.best, .aboveUsual, .weekAverage]
+        // Weight claims no best, so what is left is the move, the goal and how often it was actually
+        // stepped on: "tracking down 0.4 kg a week" means nothing without the days behind it.
+        case "weight", "body_fat", "lean_mass":
+            [.weekChange, .targetLeft, .daysWithEntry]
+        case "skin_temp":
+            [.range, .weekAverage, .daysWithEntry]
+        // These move too slowly for a week to show anything, so the strip carries the quarter's move.
+        case "vo2max_est", "fitness_age", "vitality", "body_age":
+            [.quarterChange, .range, .weekAverage]
+        default:
+            [.best, .range, .weekAverage]
+        }
+        let summary = MeasureTileReading.summary(key: key, values: values)
+        func figure(_ value: Double?) -> String? {
+            value.map { MeasureTileReading.figure(key: key, value: $0) }
+        }
+        return wanted.compactMap { item -> StripEntry? in
+            switch item {
+            case .best:
+                guard let text = figure(facts.best), let day = facts.bestDay else { return nil }
+                return StripEntry(.best, text: text, day: day)
+            case .weekAverage:
+                return figure(facts.weekAverage).map { StripEntry(.weekAverage, text: $0) }
+            case .weekTotal:
+                return figure(facts.weekTotal).map { StripEntry(.weekTotal, text: $0) }
+            case .range:
+                guard let s = summary else { return nil }
+                return StripEntry(.range, text: s.low, text2: s.high)
+            case .weekChange, .quarterChange:
+                // Signed, because which way it went IS the fact; the sign is the word each phone writes.
+                guard let change = item == .weekChange ? facts.weekChange : facts.quarterChange else { return nil }
+                return StripEntry(item, text: figure(abs(change)), count: change > 0 ? 1 : change < 0 ? -1 : 0)
+            case .daysOverGoal:
+                guard let count = facts.daysAboveTarget else { return nil }
+                return StripEntry(.daysOverGoal, count: count, total: 7)
+            case .daysWithEntry:
+                guard facts.daysWithEntry > 0 else { return nil }
+                return StripEntry(.daysWithEntry, count: facts.daysWithEntry, total: 30)
+            case .aboveUsual:
+                guard let count = facts.aboveUsualRecently else { return nil }
+                return StripEntry(.aboveUsual, count: count, total: 10)
+            case .targetLeft:
+                return figure(facts.targetLeft).map { StripEntry(.targetLeft, text: $0) }
+            }
+        }
+    }
+
     /// Read one measure's facts from its series.
     ///
     /// - Parameters:
@@ -111,11 +238,13 @@ enum MeasureFacts {
         let weekValues = week.map(\.value)
 
         let daysSince = last.flatMap { days(from: $0.day, to: today) }
-        let change = last.flatMap { newest -> Double? in
-            guard let cutoff = dayKey(newest.day, minusDays: 7) as String?,
-                  let before = ordered.last(where: { $0.day <= cutoff }) else { return nil }
+        func changeOver(_ days: Int) -> Double? {
+            guard let newest = last else { return nil }
+            let cutoff = dayKey(newest.day, minusDays: days)
+            guard let before = ordered.last(where: { $0.day <= cutoff }) else { return nil }
             return newest.value - before.value
         }
+        let change = changeOver(7)
         let left = target.flatMap { t in todayValue.map { max(0, t - $0) } }
 
         // The last thirty days by day key, as the row-wide chart draws them, so a best mark names a day
@@ -130,19 +259,19 @@ enum MeasureFacts {
         let above = target.map { t in week.filter { $0.value >= t }.count }
         // The same usual the change chip is read against (`MeasureTileReading`): the median of the thirty
         // readings before the newest. Both counts then stand on one number instead of two.
-        let recent = ordered.suffix(11)
         let aboveUsual: Int? = {
             guard ordered.count >= 11 else { return nil }
             let before = ordered.dropLast().suffix(30).map(\.value).sorted()
             let usual = before[before.count / 2]
-            return recent.suffix(10).filter { $0.value > usual }.count
+            return ordered.suffix(10).filter { $0.value > usual }.count
         }()
 
         return Facts(today: todayValue,
                      weekAverage: weekValues.isEmpty ? nil : weekValues.reduce(0, +) / Double(weekValues.count),
                      weekTotal: weekValues.isEmpty ? nil : weekValues.reduce(0, +),
                      lastValue: last?.value, lastDay: last?.day, daysSinceLast: daysSince,
-                     weekChange: change, target: target, targetLeft: left,
+                     weekChange: change, quarterChange: changeOver(90),
+                     target: target, targetLeft: left,
                      last30: Array(ordered.suffix(30).map(\.value)),
                      best: best?.value, bestDay: best?.day, daysAboveTarget: above,
                      weekDaysWithEntry: week.count, daysWithEntry: window.count,

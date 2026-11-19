@@ -7233,4 +7233,16 @@ Traçar cada série como variação face à sua própria primeira medição colo
         <item quantity="one">há %1$d dia</item>
         <item quantity="other">há %1$d dias</item>
     </plurals>
+    <string name="forge_strip_highest">Máximo</string>
+    <string name="forge_strip_lowest">Mínimo</string>
+    <string name="forge_strip_week_average">Média de 7 dias</string>
+    <string name="forge_strip_this_week">Esta semana</string>
+    <string name="forge_strip_range">Intervalo</string>
+    <string name="forge_strip_over_goal">Meta superada</string>
+    <string name="forge_strip_days_logged">Dias registados</string>
+    <string name="forge_strip_above_usual">Acima do habitual</string>
+    <string name="forge_strip_left_today">Falta hoje</string>
+    <string name="forge_strip_count">%1$d de %2$d</string>
+    <string name="forge_strip_over_90_days">Em 90 dias</string>
+    <string name="forge_tile_over_90_days">%1$s em 90 dias</string>
 </resources>

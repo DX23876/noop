@@ -7242,4 +7242,16 @@ NOOP не задаёт фиксированный порог, а берёт ег
         <item quantity="many">%1$d дней назад</item>
         <item quantity="other">%1$d дня назад</item>
     </plurals>
+    <string name="forge_strip_highest">Максимум</string>
+    <string name="forge_strip_lowest">Минимум</string>
+    <string name="forge_strip_week_average">Среднее за 7 дней</string>
+    <string name="forge_strip_this_week">Эта неделя</string>
+    <string name="forge_strip_range">Диапазон</string>
+    <string name="forge_strip_over_goal">Выше цели</string>
+    <string name="forge_strip_days_logged">Дней с записью</string>
+    <string name="forge_strip_above_usual">Выше обычного</string>
+    <string name="forge_strip_left_today">Осталось сегодня</string>
+    <string name="forge_strip_count">%1$d из %2$d</string>
+    <string name="forge_strip_over_90_days">За 90 дней</string>
+    <string name="forge_tile_over_90_days">%1$s за 90 дней</string>
 </resources>

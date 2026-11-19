@@ -222,20 +222,14 @@ final class ForgeTodayWidgetStore: ObservableObject {
 }
 
 /// The measures the gallery offers, in its order: catalog key, preferred source.
+///
+/// The list itself is `TileMeasures.all`, which Android reads through the core as well, so a tile's history
+/// is fetched from the same place on both phones. Charge, Effort and Rest are its last three and are only
+/// ever drawn across the whole row (`ForgeTodayWidget.wholeRowMeasures`): the three rings above already say
+/// today's number, so a small tile would be the same fact twice, while thirty days of it is something the
+/// rings do not show.
 enum ForgeWidgetMeasures {
-    static let all: [(key: String, source: String)] = [
-        ("hrv", Repository.whoopSource), ("rhr", Repository.whoopSource), ("steps", Repository.whoopSource),
-        ("sleep_total_min", Repository.whoopSource), ("vo2max_est", Repository.whoopSource), ("stress", Repository.whoopSource),
-        ("weight", "noop-weight"), ("spo2", Repository.whoopSource), ("resp_rate", Repository.whoopSource),
-        ("skin_temp", Repository.whoopSource), ("active_kcal", "apple-health"), ("calories_in", "nutrition-csv"),
-        ("fitness_age", Repository.whoopSource),
-        // Charge, Effort and Rest, added 2026-11-18. Only ever drawn across the whole row
-        // (`ForgeTodayWidget.wholeRowMeasures`): the three rings above already say today's number, so a
-        // small tile would be the same fact twice, while thirty days of it is something the rings do not
-        // show. The gallery's own order, last, since they are the newcomers.
-        ("recovery", Repository.whoopSource), ("strain", Repository.whoopSource),
-        ("sleep_performance", Repository.whoopSource),
-    ]
+    static let all: [(key: String, source: String)] = TileMeasures.all
 
     static func descriptor(_ key: String, _ source: String?) -> MetricDescriptor? {
         source.flatMap { MetricCatalog.metric(key: key, source: $0) } ?? MetricCatalog.all.first { $0.key == key }
@@ -1052,7 +1046,12 @@ struct ForgeMeasureWidget: View {
                 if let line = Self.summaryLine(key: key, values: values, unit: unit) {
                     Text(verbatim: line).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 }
-                if series.count > 1 {
+                if Self.isDayTotal(key) {
+                    // A day total asks which DAYS, so its row-wide picture is the week (owner, 2026-11-19).
+                    ForgeWeekBars(points: dayPoints, today: Repository.localDayKey(Date()),
+                                  goal: MeasureFacts.storedTarget(forKey: key), tint: Self.tint(key),
+                                  height: Self.wideChartHeight)
+                } else if series.count > 1 {
                     TrendChart(points: Self.points(series), gradient: Gradient(colors: [Self.tint(key).opacity(0.35), Self.tint(key)]),
                                valueRange: (series.min() ?? 0)...(max(series.max() ?? 1, (series.min() ?? 0) + 1)),
                                showsArea: true,
@@ -1066,6 +1065,10 @@ struct ForgeMeasureWidget: View {
                     Text("Not enough days yet").font(ForgeFont.caption).foregroundStyle(ForgeColor.tertiary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                // The kit's floor for this size (owner, 2026-11-19): a chart and two more blocks, never
+                // under five things said. Figure, change, caption and chart are four; these are the rest,
+                // and they are what makes the extra room worth taking.
+                ForgeFactStrip(blocks: Self.stripBlocks(key: key, points: dayPoints, values: values))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             // Its own surface: the small and two-column forms get theirs from the tile, this one draws
@@ -1074,6 +1077,12 @@ struct ForgeMeasureWidget: View {
         }
         .buttonStyle(LiquidPressStyle())
         .task(id: repo.refreshSeq) { await load() }
+    }
+
+    /// The measures that are a day total rather than a reading: what you did that day, not what you were.
+    /// Their row-wide form draws the week as bars instead of thirty days as a line.
+    static func isDayTotal(_ key: String) -> Bool {
+        ["steps", "active_kcal", "calories_in", "water_ml", "protein_g"].contains(key)
     }
 
     /// A fixed height, not the row's: a row-wide tile has its row to itself, so nothing else is stretched
@@ -1158,13 +1167,75 @@ struct ForgeMeasureWidget: View {
             let sign = change > 0 ? "+" : change < 0 ? "−" : "±"
             let moved = withUnit(sign + MeasureTileReading.figure(key: key, value: abs(change)))
             return String(localized: "Weighed \(when) · \(moved) this week")
-        // Readings taken once a day: the wearer's own last seven.
+        // Measures a week cannot move: the quarter's change is the only honest fact about their recent
+        // past, and it is the one the owner's table asks for (2026-11-19).
+        case "vo2max_est", "fitness_age", "vitality", "body_age":
+            guard let change = facts.quarterChange, let text = figure(abs(change)) else { return nil }
+            let sign = change > 0 ? "+" : change < 0 ? "−" : "±"
+            return String(localized: "\(sign + text) over 90 days")
+        // Readings taken once a day: the wearer's own last seven, and the span they moved in. Two facts,
+        // because two columns must add a block to the small form rather than only a line (owner,
+        // 2026-11-19); the span is the one every measure of this kind can answer.
         case "hrv", "rhr", "spo2", "resp_rate", "skin_temp", "sleep_total_min":
             guard let average = figure(facts.weekAverage) else { return nil }
-            return String(localized: "7-day average \(withUnit(average))")
+            let line = String(localized: "7-day average \(withUnit(average))")
+            guard let summary = MeasureTileReading.summary(key: key, values: points.map(\.value)) else { return line }
+            return line + " · " + String(localized: "range \(summary.low) to \(summary.high)")
         default:
             return nil
         }
+    }
+
+    /// The blocks under the row-wide chart, with the words each one is read in.
+    ///
+    /// Which blocks, and their order, come from `MeasureFacts.strip`, which Android reads through the core —
+    /// so "what else does this tile say" has one answer on both phones. Only the labels are written here.
+    /// A best mark is named for the direction that counts as better for the measure, so the highest HRV and
+    /// the lowest resting pulse both read as what they are.
+    static func stripBlocks(key: String, points: [MeasureFacts.Point], values: [Double])
+        -> [(label: String, value: String, detail: String?)] {
+        guard !points.isEmpty else { return [] }
+        let facts = MeasureFacts.read(points: points, today: Repository.localDayKey(Date()),
+                                      target: MeasureFacts.storedTarget(forKey: key),
+                                      direction: MeasureFacts.direction(forKey: key))
+        return MeasureFacts.strip(key: key, facts: facts, values: values).compactMap { entry in
+            func counted(_ label: String) -> (label: String, value: String, detail: String?)? {
+                guard let count = entry.count, let total = entry.total else { return nil }
+                return (label, String(localized: "\(count) of \(total)"), nil)
+            }
+            switch entry.item {
+            case .best:
+                guard let text = entry.text else { return nil }
+                let label = MeasureFacts.direction(forKey: key) == .lowerIsBetter
+                    ? String(localized: "Lowest") : String(localized: "Highest")
+                return (label, text, entry.day.flatMap(Self.shortDate))
+            case .weekAverage:
+                return entry.text.map { (String(localized: "7-day average"), $0, nil) }
+            case .weekTotal:
+                return entry.text.map { (String(localized: "This week"), $0, nil) }
+            case .range:
+                guard let low = entry.text, let high = entry.text2 else { return nil }
+                return (String(localized: "Range"), "\(low)–\(high)", nil)
+            case .weekChange, .quarterChange:
+                guard let text = entry.text else { return nil }
+                // The sign is the fact: "0,4" alone does not say which way the week went.
+                let sign = (entry.count ?? 0) > 0 ? "+" : (entry.count ?? 0) < 0 ? "−" : "±"
+                let label = entry.item == .weekChange
+                    ? String(localized: "This week") : String(localized: "Over 90 days")
+                return (label, sign + text, nil)
+            case .daysOverGoal: return counted(String(localized: "Over goal"))
+            case .daysWithEntry: return counted(String(localized: "Days logged"))
+            case .aboveUsual: return counted(String(localized: "Above usual"))
+            case .targetLeft:
+                return entry.text.map { (String(localized: "Left today"), $0, nil) }
+            }
+        }
+    }
+
+    /// A day key as the strip writes it: day and month, no year, because every mark is inside thirty days.
+    static func shortDate(_ day: String) -> String? {
+        guard let date = WeightSeries.date(forDay: day) else { return nil }
+        return date.formatted(.dateTime.day().month(.abbreviated).locale(AppLanguage.activeLocale))
     }
 
     static func summaryLine(key: String, values: [Double], unit: String) -> String? {
@@ -1234,60 +1305,120 @@ struct ForgeMeasureWidget: View {
     }
 
     private func load() async {
-        if key == "steps" {
-            // Steps from the one resolver and the source the wearer chose (`StepsSource`), as the steps page reads.
-            let now = Date()
-            let points = await repo.resolvedSteps(from: Repository.localDayKey(now.addingTimeInterval(-60 * 86_400)),
-                                                  to: Repository.localDayKey(now)).points
-            metric = ForgeWidgetMeasures.descriptor(key, source)
-            values = points.map(\.value)
-            // The days travel on this path too. Without them the steps tile asked `MeasureFacts` for a week
-            // it had no dates for, so it fell back to the usual-and-range line and the week never appeared —
-            // seen on the simulator the day it was built.
-            dayPoints = points.map { .init(day: $0.day, value: $0.value) }
+        // One door for every measure (`StoreReader.tileHistory`), and Android reads through the same one:
+        // the step resolver for steps, one skin-temperature scale, the gallery's source then any other
+        // catalogue source for the rest. The days travel with the values, because the facts line asks when
+        // something was last recorded, not only what it was (`MeasureFacts`).
+        metric = ForgeWidgetMeasures.descriptor(key, source)
+        let prefer = SkinTempDisplay.Kind(rawValue: skinTempDisplayRaw) ?? .absolute
+        let history = await repo.tileHistory(key: key, days: TileMeasures.windowDays(forKey: key),
+                                            skinTempPrefer: prefer)
+        skinKind = history.skinKind
+        if key == "sleep_total_min" {
+            // The latest night from the resolver the Sleep tab, the timeline and the Last night card read,
+            // so the tile cannot print another figure for the night they all show.
+            let s = await Self.withLatestNight(history.points.map { (day: $0.day, value: $0.value) }, repo: repo)
+            values = s.map(\.value)
+            dayPoints = s.map { .init(day: $0.day, value: $0.value) }
             return
         }
-        if key == "skin_temp" {
-            // Both of the night's numbers, from the SAME row, and the one the wearer chose to lead with
-            // (`SkinTempDisplay.leadReading`, #1844/#1846) — the rule Today and Health already apply.
-            // The series the generic path reads is the bimodal stored column, which is why this tile used
-            // to print a baseline move under a °C heading.
-            metric = ForgeWidgetMeasures.descriptor(key, source)
-            let prefer = SkinTempDisplay.Kind(rawValue: skinTempDisplayRaw) ?? .absolute
-            let readings = repo.days.suffix(60).compactMap { row -> (day: String, reading: SkinTempDisplay.Reading)? in
-                SkinTempDisplay.leadReading(absC: row.skinTempC, devC: row.skinTempDevC, prefer: prefer)
-                    .map { (row.day, $0) }
+        values = history.values
+        dayPoints = history.points
+    }
+}
+
+/// The row of extra facts under a row-wide tile's chart: a quiet label with its figure, and a date under
+/// the one figure that has one.
+///
+/// Up to three, side by side on one baseline, because a block that wraps onto a second line turns the strip
+/// into a paragraph. Nothing is drawn when a short history answers none of them, so an empty strip costs no
+/// room rather than leaving three labels over three dashes.
+struct ForgeFactStrip: View {
+    let blocks: [(label: String, value: String, detail: String?)]
+
+    var body: some View {
+        if !blocks.isEmpty {
+            HStack(alignment: .top, spacing: 14) {
+                ForEach(Array(blocks.prefix(3).enumerated()), id: \.offset) { _, block in
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(verbatim: block.label).font(ForgeFont.caption).foregroundStyle(ForgeColor.tertiary)
+                        Text(verbatim: block.value)
+                            .font(.system(.subheadline, weight: .semibold).monospacedDigit())
+                            .foregroundStyle(ForgeColor.text)
+                        if let detail = block.detail {
+                            Text(verbatim: detail).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
-            // One scale only, newest wins: a mean or a range taken across a wrist temperature and a
-            // baseline move is arithmetic on two scales, and it looks entirely plausible (#1705). The kind
-            // is known here rather than guessed from the magnitude, which is the same rule, better fed.
-            guard let kind = readings.last?.reading.kind else {
-                skinKind = nil; values = []; dayPoints = []; return
-            }
-            let kept = readings.filter { $0.reading.kind == kind }
-            skinKind = kind
-            values = kept.map(\.reading.value)
-            dayPoints = kept.map { .init(day: $0.day, value: $0.reading.value) }
-            return
+            .padding(.top, 2)
         }
-        var candidates: [MetricDescriptor] = []
-        if let d = ForgeWidgetMeasures.descriptor(key, source) { candidates.append(d) }
-        candidates += MetricCatalog.all.filter { $0.key == key && !candidates.contains($0) }
-        for d in candidates {
-            var s = await repo.exploreSeries(key: d.key, source: d.source, days: 60)
-            if key == "sleep_total_min" {
-                s = await Self.withLatestNight(s, repo: repo)
+    }
+}
+
+/// Seven bars, one for each day of the week ending today, with the weekday letters under them and a dashed
+/// rule where there is a goal.
+///
+/// For a measure that is a DAY TOTAL this is the better row-wide picture than thirty days of line (owner,
+/// 2026-11-19): steps, the energy burned, the water drunk and the minutes in a heart-rate zone are things
+/// you do in a day, and the question is which days you did them on. A day with nothing recorded is drawn as
+/// an empty slot rather than left out, so the week keeps its shape and a gap reads as a gap.
+struct ForgeWeekBars: View {
+    /// The series, day-keyed; only the seven days ending `today` are drawn.
+    let points: [MeasureFacts.Point]
+    let today: String
+    let goal: Double?
+    let tint: Color
+    var height: CGFloat = 96
+
+    var body: some View {
+        let week = Self.week(points: points, today: today)
+        let top = max(week.compactMap(\.value).max() ?? 0, goal ?? 0)
+        VStack(alignment: .leading, spacing: 4) {
+            ZStack(alignment: .bottom) {
+                HStack(alignment: .bottom, spacing: 6) {
+                    ForEach(week, id: \.day) { slot in
+                        let fraction = top > 0 ? min(1, max(0, (slot.value ?? 0) / top)) : 0
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            // Today solid, the days behind it quieter: the bar the wearer is still filling
+                            // is the one being asked about.
+                            .fill(tint.opacity(slot.day == today ? 1 : 0.5))
+                            .frame(height: max(2, height * fraction))
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+                if let goal, top > 0, goal <= top {
+                    // One dashed rule for the goal, over the bars, so "over the goal" can be seen and not
+                    // only read in the strip below.
+                    Rectangle().fill(ForgeColor.secondary)
+                        .frame(height: 1)
+                        .offset(y: -height * CGFloat(goal / top))
+                }
             }
-            if !s.isEmpty {
-                metric = d
-                values = s.map(\.value)
-                // The days travel too, since the facts line asks when something was last recorded, not
-                // only what it was (`MeasureFacts`).
-                dayPoints = s.map { .init(day: $0.day, value: $0.value) }
-                return
+            .frame(height: height, alignment: .bottom)
+            HStack(spacing: 6) {
+                ForEach(week, id: \.day) { slot in
+                    Text(verbatim: Self.weekdayLetter(slot.day))
+                        .font(ForgeFont.caption).foregroundStyle(ForgeColor.tertiary)
+                        .frame(maxWidth: .infinity)
+                }
             }
         }
-        metric = candidates.first
+    }
+
+    /// The seven day keys ending `today`, oldest first, each with its value where there is one.
+    static func week(points: [MeasureFacts.Point], today: String) -> [(day: String, value: Double?)] {
+        let byDay = Dictionary(points.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
+        return (0..<7).reversed().map { back in
+            let day = MeasureFacts.dayKey(today, minusDays: back)
+            return (day: day, value: byDay[day])
+        }
+    }
+
+    static func weekdayLetter(_ day: String) -> String {
+        guard let date = WeightSeries.date(forDay: day) else { return "" }
+        return String(date.formatted(.dateTime.weekday(.narrow).locale(AppLanguage.activeLocale)).prefix(2))
     }
 }
 

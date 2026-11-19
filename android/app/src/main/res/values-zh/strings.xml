@@ -7187,4 +7187,16 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <plurals name="forge_tile_days_ago">
         <item quantity="other">%1$d 天前</item>
     </plurals>
+    <string name="forge_strip_highest">最高</string>
+    <string name="forge_strip_lowest">最低</string>
+    <string name="forge_strip_week_average">7 天平均</string>
+    <string name="forge_strip_this_week">本周</string>
+    <string name="forge_strip_range">范围</string>
+    <string name="forge_strip_over_goal">超过目标</string>
+    <string name="forge_strip_days_logged">有记录天数</string>
+    <string name="forge_strip_above_usual">高于平常</string>
+    <string name="forge_strip_left_today">今天还剩</string>
+    <string name="forge_strip_count">%1$d / %2$d</string>
+    <string name="forge_strip_over_90_days">90 天内</string>
+    <string name="forge_tile_over_90_days">90 天内 %1$s</string>
 </resources>

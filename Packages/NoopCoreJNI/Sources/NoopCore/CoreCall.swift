@@ -46,7 +46,8 @@ public enum CoreCall {
             let key = args["key"] as? String ?? ""
             let facts = MeasureFacts.read(points: points,
                                           today: args["today"] as? String ?? LogicalDay.key(Date()),
-                                          target: (args["target"] as? NSNumber)?.doubleValue,
+                                          target: (args["target"] as? NSNumber)?.doubleValue
+                                              ?? MeasureFacts.storedTarget(forKey: key),
                                           direction: MeasureFacts.direction(forKey: key))
             // Formatted here as well as computed here: a figure rounded once on each phone is a figure
             // that can read differently on the two, which is the thing this whole reading exists to stop.
@@ -56,26 +57,32 @@ public enum CoreCall {
             struct Wire: Encodable {
                 let today: Double?, weekAverage: Double?, weekTotal: Double?
                 let lastValue: Double?, lastDay: String?, daysSinceLast: Int?
-                let weekChange: Double?, target: Double?, targetLeft: Double?
+                let weekChange: Double?, quarterChange: Double?, target: Double?, targetLeft: Double?
                 let todayText: String?, weekAverageText: String?, weekTotalText: String?
-                let weekChangeText: String?, targetLeftText: String?
+                let weekChangeText: String?, quarterChangeText: String?, targetLeftText: String?
                 let best: Double?, bestDay: String?, bestText: String?
                 let daysAboveTarget: Int?, weekDaysWithEntry: Int, daysWithEntry: Int
                 let aboveUsualRecently: Int?
+                /// What the row-wide form puts under its chart, chosen and formatted in one place so both
+                /// phones say the same things in the same order (`MeasureFacts.strip`).
+                let strip: [MeasureFacts.StripEntry]
             }
             return CoreRead.json(Wire(today: facts.today, weekAverage: facts.weekAverage, weekTotal: facts.weekTotal,
                                       lastValue: facts.lastValue, lastDay: facts.lastDay,
                                       daysSinceLast: facts.daysSinceLast, weekChange: facts.weekChange,
+                                      quarterChange: facts.quarterChange,
                                       target: facts.target, targetLeft: facts.targetLeft,
                                       todayText: text(facts.today), weekAverageText: text(facts.weekAverage),
                                       weekTotalText: text(facts.weekTotal),
                                       weekChangeText: text(facts.weekChange.map(abs)),
+                                      quarterChangeText: text(facts.quarterChange.map(abs)),
                                       targetLeftText: text(facts.targetLeft),
                                       best: facts.best, bestDay: facts.bestDay, bestText: text(facts.best),
                                       daysAboveTarget: facts.daysAboveTarget,
                                       weekDaysWithEntry: facts.weekDaysWithEntry,
                                       daysWithEntry: facts.daysWithEntry,
-                                      aboveUsualRecently: facts.aboveUsualRecently))
+                                      aboveUsualRecently: facts.aboveUsualRecently,
+                                      strip: MeasureFacts.strip(key: key, facts: facts, values: values)))
         }
         if op == "momentum.day" {
             return CoreRead.json(["day": LogicalDay.key(Date())])
@@ -508,6 +515,28 @@ public enum CoreCall {
                                                  actualWhoopSource: string("whoopSource"), from: string("from"), to: string("to"),
                                                  suppressedSleepWakeDays: Set(args["suppressedWakeDays"] as? [String] ?? []))
             return CoreRead.json(CoreRead.ResolvedSeries(r))
+        case "read.tileHistory":
+            // One Today tile's history, by the route that measure needs (`StoreReader.tileHistory`): the one
+            // step resolver for steps, one skin-temperature scale, the gallery's source for the rest. Android
+            // asks for the KEY only and never names a source, so the two phones cannot read a tile's history
+            // from different places — which is how its weight tile came to have no series at all.
+            let key = string("key")
+            // The window comes from the shared table unless the caller names one, so neither phone decides
+            // how much history a tile holds (`TileMeasures.windowDays`).
+            let today = LogicalDay.key(Date())
+            let from = args["from"] as? String
+                ?? MeasureFacts.dayKey(today, minusDays: TileMeasures.windowDays(forKey: key) - 1)
+            let to = args["to"] as? String ?? today
+            let prefer = SkinTempDisplay.Kind(rawValue: string("skinTempPrefer")) ?? .absolute
+            // The merged daily rows are Explore's lowest layer as well as skin temperature's only source, so
+            // every key needs them.
+            let rows = await CoreRead.dailyRows(from: from, to: to, reader: reader)
+            let history = await reader.tileHistory(key: key, from: from, to: to, dailyRows: rows,
+                                                   suppressedSleepWakeDays: Set(args["suppressedWakeDays"] as? [String] ?? []),
+                                                   skinTempPrefer: prefer)
+            struct Wire: Encodable { let days: [String]; let values: [Double]; let skinKind: String? }
+            return CoreRead.json(Wire(days: history.days, values: history.values,
+                                      skinKind: history.skinKind?.rawValue))
         case "read.metricSeries":
             // One source's stored series verbatim, as `WhoopStore.metricSeries` holds it. These stored reads answer
             // `null` when the store throws, so Android reads Room instead of showing an empty list (`stored`).
