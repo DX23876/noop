@@ -125,6 +125,12 @@ source and carries a `Co-authored-by` line where the work was taken as code.
 | [@msff](https://github.com/msff) | The Mac menu-bar label redraws only when what it shows changes | ryanbr/noop#2889 |
 | [@andynilson](https://github.com/andynilson) | Charge and Effort translations | ryanbr/noop#2878 |
 
+### Testers
+
+| Who | What NOOP Forge took | Source |
+|---|---|---|
+| Pilleus | A hand-written German pass over the Android and Apple catalogues, correcting mistranslations an automatic pass had left behind | Report to the fork's testers, 2026-11-19 (no GitHub account, so no `Co-authored-by` line) |
+
 ### Other forks and projects
 
 | Who | What NOOP Forge took | Source |

@@ -114208,7 +114208,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Heute vereinbaren"
+            "value" : "Heute anordnen"
           }
         },
         "es" : {
@@ -125081,7 +125081,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "nur Bar"
+            "value" : "nur Stange"
           }
         },
         "en" : {
@@ -234757,7 +234757,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gehabt"
+            "value" : "Getrunken"
           }
         },
         "es" : {
@@ -242954,7 +242954,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die Geschichte bleibt unter der ursprünglichen Frage, so dass WHOOP-Importe immer noch Schlange stehen."
+            "value" : "Der Verlauf bleibt unter der ursprünglichen Frage gespeichert, sodass WHOOP-Importe weiterhin korrekt zugeordnet werden."
           }
         },
         "es" : {
@@ -267886,7 +267886,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Keep working"
+            "value" : "Weiter daran arbeiten"
           }
         },
         "es" : {
@@ -337976,7 +337976,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bewegt euch sowieso"
+            "value" : "Trotzdem verschieben"
           }
         },
         "es" : {
@@ -352812,7 +352812,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kein Gewicht aufgezeichnet noch"
+            "value" : "Noch keine Belastung aufgezeichnet"
           }
         },
         "es" : {
@@ -365177,7 +365177,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOP will not close the goal for you. Confirm it only if this measurement means the goal is complete to you."
+            "value" : "NOOP schließt das Ziel nicht automatisch ab. Bestätige es nur, wenn dieser Messwert für dich bedeutet, dass das Ziel erreicht ist."
           }
         },
         "es" : {
@@ -429538,7 +429538,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Name des Unternehmens"
+            "value" : "Eintrag umbenennen"
           }
         },
         "es" : {
@@ -429660,7 +429660,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Umbenennung..."
+            "value" : "Umbenennung…"
           }
         },
         "es" : {
@@ -494434,7 +494434,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Supporting activities"
+            "value" : "Unterstützende Aktivitäten"
           }
         },
         "es" : {
@@ -514635,7 +514635,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "These show execution, not proof that the outcome itself was reached."
+            "value" : "Diese zeigen die Ausführung, sind aber kein Beweis dafür, dass das Ziel selbst erreicht wurde."
           }
         },
         "es" : {
@@ -516131,7 +516131,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dies löscht jede geplante Bandprotokoll- und Rohdaten-Erfassungsdatei, die NOOP gespeichert hat. Dies kann nicht rückgängig gemacht werden."
+            "value" : "Dies löscht jede geplante Band-Protokoll- und Rohdaten-Erfassungsdatei, die NOOP gespeichert hat. Dies kann nicht rückgängig gemacht werden."
           }
         },
         "es" : {
@@ -539234,7 +539234,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Undo"
+            "value" : "Rückgängig"
           }
         },
         "es" : {
@@ -584623,7 +584623,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your measured target appears reached"
+            "value" : "Dein gemessenes Ziel scheint erreicht zu sein"
           }
         },
         "es" : {
@@ -627542,7 +627542,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Noch kein Effort"
+            "value" : "Noch keine Belastung"
           }
         },
         "es" : {

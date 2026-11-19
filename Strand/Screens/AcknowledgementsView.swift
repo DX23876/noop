@@ -85,6 +85,7 @@ struct AcknowledgementsView: View {
         Contributor(handle: "@rntcruz23", work: "Connect failure message"),
         Contributor(handle: "@bartmuskala", work: "Maximum heart rate resolver"),
         Contributor(handle: "bogaczcyprien-svg, aansun, denismanulov", work: "Respiratory-rate grid, off-wrist sleep cut, an offload data-loss path"),
+        Contributor(handle: "Pilleus", work: "German wording corrected across both catalogues"),
         Contributor(handle: "meta1971, OpenStrap", work: "5/MG SET_CLOCK sub-seconds, MG ECG reading"),
     ]
 

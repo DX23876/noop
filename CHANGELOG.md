@@ -17,6 +17,20 @@ approximate; downloads are on the [Releases](https://github.com/NoopApp/noop/rel
 
 ---
 
+## Unreleased: German wording corrected throughout
+
+- **A tester went through the German catalogue by hand.** Pilleus corrected what an automatic pass had
+  got wrong: “GEBÜHR” where Charge was meant, “Zollbetrag” for a custom amount, “Name des Unternehmens”
+  for renaming an entry, “Drehzahl” for speed, “Jede Partitur trägt ein Ehrlichkeitslabel” for a score's
+  honesty label, six changelog titles reading “Polnisch” (the language) where polish was meant, and a
+  number of strings and sentence fragments left in English.
+- **Wording only.** No number, threshold, unit or stored value changes; the same strings in the Apple
+  catalogue were corrected with them, so the two platforms read the same.
+- Thanks to Pilleus for the pass.
+
+**Analysis migration required: no.** Translated text only; no scoring, window, precedence or stored
+value is touched.
+
 ## Unreleased: Clearer iPhone navigation and adaptive surfaces
 
 - **More and Settings now use page-based groups.** Profile stays at the top, common destinations remain
