@@ -7268,4 +7268,7 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_m_vitality">Витальность</string>
     <string name="forge_m_body_age">Возраст тела</string>
     <string name="forge_m_mood">Настроение</string>
+    <string name="forge_tile_years_under">На %1$d лет моложе возраста</string>
+    <string name="forge_tile_years_over">На %1$d лет старше возраста</string>
+    <string name="forge_tile_years_same">Ровно ваш возраст</string>
 </resources>

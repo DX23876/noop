@@ -7267,4 +7267,7 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_m_vitality">Vitalidad</string>
     <string name="forge_m_body_age">Edad corporal</string>
     <string name="forge_m_mood">Ánimo</string>
+    <string name="forge_tile_years_under">%1$d años por debajo de tu edad</string>
+    <string name="forge_tile_years_over">%1$d años por encima de tu edad</string>
+    <string name="forge_tile_years_same">Justo en tu edad</string>
 </resources>

@@ -864,7 +864,9 @@ private fun CatalogMeasureTile(key: String, history: CoreTile.History, today: St
     val change = rememberTileDelta(key, series)
     // The measure's own fact first, as every other tile has it; the range line stays as the fallback. Until
     // 2026-11-19 these four were the only tiles whose two-column form could say nothing about the week.
-    val facts = if (detailed) rememberFactsLine(key, history, today, "") else null
+    val context = LocalContext.current
+    val calendarAge = remember { com.noop.ui.NoopPrefs.of(context).getInt("age", 0).takeIf { it > 0 }?.toDouble() }
+    val facts = if (detailed) rememberFactsLine(key, history, today, "", calendarAge) else null
     ForgeTodayTile(measureIcon(key), tint, measureLabel(key), value, "",
                    if (detailed) (facts ?: change?.summary?.let { summaryLine(it, "") }) else null, noData, dense, modifier,
                    // The word carries no direction, so a change chip beside it would be two readings of one
@@ -1211,7 +1213,7 @@ private fun rememberFacts(key: String?, history: CoreTile.History?, today: Strin
 
 @Composable
 private fun rememberFactsLine(key: String?, history: CoreTile.History?, today: String,
-                              unit: String): String? {
+                              unit: String, calendarAge: Double? = null): String? {
     if (key == null) return null
     val f = rememberFacts(key, history, today) ?: return null
     fun withUnit(text: String) = if (unit.isEmpty() || unit.startsWith("/")) text else "$text $unit"
@@ -1243,9 +1245,26 @@ private fun rememberFactsLine(key: String?, history: CoreTile.History?, today: S
             val average = f.weekAverageText ?: return null
             stringResource(R.string.forge_tile_week_total, total, average)
         }
+        // The two measures that ARE an age: how far the body's reading sits from the wearer's own years,
+        // which is what the figure is for (owner's table, 2026-11-19). Vitality is a score rather than an
+        // age, whatever the table grouped it with, so it keeps the quarter's change below.
+        "fitness_age", "body_age" -> {
+            val age = calendarAge ?: return null
+            val reading = f.today ?: f.lastValue ?: return null
+            val gap = kotlin.math.round(age - reading).toInt()
+            val line = when {
+                gap > 0 -> stringResource(R.string.forge_tile_years_under, gap)
+                gap < 0 -> stringResource(R.string.forge_tile_years_over, -gap)
+                else -> stringResource(R.string.forge_tile_years_same)
+            }
+            val change = f.quarterChange ?: return line
+            val text = f.quarterChangeText ?: return line
+            val sign = if (change > 0) "+" else if (change < 0) "−" else "±"
+            line + " · " + stringResource(R.string.forge_tile_over_90_days, sign + text)
+        }
         // Measures a week cannot move: the quarter's change is the only honest fact about their recent
         // past, and it is the one the owner's table asks for (2026-11-19).
-        "vo2max_est", "fitness_age", "vitality", "body_age" -> {
+        "vo2max_est", "vitality" -> {
             val change = f.quarterChange ?: return null
             val text = f.quarterChangeText ?: return null
             val sign = if (change > 0) "+" else if (change < 0) "−" else "±"

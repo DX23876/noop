@@ -7264,4 +7264,7 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="forge_m_vitality">Vitalité</string>
     <string name="forge_m_body_age">Âge corporel</string>
     <string name="forge_m_mood">Humeur</string>
+    <string name="forge_tile_years_under">%1$d ans sous votre âge</string>
+    <string name="forge_tile_years_over">%1$d ans au-dessus de votre âge</string>
+    <string name="forge_tile_years_same">Pile votre âge</string>
 </resources>

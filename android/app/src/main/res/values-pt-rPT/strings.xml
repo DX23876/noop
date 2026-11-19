@@ -7259,4 +7259,7 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="forge_m_vitality">Vitalidade</string>
     <string name="forge_m_body_age">Idade corporal</string>
     <string name="forge_m_mood">Humor</string>
+    <string name="forge_tile_years_under">%1$d anos abaixo da sua idade</string>
+    <string name="forge_tile_years_over">%1$d anos acima da sua idade</string>
+    <string name="forge_tile_years_same">Exatamente a sua idade</string>
 </resources>

@@ -7312,4 +7312,7 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_m_vitality">Witalność</string>
     <string name="forge_m_body_age">Wiek ciała</string>
     <string name="forge_m_mood">Nastrój</string>
+    <string name="forge_tile_years_under">%1$d lat poniżej twojego wieku</string>
+    <string name="forge_tile_years_over">%1$d lat powyżej twojego wieku</string>
+    <string name="forge_tile_years_same">Dokładnie twój wiek</string>
 </resources>

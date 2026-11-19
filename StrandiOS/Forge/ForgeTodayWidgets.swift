@@ -1051,6 +1051,8 @@ struct ForgeMeasureWidget: View {
     /// unit from the catalogue: it has to say which of the two it is showing.
     @State private var skinKind: SkinTempDisplay.Kind?
     @AppStorage(UnitPrefs.skinTempDisplayKey) private var skinTempDisplayRaw = ""
+    /// The wearer's calendar age, which the two ages measured in years are read against.
+    @EnvironmentObject private var profile: ProfileStore
 
     var body: some View {
         let m = metric ?? ForgeWidgetMeasures.descriptor(key, source)
@@ -1173,7 +1175,8 @@ struct ForgeMeasureWidget: View {
                            unit: leadUnit(m),
                            // The measure's own fact first; the usual-and-range line stays for the measures
                            // whose fact is not built yet, so nothing loses what it already said.
-                           caption: detailed ? (Self.factsLine(key: key, points: dayPoints, unit: leadUnit(m))
+                           caption: detailed ? (Self.factsLine(key: key, points: dayPoints, unit: leadUnit(m),
+                                                                 calendarAge: profile.age > 0 ? Double(profile.age) : nil)
                                                 ?? Self.summaryLine(key: key, values: values, unit: leadUnit(m))) : nil,
                            delta: Self.delta(key: key, values: values),
                            deltaColor: Self.deltaTone(key: key, values: values),
@@ -1194,7 +1197,8 @@ struct ForgeMeasureWidget: View {
     /// Nil for a measure whose fact is not built yet, and the caller then keeps the usual-and-range line,
     /// so this can be filled in measure by measure without anything losing what it already said. The
     /// numbers all come from `MeasureFacts`, which Android reads too; only the words are written here.
-    static func factsLine(key: String, points: [MeasureFacts.Point], unit: String) -> String? {
+    static func factsLine(key: String, points: [MeasureFacts.Point], unit: String,
+                          calendarAge: Double? = nil) -> String? {
         guard !points.isEmpty else { return nil }
         let facts = MeasureFacts.read(points: points, today: Repository.localDayKey(Date()))
         func figure(_ value: Double?) -> String? {
@@ -1220,9 +1224,21 @@ struct ForgeMeasureWidget: View {
             let sign = change > 0 ? "+" : change < 0 ? "−" : "±"
             let moved = withUnit(sign + MeasureTileReading.figure(key: key, value: abs(change)))
             return String(localized: "Weighed \(when) · \(moved) this week")
+        // The two measures that ARE an age: how far the body's reading sits from the wearer's own years,
+        // which is what the figure is for (owner's table, 2026-11-19). Vitality is a score rather than an
+        // age, whatever the table grouped it with, so it keeps the quarter's change below.
+        case "fitness_age", "body_age":
+            guard let age = calendarAge, let reading = facts.today ?? facts.lastValue else { return nil }
+            let gap = (age - reading).rounded()
+            let line = gap > 0 ? String(localized: "\(Int(gap)) years under your age")
+                     : gap < 0 ? String(localized: "\(Int(-gap)) years over your age")
+                     : String(localized: "Right at your age")
+            guard let change = facts.quarterChange, let text = figure(abs(change)) else { return line }
+            let sign = change > 0 ? "+" : change < 0 ? "−" : "±"
+            return line + " · " + String(localized: "\(sign + text) over 90 days")
         // Measures a week cannot move: the quarter's change is the only honest fact about their recent
         // past, and it is the one the owner's table asks for (2026-11-19).
-        case "vo2max_est", "fitness_age", "vitality", "body_age":
+        case "vo2max_est", "vitality":
             guard let change = facts.quarterChange, let text = figure(abs(change)) else { return nil }
             let sign = change > 0 ? "+" : change < 0 ? "−" : "±"
             return String(localized: "\(sign + text) over 90 days")

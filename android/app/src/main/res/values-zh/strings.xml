@@ -7213,4 +7213,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_m_vitality">活力</string>
     <string name="forge_m_body_age">身体年龄</string>
     <string name="forge_m_mood">心情</string>
+    <string name="forge_tile_years_under">比实际年龄小 %1$d 岁</string>
+    <string name="forge_tile_years_over">比实际年龄大 %1$d 岁</string>
+    <string name="forge_tile_years_same">正好是实际年龄</string>
 </resources>
