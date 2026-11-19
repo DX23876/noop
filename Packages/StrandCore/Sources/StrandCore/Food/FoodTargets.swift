@@ -108,6 +108,35 @@ extension FoodTargets {
                       fatG: rest * (result.fatG * 9 / restPlanned) / 9)
     }
 
+    /// One day's goal, however it was arrived at.
+    public struct DayGoal: Equatable, Sendable {
+        public let calories: Calories
+        public let macros: Macros?
+        public init(calories: Calories, macros: Macros?) { self.calories = calories; self.macros = macros }
+    }
+
+    /// The day's calorie and macro goal, in the one order the app resolves it.
+    ///
+    /// The diet plan's own day first (it knows the phase, the training-day shift and the active-day extra),
+    /// then the plan resolved without that day's context, then the wearer's fixed goal, then the energy
+    /// plan. Written once because the Food page, the Today tile and the diet card must not each pick their
+    /// own order: until 2026-11-19 the iPhone's page skipped the middle step and Android's did not, so a
+    /// wearer with a plan but no resolvable day could read two different goals on two phones.
+    ///
+    /// Nil when nothing can answer, which is not the same as a goal of zero: the caller then shows what was
+    /// eaten and no goal at all.
+    public static func dayGoal(planDay: DayGoal?, planResolved: DayGoal?, fixedKcal: Double?,
+                               energyPlan: Calories?, proteinPercent: Double? = nil,
+                               carbsPercent: Double? = nil, fatPercent: Double? = nil) -> DayGoal? {
+        if let planDay { return planDay }
+        if let planResolved { return planResolved }
+        guard let base = calories(fixedKcal: fixedKcal, plan: energyPlan) else { return nil }
+        let split = defaultSplit
+        return DayGoal(calories: base,
+                       macros: macros(kcal: base.kcal, protein: proteinPercent ?? split.protein,
+                                      carbs: carbsPercent ?? split.carbs, fat: fatPercent ?? split.fat))
+    }
+
     public static func pinned(from raw: String?) -> [FoodNutrient] {
         let parsed = (raw ?? "").split(separator: ",").compactMap { FoodNutrient(rawValue: String($0)) }
         return parsed.isEmpty ? defaultPinned : Array(parsed.prefix(4))

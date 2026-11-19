@@ -14,15 +14,30 @@ final class ForgeFoodModel {
     var day: String = Repository.localDayKey(.now)
     private(set) var summary: FoodLog.DaySummary?
     /// The goal without a diet plan: the energy plan's, or the wearer's own fixed one.
+    /// The energy plan's own goal, before the fixed goal and the diet plan are laid over it
+    /// (`FoodTargets.dayGoal` does the laying). Kept because the plan pages show where a goal came from.
+    private(set) var plannedCalories: FoodTargets.Calories?
     private(set) var baseCalories: FoodTargets.Calories?
     /// The shown day's calorie goal: the diet plan's for that day when there is one (a fasting day has its own),
     /// otherwise the base goal. One resolver for the plate, the figures and the week strip.
     var calories: FoodTargets.Calories? { calories(for: day) }
 
     /// Any day's calorie goal: the plan's for that day (its fasting figure, its active-day extra), or the base goal.
-    func calories(for day: String) -> FoodTargets.Calories? {
-        if let resolved = planDay(day) { return resolved.calories }
-        return baseCalories
+    func calories(for day: String) -> FoodTargets.Calories? { dayGoal(for: day)?.calories }
+
+    /// The day's goal, in the one order the app resolves it (`FoodTargets.dayGoal`): the plan's own day,
+    /// then the plan resolved without that day's context, then the fixed goal, then the energy plan. The
+    /// Today tile asks the same function, so the page and the tile cannot name different goals.
+    func dayGoal(for day: String) -> FoodTargets.DayGoal? {
+        let d = UserDefaults.standard, split = FoodTargets.defaultSplit
+        func share(_ key: String, _ fallback: Double) -> Double { d.object(forKey: key) as? Double ?? fallback }
+        return FoodTargets.dayGoal(
+            planDay: planDay(day).map { .init(calories: $0.calories, macros: $0.macros) },
+            planResolved: resolvedWithoutDayContext(day),
+            fixedKcal: d.double(forKey: FoodTargets.Keys.calories), energyPlan: plannedCalories,
+            proteinPercent: share(FoodTargets.Keys.proteinPercent, split.protein),
+            carbsPercent: share(FoodTargets.Keys.carbsPercent, split.carbs),
+            fatPercent: share(FoodTargets.Keys.fatPercent, split.fat))
     }
 
     /// One day of the plan from the shared `DietDayResolver`, the resolver the Android core calls too: phase,
@@ -44,16 +59,16 @@ final class ForgeFoodModel {
     /// Gram goals for protein, carbohydrate and fat, from the calorie goal and the wearer's split.
     var macroGoals: FoodTargets.Macros? { macroGoals(for: day) }
 
-    /// Any day's macro goals, from the same resolver as `calories(for:)`.
-    func macroGoals(for day: String) -> FoodTargets.Macros? {
-        if let resolved = planDay(day) { return resolved.macros }
-        guard let kcal = calories(for: day)?.kcal else { return nil }
-        let d = UserDefaults.standard, split = FoodTargets.defaultSplit
-        func share(_ key: String, _ fallback: Double) -> Double { d.object(forKey: key) as? Double ?? fallback }
-        return FoodTargets.macros(kcal: kcal, protein: share(FoodTargets.Keys.proteinPercent, split.protein),
-                                  carbs: share(FoodTargets.Keys.carbsPercent, split.carbs),
-                                  fat: share(FoodTargets.Keys.fatPercent, split.fat))
+    /// The plan's goal for a day WITHOUT that day's own context, the middle step of the order. Nil without
+    /// a plan, which is also when the step does not apply.
+    private func resolvedWithoutDayContext(_ day: String) -> FoodTargets.DayGoal? {
+        guard let plan, let planResult else { return nil }
+        return .init(calories: FoodTargets.calories(plan: plan, result: planResult, day: day),
+                     macros: FoodTargets.macros(plan: plan, result: planResult, day: day))
     }
+
+    /// Any day's macro goals, from the same resolver as `calories(for:)`.
+    func macroGoals(for day: String) -> FoodTargets.Macros? { dayGoal(for: day)?.macros }
     var pinned: [FoodNutrient] { FoodTargets.pinned(from: UserDefaults.standard.string(forKey: FoodTargets.Keys.pinned)) }
     private(set) var catalogFailed = false
     private(set) var loaded = false
@@ -253,6 +268,7 @@ final class ForgeFoodModel {
                                            allDaysMeanKcal: energy.burn.allDaysMeanKcal,
                                            formulaTdeeKcal: energy.formulaTdee(profile: profile),
                                            dailyDeltaKcal: energy.targetDailyKcal)
+        plannedCalories = planned
         baseCalories = FoodTargets.calories(fixedKcal: UserDefaults.standard.double(forKey: FoodTargets.Keys.calories), plan: planned)
         person = DietPerson(weightKg: profile.weightKg, heightCm: profile.heightCm > 0 ? profile.heightCm : nil,
                             age: profile.age > 0 ? Int(profile.age) : nil,

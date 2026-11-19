@@ -117,11 +117,10 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}) {
     var advice by remember { mutableStateOf<CoreDietPlan.AdviceReport?>(null) }
     var proteinFoods by remember { mutableStateOf(false) }
     var dayComplete by remember { mutableStateOf(false) }
-    val goals = planDay?.let { d ->
-        CoreFood.Goals(d.dayKcal, "plan", d.burnKcal, d.averageKcal - d.burnKcal, d.proteinG, d.carbsG, d.fatG)
-    } ?: planResolved?.let { r ->
-        CoreFood.Goals(r.dayKcal, "plan", r.burnKcal, r.averageKcal - r.burnKcal, r.dayProteinG, r.dayCarbsG, r.dayFatG)
-    } ?: baseGoals
+    // The one order the app resolves a day's goal in (`FoodTargets.dayGoal`): the plan's own day, then the
+    // plan resolved without that day's context, then the fixed goal, then the energy plan. The Today tile
+    // asks the same way, so the page and the tile cannot name different goals.
+    val goals = foodDayGoal(planDay, planResolved, baseGoals)
     val goal = goals?.kcal
     var dayNutrients by remember { mutableStateOf<CoreFood.NutrientReport?>(null) }
     var pinned by remember { mutableStateOf(foodPinned(context)) }
@@ -400,6 +399,25 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}) {
             }
         }
     }
+}
+
+/**
+ * The day's goal in the app's one order: the plan's own day, then the plan resolved without that day's
+ * context, then whatever the base goal is (the wearer's fixed one, else the energy plan).
+ *
+ * Twin of `FoodTargets.dayGoal` in the shared core, which the iPhone calls. Written here rather than asked
+ * over the bridge because all three candidates are already in this phone's hand; the ORDER is the thing
+ * that has to match, and it is one line.
+ */
+internal fun foodDayGoal(planDay: CoreDietPlan.PlanDay?, planResolved: CoreDietPlan.Resolved?,
+                         base: CoreFood.Goals?): CoreFood.Goals? = when {
+    planDay != null -> CoreFood.Goals(planDay.dayKcal, "plan", planDay.burnKcal,
+                                      planDay.averageKcal - planDay.burnKcal,
+                                      planDay.proteinG, planDay.carbsG, planDay.fatG)
+    planResolved != null -> CoreFood.Goals(planResolved.dayKcal, "plan", planResolved.burnKcal,
+                                           planResolved.averageKcal - planResolved.burnKcal,
+                                           planResolved.dayProteinG, planResolved.dayCarbsG, planResolved.dayFatG)
+    else -> base
 }
 
 /** The goals from the core (`FoodTargets`), with the wearer's fixed goal and split from the shared keys. */
