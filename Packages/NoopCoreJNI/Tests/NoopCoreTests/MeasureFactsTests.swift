@@ -146,6 +146,24 @@ final class MeasureFactsTests: XCTestCase {
         XCTAssertEqual(f.aboveUsualRecently, 5)
     }
 
+    /// A day total's wider form draws the WEEK, so its best mark must name a day inside that week. Under
+    /// seven bars beginning on a Friday, "highest on 26 Oct" is a figure the reader cannot find — seen on
+    /// screen on 2026-11-19, on the steps tile.
+    func testADayTotalNamesItsBestInsideTheWeekItDraws() {
+        let p = points([("2026-11-05", 13_729), ("2026-11-16", 9_000), ("2026-11-18", 11_000)])
+        let f = MeasureFacts.read(points: p, today: "2026-11-18", direction: .higherIsBetter)
+        XCTAssertEqual(f.best, 13_729, "the thirty-day best is still there for the measures that draw it")
+        XCTAssertEqual(f.weekBest, 11_000)
+        XCTAssertEqual(f.weekBestDay, "2026-11-18")
+        let strip = MeasureFacts.strip(key: "steps", facts: f, values: p.map(\.value))
+        XCTAssertEqual(strip.first?.item, .best)
+        XCTAssertEqual(strip.first?.day, "2026-11-18", "steps draw the week, so the mark is the week's")
+        let hrv = MeasureFacts.strip(key: "hrv", facts: f, values: p.map(\.value))
+        XCTAssertEqual(hrv.first?.day, "2026-11-05", "HRV draws thirty days, so the mark is those thirty")
+        XCTAssertTrue(MeasureFacts.drawsTheWeek(forKey: "steps"))
+        XCTAssertFalse(MeasureFacts.drawsTheWeek(forKey: "hrv"))
+    }
+
     /// Day keys are labels, not moments: shifting one must not depend on the phone's zone or on a clock
     /// change, which is why the shift runs in UTC.
     func testDayKeysShiftAcrossMonthAndYearEnds() {

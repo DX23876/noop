@@ -1090,9 +1090,10 @@ struct ForgeMeasureWidget: View {
 
     /// The measures that are a day total rather than a reading: what you did that day, not what you were.
     /// Their row-wide form draws the week as bars instead of thirty days as a line.
-    static func isDayTotal(_ key: String) -> Bool {
-        ["steps", "active_kcal", "calories_in", "water_ml", "protein_g"].contains(key)
-    }
+    ///
+    /// The list lives with the facts, because the drawn window also decides which best mark the strip under
+    /// it may name — seen on screen as "highest 13,729 on 26 Oct" under seven bars that begin on a Friday.
+    static func isDayTotal(_ key: String) -> Bool { MeasureFacts.drawsTheWeek(forKey: key) }
 
     /// A fixed height, not the row's: a row-wide tile has its row to itself, so nothing else is stretched
     /// by it, and the curve is then the same height on every phone instead of depending on its neighbour.

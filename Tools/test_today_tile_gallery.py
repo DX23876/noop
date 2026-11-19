@@ -88,6 +88,23 @@ class TodayTileGalleryTests(unittest.TestCase):
         self.assertEqual(sources["active_kcal"], "apple-health")
         self.assertEqual(sources["calories_in"], "nutrition-csv")
 
+    def test_both_phones_draw_the_week_for_the_same_measures(self):
+        """The day totals, whose row-wide form is seven bars rather than thirty days of line. The list also
+        decides which best mark the strip under the picture may name, so a phone with a different list would
+        both draw a different chart AND date its best mark against a window the other does not have."""
+        swift = (ROOT / "Strand/Data/MeasureFacts.swift").read_text(encoding="utf-8")
+        body = swift[swift.index("static func drawsTheWeek"):]
+        swift_keys = re.findall(r'"([a-z0-9_]+)"', body[:body.index("}")])
+        kotlin = KOTLIN.read_text(encoding="utf-8")
+        body = kotlin[kotlin.index("private fun isDayTotal"):]
+        body = body[:body.index("\n\n")]
+        kotlin_keys = []
+        for raw in re.findall(r'"([a-z0-9_]+)"|KeyMetric\.([A-Z_]+)\.raw', body):
+            literal, metric = raw
+            kotlin_keys.append(literal or KEY_METRIC_CATALOG.get(f"KeyMetric.{metric}.raw", metric))
+        self.assertEqual(sorted(set(swift_keys)), sorted(set(kotlin_keys)),
+                         "the measures drawn as a week must be the same on both phones")
+
     def test_android_never_names_a_source_for_a_tile_itself(self):
         """Android asks the core by key (`CoreTile.history`). The moment it passes a source of its own, the
         table above stops being the one answer to "where is this tile's history read from"."""

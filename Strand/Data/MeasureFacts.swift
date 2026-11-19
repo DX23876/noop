@@ -57,6 +57,11 @@ enum MeasureFacts {
         /// far it is from its own baseline, not by being high or low.
         let best: Double?
         let bestDay: String?
+        /// The same within the SEVEN days ending today. A measure whose wider form draws the week must
+        /// name a best the picture can show: "highest 13,729 on 26 Oct" under seven bars that start on
+        /// Friday is a figure the reader cannot find.
+        let weekBest: Double?
+        let weekBestDay: String?
         /// Of the days in the week that have a reading, how many reached the goal. Nil without a goal.
         let daysAboveTarget: Int?
         /// How many of the seven days have a reading at all, so "5 of 7 days" can say what the 7 counts.
@@ -76,6 +81,15 @@ enum MeasureFacts {
     /// worked examples — a weight going up is good or bad depending on the goal, and a skin temperature is
     /// read by its distance from its own baseline.
     enum Direction: String, Sendable { case higherIsBetter, lowerIsBetter, neither }
+
+    /// Whether a measure's row-wide form draws the WEEK as bars rather than thirty days as a line.
+    ///
+    /// These are the day totals: what you did that day, not what you were, where the question is which days
+    /// you did it on (owner, 2026-11-19). Kept here because the drawn window decides which best mark the
+    /// strip may name, so the picture and the figure under it cannot disagree about what they cover.
+    static func drawsTheWeek(forKey key: String) -> Bool {
+        ["steps", "active_kcal", "calories_in", "water_ml", "protein_g"].contains(key)
+    }
 
     static func direction(forKey key: String) -> Direction {
         switch key {
@@ -186,7 +200,11 @@ enum MeasureFacts {
         return wanted.compactMap { item -> StripEntry? in
             switch item {
             case .best:
-                guard let text = figure(facts.best), let day = facts.bestDay else { return nil }
+                // A measure whose picture is the week names its best within that week, so the mark and the
+                // bars cover the same days.
+                let week = drawsTheWeek(forKey: key)
+                guard let text = figure(week ? facts.weekBest : facts.best),
+                      let day = week ? facts.weekBestDay : facts.bestDay else { return nil }
                 return StripEntry(.best, text: text, day: day)
             case .weekAverage:
                 return figure(facts.weekAverage).map { StripEntry(.weekAverage, text: $0) }
@@ -251,11 +269,15 @@ enum MeasureFacts {
         // inside the drawn window rather than the thirtieth entry back in a gappy series.
         let windowStart = dayKey(today, minusDays: 29)
         let window = ordered.filter { $0.day >= windowStart && $0.day <= today }
-        let best: Point? = switch direction {
-        case .higherIsBetter: window.max { $0.value < $1.value }
-        case .lowerIsBetter: window.min { $0.value < $1.value }
-        case .neither: nil
+        func pick(_ points: [Point]) -> Point? {
+            switch direction {
+            case .higherIsBetter: return points.max { $0.value < $1.value }
+            case .lowerIsBetter: return points.min { $0.value < $1.value }
+            case .neither: return nil
+            }
         }
+        let best = pick(window)
+        let weekBest = pick(week)
         let above = target.map { t in week.filter { $0.value >= t }.count }
         // The same usual the change chip is read against (`MeasureTileReading`): the median of the thirty
         // readings before the newest. Both counts then stand on one number instead of two.
@@ -273,7 +295,8 @@ enum MeasureFacts {
                      weekChange: change, quarterChange: changeOver(90),
                      target: target, targetLeft: left,
                      last30: Array(ordered.suffix(30).map(\.value)),
-                     best: best?.value, bestDay: best?.day, daysAboveTarget: above,
+                     best: best?.value, bestDay: best?.day,
+                     weekBest: weekBest?.value, weekBestDay: weekBest?.day, daysAboveTarget: above,
                      weekDaysWithEntry: week.count, daysWithEntry: window.count,
                      aboveUsualRecently: aboveUsual)
     }

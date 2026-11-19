@@ -133,13 +133,18 @@ class MainActivity : ComponentActivity() {
         // Load the saved "Card transparency" so every frosted card renders at the chosen opacity from launch.
         CardAppearance.init(this)
 
-        // Demo build only: preload a full synthetic dataset so every screen is populated
-        // out of the box (no strap, no import). No-op once seeded; never runs on the full app.
+        // Demo build only: a second PAIRED device (Polar H10) so the Devices screen shows WHOOP (Active)
+        // beside a paired strap out of the box. No-op once seeded, or if a real pairing exists.
+        //
+        // The DAYS are NOT seeded here. There is one demo account and the core writes it
+        // (`DemoDataset`, through `CoreRead.open`), the same one the iPhone seeds, so the two phones show
+        // the same figures. Until 2026-11-19 this line ran Kotlin's own `DemoSeeder` into the same store
+        // and whichever reached it first won: on screen that evening the iPhone read HRV 67 ms over a
+        // 46-to-108 range and this phone 76 ms over 53 to 105, from what was supposed to be one account.
+        // Both seeders refuse a store that already holds days, so it was never a conflict, only a race —
+        // and a race decides which account the wearer gets.
         if (BuildConfig.ENABLE_DEMO) {
             lifecycleScope.launch(Dispatchers.IO) {
-                runCatching { DemoSeeder.seedIfEmpty(WhoopRepository.from(applicationContext)) }
-                // Also seed a 2nd PAIRED device (Polar H10) so the Devices screen shows WHOOP (Active)
-                // + a paired strap out of the box. No-op once seeded / if a real pairing exists.
                 runCatching {
                     DemoSeeder.seedDemoDeviceIfNeeded((application as NoopApplication).deviceRegistry)
                 }
