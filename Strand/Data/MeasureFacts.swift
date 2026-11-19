@@ -88,13 +88,14 @@ enum MeasureFacts {
     /// you did it on (owner, 2026-11-19). Kept here because the drawn window decides which best mark the
     /// strip may name, so the picture and the figure under it cannot disagree about what they cover.
     static func drawsTheWeek(forKey key: String) -> Bool {
-        ["steps", "active_kcal", "calories_in", "water_ml", "protein_g"].contains(key)
+        ["steps", "active_kcal", "calories_in", "water_ml", "protein_g",
+         "hr_zones13_min", "hr_zones45_min"].contains(key)
     }
 
     static func direction(forKey key: String) -> Direction {
         switch key {
         case "hrv", "steps", "spo2", "sleep_total_min", "sleep_performance", "recovery", "vo2max_est",
-             "water_ml", "protein_g", "mood", "lean_mass":
+             "water_ml", "protein_g", "mood", "lean_mass", "hr_zones13_min", "hr_zones45_min":
             return .higherIsBetter
         case "rhr", "resp_rate", "fitness_age", "body_age", "vitality", "stress", "sleep_debt_min",
              "body_fat":
@@ -175,7 +176,7 @@ enum MeasureFacts {
     /// missing is dropped rather than drawn empty, so a measure with a short history simply says less.
     static func strip(key: String, facts: Facts, values: [Double]) -> [StripEntry] {
         let wanted: [StripItem] = switch key {
-        case "steps", "active_kcal", "calories_in":
+        case "steps", "active_kcal", "calories_in", "hr_zones13_min", "hr_zones45_min":
             [.best, .daysOverGoal, .weekTotal]
         case "hrv", "spo2", "sleep_performance", "recovery":
             [.best, .aboveUsual, .weekAverage]

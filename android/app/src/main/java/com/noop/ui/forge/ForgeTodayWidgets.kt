@@ -1072,7 +1072,7 @@ private fun ForgeWeekBars(days: List<String>, values: List<Double>, today: Strin
  */
 private fun isDayTotal(key: String?): Boolean =
     key in setOf("steps", KeyMetric.STEPS.raw, "active_kcal", KeyMetric.CALORIES.raw, "calories_in",
-                 "water_ml", "protein_g")
+                 "water_ml", "protein_g", "hr_zones13_min", "hr_zones45_min")
 
 /**
  * The row-wide form's chart: the thirty days with their gridlines, the wearer's mean as a dashed rule, and
@@ -1217,12 +1217,14 @@ private fun rememberFactsLine(key: String?, history: CoreTile.History?, today: S
     fun withUnit(text: String) = if (unit.isEmpty() || unit.startsWith("/")) text else "$text $unit"
     return when (key) {
         // Day totals: the week and its daily average.
-        KeyMetric.STEPS.raw, KeyMetric.CALORIES.raw -> {
+        KeyMetric.STEPS.raw, KeyMetric.CALORIES.raw, "hr_zones13_min", "hr_zones45_min" -> {
             val total = f.weekTotalText ?: return null
             val average = f.weekAverageText ?: return null
             stringResource(R.string.forge_tile_week_total, total, average)
         }
-        KeyMetric.WEIGHT.raw -> {
+        // Measured now and then rather than daily, like the weigh-in: when it was taken, and which way it
+        // has gone since.
+        KeyMetric.WEIGHT.raw, "body_fat", "lean_mass" -> {
             val days = f.daysSinceLast ?: return null
             val whenText = when {
                 days <= 0 -> stringResource(R.string.forge_tile_today)
@@ -1251,7 +1253,7 @@ private fun rememberFactsLine(key: String?, history: CoreTile.History?, today: S
         }
         // Readings taken once a day: the wearer's own last seven, and the span they moved in.
         KeyMetric.HRV.raw, KeyMetric.RESTING_HR.raw, KeyMetric.BLOOD_OXYGEN.raw, KeyMetric.RESPIRATORY.raw,
-        KeyMetric.SKIN_TEMP.raw, TodayWidget.SLEEP_KEY -> {
+        KeyMetric.SKIN_TEMP.raw, TodayWidget.SLEEP_KEY, "mood", "sleep_debt_min" -> {
             val average = f.weekAverageText ?: return null
             val line = stringResource(R.string.forge_tile_week_average, withUnit(average))
             // Two facts, because two columns must add a block to the small form and not only a line

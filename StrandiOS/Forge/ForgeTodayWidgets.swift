@@ -1205,10 +1205,12 @@ struct ForgeMeasureWidget: View {
         }
         switch key {
         // Day totals: the week and its daily average. Steps, the energy burned, the calories eaten.
-        case "steps", "active_kcal", "calories_in":
+        case "steps", "active_kcal", "calories_in", "hr_zones13_min", "hr_zones45_min":
             guard let total = figure(facts.weekTotal), let average = figure(facts.weekAverage) else { return nil }
             return String(localized: "This week \(total) · \(average) a day")
-        case "weight":
+        // Measured now and then rather than daily, like the weigh-in: when it was taken, and which way it
+        // has gone since.
+        case "weight", "body_fat", "lean_mass":
             guard let days = facts.daysSinceLast else { return nil }
             let when = days <= 0 ? String(localized: "today")
                      : days == 1 ? String(localized: "yesterday")
@@ -1227,7 +1229,7 @@ struct ForgeMeasureWidget: View {
         // Readings taken once a day: the wearer's own last seven, and the span they moved in. Two facts,
         // because two columns must add a block to the small form rather than only a line (owner,
         // 2026-11-19); the span is the one every measure of this kind can answer.
-        case "hrv", "rhr", "spo2", "resp_rate", "skin_temp", "sleep_total_min":
+        case "hrv", "rhr", "spo2", "resp_rate", "skin_temp", "sleep_total_min", "mood", "sleep_debt_min":
             guard let average = figure(facts.weekAverage) else { return nil }
             let line = String(localized: "7-day average \(withUnit(average))")
             guard let summary = MeasureTileReading.summary(key: key, values: points.map(\.value)) else { return line }
