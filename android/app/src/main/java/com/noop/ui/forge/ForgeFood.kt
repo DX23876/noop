@@ -103,7 +103,6 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}) {
     val scope = rememberCoroutineScope()
     var day by remember { mutableStateOf(LocalDate.now()) }
     var summary by remember { mutableStateOf<CoreFood.Day?>(null) }
-    var baseGoals by remember { mutableStateOf<CoreFood.Goals?>(null) }
     // The diet plan (decision 2026-11-09) outranks the base goals; its figures come from the core.
     var dietPlan by remember { mutableStateOf(CoreDietPlan.load(context)) }
     var planResolved by remember { mutableStateOf<CoreDietPlan.Resolved?>(null) }
@@ -117,10 +116,11 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}) {
     var advice by remember { mutableStateOf<CoreDietPlan.AdviceReport?>(null) }
     var proteinFoods by remember { mutableStateOf(false) }
     var dayComplete by remember { mutableStateOf(false) }
-    // The one order the app resolves a day's goal in (`FoodTargets.dayGoal`): the plan's own day, then the
-    // plan resolved without that day's context, then the fixed goal, then the energy plan. The Today tile
-    // asks the same way, so the page and the tile cannot name different goals.
-    val goals = foodDayGoal(planDay, planResolved, baseGoals)
+    // The day's goal, resolved by the CORE in the one order the app resolves it in (`FoodTargets.dayGoal`):
+    // the plan's own day, then the plan without that day's context, then the fixed goal, then the energy
+    // plan. The Today tile asks the same way, so the page and the tile cannot name different goals, and
+    // this page no longer holds a second copy of that order (2026-11-19).
+    var goals by remember { mutableStateOf<CoreFood.Goals?>(null) }
     val goal = goals?.kcal
     var dayNutrients by remember { mutableStateOf<CoreFood.NutrientReport?>(null) }
     var pinned by remember { mutableStateOf(foodPinned(context)) }
@@ -149,7 +149,6 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}) {
             CoreFood.prepare()
             FoodHealthConnect.importDays(context)
             val plan = CoreEnergyPlan.plan(context, dismissedTrainingWorkouts(context))
-            baseGoals = loadFoodGoals(context, plan)
             burnedByDay = plan?.burnedByDay ?: emptyMap()
             planInputs = planInputs(plan)
             // Once a day: the weekly look at the plan. Simple mode with Forge steering applies the change (with undo).
@@ -177,6 +176,13 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}) {
                 CoreDietPlan.day(p, dietPerson(context), planInputs.first, planInputs.second, burnedByDay, day.toString(),
                                  dismissedTrainingWorkouts(context))
             }
+        }
+    }
+    LaunchedEffect(day, dietPlan, planInputs, burnedByDay, revision) {
+        goals = withContext(Dispatchers.IO) {
+            CoreDietPlan.dayGoal(context, dietPlan, dietPerson(context), planInputs.first, planInputs.second,
+                                 burnedByDay, day.toString(), dismissedTrainingWorkouts(context),
+                                 CoreEnergyPlan.plan(context, dismissedTrainingWorkouts(context)))
         }
     }
     // This week's suggestions (iOS `DietAdviceCard`), from the shared core over the same reads as the plan's day.
@@ -274,10 +280,9 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}) {
                                onBack = { showNutrients = false })
         return
     }
-    fun reloadGoals() {
-        scope.launch { baseGoals = withContext(Dispatchers.IO) { loadFoodGoals(context, CoreEnergyPlan.plan(context, dismissedTrainingWorkouts(context))) } }
-        revision++
-    }
+    // A changed setting (the fixed goal, the split) changes the day's goal, which the core resolves: the
+    // revision is what re-asks it.
+    fun reloadGoals() { revision++ }
     if (setup) {
         val close = {
             markFoodSetupDone(context); setup = false; reloadGoals()
@@ -399,34 +404,6 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}) {
             }
         }
     }
-}
-
-/**
- * The day's goal in the app's one order: the plan's own day, then the plan resolved without that day's
- * context, then whatever the base goal is (the wearer's fixed one, else the energy plan).
- *
- * Twin of `FoodTargets.dayGoal` in the shared core, which the iPhone calls. Written here rather than asked
- * over the bridge because all three candidates are already in this phone's hand; the ORDER is the thing
- * that has to match, and it is one line.
- */
-internal fun foodDayGoal(planDay: CoreDietPlan.PlanDay?, planResolved: CoreDietPlan.Resolved?,
-                         base: CoreFood.Goals?): CoreFood.Goals? = when {
-    planDay != null -> CoreFood.Goals(planDay.dayKcal, "plan", planDay.burnKcal,
-                                      planDay.averageKcal - planDay.burnKcal,
-                                      planDay.proteinG, planDay.carbsG, planDay.fatG)
-    planResolved != null -> CoreFood.Goals(planResolved.dayKcal, "plan", planResolved.burnKcal,
-                                           planResolved.averageKcal - planResolved.burnKcal,
-                                           planResolved.dayProteinG, planResolved.dayCarbsG, planResolved.dayFatG)
-    else -> base
-}
-
-/** The goals from the core (`FoodTargets`), with the wearer's fixed goal and split from the shared keys. */
-internal fun loadFoodGoals(context: android.content.Context, plan: CoreEnergyPlan.Plan?): CoreFood.Goals? {
-    val prefs = com.noop.ui.NoopPrefs.of(context)
-    fun pct(key: String) = if (prefs.contains(key)) prefs.getFloat(key, 0f).toDouble() else null
-    return CoreFood.goals(plan?.measuredMeanKcal, plan?.allDaysMeanKcal, plan?.formulaTdeeKcal, plan?.dailyDeltaKcal,
-                          prefs.getFloat("food.goal.kcal", 0f).toDouble().takeIf { it > 0 },
-                          pct("food.goal.proteinPercent"), pct("food.goal.carbsPercent"), pct("food.goal.fatPercent"))
 }
 
 /** The nutrients pinned to the Food page, the same key and default as iOS (`FoodTargets.Keys.pinned`). */

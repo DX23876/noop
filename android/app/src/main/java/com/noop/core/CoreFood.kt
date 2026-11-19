@@ -179,20 +179,6 @@ object CoreFood {
     data class Goals(val kcal: Double, val basis: String, val burnKcal: Double, val planDeltaKcal: Double,
                      val proteinG: Double?, val carbsG: Double?, val fatG: Double?)
 
-    /** The calorie goal (the plan's or the wearer's fixed one) and its macro split (`FoodTargets` in the core). */
-    fun goals(measured: Double?, allDays: Double?, formula: Double?, delta: Double?, fixedKcal: Double?,
-              protein: Double?, carbs: Double?, fat: Double?): Goals? {
-        val args = JSONObject()
-        listOf("measuredMeanKcal" to measured, "allDaysMeanKcal" to allDays, "formulaTdeeKcal" to formula, "dailyDeltaKcal" to delta,
-               "fixedKcal" to fixedKcal, "proteinPercent" to protein, "carbsPercent" to carbs, "fatPercent" to fat)
-            .forEach { (k, v) -> v?.let { args.put(k, it) } }
-        val json = call("food.goals", args) ?: return null
-        val c = json.optJSONObject("calories") ?: return null
-        val m = json.optJSONObject("macros")
-        return Goals(c.optDouble("kcal"), c.optString("basis"), c.optDouble("burnKcal"), c.optDouble("planDeltaKcal"),
-                     m?.optDouble("proteinG"), m?.optDouble("carbsG"), m?.optDouble("fatG"))
-    }
-
     fun nutrients(day: String, sex: String, age: Int, weightKg: Double?, heightCm: Double?, energyKcal: Double?,
                   span: String = "week"): NutrientReport? {
         val args = JSONObject().put("day", day).put("sex", sex).put("age", age).put("span", span)

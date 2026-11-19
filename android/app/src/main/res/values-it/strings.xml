@@ -7199,6 +7199,8 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="project_report_picture_detail">Una schermata di ciò che non ha funzionato dice più di un registro</string>
     <string name="project_report_picture_remove">Rimuovi l\'immagine</string>
     <string name="forge_tile_week_total">Questa settimana %1$s · %2$s al giorno</string>
+    <string name="forge_tile_of_goal_today">%1$s su %2$s oggi</string>
+    <string name="forge_tile_days_reached">raggiunto %1$d giorni su %2$d</string>
     <string name="forge_tile_weighed">Pesato %1$s</string>
     <string name="forge_tile_weighed_change">Pesato %1$s · %2$s questa settimana</string>
     <string name="forge_tile_week_average">Media su 7 giorni %1$s</string>

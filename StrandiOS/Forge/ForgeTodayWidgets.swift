@@ -1056,8 +1056,15 @@ struct ForgeMeasureWidget: View {
     @AppStorage(UnitPrefs.skinTempDisplayKey) private var skinTempDisplayRaw = ""
     /// How much of today was calm, for the stress tile alone (`DaytimeStress.calmShare`).
     @State private var calmShare: Double?
+    /// The goal for a measure whose goal is resolved rather than stored (protein, `FoodTargets.dayGoal`),
+    /// asked for in `load()` and handed to every reading below, so the tile never works one out itself.
+    @State private var resolvedTarget: Double?
     /// The wearer's calendar age, which the two ages measured in years are read against.
     @EnvironmentObject private var profile: ProfileStore
+
+    /// This tile's goal: the resolved one where the measure has one, else the stored one. One funnel, so
+    /// the goal bar, the facts line and the strip cannot each answer differently.
+    private var target: Double? { resolvedTarget ?? MeasureFacts.storedTarget(forKey: key) }
 
     var body: some View {
         let m = metric ?? ForgeWidgetMeasures.descriptor(key, source)
@@ -1108,7 +1115,7 @@ struct ForgeMeasureWidget: View {
                 if Self.isDayTotal(key) {
                     // A day total asks which DAYS, so its row-wide picture is the week (owner, 2026-11-19).
                     ForgeWeekBars(points: dayPoints, today: Repository.localDayKey(Date()),
-                                  goal: MeasureFacts.storedTarget(forKey: key), tint: Self.tint(key),
+                                  goal: target, tint: Self.tint(key),
                                   height: Self.wideChartHeight)
                 } else if series.count > 1 {
                     TrendChart(points: Self.points(Array(dayPoints.suffix(series.count))),
@@ -1128,7 +1135,8 @@ struct ForgeMeasureWidget: View {
                 // The kit's floor for this size (owner, 2026-11-19): a chart and two more blocks, never
                 // under five things said. Figure, change, caption and chart are four; these are the rest,
                 // and they are what makes the extra room worth taking.
-                ForgeFactStrip(blocks: Self.stripBlocks(key: key, points: dayPoints, values: values))
+                ForgeFactStrip(blocks: Self.stripBlocks(key: key, points: dayPoints, values: values,
+                                                        target: target))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             // Its own surface: the small and two-column forms get theirs from the tile, this one draws
@@ -1211,7 +1219,7 @@ struct ForgeMeasureWidget: View {
             }
         }
         return Self.factsLine(key: key, points: dayPoints, unit: leadUnit(m),
-                              calendarAge: profile.age > 0 ? Double(profile.age) : nil)
+                              calendarAge: profile.age > 0 ? Double(profile.age) : nil, target: target)
             ?? Self.summaryLine(key: key, values: values, unit: leadUnit(m))
     }
 
@@ -1226,9 +1234,10 @@ struct ForgeMeasureWidget: View {
     /// so this can be filled in measure by measure without anything losing what it already said. The
     /// numbers all come from `MeasureFacts`, which Android reads too; only the words are written here.
     static func factsLine(key: String, points: [MeasureFacts.Point], unit: String,
-                          calendarAge: Double? = nil) -> String? {
+                          calendarAge: Double? = nil, target: Double? = nil) -> String? {
         guard !points.isEmpty else { return nil }
-        let facts = MeasureFacts.read(points: points, today: Repository.localDayKey(Date()))
+        let facts = MeasureFacts.read(points: points, today: Repository.localDayKey(Date()), target: target,
+                                      direction: MeasureFacts.direction(forKey: key))
         func figure(_ value: Double?) -> String? {
             value.map { MeasureTileReading.figure(key: key, value: $0) }
         }
@@ -1240,6 +1249,18 @@ struct ForgeMeasureWidget: View {
         case "steps", "active_kcal", "calories_in", "hr_zones13_min", "hr_zones45_min":
             guard let total = figure(facts.weekTotal), let average = figure(facts.weekAverage) else { return nil }
             return String(localized: "This week \(total) · \(average) a day")
+        // Protein, the one macro with a goal of its own in the core: today against that goal, and how many
+        // of the week's logged days reached it. The goal is resolved rather than stored, so it arrives from
+        // the caller; without one the tile still says the week, as the other day totals do.
+        case "protein_g":
+            guard let eaten = figure(facts.today ?? facts.lastValue) else { return nil }
+            guard let goal = facts.target, let goalText = figure(goal) else {
+                guard let total = figure(facts.weekTotal), let average = figure(facts.weekAverage) else { return nil }
+                return String(localized: "This week \(total) · \(average) a day")
+            }
+            let line = String(localized: "\(eaten) of \(withUnit(goalText)) today")
+            guard let reached = facts.daysAboveTarget, facts.weekDaysWithEntry > 0 else { return line }
+            return line + " · " + String(localized: "\(reached) of \(facts.weekDaysWithEntry) days reached")
         // Measured now and then rather than daily, like the weigh-in: when it was taken, and which way it
         // has gone since.
         case "weight", "body_fat", "lean_mass":
@@ -1291,11 +1312,12 @@ struct ForgeMeasureWidget: View {
     /// so "what else does this tile say" has one answer on both phones. Only the labels are written here.
     /// A best mark is named for the direction that counts as better for the measure, so the highest HRV and
     /// the lowest resting pulse both read as what they are.
-    static func stripBlocks(key: String, points: [MeasureFacts.Point], values: [Double])
+    static func stripBlocks(key: String, points: [MeasureFacts.Point], values: [Double],
+                            target: Double? = nil)
         -> [(label: String, value: String, detail: String?)] {
         guard !points.isEmpty else { return [] }
         let facts = MeasureFacts.read(points: points, today: Repository.localDayKey(Date()),
-                                      target: MeasureFacts.storedTarget(forKey: key),
+                                      target: target ?? MeasureFacts.storedTarget(forKey: key),
                                       direction: MeasureFacts.direction(forKey: key))
         return MeasureFacts.strip(key: key, facts: facts, values: values).compactMap { entry in
             func counted(_ label: String) -> (label: String, value: String, detail: String?)? {
@@ -1426,6 +1448,12 @@ struct ForgeMeasureWidget: View {
         }
         values = history.values
         dayPoints = history.points
+        if MeasureFacts.resolvesItsTarget(forKey: key) {
+            // Protein's goal is the day's macro goal, which only the goal resolver can answer. Asked
+            // through the SAME reading the Nutrition tile loads, so the two tiles beside each other on
+            // Today cannot name different protein goals.
+            resolvedTarget = await ForgeNutritionReading.load(repo: repo, profile: profile)?.proteinGoal
+        }
         if key == "stress" {
             // Over two columns stress says how much of today was calm (owner's table, 2026-11-19): a daily
             // figure as a word says what it is, the share of the day says how it got there. The same hours

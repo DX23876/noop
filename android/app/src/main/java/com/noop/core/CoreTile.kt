@@ -54,6 +54,14 @@ object CoreTile {
                           val count: Int?, val total: Int?)
 
     /**
+     * Whether a measure's goal has to be RESOLVED rather than read from a key, the twin of the shared
+     * `MeasureFacts.resolvesItsTarget`. Protein is the only one: its goal is the day's macro goal, out of
+     * the diet plan, the fixed goal or the energy plan in a fixed order, so no key holds it and the caller
+     * has to ask the core for it. The gate `test_today_tile_gallery.py` holds the two lists equal.
+     */
+    fun resolvesItsTarget(key: String): Boolean = key == "protein_g"
+
+    /**
      * [days] and [values] are one series, oldest first and the same length; [today] is the logical day key.
      * [key] is the shared CATALOGUE key ("rhr", not "restingHr"), because that is what decides the decimals.
      */

@@ -7232,6 +7232,8 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="project_report_picture_detail">Una captura de lo que falló dice más que un registro</string>
     <string name="project_report_picture_remove">Quitar la imagen</string>
     <string name="forge_tile_week_total">Esta semana %1$s · %2$s al día</string>
+    <string name="forge_tile_of_goal_today">%1$s de %2$s hoy</string>
+    <string name="forge_tile_days_reached">alcanzado %1$d de %2$d días</string>
     <string name="forge_tile_weighed">Pesado %1$s</string>
     <string name="forge_tile_weighed_change">Pesado %1$s · %2$s esta semana</string>
     <string name="forge_tile_week_average">Media de 7 días %1$s</string>

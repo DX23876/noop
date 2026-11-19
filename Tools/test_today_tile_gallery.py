@@ -126,6 +126,53 @@ class TodayTileGalleryTests(unittest.TestCase):
         self.assertEqual(sorted(set(swift_keys)), sorted(set(kotlin_keys)),
                          "the measures drawn as a week must be the same on both phones")
 
+    def test_both_phones_resolve_the_same_measures_goal(self):
+        """A measure whose goal is RESOLVED rather than stored must be the same measure on both phones. If
+        one side thought protein's goal came from a key, its tile would show no goal at all while the other
+        showed one, from the same account — and a goal shown on one phone only is worse than none."""
+        swift = (ROOT / "Strand/Data/MeasureFacts.swift").read_text(encoding="utf-8")
+        body = swift[swift.index("static func resolvesItsTarget"):]
+        swift_keys = re.findall(r'"([a-z0-9_]+)"', body[:body.index("\n")])
+        kotlin = (ROOT / "android/app/src/main/java/com/noop/core/CoreTile.kt").read_text(encoding="utf-8")
+        body = kotlin[kotlin.index("fun resolvesItsTarget"):]
+        kotlin_keys = re.findall(r'"([a-z0-9_]+)"', body[:body.index("\n")])
+        self.assertEqual(["protein_g"], swift_keys)
+        self.assertEqual(swift_keys, kotlin_keys,
+                         "the measures whose goal is resolved must be the same on both phones")
+
+    def test_both_phones_ask_the_core_for_that_goal(self):
+        """And neither may work it out: the day's goal comes from the one resolver (`FoodTargets.dayGoal`),
+        which is why the Food page, the Nutrition tile and this tile cannot name three different goals."""
+        apple = (ROOT / "StrandiOS/Forge/ForgeTodayWidgets.swift").read_text(encoding="utf-8")
+        self.assertIn("MeasureFacts.resolvesItsTarget(forKey: key)", apple)
+        self.assertIn("ForgeNutritionReading.load(repo: repo, profile: profile)?.proteinGoal", apple)
+        kotlin = (ROOT / "android/app/src/main/java/com/noop/ui/forge/ForgeTodayWidgets.kt").read_text(encoding="utf-8")
+        self.assertIn("CoreTile.resolvesItsTarget(catalogKey)", kotlin)
+        self.assertIn("CoreDietPlan.dayGoal(", kotlin)
+        core = (ROOT / "Packages/NoopCoreJNI/Sources/NoopCore/CoreDietPlan.swift").read_text(encoding="utf-8")
+        self.assertRegex(core, r'case "food\.dayGoal":[\s\S]{0,2000}FoodTargets\.dayGoal\(')
+
+    def test_android_resolves_a_days_goal_only_through_the_core(self):
+        """The Kotlin `when` that held the goal order beside the Swift one is gone, and must stay gone."""
+        for path in (ROOT / "android/app/src/main/java/com/noop").rglob("*.kt"):
+            text = path.read_text(encoding="utf-8")
+            self.assertNotIn("fun foodDayGoal", text,
+                             f"{path.relative_to(ROOT)} holds a second copy of the goal order")
+
+    def test_neither_wide_tile_draws_a_second_reading_of_the_usual(self):
+        """The row-wide chart states the usual and the range in its caption, from one resolver. Android drew
+        the mean a second time as a dashed rule, derived from the plotted points, while the caption read a
+        longer series: two answers to one question, able to part company on screen."""
+        apple = (ROOT / "StrandiOS/Forge/ForgeTodayWidgets.swift").read_text(encoding="utf-8")
+        wide = apple[apple.index("private func wideChart"):]
+        wide = wide[:wide.index("\n    /// ")]
+        self.assertNotIn("baselineValue", wide, "the Apple wide chart passes no dashed reference")
+        kotlin = (ROOT / "android/app/src/main/java/com/noop/ui/forge/ForgeTodayWidgets.kt").read_text(encoding="utf-8")
+        chart = kotlin[kotlin.index("private fun WideMeasureChart"):]
+        chart = chart[:chart.index("\n}")]
+        self.assertIn("average = null", chart,
+                      "the row-wide tile passes no mean, so no dashed rule is drawn under its caption")
+
     def test_android_never_names_a_source_for_a_tile_itself(self):
         """Android asks the core by key (`CoreTile.history`). The moment it passes a source of its own, the
         table above stops being the one answer to "where is this tile's history read from"."""

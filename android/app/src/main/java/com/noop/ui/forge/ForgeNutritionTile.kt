@@ -42,9 +42,9 @@ import kotlin.math.roundToInt
  * Small says what is left of the day and what has been eaten of the goal; two columns adds the three
  * macros against theirs; the whole row adds them as bars and the week's calories.
  *
- * The goal is NOT resolved here. It comes from the one order the app resolves it in ([foodDayGoal], the
- * twin of the core's `FoodTargets.dayGoal`), over the same three reads the Food page makes, so the tile and
- * the page cannot name different goals — which is the one number in this app where that matters most.
+ * The goal is NOT resolved here. The core resolves it (`FoodTargets.dayGoal`, through `food.dayGoal`) over
+ * the same reads the Food page makes, so the tile and the page cannot name different goals — which is the
+ * one number in this app where that matters most.
  */
 internal data class NutritionReading(
     val eatenKcal: Double?, val goalKcal: Double?,
@@ -64,19 +64,13 @@ internal fun rememberNutritionReading(revision: Int): NutritionReading? {
         value = withContext(Dispatchers.IO) {
             runCatching {
                 val today = LocalDate.now().toString()
-                val plan = CoreEnergyPlan.plan(context, dismissedTrainingWorkouts(context))
-                val base = loadFoodGoals(context, plan)
+                val dismissed = dismissedTrainingWorkouts(context)
+                val plan = CoreEnergyPlan.plan(context, dismissed)
                 val inputs = planInputs(plan)
-                val diet = CoreDietPlan.load(context)
                 val person = dietPerson(context)
-                val planDay = diet?.let {
-                    CoreDietPlan.day(it, person, inputs.first, inputs.second, plan?.burnedByDay ?: emptyMap(),
-                                     today, dismissedTrainingWorkouts(context))
-                }
-                val planResolved = diet?.let {
-                    CoreDietPlan.resolve(it, person, inputs.first, inputs.second, today)
-                }
-                val goals = foodDayGoal(planDay, planResolved, base)
+                val goals = CoreDietPlan.dayGoal(context, CoreDietPlan.load(context), person, inputs.first,
+                                                 inputs.second, plan?.burnedByDay ?: emptyMap(), today,
+                                                 dismissed, plan)
                 val day = CoreFood.day(today)
                 val week = CoreFood.week(today, today, withScore = false, sex = person.sex)
                 NutritionReading(

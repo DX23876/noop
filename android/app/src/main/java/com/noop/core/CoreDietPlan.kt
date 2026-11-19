@@ -142,6 +142,38 @@ object CoreDietPlan {
             json.optInt("needCompleteDays", 14), json.optInt("needWeighIns", 6))
     }
 
+    /**
+     * The day's calorie and macro goal, resolved by the core (`FoodTargets.dayGoal`): the diet plan's own
+     * day first, because it knows the phase, the training-day shift and the active-day extra, then the plan
+     * resolved without that day's context, then the wearer's fixed goal, then the energy plan.
+     *
+     * Kotlin held that order itself until 2026-11-19, in a `when` beside the Swift one, which is two
+     * readouts of the number this app cares about most. Blocking; call off the main thread.
+     */
+    fun dayGoal(context: Context, plan: Plan?, person: Person, burnKcal: Double?, kcalPerKg: Double?,
+                burnedByDay: Map<String, Double>, day: String, dismissedWorkouts: List<String>,
+                energy: CoreEnergyPlan.Plan?): CoreFood.Goals? {
+        val prefs = NoopPrefs.of(context)
+        val args = base(person, burnKcal, kcalPerKg).put("day", day)
+            .put("burnedByDay", JSONObject(burnedByDay as Map<*, *>))
+            .put("dismissedWorkouts", JSONArray(dismissedWorkouts))
+        plan?.let { args.put("plan", it.json()) }
+        listOf("measuredMeanKcal" to energy?.measuredMeanKcal, "allDaysMeanKcal" to energy?.allDaysMeanKcal,
+               "formulaTdeeKcal" to energy?.formulaTdeeKcal, "dailyDeltaKcal" to energy?.dailyDeltaKcal,
+               "fixedKcal" to prefs.getFloat("food.goal.kcal", 0f).toDouble().takeIf { it > 0 },
+               "proteinPercent" to pct(prefs, "food.goal.proteinPercent"),
+               "carbsPercent" to pct(prefs, "food.goal.carbsPercent"),
+               "fatPercent" to pct(prefs, "food.goal.fatPercent"))
+            .forEach { (k, v) -> v?.let { args.put(k, it) } }
+        val json = call("food.dayGoal", args) ?: return null
+        return CoreFood.Goals(json.optDouble("kcal"), json.optString("basis"), json.optDouble("burnKcal"),
+                              json.optDouble("planDeltaKcal"), json.num("proteinG"), json.num("carbsG"),
+                              json.num("fatG"))
+    }
+
+    private fun pct(prefs: android.content.SharedPreferences, key: String): Double? =
+        if (prefs.contains(key)) prefs.getFloat(key, 0f).toDouble() else null
+
     /** The planner's sessions in the coming week (day keys) and the usual training weekdays (1 Sunday … 7 Saturday). */
     data class Training(val plannedThisWeek: List<String>, val usualWeekdays: List<Int>)
 

@@ -186,6 +186,44 @@ enum CoreDietPlan {
                 wire.completeDays = days; wire.weighIns = weighIns
             }
             return CoreRead.json(wire)
+        case "food.dayGoal":
+            // The day's calorie and macro goal, in the ONE order the app resolves it
+            // (`FoodTargets.dayGoal`): the plan's own day first, because it knows the phase, the
+            // training-day shift and the active-day extra, then the plan resolved without that day's
+            // context, then the wearer's fixed goal, then the energy plan.
+            //
+            // Android resolved this order for itself until 2026-11-19, in a Kotlin `when` beside the
+            // Swift one, which is two readouts of the number this app cares about most: the two differed
+            // already (the iPhone's page skipped the middle step). Now there is one, and Kotlin reads its
+            // answer.
+            let day = args["day"] as? String ?? today
+            var planDay: FoodTargets.DayGoal?
+            var planResolved: FoodTargets.DayGoal?
+            if let plan = DietPlan.decode(args["plan"] as? String) {
+                let ctx = await dayContext(plan: plan, person: person, burn: burn, kcalPerKg: kcalPerKg, args: args,
+                                           store: store, reader: reader, day: day)
+                planDay = .init(calories: ctx.day.calories, macros: ctx.day.macros)
+                let result = DietTargets.resolve(plan, person: ctx.person, burnKcal: ctx.day.planBurnKcal, kcalPerKg: kcalPerKg)
+                planResolved = .init(calories: FoodTargets.calories(plan: plan, result: result, day: day),
+                                     macros: FoodTargets.macros(plan: plan, result: result, day: day))
+            }
+            let energy = FoodTargets.calories(measuredMeanKcal: double("measuredMeanKcal"),
+                                              allDaysMeanKcal: double("allDaysMeanKcal"),
+                                              formulaTdeeKcal: double("formulaTdeeKcal"),
+                                              dailyDeltaKcal: double("dailyDeltaKcal"))
+            guard let goal = FoodTargets.dayGoal(planDay: planDay, planResolved: planResolved,
+                                                 fixedKcal: double("fixedKcal"), energyPlan: energy,
+                                                 proteinPercent: double("proteinPercent"),
+                                                 carbsPercent: double("carbsPercent"),
+                                                 fatPercent: double("fatPercent")) else { return "null" }
+            struct GoalWire: Encodable {
+                var kcal: Double; var basis: String; var burnKcal: Double; var planDeltaKcal: Double
+                var proteinG: Double?; var carbsG: Double?; var fatG: Double?
+            }
+            return CoreRead.json(GoalWire(kcal: goal.calories.kcal, basis: goal.calories.basis.rawValue,
+                                          burnKcal: goal.calories.burnKcal, planDeltaKcal: goal.calories.planDeltaKcal,
+                                          proteinG: goal.macros?.proteinG, carbsG: goal.macros?.carbsG,
+                                          fatG: goal.macros?.fatG))
         case "food.planAdvice":
             // This week's suggestions on the plan page (iOS `DietAdviceCard`): kind and action, at most three, without
             // those dismissed this week. `dismissed` holds the stored "week:kind" entries under iOS's key.

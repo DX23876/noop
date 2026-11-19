@@ -90,6 +90,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.noop.R
+import com.noop.core.CoreDietPlan
+import com.noop.core.CoreEnergyPlan
 import com.noop.core.CoreRead
 import com.noop.core.CoreStress
 import com.noop.core.CoreTile
@@ -1097,9 +1099,13 @@ private fun isDayTotal(key: String?): Boolean =
                  "water_ml", "protein_g", "hr_zones13_min", "hr_zones45_min")
 
 /**
- * The row-wide form's chart: the thirty days with their gridlines, the wearer's mean as a dashed rule, and
- * the span written under it, so the curve says WHEN as well as how much (iOS draws its axis and dates; a
- * bare curve was the gap the side-by-side showed).
+ * The row-wide form's chart: the thirty days with their gridlines and the span written under it, so the
+ * curve says WHEN as well as how much (a bare curve was the gap the side-by-side showed).
+ *
+ * No dashed mean drawn in, which is where this differed from the iPhone's (2026-11-19): the usual and the
+ * range are already in the caption over the chart, resolved once by `MeasureFacts`. A second rule derived
+ * from the plotted points is a second answer to the same question, and the two can part company — the
+ * caption reads the 60-day series while the picture shows thirty.
  *
  * Reuses `ForgeTrends`' own chart rather than a second drawing of the same thing.
  */
@@ -1112,7 +1118,7 @@ private fun WideMeasureChart(days: List<String>, values: List<Double>, tint: Col
     val formatter = remember { java.time.format.DateTimeFormatter.ofPattern("d. MMM") }
     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space1)) {
         LineChart(points, days = points.size, lo = lo - pad, hi = hi + pad,
-                  average = values.average(), tint = tint,
+                  average = null, tint = tint,
                   modifier = Modifier.fillMaxWidth().height(96.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             listOf(days.first(), days[days.size / 2], days.last()).forEach { day ->
@@ -1243,12 +1249,28 @@ private fun wholeRowMetric(key: String?): KeyMetric? = when (key) {
 private fun rememberFacts(key: String?, history: CoreTile.History?, today: String): CoreTile.Facts? {
     if (key == null || history == null || history.isEmpty) return null
     val catalogKey = KeyMetric.fromRaw(key)?.catalogKey() ?: key
+    val context = LocalContext.current
     val facts by androidx.compose.runtime.produceState<CoreTile.Facts?>(null, key, history, today) {
         value = withContext(Dispatchers.IO) {
-            runCatching { CoreTile.facts(catalogKey, history.days, history.values, today) }.getOrNull()
+            runCatching {
+                // Protein's goal is not stored anywhere: it is the day's macro goal, resolved by the core
+                // in the one order the app resolves it in. The tile asks for it rather than working one
+                // out, so the two Food tiles beside each other on Today cannot name different goals.
+                val target = if (CoreTile.resolvesItsTarget(catalogKey)) proteinGoal(context, today) else null
+                CoreTile.facts(catalogKey, history.days, history.values, today, target)
+            }.getOrNull()
         }
     }
     return facts
+}
+
+/** The day's protein goal, from the core's one goal resolver. Blocking; called off the main thread. */
+private suspend fun proteinGoal(context: android.content.Context, today: String): Double? {
+    val dismissed = dismissedTrainingWorkouts(context)
+    val plan = CoreEnergyPlan.plan(context, dismissed)
+    val inputs = planInputs(plan)
+    return CoreDietPlan.dayGoal(context, CoreDietPlan.load(context), dietPerson(context), inputs.first,
+                                inputs.second, plan?.burnedByDay ?: emptyMap(), today, dismissed, plan)?.proteinG
 }
 
 @Composable
@@ -1278,6 +1300,21 @@ private fun rememberFactsLine(key: String?, history: CoreTile.History?, today: S
             val sign = if (change > 0) "+" else if (change < 0) "−" else "±"
             val moved = withUnit(sign + (f.weekChangeText ?: return null))
             stringResource(R.string.forge_tile_weighed_change, whenText, moved)
+        }
+        // Protein, the one macro with a goal of its own in the core: today against that goal, and how many
+        // of the week's logged days reached it. Without a goal it says the week, as the day totals do.
+        "protein_g" -> {
+            val eaten = f.todayText ?: f.lastValue?.let { java.text.DecimalFormat("#").format(it) } ?: return null
+            val goal = f.target ?: return run {
+                val total = f.weekTotalText ?: return null
+                val average = f.weekAverageText ?: return null
+                stringResource(R.string.forge_tile_week_total, total, average)
+            }
+            val line = stringResource(R.string.forge_tile_of_goal_today, eaten,
+                                      withUnit(java.text.DecimalFormat("#").format(goal)))
+            val reached = f.daysAboveTarget
+            if (reached == null || f.weekDaysWithEntry <= 0) line
+            else line + " · " + stringResource(R.string.forge_tile_days_reached, reached, f.weekDaysWithEntry)
         }
         // The energy eaten is a day total like the two above, under its catalogue spelling.
         "calories_in" -> {

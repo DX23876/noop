@@ -255,16 +255,6 @@ enum CoreFood {
                 return CoreRead.json(FoodNutrientReport.report(entries: entries, from: string("day"), to: string("day"), references: references))
             }
             return CoreRead.json(await FoodNutrientReport.report(store: store, to: string("day"), references: references))
-        case "food.goals":
-            // The calorie goal (plan or fixed) and its macro split, as Apple's Food page resolves them.
-            let plan = FoodTargets.calories(measuredMeanKcal: double("measuredMeanKcal"), allDaysMeanKcal: double("allDaysMeanKcal"),
-                                            formulaTdeeKcal: double("formulaTdeeKcal"), dailyDeltaKcal: double("dailyDeltaKcal"))
-            guard let calories = FoodTargets.calories(fixedKcal: double("fixedKcal"), plan: plan) else { return "null" }
-            let split = FoodTargets.defaultSplit
-            let macros = FoodTargets.macros(kcal: calories.kcal, protein: double("proteinPercent") ?? split.protein,
-                                            carbs: double("carbsPercent") ?? split.carbs, fat: double("fatPercent") ?? split.fat)
-            struct GoalsWire: Encodable { var calories: FoodTargets.Calories; var macros: FoodTargets.Macros? }
-            return CoreRead.json(GoalsWire(calories: calories, macros: macros))
         case "food.removePack":
             await catalog.removePack(country: string("country"))
             return #"{"ok":true}"#

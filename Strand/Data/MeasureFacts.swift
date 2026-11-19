@@ -111,6 +111,15 @@ enum MeasureFacts {
     /// (`momentum.stepGoal`, Android's `CorePrefs.STEP_GOAL`), and a tile that read it itself would be a
     /// second readout of a number the goals screen owns. Zero or unset means no goal, which is not the same
     /// as a goal of nothing: the tile then shows no goal bar and no count of days over it.
+    /// Whether a measure's goal has to be RESOLVED rather than read from a key.
+    ///
+    /// Protein is the only one: its goal is the day's macro goal, which comes out of the diet plan's own
+    /// day, the plan without that day's context, the wearer's fixed goal or the energy plan, in that order
+    /// (`FoodTargets.dayGoal`). No key holds it, so a tile has to ask for it and hand it in; what it must
+    /// not do is work it out for itself, because then the tile and the Food page would each have their own
+    /// protein goal.
+    static func resolvesItsTarget(forKey key: String) -> Bool { key == "protein_g" }
+
     static func storedTarget(forKey key: String, defaults: UserDefaults = .standard) -> Double? {
         switch key {
         case "steps":

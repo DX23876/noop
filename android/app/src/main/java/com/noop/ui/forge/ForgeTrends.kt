@@ -553,7 +553,7 @@ private fun TrendCard(titleRes: Int, unit: String, stats: TrendStats, days: Int,
 }
 
 @Composable
-internal fun LineChart(points: List<CoreRead.Point>, days: Int, lo: Double, hi: Double, average: Double, tint: Color,
+internal fun LineChart(points: List<CoreRead.Point>, days: Int, lo: Double, hi: Double, average: Double?, tint: Color,
                       modifier: Modifier) {
     val colors = Forge.colors
     val first = LocalDate.now().minusDays(days - 1L)
@@ -566,8 +566,13 @@ internal fun LineChart(points: List<CoreRead.Point>, days: Int, lo: Double, hi: 
         listOf(lo, (lo + hi) / 2, hi).forEach { v ->
             drawLine(colors.divider.copy(alpha = 0.35f), Offset(0f, y(v)), Offset(size.width, y(v)), strokeWidth = 1f)
         }
-        drawLine(tint.copy(alpha = 0.6f), Offset(0f, y(average)), Offset(size.width, y(average)), strokeWidth = 2f,
-                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f)))
+        // A caller with nothing to draw there passes none: a dashed rule is a CLAIM about the wearer's
+        // usual, and a card that already states that usual in words must not re-derive it from the
+        // plotted points and risk the picture and the sentence disagreeing.
+        average?.let {
+            drawLine(tint.copy(alpha = 0.6f), Offset(0f, y(it)), Offset(size.width, y(it)), strokeWidth = 2f,
+                     pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f)))
+        }
         val line = Path()
         points.forEachIndexed { i, p -> if (i == 0) line.moveTo(x(p), y(p.value)) else line.lineTo(x(p), y(p.value)) }
         val fill = Path().apply {

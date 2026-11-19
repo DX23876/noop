@@ -7248,6 +7248,8 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="project_report_picture_detail">Ein Bildschirmfoto von dem, was schiefging, sagt mehr als ein Protokoll</string>
     <string name="project_report_picture_remove">Bild entfernen</string>
     <string name="forge_tile_week_total">Diese Woche %1$s · %2$s pro Tag</string>
+    <string name="forge_tile_of_goal_today">%1$s von %2$s heute</string>
+    <string name="forge_tile_days_reached">an %1$d von %2$d Tagen erreicht</string>
     <string name="forge_tile_weighed">Gewogen %1$s</string>
     <string name="forge_tile_weighed_change">Gewogen %1$s · %2$s diese Woche</string>
     <string name="forge_tile_week_average">Schnitt 7 Tage %1$s</string>
