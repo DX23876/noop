@@ -7319,4 +7319,13 @@ Plotting each series as change from its own first reading puts them on one scale
         <item quantity="other">%1$d years over your age</item>
     </plurals>
     <string name="forge_tile_calm_share">%1$d %% of today calm</string>
+    <string name="forge_nut_title">Nutrition</string>
+    <string name="forge_nut_left">left today</string>
+    <string name="forge_nut_eaten_of">%1$s of %2$s kcal eaten</string>
+    <string name="forge_nut_macros">P %1$d · C %2$d · F %3$d g</string>
+    <string name="forge_nut_macros_goal">P %1$d/%2$d · C %3$d/%4$d · F %5$d/%6$d g</string>
+    <string name="forge_nut_week">This week</string>
+    <string name="forge_g_nutrition_sub">Small · what is left of today</string>
+    <string name="forge_nut_grams">%1$d g</string>
+    <string name="forge_nut_grams_of">%1$d / %2$d g</string>
 </resources>

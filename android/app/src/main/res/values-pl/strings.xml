@@ -7326,4 +7326,13 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
         <item quantity="other">%1$d lat powyżej twojego wieku</item>
     </plurals>
     <string name="forge_tile_calm_share">%1$d %% dnia spokojnie</string>
+    <string name="forge_nut_title">Odżywianie</string>
+    <string name="forge_nut_left">zostało dziś</string>
+    <string name="forge_nut_eaten_of">Zjedzono %1$s z %2$s kcal</string>
+    <string name="forge_nut_macros">B %1$d · W %2$d · T %3$d g</string>
+    <string name="forge_nut_macros_goal">B %1$d/%2$d · W %3$d/%4$d · T %5$d/%6$d g</string>
+    <string name="forge_nut_week">Ten tydzień</string>
+    <string name="forge_g_nutrition_sub">Mały · ile zostało dziś</string>
+    <string name="forge_nut_grams">%1$d g</string>
+    <string name="forge_nut_grams_of">%1$d / %2$d g</string>
 </resources>

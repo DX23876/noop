@@ -7274,4 +7274,13 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
         <item quantity="other">%1$d ans au-dessus de votre âge</item>
     </plurals>
     <string name="forge_tile_calm_share">%1$d %% de la journée au calme</string>
+    <string name="forge_nut_title">Alimentation</string>
+    <string name="forge_nut_left">reste aujourd\'hui</string>
+    <string name="forge_nut_eaten_of">%1$s sur %2$s kcal mangées</string>
+    <string name="forge_nut_macros">P %1$d · G %2$d · L %3$d g</string>
+    <string name="forge_nut_macros_goal">P %1$d/%2$d · G %3$d/%4$d · L %5$d/%6$d g</string>
+    <string name="forge_nut_week">Cette semaine</string>
+    <string name="forge_g_nutrition_sub">Petit · ce qui reste aujourd\'hui</string>
+    <string name="forge_nut_grams">%1$d g</string>
+    <string name="forge_nut_grams_of">%1$d / %2$d g</string>
 </resources>

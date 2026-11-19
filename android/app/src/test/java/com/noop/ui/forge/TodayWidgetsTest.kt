@@ -85,7 +85,7 @@ class TodayWidgetsTest {
                             "strain", "steps", "calories", "hr_zones13_min", "hr_zones45_min",
                             "hrv", "restingHr", "bloodOxygen", "respiratory", "vo2max_est", "stress",
                             "weight", "body_fat", "lean_mass", "skinTemp", "fitness_age", "vitality", "body_age",
-                            "calories_in",
+                            "calories_in", "protein_g",
                             "mood"),
                      TodayWidgets.measures)
         assertEquals(listOf(TodayWidgets.Section.Charge, TodayWidgets.Section.Rest, TodayWidgets.Section.Effort,
@@ -133,7 +133,8 @@ class TodayWidgetsTest {
      */
     @Test fun aCardOffersTwoColumnsButNeverOne() {
         assertEquals(setOf(TodayWidget.Kind.LastNight, TodayWidget.Kind.Tonight,
-                           TodayWidget.Kind.LastWorkout, TodayWidget.Kind.Energy),
+                           TodayWidget.Kind.LastWorkout, TodayWidget.Kind.Energy,
+                           TodayWidget.Kind.Nutrition),
                      TodayWidget.SHRINKABLE_CARDS)
         for (kind in TodayWidget.SHRINKABLE_CARDS) {
             val placed = TodayWidget("x", kind)

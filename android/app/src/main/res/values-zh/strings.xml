@@ -7221,4 +7221,13 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
         <item quantity="other">比实际年龄大 %1$d 岁</item>
     </plurals>
     <string name="forge_tile_calm_share">今天 %1$d %% 平静</string>
+    <string name="forge_nut_title">饮食</string>
+    <string name="forge_nut_left">今天还剩</string>
+    <string name="forge_nut_eaten_of">已吃 %1$s / %2$s 千卡</string>
+    <string name="forge_nut_macros">蛋白 %1$d · 碳水 %2$d · 脂肪 %3$d 克</string>
+    <string name="forge_nut_macros_goal">蛋白 %1$d/%2$d · 碳水 %3$d/%4$d · 脂肪 %5$d/%6$d 克</string>
+    <string name="forge_nut_week">本周</string>
+    <string name="forge_g_nutrition_sub">小 · 今天还剩多少</string>
+    <string name="forge_nut_grams">%1$d g</string>
+    <string name="forge_nut_grams_of">%1$d / %2$d g</string>
 </resources>

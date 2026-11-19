@@ -25,6 +25,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AddCircle
 import androidx.compose.material.icons.rounded.MonitorHeart
+import androidx.compose.material.icons.rounded.Restaurant
 import androidx.compose.material.icons.rounded.Mood
 import androidx.compose.material.icons.rounded.Scale
 import androidx.compose.material.icons.rounded.HourglassBottom
@@ -134,7 +135,9 @@ internal data class TodayWidget(
         Measure("measure"), TrainingLoad("trainingLoad"), Goals("goals"), Energy("energy"), LiveHeart("liveHeart"),
         Momentum("momentum"), LastWorkout("lastWorkout"), Cycle("cycle"), LastNight("lastNight"),
         Tonight("tonight"), WeekPlan("weekPlan"), Breathe("breathe"), Strap("strap"), NextSession("nextSession"), WhatWorks("whatWorks"),
-        Changes("changes"), Water("water"), CoachNote("coachNote"), AgeLess("ageless"), DietGoal("dietGoal");
+        Changes("changes"), Water("water"), CoachNote("coachNote"), AgeLess("ageless"), DietGoal("dietGoal"),
+        /** The day's eating against its goal, with the macros (owner, 2026-11-18). */
+        Nutrition("nutrition");
         companion object { fun of(raw: String?) = entries.firstOrNull { it.raw == raw } }
     }
 
@@ -200,7 +203,8 @@ internal data class TodayWidget(
          * floor a SMALL tile has to meet, and a single figure on a square was exactly what the owner
          * rejected the evening before. Over two columns it says two things, which is what that size is for.
          */
-        val SHRINKABLE_CARDS = setOf(Kind.LastNight, Kind.Tonight, Kind.LastWorkout, Kind.Energy)
+        val SHRINKABLE_CARDS = setOf(Kind.LastNight, Kind.Tonight, Kind.LastWorkout, Kind.Energy,
+                                     Kind.Nutrition)
         /** iOS's kinds drawn as a tile, small or over two columns (`isWide` false). */
         val TILE_KINDS = setOf(Kind.Measure, Kind.LiveHeart, Kind.Breathe, Kind.Strap, Kind.Water, Kind.AgeLess)
     }
@@ -225,6 +229,7 @@ internal object TodayWidgets {
     val catalogMeasures: List<String> = listOf("vo2max_est", "stress", "calories_in", "fitness_age",
                                                "sleep_debt_min", "hr_zones13_min", "hr_zones45_min",
                                                "body_fat", "lean_mass", "vitality", "body_age", "mood",
+                                               "protein_g",
                                                "recovery", "strain", "sleep_performance")
 
     /**
@@ -259,7 +264,7 @@ internal object TodayWidgets {
                                 KeyMetric.RESPIRATORY.raw, "vo2max_est", "stress"),
         Section.Body to listOf(KeyMetric.WEIGHT.raw, "body_fat", "lean_mass", KeyMetric.SKIN_TEMP.raw,
                                "fitness_age", "vitality", "body_age"),
-        Section.Food to listOf("calories_in"),
+        Section.Food to listOf("calories_in", "protein_g"),
         Section.Mind to listOf("mood"),
     )
 
@@ -649,6 +654,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                             TodayWidget.Kind.TrainingLoad -> TodayTrainingLoadForge(onOpenTrainingLoad)
                             TodayWidget.Kind.Goals -> TodayGoals()
                             TodayWidget.Kind.Energy -> TodayEnergy(w.compactSize)
+                            TodayWidget.Kind.Nutrition -> TodayNutrition(w.compactSize, onOpenFood)
                             TodayWidget.Kind.LiveHeart ->
                                 if (w.size == TodayWidget.Size.Wide) HeartCard(viewModel, date, live = date == com.noop.ui.logicalDayNow())
                                 else LiveHeartTile(viewModel, showsCurve = w.size == TodayWidget.Size.Medium, dense = columns > 2,
@@ -1158,6 +1164,7 @@ private fun measureLabel(key: String): String = when (key) {
     "stress" -> stringResource(R.string.forge_vt_stress)
     "fitness_age" -> stringResource(R.string.today_card_fitness_age)
     "calories_in" -> stringResource(R.string.forge_mc_calories_in)
+    "protein_g" -> stringResource(R.string.food_protein)
     "sleep_debt_min" -> stringResource(R.string.forge_m_sleep_debt)
     "hr_zones13_min" -> stringResource(R.string.forge_m_zones13)
     "hr_zones45_min" -> stringResource(R.string.forge_m_zones45)
@@ -1180,7 +1187,7 @@ private fun measureLabel(key: String): String = when (key) {
 private fun measureTint(key: String): Color = when (key) {
     "vo2max_est" -> Forge.colors.charge
     "stress" -> Forge.colors.effort
-    "calories_in" -> ForgeTokens.StrandPalette.energyHighlight.resolve()
+    "calories_in", "protein_g" -> ForgeTokens.StrandPalette.energyHighlight.resolve()
     "body_fat", "lean_mass" -> ForgeTokens.StrandPalette.metricAmber.resolve()
     "hr_zones13_min", "hr_zones45_min" -> ForgeTokens.StrandPalette.metricRose.resolve()
     "mood" -> ForgeTokens.StrandPalette.metricCyan.resolve()
@@ -1192,6 +1199,7 @@ private fun measureIcon(key: String): ImageVector = when (key) {
     "stress" -> Icons.Rounded.Bolt
     "fitness_age" -> Icons.Rounded.Favorite
     "calories_in" -> Icons.Rounded.LocalFireDepartment
+    "protein_g" -> Icons.Rounded.Restaurant
     "sleep_debt_min", "body_age" -> Icons.Rounded.HourglassBottom
     "hr_zones13_min", "hr_zones45_min" -> Icons.Rounded.Favorite
     "body_fat", "lean_mass" -> Icons.Rounded.Scale
@@ -1360,6 +1368,7 @@ private fun WidgetGallery(cycleOn: Boolean, onAdd: (TodayWidget) -> Unit, onClos
             }
             val coach = com.noop.ui.BottomBarStyleStore.coachEnabled
             val ageless = com.noop.core.CoreFeatures.healthspan(context)
+            val foodLogged = rememberNutritionReading(0)?.logged == true
             data class Entry(val icon: androidx.compose.ui.graphics.vector.ImageVector, val title: String, val sub: String, val widget: TodayWidget)
             fun w(kind: TodayWidget.Kind, wide: Boolean = false) = TodayWidget(kind = kind, wide = wide)
             val agelessTitle = stringResource(R.string.forge_ageless_title)

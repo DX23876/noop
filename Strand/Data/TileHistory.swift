@@ -53,6 +53,9 @@ enum TileMeasures {
         ("body_age", MetricResolver.whoopSource, .body),
 
         ("calories_in", "nutrition-csv", .food),
+        // The one macro with a goal of its own in the core, so the only one worth a tile beside the
+        // Nutrition card (owner, 2026-11-18).
+        ("protein_g", "nutrition-csv", .food),
 
         ("mood", "noop-mood", .mind),
     ]

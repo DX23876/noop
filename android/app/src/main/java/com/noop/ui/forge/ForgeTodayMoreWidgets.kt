@@ -63,7 +63,7 @@ import java.time.ZonedDateTime
 
 /** The card head the new design's wide widgets share, as iOS's `ForgeWidgetCard`: the title and a chevron. */
 @Composable
-private fun WidgetHead(title: String) {
+internal fun WidgetHead(title: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(title, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.text,
              modifier = Modifier.weight(1f))

@@ -18,6 +18,8 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
     enum Kind: String, Codable, CaseIterable {
         case measure, trainingLoad, goals, energy, water, liveHeart, momentum, lastNight, weekPlan, coachNote, ageless, lastWorkout
         case cycle, tonight, breathe, nextSession, changes, whatWorks, strap, dietGoal
+        /// The day's eating against its goal, with the macros (owner, 2026-11-18).
+        case nutrition
     }
 
     var id = UUID()
@@ -53,7 +55,7 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
     /// section or behind an enum that needs its own form, and a size control offering a size nothing can
     /// draw is worse than no control. The rest carry a sentence or an action, and a shortened sentence is
     /// not a smaller fact.
-    static let shrinkableCards: Set<Kind> = [.lastNight, .tonight, .lastWorkout, .energy]
+    static let shrinkableCards: Set<Kind> = [.lastNight, .tonight, .lastWorkout, .energy, .nutrition]
 
     var isWide: Bool {
         switch kind {
@@ -530,6 +532,7 @@ struct ForgeTodayWidgetView: View {
         // The name inside the card, as every other widget carries it.
         case .goals: GoalsTodaySection(headerOutside: false)
         case .energy: ForgeEnergyWidget(compact: widget.compactSize)
+        case .nutrition: ForgeNutritionWidget(compact: widget.compactSize)
         case .water: ForgeWaterWidget(detailed: widget.size == .medium)
         case .liveHeart:
             switch widget.size {
@@ -1765,6 +1768,9 @@ struct ForgeWidgetGallery: View {
     @AppStorage(AppModel.cycleAwarenessKey) private var cycleEnabled = false
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
     @AppStorage(HealthspanFeature.defaultsKey) private var healthspanEnabled = false
+    @EnvironmentObject private var repo: Repository
+    /// Whether anything has been eaten at all, which decides if the Nutrition tile is offered.
+    @State private var foodLogged = false
 
     var body: some View {
         NavigationStack {
@@ -1792,6 +1798,12 @@ struct ForgeWidgetGallery: View {
                         subtitle: String(localized: "Wide · this week's goals")) { store.add(.init(kind: .goals)) }
                     row(symbol: "flame.fill", title: String(localized: "Energy"),
                         subtitle: String(localized: "Wide · burned and eaten today")) { store.add(.init(kind: .energy)) }
+                    // Offered only once something has been eaten, as the cycle card is offered only to the
+                    // people it is for: an empty Nutrition tile is a goal with nothing to weigh against it.
+                    if foodLogged {
+                        row(symbol: "fork.knife", title: String(localized: "Nutrition"),
+                            subtitle: String(localized: "Small · what is left of today")) { store.add(.init(kind: .nutrition)) }
+                    }
                     row(symbol: "figure.run", title: String(localized: "Latest workout"),
                         subtitle: String(localized: "Wide · your last session and its Effort")) { store.add(.init(kind: .lastWorkout)) }
                     if healthspanEnabled {
@@ -1841,6 +1853,7 @@ struct ForgeWidgetGallery: View {
             .navigationTitle(Text("Add a widget"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .task { foodLogged = await ForgeNutritionReading.load(repo: repo, profile: profile)?.logged ?? false }
         }
         .presentationDetents([.medium, .large])
     }

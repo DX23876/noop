@@ -7282,4 +7282,13 @@ NOOP не задаёт фиксированный порог, а берёт ег
         <item quantity="other">На %1$d лет старше возраста</item>
     </plurals>
     <string name="forge_tile_calm_share">%1$d %% дня спокойно</string>
+    <string name="forge_nut_title">Питание</string>
+    <string name="forge_nut_left">осталось сегодня</string>
+    <string name="forge_nut_eaten_of">Съедено %1$s из %2$s ккал</string>
+    <string name="forge_nut_macros">Б %1$d · У %2$d · Ж %3$d г</string>
+    <string name="forge_nut_macros_goal">Б %1$d/%2$d · У %3$d/%4$d · Ж %5$d/%6$d г</string>
+    <string name="forge_nut_week">Эта неделя</string>
+    <string name="forge_g_nutrition_sub">Маленький · сколько осталось сегодня</string>
+    <string name="forge_nut_grams">%1$d g</string>
+    <string name="forge_nut_grams_of">%1$d / %2$d g</string>
 </resources>

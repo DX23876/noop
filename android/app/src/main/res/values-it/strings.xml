@@ -7244,4 +7244,13 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
         <item quantity="other">%1$d anni sopra la tua età</item>
     </plurals>
     <string name="forge_tile_calm_share">%1$d %% della giornata calmo</string>
+    <string name="forge_nut_title">Alimentazione</string>
+    <string name="forge_nut_left">resta oggi</string>
+    <string name="forge_nut_eaten_of">%1$s di %2$s kcal mangiate</string>
+    <string name="forge_nut_macros">P %1$d · C %2$d · G %3$d g</string>
+    <string name="forge_nut_macros_goal">P %1$d/%2$d · C %3$d/%4$d · G %5$d/%6$d g</string>
+    <string name="forge_nut_week">Questa settimana</string>
+    <string name="forge_g_nutrition_sub">Piccolo · quanto resta oggi</string>
+    <string name="forge_nut_grams">%1$d g</string>
+    <string name="forge_nut_grams_of">%1$d / %2$d g</string>
 </resources>
