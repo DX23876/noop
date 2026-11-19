@@ -15,6 +15,15 @@ public enum NoopMetrics {
     public static let gap: CGFloat = 12          // gap between cards
     /// Breathing room between sections: 24 in the new design (its 4/8 grid), 22 in the classic one.
     public static var sectionGap: CGFloat { NoopVisualStyle.skin == .forge ? 24 : 22 }
+    /// The room the new design's Today keeps between the rings and whatever follows them, more than an
+    /// ordinary section break so the hero card reads as the page's head rather than as the first of a
+    /// list. iOS splits it (under the chamber, then over the tiles); Android applies it in one place.
+    /// Declared here because this package is where a measure both platforms keep has to live: Android's
+    /// copy is generated from it (`Tools/design_tokens.py`).
+    public static let heroGap: CGFloat = 32
+    /// The part of [heroGap] that sits directly under the hero card on iOS; the rest is the tile area's
+    /// own top padding, so a card that brings its own room (the day's hint) lands inside the gap.
+    public static let heroGapUnderCard: CGFloat = 12
     public static let screenPadding: CGFloat = 16
     public static let tileHeight: CGFloat = 96   // Design Reset: tighter metric tile
     // Key Metrics grid: one fixed height every tile snaps to, so a sparkline-and-caption tile and a

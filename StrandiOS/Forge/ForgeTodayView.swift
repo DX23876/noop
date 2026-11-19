@@ -169,7 +169,8 @@ struct ForgeTodayView: View {
                                 withAnimation(.easeOut(duration: 0.15)) { cardUnderClock = under }
                             }
                             // Room between the rings and what follows, so the card reads as the page's head.
-                            .padding(.bottom, 12)
+                            // The measure is `NoopMetrics.heroGap`, which Android keeps in one piece.
+                            .padding(.bottom, NoopMetrics.heroGapUnderCard)
                             // A detected activity waiting for an answer, then the day's one hint. Each brings
                             // its own room rather than taking the stack's: on a day with neither, the two
                             // empty slots still took their spacing, and the rings then sat about twenty
@@ -185,7 +186,7 @@ struct ForgeTodayView: View {
                         }
                     }
                     .padding(.horizontal, 16)
-                    .padding(.top, 20)
+                    .padding(.top, NoopMetrics.heroGap - NoopMetrics.heroGapUnderCard)
                     .padding(.bottom, 16)
                     dayList
                 }
