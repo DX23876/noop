@@ -1081,6 +1081,8 @@ struct ForgeMeasureWidget: View {
 
     @ViewBuilder private func wideChart(_ m: MetricDescriptor?) -> some View {
         let unit = leadUnit(m)
+        // Thirty points, which for a measure written weekly is thirty weeks: the window is counted in
+        // readings, as Android counts it, so the two phones draw the same stretch of history.
         let series = Array(values.suffix(30))
         NavigationLink(value: TabRoute.metricSourced(key: m?.key ?? key, source: m?.source ?? source ?? Repository.whoopSource)) {
             VStack(alignment: .leading, spacing: 10) {
@@ -1106,7 +1108,8 @@ struct ForgeMeasureWidget: View {
                                   goal: MeasureFacts.storedTarget(forKey: key), tint: Self.tint(key),
                                   height: Self.wideChartHeight)
                 } else if series.count > 1 {
-                    TrendChart(points: Self.points(series), gradient: Gradient(colors: [Self.tint(key).opacity(0.35), Self.tint(key)]),
+                    TrendChart(points: Self.points(Array(dayPoints.suffix(series.count))),
+                               gradient: Gradient(colors: [Self.tint(key).opacity(0.35), Self.tint(key)]),
                                valueRange: (series.min() ?? 0)...(max(series.max() ?? 1, (series.min() ?? 0) + 1)),
                                showsArea: true,
                                // No second reference drawn in here. The usual and the range are already in
@@ -1144,10 +1147,16 @@ struct ForgeMeasureWidget: View {
     /// by it, and the curve is then the same height on every phone instead of depending on its neighbour.
     static let wideChartHeight: CGFloat = 96
 
-    /// The last thirty days as the chart takes them, one point a day, oldest first.
-    static func points(_ values: [Double]) -> [TrendPoint] {
-        let start = Calendar.current.startOfDay(for: Date()).addingTimeInterval(-Double(values.count - 1) * 86_400)
-        return values.enumerated().map { TrendPoint(date: start.addingTimeInterval(Double($0.offset) * 86_400), value: $0.element) }
+    /// The drawn window as the chart takes it, each point on the day it was actually recorded.
+    ///
+    /// Counted back one day per point until 2026-11-19, which is only true of a measure recorded daily.
+    /// The fitness age is written weekly, so thirty of its points span seven months, and the chart dated
+    /// them as thirty days: an axis reading "3 Nov to 15 Nov" under half a year of readings. Seen in the
+    /// side-by-side, where Android's axis said July to November for the same tile.
+    static func points(_ points: [MeasureFacts.Point]) -> [TrendPoint] {
+        points.compactMap { point in
+            WeightSeries.date(forDay: point.day).map { TrendPoint(date: $0, value: point.value) }
+        }
     }
 
     /// The figure the tile leads with. Skin temperature is formatted on the scale it is actually on, so a
