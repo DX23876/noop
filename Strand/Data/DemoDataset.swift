@@ -61,10 +61,21 @@ public enum DemoDataset {
         if !plan.appleWorkouts.isEmpty { _ = try await store.upsertWorkouts(plan.appleWorkouts, deviceId: appleId) }
         if !plan.cycle.isEmpty { _ = try await store.upsertMetricSeries(plan.cycle, deviceId: CycleTrackingStore.sourceId) }
         // The plan last: its week references its routines, and `upsertTrainingPlan` is the call that
-        // writes them in that order. A demo store has none of its own, so nothing is being replaced.
-        if ((try? await store.trainingPrograms()) ?? []).isEmpty {
+        // writes them in that order.
+        //
+        // The test is NOT whether a plan exists. Every fresh store already carries one, written by the
+        // migration that gave routines a plan to belong to: no title, no week, active. So "is there a
+        // plan" is false on a brand-new store and the demo plan was silently skipped (2026-11-19). The
+        // honest test is whether anybody has set one up, which is a title or a week; the untouched plan
+        // from the migration has neither, and it is taken away with the same breath, or Training would
+        // show the demo's plan beside a nameless empty one.
+        let existing = (try? await store.trainingPrograms()) ?? []
+        if existing.allSatisfy({ $0.title.isEmpty && $0.schedule.isEmpty }) {
             let p = program(today: today)
             try await store.upsertTrainingPlan(p.program, routines: p.routines)
+            for blank in existing where blank.id != p.program.id {
+                try? await store.deleteTrainingProgram(id: blank.id)
+            }
         }
     }
 

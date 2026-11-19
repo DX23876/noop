@@ -23,7 +23,8 @@ object CoreTile {
      * two numbers for one fact begin to disagree.
      */
     data class Facts(val today: Double?, val weekAverage: Double?, val weekTotal: Double?,
-                     val lastValue: Double?, val lastDay: String?, val daysSinceLast: Int?,
+                     val lastValue: Double?, val lastValueText: String?,
+                     val lastDay: String?, val daysSinceLast: Int?,
                      val weekChange: Double?, val quarterChange: Double?,
                      val target: Double?, val targetLeft: Double?,
                      /** The same figures as the tile writes them, formatted in the core so both phones round alike. */
@@ -62,6 +63,21 @@ object CoreTile {
     fun resolvesItsTarget(key: String): Boolean = key == "protein_g"
 
     /**
+     * Which colour each measure is drawn in, by NAME ("charge", "effort", "rest", "cyan", "rose",
+     * "amber", "energy"), from the shared table. The palette stays this phone's; which measure gets
+     * which name is one decision and the core holds it, because the two tables had drifted apart.
+     *
+     * Asked once and held: it cannot change while the app runs.
+     */
+    val tints: Map<String, String> by lazy {
+        val json = if (SwiftCore.available) SwiftCore.call("tile.tints", "{}") else null
+        runCatching {
+            val o = JSONObject(json ?: return@runCatching emptyMap<String, String>())
+            o.keys().asSequence().associateWith { o.optString(it) }
+        }.getOrDefault(emptyMap())
+    }
+
+    /**
      * [days] and [values] are one series, oldest first and the same length; [today] is the logical day key.
      * [key] is the shared CATALOGUE key ("rhr", not "restingHr"), because that is what decides the decimals.
      */
@@ -76,7 +92,7 @@ object CoreTile {
             fun d(name: String): Double? = if (o.isNull(name)) null else o.optDouble(name)
             fun t(name: String): String? = if (o.isNull(name)) null else o.optString(name)
             fun i(name: String): Int? = if (o.isNull(name)) null else o.optInt(name)
-            Facts(d("today"), d("weekAverage"), d("weekTotal"), d("lastValue"),
+            Facts(d("today"), d("weekAverage"), d("weekTotal"), d("lastValue"), t("lastValueText"),
                   t("lastDay"), i("daysSinceLast"),
                   d("weekChange"), d("quarterChange"), d("target"), d("targetLeft"),
                   t("todayText"), t("weekAverageText"), t("weekTotalText"), t("weekChangeText"),

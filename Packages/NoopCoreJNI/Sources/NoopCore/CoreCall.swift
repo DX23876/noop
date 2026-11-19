@@ -56,7 +56,7 @@ public enum CoreCall {
             }
             struct Wire: Encodable {
                 let today: Double?, weekAverage: Double?, weekTotal: Double?
-                let lastValue: Double?, lastDay: String?, daysSinceLast: Int?
+                let lastValue: Double?, lastValueText: String?, lastDay: String?, daysSinceLast: Int?
                 let weekChange: Double?, quarterChange: Double?, target: Double?, targetLeft: Double?
                 let todayText: String?, weekAverageText: String?, weekTotalText: String?
                 let weekChangeText: String?, quarterChangeText: String?, targetLeftText: String?
@@ -68,7 +68,8 @@ public enum CoreCall {
                 let strip: [MeasureFacts.StripEntry]
             }
             return CoreRead.json(Wire(today: facts.today, weekAverage: facts.weekAverage, weekTotal: facts.weekTotal,
-                                      lastValue: facts.lastValue, lastDay: facts.lastDay,
+                                      lastValue: facts.lastValue, lastValueText: text(facts.lastValue),
+                                      lastDay: facts.lastDay,
                                       daysSinceLast: facts.daysSinceLast, weekChange: facts.weekChange,
                                       quarterChange: facts.quarterChange,
                                       target: facts.target, targetLeft: facts.targetLeft,
@@ -279,6 +280,12 @@ public enum CoreCall {
         case "media.cancel": await CoreExerciseMedia.shared.cancel(); return ok(true)
         case "media.disabled": await CoreExerciseMedia.shared.setDisabled(args["disabled"] as? Bool ?? false); return ok(true)
         case "media.delete": return ok(await CoreExerciseMedia.shared.delete())
+        case "tile.tints":
+            // Which colour each measure is drawn in, by name. The palette is each phone's own; which
+            // measure gets which name is one decision, and it is `TileMeasures.tint`. Asked once and
+            // held, because it never changes while the app runs.
+            return CoreRead.json(Dictionary(uniqueKeysWithValues:
+                TileMeasures.keys.map { ($0, TileMeasures.tint(forKey: $0).rawValue) }))
         case "demo.person":
             // The demo account's body, from the shared dataset, so the emulator's profile and the
             // iPhone's hold one person. Kotlin writes it into its own prefs file; the figures are not

@@ -442,11 +442,14 @@ class ProfileStore(private val prefs: SharedPreferences) {
         }
     }
 
-    /** Whether nobody has said who this is yet: none of the three keys the profile treats as set (the
-     *  #146 date of birth, the legacy age it mirrors, and the weight). The demo seed asks before it writes
-     *  a synthetic person, so a wearer who once started a demo build keeps their own figures. */
-    fun isUnset(): Boolean =
-        !prefs.contains(KEY_DOB) && !prefs.contains(KEY_AGE) && !prefs.contains(KEY_WEIGHT)
+    /** Whether nobody has said who this is yet. The demo seed asks before it writes a synthetic person,
+     *  so a wearer who once started a demo build keeps their own figures.
+     *
+     *  It asks about the height and the cohort, not the age or the weight: [dateOfBirthMillis] WRITES a
+     *  date of birth and its mirrored age the first time anybody reads it, and the Health Connect weight
+     *  sync copies a weight across, so those keys are set on a profile nobody has touched. Nothing
+     *  derives a height or a cohort. */
+    fun isUnset(): Boolean = !prefs.contains(KEY_HEIGHT) && !prefs.contains(KEY_SEX)
 
     companion object {
         internal const val PREFS = "noop_profile"

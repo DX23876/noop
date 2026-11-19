@@ -1,6 +1,7 @@
 import XCTest
 @testable import NoopCore
 import StrandTraining
+import WhoopStore
 
 /// The demo account both phones seed (`DemoDataset`). What is tested is what a comparison depends on:
 /// that it is the same account every time and on every platform, and that nothing it writes is empty.
@@ -155,5 +156,20 @@ final class DemoDatasetTests: XCTestCase {
         XCTAssertLessThan(try XCTUnwrap(weight.target), try XCTUnwrap(weight.baseline))
         XCTAssertTrue(goals.allSatisfy { $0.targetDate ?? day > day }, "every goal is still ahead")
         XCTAssertTrue(goals.allSatisfy { $0.status == .active })
+    }
+
+    /// Seeding the whole dataset into a store must land every lane, the plan among them. The plan write is
+    /// the one that can throw, and a throw there used to take the rest of the seed down with it.
+    func testSeedingAStoreLandsEveryLane() async throws {
+        let store = try await WhoopStore.inMemory()
+        let wrote = try await DemoDataset.seedIfEmpty(store: store, today: day)
+        XCTAssertTrue(wrote)
+        let programs = try await store.trainingPrograms()
+        XCTAssertEqual(programs.map(\.title), ["Upper and lower, twice a week"])
+        XCTAssertEqual(programs.first?.schedule.count, 4, "four training days in the week")
+        let cycle = try await store.metricSeries(deviceId: CycleTrackingStore.sourceId,
+                                                 key: CycleTrackingStore.periodStartKey,
+                                                 from: "0000-01-01", to: "9999-12-31")
+        XCTAssertFalse(cycle.isEmpty)
     }
 }

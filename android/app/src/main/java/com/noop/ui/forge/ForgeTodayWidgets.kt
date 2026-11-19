@@ -382,6 +382,9 @@ internal object TodayWidgets {
         TodayWidget(kind = TodayWidget.Kind.Measure, key = KeyMetric.WEIGHT.raw),
         TodayWidget(kind = TodayWidget.Kind.Measure, key = TodayWidget.SLEEP_KEY),
         TodayWidget(kind = TodayWidget.Kind.TrainingLoad),
+        // The kit round's two Food tiles, so a demo layout shows them as the iPhone's does.
+        TodayWidget(kind = TodayWidget.Kind.Nutrition),
+        TodayWidget(kind = TodayWidget.Kind.Measure, key = "protein_g"),
     )
 
     internal fun seedDemoIfRequested(context: Context, intent: android.content.Intent?) {
@@ -856,6 +859,8 @@ private fun CatalogMeasureTile(key: String, history: CoreTile.History, today: St
     val series = history.values
     val latest = series.lastOrNull()
     val decimal = remember { java.text.DecimalFormat("#.#") }
+    // One facts read for the whole tile: the figure, the caption and the goal all stand on it.
+    val tileFacts = rememberFacts(key, history, today)
     val value = when {
         latest == null -> null
         key == "stress" -> stringResource(when {
@@ -863,8 +868,10 @@ private fun CatalogMeasureTile(key: String, history: CoreTile.History, today: St
             latest < 2.0 -> R.string.forge_vt_medium
             else -> R.string.forge_vt_high
         })
-        key == "fitness_age" -> kotlin.math.round(latest).toInt().toString()
-        else -> decimal.format(latest)
+        // The figure as the CORE writes it (`MeasureTileReading.figure`), which decides the decimals per
+        // measure. Formatting it here as well printed 91,1 g of protein beside the iPhone's 91 g, from
+        // one number (2026-11-19). The local format is only what stands there until the core answers.
+        else -> tileFacts?.todayText ?: tileFacts?.lastValueText ?: decimal.format(latest)
     }
     val tint = measureTint(key)
     val change = rememberTileDelta(key, series)
@@ -886,11 +893,11 @@ private fun CatalogMeasureTile(key: String, history: CoreTile.History, today: St
             runCatching { CoreStress.day(NoopPrefs.stressPersonalBaseline(context))?.calmShare }.getOrNull()
         }
     }
-    val facts = if (!detailed) null
-                else if (key == "stress") calm?.let { stringResource(R.string.forge_tile_calm_share, (it * 100).roundToInt()) }
-                else rememberFactsLine(key, history, today, "", calendarAge)
+    val factsLine = if (!detailed) null
+                    else if (key == "stress") calm?.let { stringResource(R.string.forge_tile_calm_share, (it * 100).roundToInt()) }
+                    else rememberFactsLine(key, history, today, "", calendarAge)
     ForgeTodayTile(measureIcon(key), tint, measureLabel(key), value, "",
-                   if (detailed) (facts ?: change?.summary?.let { summaryLine(it, "") }) else null, noData, dense, modifier,
+                   if (detailed) (factsLine ?: change?.summary?.let { summaryLine(it, "") }) else null, noData, dense, modifier,
                    // The word carries no direction, so a change chip beside it would be two readings of one
                    // thing in two languages.
                    delta = if (key == "stress") null else change?.text,
@@ -1187,16 +1194,20 @@ private fun measureLabel(key: String): String = when (key) {
  *
  * One resolver, because the two forms used to answer differently: the two-column Fitness Age came out in
  * the Rest colour and the row-wide one in Charge's, so one measure wore two colours on one screen (seen in
- * the side-by-side on 2026-11-19). iOS's twin is `ForgeMeasureWidget.tint`.
+ * the side-by-side on 2026-11-19).
+ *
+ * WHICH colour is decided once, in the shared table (`TileMeasures.tint`, through `CoreTile.tints`); this
+ * only says what that name is in this phone's palette. The two tables had drifted apart on four measures
+ * (2026-11-19): Charge, Effort and Rest, and protein, the weight and the skin temperature.
  */
 @Composable
-private fun measureTint(key: String): Color = when (key) {
-    "vo2max_est" -> Forge.colors.charge
-    "stress" -> Forge.colors.effort
-    "calories_in", "protein_g" -> ForgeTokens.StrandPalette.energyHighlight.resolve()
-    "body_fat", "lean_mass" -> ForgeTokens.StrandPalette.metricAmber.resolve()
-    "hr_zones13_min", "hr_zones45_min" -> ForgeTokens.StrandPalette.metricRose.resolve()
-    "mood" -> ForgeTokens.StrandPalette.metricCyan.resolve()
+private fun measureTint(key: String): Color = when (CoreTile.tints[key]) {
+    "charge" -> Forge.colors.charge
+    "effort" -> Forge.colors.effort
+    "cyan" -> ForgeTokens.StrandPalette.metricCyan.resolve()
+    "rose" -> ForgeTokens.StrandPalette.metricRose.resolve()
+    "amber" -> ForgeTokens.StrandPalette.metricAmber.resolve()
+    "energy" -> ForgeTokens.StrandPalette.energyHighlight.resolve()
     else -> Forge.colors.rest
 }
 

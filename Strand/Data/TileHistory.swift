@@ -63,6 +63,33 @@ enum TileMeasures {
         ("mood", "noop-mood", .mind),
     ]
 
+    /// Which colour a measure is drawn in, NAMED rather than coloured.
+    ///
+    /// Each phone keeps its own palette and its own way of resolving a colour; which measure gets which
+    /// colour is one decision, and it belongs here. The two tables had drifted apart: the iPhone drew
+    /// Charge, Effort and Rest in the plain accent blue because its table never listed them, and protein
+    /// blue where Android drew it in the energy colour; Android drew the weight and the skin temperature
+    /// in the sleep violet where the iPhone used amber. Four measures, two phones, one account
+    /// (2026-11-19).
+    ///
+    /// Unlisted falls to `rest`, which is what Android's table already did.
+    enum Tint: String, Sendable, CaseIterable {
+        case charge, effort, rest, cyan, rose, amber, energy
+    }
+
+    static func tint(forKey key: String) -> Tint {
+        switch key {
+        case "recovery", "steps", "vo2max_est": return .charge
+        case "strain", "stress": return .effort
+        case "sleep_performance", "sleep_total_min", "sleep_debt_min": return .rest
+        case "hrv", "spo2", "mood": return .cyan
+        case "rhr", "resp_rate", "hr_zones13_min", "hr_zones45_min": return .rose
+        case "weight", "skin_temp", "body_fat", "lean_mass": return .amber
+        case "active_kcal", "calories_in", "protein_g": return .energy
+        default: return .rest
+        }
+    }
+
     /// The keys alone, in the same order.
     static var keys: [String] { all.map(\.key) }
 

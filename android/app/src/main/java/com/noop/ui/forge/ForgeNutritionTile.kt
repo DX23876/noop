@@ -74,12 +74,15 @@ internal fun rememberNutritionReading(revision: Int): NutritionReading? {
                 val day = CoreFood.day(today)
                 val week = CoreFood.week(today, today, withScore = false, sex = person.sex)
                 NutritionReading(
-                    eatenKcal = day?.totals?.get("kcal"),
+                    // The core's own nutrient keys ("energy_kcal", not "kcal"), which is what every other
+                    // Android reader of a day's totals already uses. Shortened names read as nothing at
+                    // all, so the tile said "– left today" over a week of logged meals (2026-11-19).
+                    eatenKcal = day?.totals?.get("energy_kcal"),
                     goalKcal = goals?.kcal,
-                    proteinG = day?.totals?.get("protein"), carbsG = day?.totals?.get("carbs"),
-                    fatG = day?.totals?.get("fat"),
+                    proteinG = day?.totals?.get("protein_g"), carbsG = day?.totals?.get("carbs_g"),
+                    fatG = day?.totals?.get("fat_g"),
                     proteinGoal = goals?.proteinG, carbsGoal = goals?.carbsG, fatGoal = goals?.fatG,
-                    weekKcal = week?.days.orEmpty().map { it.day to (it.totals["kcal"] ?: 0.0) },
+                    weekKcal = week?.days.orEmpty().map { it.day to (it.totals["energy_kcal"] ?: 0.0) },
                 )
             }.getOrNull()
         }

@@ -1398,19 +1398,17 @@ struct ForgeMeasureWidget: View {
     }
 
     /// Each measure in the colour the Liquid Today tiles give it.
+    /// WHICH colour a measure gets is decided once, in the shared table (`TileMeasures.tint`); this only
+    /// says what that name is in this phone's palette.
     static func tint(_ key: String) -> Color {
-        switch key {
-        case "hrv", "spo2": return StrandPalette.metricCyan
-        case "rhr": return StrandPalette.metricRose
-        case "steps": return StrandPalette.chargeColor
-        case "sleep_total_min": return StrandPalette.restColor
-        case "weight", "skin_temp", "body_fat", "lean_mass": return StrandPalette.metricAmber
-        case "active_kcal", "calories_in": return StrandPalette.energyHighlight
-        case "stress": return StrandPalette.effortColor
-        case "hr_zones13_min", "hr_zones45_min": return StrandPalette.metricRose
-        case "mood": return StrandPalette.metricCyan
-        case "vo2max_est": return StrandPalette.chargeColor
-        default: return StrandPalette.accent
+        switch TileMeasures.tint(forKey: key) {
+        case .charge: return StrandPalette.chargeColor
+        case .effort: return StrandPalette.effortColor
+        case .rest: return StrandPalette.restColor
+        case .cyan: return StrandPalette.metricCyan
+        case .rose: return StrandPalette.metricRose
+        case .amber: return StrandPalette.metricAmber
+        case .energy: return StrandPalette.energyHighlight
         }
     }
 

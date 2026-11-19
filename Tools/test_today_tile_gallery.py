@@ -173,6 +173,33 @@ class TodayTileGalleryTests(unittest.TestCase):
         self.assertIn("average = null", chart,
                       "the row-wide tile passes no mean, so no dashed rule is drawn under its caption")
 
+    def test_neither_phone_keeps_a_colour_table_of_its_own(self):
+        """WHICH colour a measure is drawn in is one decision, in the shared table. Two tables drifted:
+        the iPhone drew Charge, Effort and Rest in the plain accent because its table never listed them,
+        and protein in that accent where Android used the energy colour; Android drew the weight and the
+        skin temperature in the sleep violet where the iPhone used amber."""
+        shared = (ROOT / "Strand/Data/TileHistory.swift").read_text(encoding="utf-8")
+        table = shared[shared.index("static func tint(forKey key: String) -> Tint"):]
+        table = table[:table.index("\n    }")]
+        named = set(re.findall(r'"([a-z0-9_]+)"', table))
+        self.assertIn("recovery", named)
+        self.assertIn("protein_g", named)
+
+        apple = (ROOT / "StrandiOS/Forge/ForgeTodayWidgets.swift").read_text(encoding="utf-8")
+        body = apple[apple.index("static func tint(_ key: String) -> Color"):]
+        body = body[:body.index("\n    }")]
+        self.assertIn("TileMeasures.tint(forKey: key)", body)
+        self.assertEqual([], re.findall(r'case "([a-z0-9_]+)"', body),
+                         "the Apple side maps names to colours, it does not name measures")
+
+        kotlin = (ROOT / "android/app/src/main/java/com/noop/ui/forge/ForgeTodayWidgets.kt").read_text(encoding="utf-8")
+        body = kotlin[kotlin.index("private fun measureTint(key: String): Color"):]
+        body = body[:body.index("\n}")]
+        self.assertIn("CoreTile.tints[key]", body)
+        self.assertEqual([], [m for m in re.findall(r'"([a-z0-9_]+)"', body)
+                              if m not in {"charge", "effort", "rest", "cyan", "rose", "amber", "energy"}],
+                         "the Kotlin side maps names to colours, it does not name measures")
+
     def test_android_never_names_a_source_for_a_tile_itself(self):
         """Android asks the core by key (`CoreTile.history`). The moment it passes a source of its own, the
         table above stops being the one answer to "where is this tile's history read from"."""

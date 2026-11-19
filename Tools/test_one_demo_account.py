@@ -74,11 +74,14 @@ class OneDemoPersonTests(unittest.TestCase):
     def test_both_platforms_refuse_a_profile_somebody_has_filled_in(self):
         apple = (ROOT / "Strand/Data/DemoPerson.swift").read_text(encoding="utf-8")
         self.assertIn("applyIfUnset", apple)
-        self.assertRegex(apple, r"allSatisfy\(\{ defaults\.object\(forKey: \$0\) == nil \}\)")
+        self.assertRegex(apple, r"saidKeys\.allSatisfy\(\{ defaults\.object\(forKey: \$0\) == nil \}\)")
+        # The height and the cohort, never the age or the weight: those two the app writes by itself on a
+        # profile nobody has touched, so a guard built on them refuses every time.
+        self.assertIn('static let saidKeys = ["profile.heightCm", "profile.sex"]', apple)
         android = (ANDROID / "ui/DemoPerson.kt").read_text(encoding="utf-8")
         self.assertIn("if (!profile.isUnset()) return false", android)
         settings = (ANDROID / "ui/SettingsScreen.kt").read_text(encoding="utf-8")
-        self.assertRegex(settings, r"fun isUnset\(\): Boolean =\s*\n?\s*!prefs\.contains\(KEY_DOB\)")
+        self.assertRegex(settings, r"fun isUnset\(\): Boolean = !prefs\.contains\(KEY_HEIGHT\) && !prefs\.contains\(KEY_SEX\)")
 
     def test_both_platforms_actually_call_it(self):
         """A writer nothing calls leaves the demo exactly as empty as before."""
