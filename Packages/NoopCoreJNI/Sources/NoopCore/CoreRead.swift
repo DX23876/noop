@@ -232,9 +232,14 @@ public enum CoreRead {
     /// from the day the caller is showing, so this never reads a different day than the screen does.
     public static func liveEffort(reader: StoreReader, hrMaxOverride: Int, age: Int,
                                   restingHr: Int?, storedEffort: Double?,
+                                  mode: DayCycleMode = .sleepOnset,
                                   now: Date = Date()) async -> Double? {
-        let (from, to) = LiveEffortScore.window(now: now)
-        let workout = LiveEffortScore.workoutWindow(now: now)
+        // The day in progress is the cycle the pass scores, not the calendar day (`CycleDayWindow`).
+        let nowTs = Int(now.timeIntervalSince1970)
+        let offsetSec = TimeZone.current.secondsFromGMT(for: now)
+        let cycle = await CycleDayWindow.current(reader: reader, now: nowTs, offsetSec: offsetSec)
+        let (from, to) = LiveEffortScore.window(now: now, mode: mode, cycle: cycle)
+        let workout = LiveEffortScore.workoutWindow(forWindow: (from, to))
         // The override, then the level the last pass measured, then the formula — resolved by the pass's
         // own resolver (`CoreAnalysis.passHRmax`), so the live score is taken against the same yardstick
         // as the stored day. Resolving it here instead read the measured level out of `UserDefaults`,

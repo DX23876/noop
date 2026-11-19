@@ -525,7 +525,8 @@ public enum CoreCall {
                 reader: reader, hrMaxOverride: (args["hrMaxOverride"] as? NSNumber)?.intValue ?? 0,
                 age: (args["age"] as? NSNumber)?.intValue ?? 0,
                 restingHr: (args["restingHr"] as? NSNumber)?.intValue,
-                storedEffort: (args["storedEffort"] as? NSNumber)?.doubleValue)])
+                storedEffort: (args["storedEffort"] as? NSNumber)?.doubleValue,
+                mode: DayCycleMode.persisted(args["dayCycleMode"] as? String))])
         case "read.hasAnyDay":
             // The first-run question, as one boolean: "is there any day at all" (`CoreRead.hasAnyDay`).
             return CoreRead.json(["any": await CoreRead.hasAnyDay(reader: reader)])

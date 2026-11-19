@@ -42,8 +42,18 @@ enum LiveEffort {
         // The window, the row limit, the resting fallback and which workout time counts are
         // `LiveEffortScore`'s, so the Android Today reads today's Effort by exactly the same rules
         // (issue #41). This does the two reads and supplies the profile's own HRmax.
-        let (from, to) = LiveEffortScore.window(now: now)
-        let workout = LiveEffortScore.workoutWindow(now: now)
+        //
+        // The day in progress is the cycle the pass scores, not the calendar day: in sleep-onset mode a
+        // midnight start counts the hours before bed into the wrong day (`CycleDayWindow`).
+        let mode = DayCycleMode.persisted(UserDefaults.standard.string(forKey: DayCycleMode.storageKey))
+        var cycle: CycleDayWindow.Cycle?
+        if let store = await repo.storeHandle() {
+            cycle = await CycleDayWindow.current(reader: repo.storeReader(store),
+                                                 now: Int(now.timeIntervalSince1970),
+                                                 offsetSec: TimeZone.current.secondsFromGMT(for: now))
+        }
+        let (from, to) = LiveEffortScore.window(now: now, mode: mode, cycle: cycle)
+        let workout = LiveEffortScore.workoutWindow(forWindow: (from, to))
         // #2460: the manual HR-max override, then the measured level, then Gellish, as the daily pass
         // resolves it for the STORED day. The two meet in `effectiveEffort`, which takes the larger, so a live value on the
         // formula's yardstick would outvote an override set because the real maximum is above it.

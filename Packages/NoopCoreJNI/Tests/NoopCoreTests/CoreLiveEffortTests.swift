@@ -42,22 +42,40 @@ final class CoreLiveEffortTests: XCTestCase {
                        MaxHeartRate.resolve(overrideBpm: 0, age: 40, measured: nil).bpm)
     }
 
-    /// The window is the logical day's own, so an hour recorded yesterday evening is not today's Effort.
-    func testTheWindowStartsAtTheLogicalDay() {
+    /// Without a cycle to go by the window is the logical day's own, as it always was.
+    func testTheWindowStartsAtTheLogicalDayWithoutACycle() {
         let now = Date()
-        let (from, to) = LiveEffortScore.window(now: now)
+        let (from, to) = LiveEffortScore.window(now: now, mode: .sleepOnset, cycle: nil)
         XCTAssertLessThanOrEqual(from, to)
         XCTAssertEqual(to, Int(now.timeIntervalSince1970))
         let dayStart = Calendar.current.startOfDay(for: LogicalDay.date(now))
         XCTAssertEqual(from, Int(dayStart.timeIntervalSince1970))
-        // Workout rows reach a day back, so a session begun before midnight still counts inside the window.
-        XCTAssertEqual(LiveEffortScore.workoutWindow(now: now).from, from - 86_400)
+        // Workout rows reach a day back, so a session begun before the day started still counts.
+        XCTAssertEqual(LiveEffortScore.workoutWindow(forWindow: (from, to)).from, from - 86_400)
+    }
+
+    /// With a cycle, the window begins where the wearer fell asleep — which is where the nightly pass
+    /// begins the day. The tester of 2026-11-19 slept 04:41 to 13:19 and found Effort at 47 on waking:
+    /// his waking hours between midnight and 04:41 belong to the cycle before this one, and a midnight
+    /// window counted them again here.
+    func testTheWindowStartsAtTheSleepOnsetOfTheCycle() {
+        let now = Date()
+        let nowTs = Int(now.timeIntervalSince1970)
+        let onset = nowTs - 9 * 3_600
+        let cycle = CycleDayWindow.Cycle(onset: onset, wakeDay: "2026-11-19")
+        let (from, to) = LiveEffortScore.window(now: now, mode: .sleepOnset, cycle: cycle)
+        XCTAssertEqual(from, onset)
+        XCTAssertEqual(to, nowTs)
+        // Midnight mode is the conventional civil day and keeps the logical-day start it always had.
+        let midnight = LiveEffortScore.window(now: now, mode: .midnight, cycle: cycle)
+        XCTAssertEqual(midnight.from,
+                       Int(Calendar.current.startOfDay(for: LogicalDay.date(now)).timeIntervalSince1970))
     }
 
     /// Worn heart rate scores, and the answer never falls below what the stored row already earned.
     func testAWornDayScoresAndNeverFallsBelowTheStoredRow() async throws {
         let store = try await WhoopStore.inMemory()
-        let (from, to) = LiveEffortScore.window(now: Date())
+        let (from, to) = LiveEffortScore.window(now: Date(), mode: .sleepOnset, cycle: nil)
         guard to - from > 3_600 else {
             throw XCTSkip("run before 01:00 local: the logical day is too short to lay down an hour of heart rate")
         }

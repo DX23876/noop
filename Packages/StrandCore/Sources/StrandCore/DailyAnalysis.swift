@@ -1066,15 +1066,25 @@ public final class DailyAnalysis {
 
         let nowTs = Int(now.timeIntervalSince1970)
         let offset = TimeZone.current.secondsFromGMT(for: now)
-        let dayStart = Self.midnightLocal(nowTs, offsetSec: offset)
-        let dayEnd = min(nowTs, dayStart + 86_400 - 1)
-        guard dayEnd >= dayStart else { return false }
-        let day = AnalyticsEngine.dayString(nowTs, offsetSec: offset)
         let computedId = deviceId + "-noop"
 
         let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
         let devices = (try? registry.all()) ?? []
         let activeId = (try? registry.activeDeviceId()) ?? deviceId
+        // The span and the day this refresh writes are the ones the full pass uses, not the calendar day
+        // (`CycleDayWindow`). They differed in sleep-onset mode, and since the write below only ever
+        // raises the stored value, the hours between midnight and the wearer's bedtime — which belong to
+        // the cycle BEFORE this one — were added to today's Effort and stayed there (2026-11-19).
+        let reader = StoreReader(store: store, activeDeviceId: activeId,
+                                 registeredWhoopIds: devices.compactMap {
+                                     $0.brand.caseInsensitiveCompare("WHOOP") == .orderedSame ? $0.id : nil
+                                 })
+        let mode = host.analysisSettings().dayCycleMode
+        let cycle = await CycleDayWindow.current(reader: reader, now: nowTs, offsetSec: offset)
+        let (dayStart, dayEnd) = CycleDayWindow.window(mode: mode, cycle: cycle, now: nowTs,
+                                                       offsetSec: offset)
+        guard dayEnd >= dayStart else { return false }
+        let day = CycleDayWindow.day(mode: mode, cycle: cycle, now: nowTs, offsetSec: offset)
         let owner = await Self.resolveDayOwner(
             day: day, from: dayStart, to: dayEnd, store: store, devices: devices,
             activeId: activeId, registry: registry, fallbackDeviceId: deviceId)
@@ -1107,8 +1117,8 @@ public final class DailyAnalysis {
         // The same strength load the full pass gives today (Lab, #2438).
         let strengthLoad = host.analysisSettings().effortStrengthBonus
             ? StrengthEffort.load(await StrengthEffort.read(services: repo, store: store, from: dayStart,
-                                                            to: dayStart + 86_400),
-                                  startingIn: dayStart ..< dayStart + 86_400)
+                                                            to: dayEnd + 1),
+                                  startingIn: dayStart ..< dayEnd + 1)
             : 0
 
         let activity = await Task.detached(priority: .userInitiated) {
@@ -1125,10 +1135,14 @@ public final class DailyAnalysis {
 
         // Never below the value already stored for today. Within a day every input of this refresh only
         // accumulates (heart rate offloads, workouts are recorded), so between two full passes a lower result
-        // cannot be a correct update: it is a different window (in sleep-onset mode the pass stores the wake
-        // cycle, which this calendar-day read cannot reproduce) or a change only the pass applies (a dismissed
-        // bout or a removed workout, which move the day's signature). The full pass writes its own value
-        // unconditionally, so this floor never holds a value the pass has replaced.
+        // cannot be a correct update: it is a change only the pass applies (a dismissed bout or a removed
+        // workout, which move the day's signature). The full pass writes its own value unconditionally, so
+        // this floor never holds a value the pass has replaced.
+        //
+        // The floor is only safe while this refresh scores the SAME span as the pass. It did not: it read
+        // the calendar day while the pass stored the wake cycle, so in sleep-onset mode a late bedtime put
+        // the previous cycle's evening into today's figure and the floor made it permanent. Both now take
+        // their span from `CycleDayWindow`, which is what keeps this line honest.
         let strain = activity.strain.map { max($0, existing?.strain ?? 0) }
         do {
             _ = try await store.upsertDailyActivity(

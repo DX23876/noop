@@ -22,18 +22,32 @@ public enum LiveEffortScore {
     /// NEWEST rows, so a smaller cap silently stops the live score climbing partway through the day.
     public static let hrLimit = 200_000
 
-    /// The window the score is taken over: the logical day's midnight to now. One clock sample supplies
-    /// both ends, so the two can never straddle a tick.
-    public static func window(now: Date) -> (from: Int, to: Int) {
+    /// The window the score is taken over: the day in progress, to now. One clock sample supplies both
+    /// ends, so the two can never straddle a tick.
+    ///
+    /// In sleep-onset mode a day begins when the wearer fell asleep, which is what the nightly pass
+    /// scores each day over (`CycleDayWindow`). Taking local midnight here instead counted the hours
+    /// between midnight and bed a second time for anyone who goes to bed after midnight, and since
+    /// `StrainScorer.effectiveEffort` floors at the stored row, the inflated figure then stayed up: a
+    /// tester asleep from 04:41 to 13:19 saw Effort at 47 before getting out of bed (2026-11-19).
+    ///
+    /// With no cycle to go by — the first days of an install, a wearer whose nights are not detected —
+    /// the logical day stands, as before: there is nothing else to read it from.
+    public static func window(now: Date, mode: DayCycleMode,
+                              cycle: CycleDayWindow.Cycle?) -> (from: Int, to: Int) {
+        if mode == .sleepOnset, cycle != nil {
+            return CycleDayWindow.window(mode: mode, cycle: cycle, now: Int(now.timeIntervalSince1970),
+                                         offsetSec: TimeZone.current.secondsFromGMT(for: now))
+        }
         let dayStart = Calendar.current.startOfDay(for: LogicalDay.date(now))
         return (Int(dayStart.timeIntervalSince1970), Int(now.timeIntervalSince1970))
     }
 
-    /// How far back workout rows are read for the spans below: a session that began before midnight
-    /// still counts inside today's window.
-    public static func workoutWindow(now: Date) -> (from: Int, to: Int) {
-        let (from, to) = window(now: now)
-        return (from - 86_400, to + 1)
+    /// How far back workout rows are read for the spans below: a session begun before the day started
+    /// still counts inside it. Takes the window rather than the clock, so it cannot end up resolved
+    /// against a different day than the heart rate was.
+    public static func workoutWindow(forWindow window: (from: Int, to: Int)) -> (from: Int, to: Int) {
+        (window.from - 86_400, window.to + 1)
     }
 
     /// The score from the two reads and the two parameters, or nil when there is too little heart rate to

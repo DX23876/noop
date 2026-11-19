@@ -1,6 +1,7 @@
 package com.noop.core
 
 import android.content.Context
+import com.noop.ui.NoopPrefs
 import com.noop.ui.ProfileStore
 import org.json.JSONObject
 
@@ -22,6 +23,9 @@ object CoreLiveEffort {
         val args = JSONObject()
             .put("hrMaxOverride", profile.hrMaxOverride)
             .put("age", profile.age)
+            // Which day the figure is for: in sleep-onset mode the day starts when the wearer fell
+            // asleep, and the core takes the span from there (`CycleDayWindow`).
+            .put("dayCycleMode", NoopPrefs.dayCycleMode(context).persistedValue)
         if (restingHr != null) args.put("restingHr", restingHr)
         if (storedEffort != null) args.put("storedEffort", storedEffort)
         val json = SwiftCore.call("read.liveEffort", args.toString()) ?: return null
