@@ -276,11 +276,14 @@ internal fun rememberKeyTiles(model: TodayModel?, metrics: Collection<KeyMetric>
             // the wearer's own choice of which to try first (`SkinTempDisplay.leadReading`, #1844/#1846) —
             // the same rule the classic cards and iOS apply. Both numbers come off the same row. Until the
             // core carried the absolute (2026-11-19) this tile could only ever say "+0.1 Δ°C".
-            KeyMetric.SKIN_TEMP -> KeyTile(
-                SkinTempDisplay.leadReading(absC = day?.skinTempAbs, devC = day?.skinTempDev,
-                                            prefer = skinTempPreferred)
-                    ?.let { SkinTempDisplay.formatReading(it, fahrenheit) },
-                null)
+            KeyMetric.SKIN_TEMP -> SkinTempDisplay.leadReading(absC = day?.skinTempAbs, devC = day?.skinTempDev,
+                                                               prefer = skinTempPreferred).let { reading ->
+                // The figure and its unit apart, as every other tile has them (iOS's `leadFigure` and
+                // `leadUnit`): a card that prints "usually ..." beside the tile needs the scale's unit as
+                // a unit, not baked into the value.
+                KeyTile(reading?.let { SkinTempDisplay.numberString(it.value, it.kind, fahrenheit) },
+                        reading?.let { SkinTempDisplay.unitSymbol(it.kind, fahrenheit) })
+            }
         }
     }
     return KeyTiles(tiles, sparks)

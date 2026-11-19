@@ -447,15 +447,17 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
     val factPlaced = widgets.mapNotNull { it.key }
         .filter { KeyMetric.fromRaw(it) != null || it in TodayWidgets.catalogMeasures || it == TodayWidget.SLEEP_KEY }
         .distinct().sorted()
+    val skinTempPreferred = remember { com.noop.ui.UnitPrefs.skinTempPreferred(context) }
     val factSeries by produceState(emptyMap<String, Pair<List<String>, List<Double>>>(), date, factPlaced, coreRevision) {
         value = if (factPlaced.isEmpty()) emptyMap() else withContext(Dispatchers.IO) {
+            val from = date.minusDays(59).toString(); val to = date.toString()
             factPlaced.associateWith { raw ->
                 runCatching {
-                    val points = viewModel.repo.resolvedSeries(KeyMetric.fromRaw(raw)?.catalogKey() ?: raw, "my-whoop",
-                                                               date.minusDays(59).toString(), date.toString(),
-                                                               strapDeviceId = viewModel.activeStrapId)
-                        .points.sortedBy { it.day }
-                    points.map { it.day } to points.map { it.value }
+                    val points = if (raw == KeyMetric.SKIN_TEMP.raw) skinTempSeries(viewModel, from, to, skinTempPreferred)
+                                 else viewModel.repo.resolvedSeries(KeyMetric.fromRaw(raw)?.catalogKey() ?: raw, "my-whoop",
+                                                                    from, to, strapDeviceId = viewModel.activeStrapId)
+                                     .points.sortedBy { it.day }.map { it.day to it.value }
+                    points.map { it.first } to points.map { it.second }
                 }.getOrDefault(emptyList<String>() to emptyList())
             }
         }
@@ -698,6 +700,26 @@ private fun EditButton(icon: ImageVector, label: String, onClick: () -> Unit,
             Icon(icon, contentDescription = label, tint = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(16.dp))
         }
     }
+}
+
+/**
+ * The skin-temperature window on ONE scale, the one the tile leads with.
+ *
+ * The caption and the chart under a figure have to be about that figure: with the stored column alone the
+ * row-wide card said "33.8 °C" over "usually +0.1 · range -0.4 to +0.5", which is two scales in one card
+ * (seen in the side-by-side on 2026-11-19). The wearer's choice decides which is tried first, and the
+ * other is the fallback, so a window that measured only one still draws (`SkinTempDisplay.leadReading`).
+ */
+private suspend fun skinTempSeries(viewModel: AppViewModel, from: String, to: String,
+                                   prefer: com.noop.analytics.SkinTempDisplay.Kind): List<Pair<String, Double>> {
+    val abs = CoreRead.series(CoreRead.Metric.SkinTempAbs, from, to).map { it.day to it.value }
+    val dev = runCatching {
+        viewModel.repo.resolvedSeries("skin_temp", "my-whoop", from, to, strapDeviceId = viewModel.activeStrapId)
+            .points.map { it.day to it.value }
+    }.getOrDefault(emptyList())
+    val first = if (prefer == com.noop.analytics.SkinTempDisplay.Kind.ABSOLUTE) abs else dev
+    return first.ifEmpty { if (prefer == com.noop.analytics.SkinTempDisplay.Kind.ABSOLUTE) dev else abs }
+        .sortedBy { it.first }
 }
 
 /**
