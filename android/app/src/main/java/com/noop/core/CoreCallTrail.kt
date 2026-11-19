@@ -25,18 +25,27 @@ object CoreCallTrail {
 
     private val entries = ArrayDeque<Entry>(KEEP)
 
-    /** The call that has not come back, if any; written before the jump into Swift. */
-    @Volatile private var inFlight: String? = null
-    @Volatile private var inFlightAtMs: Long = 0L
+    /**
+     * The calls that have not come back, by the ticket [begin] handed out.
+     *
+     * A map and not one slot: several threads cross this bridge at once — a screen's read on an IO
+     * thread while Today asks the coach — and with a single slot the first call to finish would clear
+     * the mark of a call that is still running. The report would then say nothing was in flight at the
+     * moment of a heap death, which is the one thing it must never get wrong.
+     */
+    private val inFlight = LinkedHashMap<Long, Pair<String, Long>>()
+    private val tickets = java.util.concurrent.atomic.AtomicLong()
 
-    fun begin(op: String, argsChars: Int) {
-        inFlight = "$op args=${chars(argsChars)}"
-        inFlightAtMs = System.currentTimeMillis()
+    /** The ticket to hand back to [done]. */
+    fun begin(op: String, argsChars: Int): Long {
+        val ticket = tickets.incrementAndGet()
+        synchronized(inFlight) { inFlight[ticket] = "$op args=${chars(argsChars)}" to System.currentTimeMillis() }
+        return ticket
     }
 
     /** [answerChars] is -1 when the core answered null. */
-    fun done(op: String, argsChars: Int, answerChars: Int, ms: Long) {
-        inFlight = null
+    fun done(ticket: Long, op: String, argsChars: Int, answerChars: Int, ms: Long) {
+        synchronized(inFlight) { inFlight.remove(ticket) }
         val entry = Entry(op, argsChars, answerChars, ms, System.currentTimeMillis())
         synchronized(entries) {
             entries.addLast(entry)
@@ -52,12 +61,12 @@ object CoreCallTrail {
      * trail itself, so the formatting is testable without a core.
      */
     fun report(nowMs: Long = System.currentTimeMillis()): String? {
-        val pending = inFlight
+        val pending = synchronized(inFlight) { inFlight.values.toList() }
         val recent = recent()
-        if (pending == null && recent.isEmpty()) return null
+        if (pending.isEmpty() && recent.isEmpty()) return null
         return buildString {
             appendLine("core calls (newest first):")
-            if (pending != null) appendLine("  in flight: $pending, ${nowMs - inFlightAtMs} ms ago")
+            for ((text, atMs) in pending.asReversed()) appendLine("  in flight: $text, ${nowMs - atMs} ms ago")
             for (e in recent) appendLine("  " + line(e, nowMs))
         }
     }
@@ -77,7 +86,7 @@ object CoreCallTrail {
 
     /** Only for tests: the trail starts empty. */
     internal fun clearForTest() {
-        inFlight = null
+        synchronized(inFlight) { inFlight.clear() }
         synchronized(entries) { entries.clear() }
     }
 }

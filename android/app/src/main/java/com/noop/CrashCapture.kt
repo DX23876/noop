@@ -42,10 +42,16 @@ object CrashCapture {
                     // What the heap looked like and what the core bridge last moved. A heap death names
                     // the next allocation, not the one that filled the heap, so without these two the
                     // report blames whichever small call happened to be in flight (2026-11-19).
-                    val runtime = Runtime.getRuntime()
-                    appendLine(heapLine(max = runtime.maxMemory(), total = runtime.totalMemory(),
-                                        free = runtime.freeMemory()))
-                    com.noop.core.CoreCallTrail.report()?.let { append(it) }
+                    //
+                    // Wrapped on their own: this path runs while the heap is at its limit, so an
+                    // allocation here can fail, and one that escaped would take the whole report down
+                    // with it — the trace, which is the part that has always been written, included.
+                    runCatching {
+                        val runtime = Runtime.getRuntime()
+                        appendLine(heapLine(max = runtime.maxMemory(), total = runtime.totalMemory(),
+                                            free = runtime.freeMemory()))
+                        com.noop.core.CoreCallTrail.report()?.let { append(it) }
+                    }
                     appendLine(sw.toString())
                 }
                 File(appContext.filesDir, FILE).writeText(text)

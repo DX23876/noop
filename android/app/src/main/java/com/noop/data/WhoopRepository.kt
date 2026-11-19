@@ -1370,7 +1370,6 @@ class WhoopRepository(
     suspend fun hrSamplesForDevice(deviceId: String, from: Long, to: Long, limit: Int = DEFAULT_LIMIT) =
         hrInChunks(from, to, limit) { f, t, n -> dao.hrSamples(deviceId, f, t, n) }
 
-
     /** #856: HR samples over an EXPLICIT id list, deduped by ts with earlier ids winning — the sample
      *  twin of [hrBucketsFor], so a workout's ZONE MINUTES bin the same rows its chart plots and its
      *  Avg HR aggregates. One id ⇒ a plain single-id read. */

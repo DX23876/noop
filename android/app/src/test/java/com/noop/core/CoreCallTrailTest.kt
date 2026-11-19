@@ -1,6 +1,7 @@
 package com.noop.core
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -22,7 +23,7 @@ class CoreCallTrailTest {
 
     @Test
     fun theTrailKeepsTheNewestCallsAndDropsTheOldest() {
-        for (i in 1..CoreCallTrail.KEEP + 3) CoreCallTrail.done("op$i", 10, 20, 1)
+        for (i in 1..CoreCallTrail.KEEP + 3) CoreCallTrail.done(CoreCallTrail.begin("op$i", 10), "op$i", 10, 20, 1)
         val ops = CoreCallTrail.recent().map { it.op }
         assertEquals(CoreCallTrail.KEEP, ops.size)
         assertEquals("op${CoreCallTrail.KEEP + 3}", ops.first())
@@ -36,9 +37,27 @@ class CoreCallTrailTest {
         assertTrue(report, report.contains("in flight: sql.query args=180"))
     }
 
+    /**
+     * Two calls cross the bridge at once and the short one comes back first. The long one is still
+     * running, and the report has to say so: with one slot for the call in flight, the short call's
+     * return cleared the long one's mark, and a heap death during that read would have been reported as
+     * "nothing in flight" — the one thing this trail must never get wrong.
+     */
+    @Test
+    fun aFinishedCallDoesNotEraseTheOneStillRunning() {
+        val long = CoreCallTrail.begin("sql.query", 180)
+        val short = CoreCallTrail.begin("coach.today", 2)
+        CoreCallTrail.done(short, "coach.today", 2, 600, 4)
+        val report = CoreCallTrail.report()!!
+        assertTrue(report, report.contains("in flight: sql.query args=180"))
+        assertFalse(report, report.contains("in flight: coach.today"))
+        CoreCallTrail.done(long, "sql.query", 180, 24_000_000, 820)
+        assertFalse(CoreCallTrail.report()!!, CoreCallTrail.report()!!.contains("in flight"))
+    }
+
     @Test
     fun aFinishedCallSaysWhatCrossedAndHowLongAgo() {
-        CoreCallTrail.done("sql.query", 180, 24_000_000, 820)
+        CoreCallTrail.done(CoreCallTrail.begin("sql.query", 180), "sql.query", 180, 24_000_000, 820)
         val e = CoreCallTrail.recent().first()
         assertEquals("sql.query args=180 answer=24M 820 ms, 5000 ms ago",
                      CoreCallTrail.line(e, e.atMs + 5_000))
@@ -47,7 +66,7 @@ class CoreCallTrailTest {
     /** A null answer is not an empty one: the core said nothing, which is a different fact. */
     @Test
     fun aNullAnswerReadsAsNull() {
-        CoreCallTrail.done("coach.today", 2, -1, 4)
+        CoreCallTrail.done(CoreCallTrail.begin("coach.today", 2), "coach.today", 2, -1, 4)
         val e = CoreCallTrail.recent().first()
         assertTrue(CoreCallTrail.line(e, e.atMs).contains("answer=null"))
     }

@@ -231,8 +231,7 @@ public enum CoreRead {
     /// [restingHr] is the shown day's own resting rate and [storedEffort] its stored Effort; both come
     /// from the day the caller is showing, so this never reads a different day than the screen does.
     public static func liveEffort(reader: StoreReader, hrMaxOverride: Int, age: Int,
-                                  restingHr: Int?, storedEffort: Double?,
-                                  mode: DayCycleMode = .sleepOnset,
+                                  restingHr: Int?, storedEffort: Double?, mode: DayCycleMode,
                                   now: Date = Date()) async -> Double? {
         // The day in progress is the cycle the pass scores, not the calendar day (`CycleDayWindow`).
         let nowTs = Int(now.timeIntervalSince1970)

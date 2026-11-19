@@ -165,7 +165,8 @@ private fun stageParts(night: CoreRead.Night): List<StagePart> {
  * them, the night's make-up as one bar and each stage's total.
  */
 @Composable
-internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: ZoneId, isOura: Boolean = false,
+internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: ZoneId,
+                            days: List<DailyMetric> = emptyList(), isOura: Boolean = false,
                             onEdit: (() -> Unit)? = null) {
     val colors = Forge.colors
     val clock = rememberClockFormatter()
@@ -188,7 +189,7 @@ internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: Zone
             Text(stringResource(R.string.forge_sl_no_stages), style = Forge.type.body, color = colors.textSecondary)
             return@ForgeCard
         }
-        NightFigures(night, isOura)
+        NightFigures(night, days, isOura)
         // The lanes need the stretches themselves; a night stored only as minutes per stage keeps the bar and totals.
         if (night.stages.isNotEmpty()) {
         StageLanes(night)
@@ -243,18 +244,20 @@ internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: Zone
  * were reachable only through Health, Sleep, Sleep details. Every number is the core's (`NightFacts`).
  */
 @Composable
-private fun NightFigures(night: CoreRead.Night, isOura: Boolean) {
+internal fun NightFigures(night: CoreRead.Night, days: List<DailyMetric>, isOura: Boolean) {
     val colors = Forge.colors
-    val facts = rememberNightFacts(night) ?: return
+    val facts = rememberNightFacts(night, days) ?: return
     val efficiency = facts.efficiencyPct?.roundToInt()
-    val inBed = TodayTimeline.hoursMinutes(facts.inBedMin)
+    val inBed = durationText(facts.inBedMin)
     // An Oura night's stages are the ring's own classification, not NOOP's approximation, and it is said in its
     // own words; a night stored as minutes per stage, with no stretches, gets neither line.
     val caption = if (night.stages.isEmpty()) null
         else stringResource(if (isOura) R.string.forge_sl_stages_raw else R.string.forge_sl_stages_approx)
     Text(
+        // A night without a stored efficiency keeps the words: a bare duration under the card title says
+        // nothing about what it measures.
         when {
-            efficiency == null -> inBed
+            efficiency == null -> stringResource(R.string.forge_sl_in_bed_only, inBed)
             caption == null -> stringResource(R.string.forge_in_bed, inBed, efficiency)
             else -> stringResource(R.string.forge_sl_in_bed_full, inBed, efficiency, caption)
         },
@@ -274,11 +277,11 @@ private fun NightFigures(night: CoreRead.Night, isOura: Boolean) {
 private fun NightFigure(label: String, minutes: Double, typical: Double?, tint: Color, modifier: Modifier) {
     val colors = Forge.colors
     Column(modifier.semantics(mergeDescendants = true) { }) {
-        Text(TodayTimeline.hoursMinutes(minutes), style = Forge.type.title1, color = tint, maxLines = 1)
+        Text(durationText(minutes), style = Forge.type.title1, color = tint, maxLines = 1)
         Text(label, style = Forge.type.caption.copy(fontWeight = FontWeight.SemiBold), color = colors.text,
              maxLines = 2)
         if (typical != null) {
-            Text(stringResource(R.string.forge_sl_usually_only, TodayTimeline.hoursMinutes(typical)),
+            Text(stringResource(R.string.forge_sl_usually_only, durationText(typical)),
                  style = Forge.type.caption, color = colors.textSecondary, maxLines = 1)
         }
     }

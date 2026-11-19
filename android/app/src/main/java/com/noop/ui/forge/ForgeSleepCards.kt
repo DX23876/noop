@@ -37,8 +37,13 @@ import kotlin.math.roundToInt
 internal fun typicalStageMin(days: List<DailyMetric>, pick: (DailyMetric) -> Double?): Double? =
     days.mapNotNull(pick).filter { it > 0 }.takeIf { it.isNotEmpty() }?.average()
 
+/**
+ * "8h 37m", as every sleep card on this screen says a length of sleep, and as the iPhone says it. The
+ * colon form belongs to the clock, and these cards are full of clock times. Shared across the package
+ * since the night figures need the same words (2026-11-19).
+ */
 @Composable
-private fun durationText(minutes: Double): String {
+internal fun durationText(minutes: Double): String {
     val m = maxOf(0, minutes.roundToInt())
     return if (m < 60) "${m}m" else stringResource(R.string.forge_duration_hm, m / 60, m % 60)
 }

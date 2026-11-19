@@ -8,8 +8,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.noop.core.CoreRead
 import com.noop.core.SwiftCore
+import com.noop.data.DailyMetric
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -30,16 +32,30 @@ data class NightFacts(
     val typicalRestorativeMin: Double?,
 ) {
     companion object {
-        /** Blocking; call off the main thread. Null without a core or without stages to sum. */
-        fun of(night: CoreRead.Night): NightFacts? {
+        /**
+         * Blocking; call off the main thread. Null without a core or without stages to sum.
+         *
+         * [days] are the screen's own day rows, as the Apple screens pass theirs: the core works the
+         * usual out of their sleep totals and nothing is averaged on this side.
+         */
+        fun of(night: CoreRead.Night, days: List<DailyMetric>): NightFacts? {
             if (!SwiftCore.available) return null
             val summary = SleepSummary.of(night)
             if (summary.inBedMin <= 0) return null
+            val nights = JSONArray()
+            for (day in days) {
+                val row = JSONObject()
+                day.totalSleepMin?.let { row.put("asleepMin", it) }
+                day.deepMin?.let { row.put("deepMin", it) }
+                day.remMin?.let { row.put("remMin", it) }
+                nights.put(row)
+            }
             val args = JSONObject()
                 .put("inBedMin", summary.inBedMin.toDouble())
                 .put("asleepMin", summary.asleepMin.toDouble())
                 .put("deepMin", (summary.minutesByStage["deep"] ?: 0).toDouble())
                 .put("remMin", (summary.minutesByStage["rem"] ?: 0).toDouble())
+                .put("nights", nights)
             night.efficiency?.let { args.put("storedEfficiency", it) }
             val answer = SwiftCore.call("sleep.nightFacts", args.toString()) ?: return null
             return runCatching {
@@ -61,12 +77,12 @@ data class NightFacts(
     }
 }
 
-/** The night's figures, read again whenever the shown night changes. */
+/** The night's figures, read again whenever the shown night or the day rows change. */
 @Composable
-internal fun rememberNightFacts(night: CoreRead.Night): NightFacts? {
+internal fun rememberNightFacts(night: CoreRead.Night, days: List<DailyMetric>): NightFacts? {
     var facts by remember(night.startTs, night.endTs) { mutableStateOf<NightFacts?>(null) }
-    LaunchedEffect(night.startTs, night.endTs) {
-        facts = withContext(Dispatchers.IO) { NightFacts.of(night) }
+    LaunchedEffect(night.startTs, night.endTs, days.size) {
+        facts = withContext(Dispatchers.IO) { NightFacts.of(night, days) }
     }
     return facts
 }

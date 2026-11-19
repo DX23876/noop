@@ -55,14 +55,37 @@ final class CycleDayWindowTests: XCTestCase {
 
     /// A cycle nobody closed does not grow without end: past `absoluteMaxOpenSeconds` the resolver falls
     /// back to a synthetic midnight, exactly as it does for the pass.
+    ///
+    /// And the day follows that same fallback. Working the day out separately put the span and its day a
+    /// calendar day apart here: the span began on the 18th and the figure was filed under the 19th.
     func testACycleLeftOpenTooLongFallsBackToMidnight() {
         let onset = ts("2026-11-17 04:41")
         let now = ts("2026-11-19 13:58")       // more than 40 hours later
         let cycle = CycleDayWindow.Cycle(onset: onset, wakeDay: "2026-11-17")
-        let window = CycleDayWindow.window(mode: .sleepOnset, cycle: cycle, now: now, offsetSec: offset)
-        XCTAssertGreaterThan(window.from, onset)
-        XCTAssertEqual(CycleDayWindow.day(mode: .sleepOnset, cycle: cycle, now: now, offsetSec: offset),
-                       "2026-11-19", "a stale cycle does not keep filing figures under its own wake day")
+        let resolved = CycleDayWindow.resolve(mode: .sleepOnset, cycle: cycle, now: now, offsetSec: offset)
+        XCTAssertEqual(resolved.from, ts("2026-11-18 00:00"))
+        XCTAssertEqual(resolved.day, "2026-11-18",
+                       "the day is the one the span belongs to, not the calendar day of the clock")
+    }
+
+    /// Whatever the mode and whatever the evidence, the day is the one the span belongs to. The clock
+    /// says 01:00 on the 20th in every case here, and only one of them is filed under the 20th.
+    func testTheDayAlwaysBelongsToTheSpan() {
+        let now = ts("2026-11-20 01:00")
+        let fresh = CycleDayWindow.Cycle(onset: ts("2026-11-19 04:41"), wakeDay: "2026-11-19")
+        let stale = CycleDayWindow.Cycle(onset: ts("2026-11-17 04:41"), wakeDay: "2026-11-17")
+        let cases: [(name: String, mode: DayCycleMode, cycle: CycleDayWindow.Cycle?, from: Int, day: String)] = [
+            ("still up from yesterday", .sleepOnset, fresh, ts("2026-11-19 04:41"), "2026-11-19"),
+            ("no night to go by", .sleepOnset, nil, ts("2026-11-20 00:00"), "2026-11-20"),
+            ("the civil day", .midnight, fresh, ts("2026-11-20 00:00"), "2026-11-20"),
+            ("two days without a night", .sleepOnset, stale, ts("2026-11-18 00:00"), "2026-11-18"),
+        ]
+        for c in cases {
+            let resolved = CycleDayWindow.resolve(mode: c.mode, cycle: c.cycle, now: now, offsetSec: offset)
+            XCTAssertEqual(resolved.from, c.from, c.name)
+            XCTAssertEqual(resolved.to, now, c.name)
+            XCTAssertEqual(resolved.day, c.day, c.name)
+        }
     }
 
     // MARK: Which cycle the wearer is in
@@ -103,14 +126,4 @@ final class CycleDayWindowTests: XCTestCase {
         XCTAssertNil(CycleDayWindow.current(onsets: [], sleeps: sleeps, now: now, offsetSec: offset))
     }
 
-    /// The day a figure is filed under is the cycle's wake day, not the calendar day the clock happens to
-    /// show: at 01:00, still up from yesterday, the figure belongs to yesterday.
-    func testTheDayIsTheCyclesWakeDay() {
-        let now = ts("2026-11-20 01:00")
-        let cycle = CycleDayWindow.Cycle(onset: ts("2026-11-19 04:41"), wakeDay: "2026-11-19")
-        XCTAssertEqual(CycleDayWindow.day(mode: .sleepOnset, cycle: cycle, now: now, offsetSec: offset),
-                       "2026-11-19")
-        XCTAssertEqual(CycleDayWindow.day(mode: .midnight, cycle: cycle, now: now, offsetSec: offset),
-                       "2026-11-20")
-    }
 }

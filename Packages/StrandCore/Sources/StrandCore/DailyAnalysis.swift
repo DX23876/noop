@@ -1081,10 +1081,9 @@ public final class DailyAnalysis {
                                  })
         let mode = host.analysisSettings().dayCycleMode
         let cycle = await CycleDayWindow.current(reader: reader, now: nowTs, offsetSec: offset)
-        let (dayStart, dayEnd) = CycleDayWindow.window(mode: mode, cycle: cycle, now: nowTs,
-                                                       offsetSec: offset)
+        let (dayStart, dayEnd, day) = CycleDayWindow.resolve(mode: mode, cycle: cycle, now: nowTs,
+                                                             offsetSec: offset)
         guard dayEnd >= dayStart else { return false }
-        let day = CycleDayWindow.day(mode: mode, cycle: cycle, now: nowTs, offsetSec: offset)
         let owner = await Self.resolveDayOwner(
             day: day, from: dayStart, to: dayEnd, store: store, devices: devices,
             activeId: activeId, registry: registry, fallbackDeviceId: deviceId)

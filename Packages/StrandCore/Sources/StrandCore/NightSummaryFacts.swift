@@ -45,6 +45,20 @@ public enum NightSummaryFacts {
         public let typicalRestorativeMin: Double?
     }
 
+    /// One stored night, as the typicals read it. The screens hold their day rows in different shapes —
+    /// `DailyMetric` on the Apple side, a JSON hand-over on Android — and the averages must not be
+    /// written twice for that.
+    public struct NightRow: Equatable, Sendable {
+        public let asleepMin: Double?
+        public let deepMin: Double?
+        public let remMin: Double?
+        public init(asleepMin: Double?, deepMin: Double?, remMin: Double?) {
+            self.asleepMin = asleepMin
+            self.deepMin = deepMin
+            self.remMin = remMin
+        }
+    }
+
     /// Nights needed before a typical is stated at all. Below it the wearer has no usual yet, and a mean
     /// of two nights presented as one would be a number pretending to be a baseline.
     public static let minimumNightsForTypical = 5
@@ -52,14 +66,23 @@ public enum NightSummaryFacts {
     /// How far back a typical looks.
     public static let typicalNights = 30
 
-    public static func read(night: Night, days: [DailyMetric]) -> Facts {
+    public static func read(night: Night, nights: [NightRow]) -> Facts {
         Facts(inBedMin: night.inBedMin,
               asleepMin: night.asleepMin,
               restorativeMin: night.deepMin + night.remMin,
               efficiencyPct: efficiencyPct(asleepMin: night.asleepMin, inBedMin: night.inBedMin,
                                            stored: night.storedEfficiency),
-              typicalAsleepMin: typicalAsleepMin(days),
-              typicalRestorativeMin: typicalRestorativeMin(days))
+              typicalAsleepMin: typicalAsleepMin(nights),
+              typicalRestorativeMin: typicalRestorativeMin(nights))
+    }
+
+    /// The same, from the stored day rows the Apple screens already hold.
+    public static func read(night: Night, days: [DailyMetric]) -> Facts {
+        read(night: night, nights: rows(days))
+    }
+
+    public static func rows(_ days: [DailyMetric]) -> [NightRow] {
+        days.map { NightRow(asleepMin: $0.totalSleepMin, deepMin: $0.deepMin, remMin: $0.remMin) }
     }
 
     /// Share of the time in bed spent asleep.
@@ -75,21 +98,27 @@ public enum NightSummaryFacts {
     }
 
     /// The wearer's usual night, as the mean of the stored totals.
-    public static func typicalAsleepMin(_ days: [DailyMetric]) -> Double? {
-        mean(days.suffix(typicalNights).compactMap(\.totalSleepMin).filter { $0 > 0 })
+    public static func typicalAsleepMin(_ nights: [NightRow]) -> Double? {
+        mean(nights.suffix(typicalNights).compactMap(\.asleepMin).filter { $0 > 0 })
     }
+
+    public static func typicalAsleepMin(_ days: [DailyMetric]) -> Double? { typicalAsleepMin(rows(days)) }
 
     /// The wearer's usual restorative sleep: deep plus REM, per night, averaged.
     ///
     /// Per night and not as the sum of the two separate means: a night missing one of the stages would
     /// otherwise contribute to one mean and not the other, and the two halves would be taken over
     /// different nights.
-    public static func typicalRestorativeMin(_ days: [DailyMetric]) -> Double? {
-        mean(days.suffix(typicalNights).compactMap { day in
-            guard let deep = day.deepMin, let rem = day.remMin else { return nil }
+    public static func typicalRestorativeMin(_ nights: [NightRow]) -> Double? {
+        mean(nights.suffix(typicalNights).compactMap { night in
+            guard let deep = night.deepMin, let rem = night.remMin else { return nil }
             let value = deep + rem
             return value > 0 ? value : nil
         })
+    }
+
+    public static func typicalRestorativeMin(_ days: [DailyMetric]) -> Double? {
+        typicalRestorativeMin(rows(days))
     }
 
     private static func mean(_ values: [Double]) -> Double? {

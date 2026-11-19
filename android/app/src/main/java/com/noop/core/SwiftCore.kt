@@ -77,13 +77,13 @@ object SwiftCore {
      */
     fun call(op: String, args: String): String? {
         val started = System.nanoTime()
-        CoreCallTrail.begin(op, args.length)
+        val ticket = CoreCallTrail.begin(op, args.length)
         var answer: String? = null
         try {
             answer = nativeCall(op, args)
             return answer
         } finally {
-            CoreCallTrail.done(op, args.length, answer?.length ?: -1,
+            CoreCallTrail.done(ticket, op, args.length, answer?.length ?: -1,
                                (System.nanoTime() - started) / 1_000_000)
         }
     }

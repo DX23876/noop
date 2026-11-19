@@ -2935,6 +2935,7 @@
     <string name="forge_no_nights">Pas encore de nuits. Portez le strap au lit et synchronisez le matin.</string>
     <string name="forge_in_bed">%1$s au lit · %2$d %% d’efficacité</string>
     <string name="forge_sl_in_bed_full">%1$s au lit · %2$d %% d’efficacité · %3$s</string>
+    <string name="forge_sl_in_bed_only">%1$s au lit</string>
     <string name="forge_sl_stages_approx">phases approximatives (sur l’appareil)</string>
     <string name="forge_sl_stages_raw">phases brutes de l’appareil</string>
     <string name="forge_sl_usually_only">d\'habitude %1$s</string>

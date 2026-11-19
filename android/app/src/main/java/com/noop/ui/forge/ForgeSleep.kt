@@ -340,7 +340,7 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
         // The arrangeable cards in the saved order, minus the hidden ones (`SleepLayoutDefaults`).
         sections.forEach { section ->
             when (section) {
-                SleepSection.STAGES -> if (night != null) Breakdown(night, zone)
+                SleepSection.STAGES -> if (night != null) Breakdown(night, zone, model?.days.orEmpty())
                 SleepSection.SLEEP_DEBT -> SleepDebtLedger()
                 SleepSection.STAGES_VS_TYPICAL -> if (night != null) {
                     val m = SleepSummary.of(night).minutesByStage
@@ -558,15 +558,20 @@ private fun TimeColumn(icon: androidx.compose.ui.graphics.vector.ImageVector, ti
 private fun hm(minutes: Int): String = stringResource(R.string.forge_duration_hm, minutes / 60, minutes % 60)
 
 @Composable
-private fun Breakdown(night: CoreRead.Night, zone: ZoneId) {
+private fun Breakdown(night: CoreRead.Night, zone: ZoneId, days: List<com.noop.data.DailyMetric>) {
     val colors = Forge.colors
     val clockFormat = rememberClockFormatter()
     val summary = SleepSummary.of(night)
     val locale = Locale.getDefault()
+    // Efficiency through the one resolver the sleep screens read (`NightSummaryFacts.efficiencyPct`).
+    // This card multiplied the stored value by 100 whatever it was, so a night imported as 95 rather
+    // than 0.95 read "9500 %" here while the card a tap away read "95 %".
+    val efficiency = rememberNightFacts(night, days)?.efficiencyPct?.roundToInt()
     ForgeCard(Modifier.fillMaxWidth()) {
         Text(stringResource(R.string.forge_stage_breakdown).uppercase(), style = Forge.type.overline,
              color = colors.textSecondary)
-        Text(stringResource(R.string.forge_in_bed, hm(summary.inBedMin), ((night.efficiency ?: 0.0) * 100).roundToInt()),
+        Text(if (efficiency == null) stringResource(R.string.forge_sl_in_bed_only, hm(summary.inBedMin))
+             else stringResource(R.string.forge_in_bed, hm(summary.inBedMin), efficiency),
              style = Forge.type.caption, color = colors.textTertiary)
         Spacer(Modifier.height(ForgeMetrics.space4))
         Row {
@@ -789,7 +794,7 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
     }
     if (night != null && wakeDay != null) {
         val key = wakeDay.toString()
-        SleepNightCard(night, isLatest, zone,
+        SleepNightCard(night, isLatest, zone, days,
                        isOura = com.noop.data.DeviceBrandCatalog.isOura(viewModel.activeStrapId),
                        onEdit = { editing = night })
         DayNaps(night, wakeDay, zone, onDelete = { nap ->

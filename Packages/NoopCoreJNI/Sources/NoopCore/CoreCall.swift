@@ -605,15 +605,20 @@ public enum CoreCall {
             // (`NightSummaryFacts`). The night's own minutes come from the screen, so the card states the
             // night it is showing; the usual comes from here, so neither phone keeps its own version of it.
             func minutes(_ key: String) -> Double { (args[key] as? NSNumber)?.doubleValue ?? 0 }
-            // The same span the Apple screens hold in memory (`Repository.refresh(days: 120)`), of which
-            // the resolver takes the last thirty rows, so both phones average the same nights.
-            let today = StoreReader.localDayKey(Date())
-            let from = StoreReader.localDayKey(Date().addingTimeInterval(-120 * 86_400))
+            // The stored nights come from the screen, which already holds its day rows, as the Apple
+            // screens pass theirs: the averages are worked out HERE, once, and only their input travels.
+            // Reading them again from the store would have cost a 120-day merge for every night the
+            // wearer pages to, for two averages over thirty sleep totals.
+            func number(_ row: [String: Any], _ key: String) -> Double? { (row[key] as? NSNumber)?.doubleValue }
+            let nights = (args["nights"] as? [[String: Any]] ?? []).map {
+                NightSummaryFacts.NightRow(asleepMin: number($0, "asleepMin"), deepMin: number($0, "deepMin"),
+                                           remMin: number($0, "remMin"))
+            }
             let facts = NightSummaryFacts.read(
                 night: NightSummaryFacts.Night(inBedMin: minutes("inBedMin"), asleepMin: minutes("asleepMin"),
                                                deepMin: minutes("deepMin"), remMin: minutes("remMin"),
                                                storedEfficiency: (args["storedEfficiency"] as? NSNumber)?.doubleValue),
-                days: await CoreRead.dailyRows(from: from, to: today, reader: reader))
+                nights: nights)
             struct Wire: Encodable {
                 let inBedMin: Double, asleepMin: Double, restorativeMin: Double
                 let efficiencyPct: Double?, typicalAsleepMin: Double?, typicalRestorativeMin: Double?

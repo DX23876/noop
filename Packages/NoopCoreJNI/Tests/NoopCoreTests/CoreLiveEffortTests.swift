@@ -22,14 +22,14 @@ final class CoreLiveEffortTests: XCTestCase {
     func testWithoutHeartRateTheStoredRowStands() async throws {
         let store = try await WhoopStore.inMemory()
         let effort = await CoreRead.liveEffort(reader: reader(store), hrMaxOverride: 0, age: 40,
-                                               restingHr: 55, storedEffort: 31.0)
+                                               restingHr: 55, storedEffort: 31.0, mode: .sleepOnset)
         XCTAssertEqual(effort, 31.0)
     }
 
     func testWithNeitherThereIsNothingToShow() async throws {
         let store = try await WhoopStore.inMemory()
         let effort = await CoreRead.liveEffort(reader: reader(store), hrMaxOverride: 0, age: 40,
-                                               restingHr: nil, storedEffort: nil)
+                                               restingHr: nil, storedEffort: nil, mode: .sleepOnset)
         XCTAssertNil(effort)
     }
 
@@ -82,11 +82,11 @@ final class CoreLiveEffortTests: XCTestCase {
         let samples = (0..<3_600).map { HRSample(ts: from + $0, bpm: 150) }
         try await store.insert(Streams(hr: samples), deviceId: "my-whoop")
         let live = await CoreRead.liveEffort(reader: reader(store), hrMaxOverride: 190, age: 40,
-                                             restingHr: 55, storedEffort: nil)
+                                             restingHr: 55, storedEffort: nil, mode: .sleepOnset)
         let scored = try XCTUnwrap(live)
         XCTAssertGreaterThan(scored, 0)
         let floored = await CoreRead.liveEffort(reader: reader(store), hrMaxOverride: 190, age: 40,
-                                                restingHr: 55, storedEffort: scored + 10)
+                                                restingHr: 55, storedEffort: scored + 10, mode: .sleepOnset)
         XCTAssertEqual(floored, scored + 10, "the stored row is a floor, never lowered by a live refinement")
     }
 }

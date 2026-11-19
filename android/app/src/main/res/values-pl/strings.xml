@@ -2952,6 +2952,7 @@
     <string name="forge_no_nights">Brak nocy. Noś strap w łóżku i zsynchronizuj rano.</string>
     <string name="forge_in_bed">%1$s w łóżku · %2$d%% wydajności</string>
     <string name="forge_sl_in_bed_full">%1$s w łóżku · %2$d%% wydajności · %3$s</string>
+    <string name="forge_sl_in_bed_only">%1$s w łóżku</string>
     <string name="forge_sl_stages_approx">fazy orientacyjne (na urządzeniu)</string>
     <string name="forge_sl_stages_raw">surowe fazy z urządzenia</string>
     <string name="forge_sl_usually_only">zwykle %1$s</string>

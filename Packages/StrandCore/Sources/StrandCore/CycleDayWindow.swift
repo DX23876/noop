@@ -72,30 +72,29 @@ public enum CycleDayWindow {
         return await current(onsets: onsets, sleeps: sleeps, now: now, offsetSec: offsetSec)
     }
 
-    /// The span of the day in progress: `from` inclusive to `now`.
+    /// The span of the day in progress, `from` inclusive to `now`, and the day it is filed under.
     ///
-    /// `DayCycleResolver.activeWindow` decides it, the resolver the pass asks, including its safety cap:
-    /// a cycle left open past `absoluteMaxOpenSeconds` falls back to a synthetic midnight rather than
-    /// growing without end.
-    public static func window(mode: DayCycleMode, cycle: Cycle?, now: Int,
-                              offsetSec: Int) -> (from: Int, to: Int) {
+    /// `DayCycleResolver.activeWindow` decides both, the resolver the pass asks, including its safety
+    /// cap: a cycle left open past `absoluteMaxOpenSeconds` falls back to a synthetic midnight rather
+    /// than growing without end. The day comes out of the SAME answer rather than being worked out
+    /// again, because the two were free to disagree and did: at the cap, the span fell back to a
+    /// synthetic midnight up to 38 hours wide while the day read as today, so the refresh measured one
+    /// day and filed it under another, and its floor made that permanent until the next full pass.
+    public static func resolve(mode: DayCycleMode, cycle: Cycle?, now: Int,
+                               offsetSec: Int) -> (from: Int, to: Int, day: String) {
         let latest = cycle.map {
             DayCycleWindow(id: $0.wakeDay, startInclusive: $0.onset, endExclusive: now,
                            displayDay: $0.wakeDay, source: .detectedSleep)
         }
         let active = DayCycleResolver.activeWindow(mode: mode, latestSleep: latest, now: now,
                                                    offsetSec: offsetSec)
-        return (min(active.startInclusive, now), now)
+        return (min(active.startInclusive, now), now, active.displayDay)
     }
 
-    /// Which day that span belongs to: the cycle's wake day, or the calendar day when there is no cycle
-    /// to go by. Beside `window` because a figure filed under the wrong day is the same defect as a
-    /// figure measured over the wrong span.
-    public static func day(mode: DayCycleMode, cycle: Cycle?, now: Int, offsetSec: Int) -> String {
-        guard mode == .sleepOnset, let cycle,
-              now - cycle.onset < DayCycleResolver.absoluteMaxOpenSeconds else {
-            return AnalyticsEngine.dayString(now, offsetSec: offsetSec)
-        }
-        return cycle.wakeDay
+    /// The span alone, for a caller that states a figure without filing it anywhere.
+    public static func window(mode: DayCycleMode, cycle: Cycle?, now: Int,
+                              offsetSec: Int) -> (from: Int, to: Int) {
+        let resolved = resolve(mode: mode, cycle: cycle, now: now, offsetSec: offsetSec)
+        return (resolved.from, resolved.to)
     }
 }
