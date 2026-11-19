@@ -102,6 +102,23 @@ jobs:
               --repo "${REPO}" --public "${GITHUB_REPOSITORY}" --apply || true
           rm -f reports.json
 
+      # The way back. The public issue is where the work is tracked, and the app reads a report's
+      # status from the PRIVATE one, so without this the owner keeps two issues in step by hand and
+      # the reporter is the one who is not told. One direction only: see Tools/mirror_reports.py for
+      # what travels (in-progress, fixed-in:X.Y.Z, closed, the not-planned reason) and what never
+      # does. Same gate as the step above, so an unconfigured repository changes nothing.
+      - name: Carry the public state back onto the reports
+        env:
+          GH_TOKEN: ${{ secrets.SUGGESTIONS_TOKEN }}
+          REPO: ${{ vars.SUGGESTIONS_REPO }}
+        run: |
+          if [ -z "${GH_TOKEN}" ] || [ -z "${REPO}" ]; then
+            echo "no suggestions repository configured, nothing to mirror"
+            exit 0
+          fi
+          python3 Tools/mirror_reports.py --repo "${REPO}" --public "${GITHUB_REPOSITORY}" \
+            --public-file issues.json --apply
+
       # The service address comes from a repository VARIABLE, never from the committed file: this job
       # rewrites docs/app-feed.json whenever an issue moves, so an address pasted into the file by hand
       # would disappear at the next run and voting would go quiet for everyone, with no commit saying so.

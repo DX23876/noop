@@ -1940,3 +1940,30 @@ Android reads the same resolver through `sleep.nightFacts`: the night's own minu
 screen, every figure and both usuals come back from the core, so no average exists twice.
 
 Analysis migration required: no
+
+## 2026-11-19 — A report's status is maintained once, in the public issue
+
+The way back from a reported problem was built in halves. The app sends a report, the relay files it
+in the private suggestions repository, `publish_reports.py` turns it into a public issue on the
+owner's `publish` label and writes `Public: #N` back. But the status the app shows is read from the
+**private** issue (`noop-relay/src/worker.js`: closed means fixed, `NOT_PLANNED` means notPlanned,
+`in-progress` means working, a `fixed-in:X.Y.Z` label carries the version), while the work is tracked
+in the public one. So the owner had to label two issues, and the copy that was easy to forget is the
+one the reporter is looking at: a public issue marked `in-progress` still read "arrived", and a fixed
+one never said so.
+
+`Tools/mirror_reports.py` now carries that state across, once a day in `app-feed.yml`, in one
+direction only: `in-progress`, any `fixed-in:` version, closed, and the not-planned reason. Nothing
+travels from private to public, no comment is written into the reporter's thread, and the labels the
+relay and the publisher own (`bug`, `from-app`, `published`) are never removed. Two tests hold the
+direction itself: no gh call may name the public repository, and none may carry a comment or a body.
+
+It is gated like every other step that touches the private repository, so without
+`vars.SUGGESTIONS_REPO` and `secrets.SUGGESTIONS_TOKEN` it changes nothing and says so. Those two,
+plus `secrets.NOOP_MODERATION_KEY` for the English proposal, are still unset on 2026-11-19: the daily
+run prints "no suggestions repository configured, nothing to publish", which is why both reports that
+have arrived since 2026-11-15 are still sitting in the private repository without a proposal. Nothing
+is lost while they are unset, and nothing reaches the public repository either, which was the owner's
+question.
+
+Analysis migration required: no
