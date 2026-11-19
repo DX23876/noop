@@ -852,6 +852,9 @@ final class Repository: ObservableObject {
         // already holds days, and a release build has no such argument.
         if let opened, CommandLine.arguments.contains("--demo-data") {
             _ = try? await DemoDataset.seedIfEmpty(store: opened)
+            // A week of meals too, exactly as the core's `seedDemo` writes them for Android. Without it the
+            // demo account ate nothing on this phone and the Nutrition tile was offered on one phone only.
+            _ = await FoodDemoSeed.seedIfEmpty(store: opened)
         }
         #endif
         return opened
