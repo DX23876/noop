@@ -2065,3 +2065,29 @@ then the card shows the window as the duration like any other walk, which is hon
 why the times are rounder than usual.
 
 Analysis migration required: no
+
+## 2026-11-20 — Three corrections to the gap rule, from reviewing it
+
+A review of the two commits above found three things, all fixed in one commit.
+
+**A surplus that cannot fit the gap is now refused, not taken as proof.** The density test divided the
+estimated walking by the gap's length, so an estimate of half an hour inside a ten-minute gap read as
+3.2 and passed most easily of all. The strap counts a median 3.17 times the phone's steps, but the tenth
+percentile is 1.07, so hours where the phone leads do exist, and in one of those any ten-minute gap
+would have become a walk. The estimate must now also stay within `surplusFit` (1.5) of the gap: some
+overshoot is expected, since the pace it is divided by is a median and the two devices count
+differently, but twice the gap is not the gap. On the owner's data this costs nothing, 2026-11-09 still
+reads 15:04 to 15:45 and the walk track stays at 2.03 spans a day.
+
+**Android wrote hourly rows for the whole decade.** The hourly accumulation inherited `WINDOW_YEARS`,
+so a full import built ~87,600 per-hour maps and wrote that many rows one statement at a time, on a path
+the file already flags as expensive, for a rule that reads the last few days. Held to
+`HOURLY_STEPS_DAYS` (90) now, which is what iOS bounds the same table to.
+
+**`refreshTodaySteps` left today's hours empty.** Only `import()` wrote hourly rows, while the screen's
+live top-up rewrote the daily row alone, so a gap today had no phone steps until the next import and the
+rule simply never fired for the day the wearer is looking at: the silent failure this work exists to
+avoid. It now spreads the same records it already reads over today's hours and writes them beside the
+daily row. All sixteen Health Connect suites pass (110 tests).
+
+Analysis migration required: no

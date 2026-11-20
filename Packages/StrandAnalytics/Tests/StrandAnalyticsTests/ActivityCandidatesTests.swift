@@ -380,6 +380,17 @@ final class ActivityCandidatesTests: XCTestCase {
         XCTAssertTrue(A.gapWalks(asleep, phoneStepHours: [self.hour(1): 4_000], hrMax: 180).isEmpty)
     }
 
+    func testASurplusTooBigToFitTheGapIsRefusedRatherThanTakenAsProof() {
+        // A ten-minute hole in an hour the phone credits with far more walking than ten minutes: the steps
+        // belong to the rest of the hour, so the hole is not a walk. Dividing by the density alone would
+        // wave this through most easily of all.
+        let minutes = gapDay { i in (10..<30).contains(i) ? self.walking() : (60..<70).contains(i) ? nil : self.still }
+        XCTAssertTrue(A.gapWalks(minutes, phoneStepHours: [self.hour(1): 4_000], hrMax: 180).isEmpty)
+        // The same hole with a surplus that does fit it is offered.
+        XCTAssertEqual(A.gapWalks(minutes, phoneStepHours: [self.hour(1): 1_100], hrMax: 180)
+            .map(\.durationMinutes), [10])
+    }
+
     func testOnlyAnHourTheGapTakesABiteOutOfMaySpeakForIt() {
         // Two five-minute holes in one hour: neither is long enough, and together they may not claim the
         // hour's steps either.

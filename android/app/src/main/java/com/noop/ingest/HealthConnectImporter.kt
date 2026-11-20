@@ -532,8 +532,11 @@ object HealthConnectImporter {
         // strap never delivered is offered only when the phone's steps in those hours speak for it
         // (ActivityCandidates.gapWalks). iOS fills the same `appleStepHour` table from HealthKit, so the
         // rule itself lives in the core once and Android only supplies the data. Keyed by the start of a
-        // LOCAL hour, because that is the key the rule looks an hour up by.
+        // LOCAL hour, because that is the key the rule looks an hour up by, and held to the last
+        // [HOURLY_STEPS_DAYS] rather than to the decade the day aggregates cover.
         val stepsByHourBySource = HashMap<Long, HashMap<String, Long>>()
+        val hourlyStepsFrom = LocalDate.now(zone).minusDays(HOURLY_STEPS_DAYS)
+            .atStartOfDay(zone).toEpochSecond()
 
         try {
             // --- Steps ---
@@ -546,8 +549,10 @@ object HealthConnectImporter {
                 val src = r.metadata.dataOrigin.packageName
                 b.stepsBySource[src] = (b.stepsBySource[src] ?: 0L) + r.count
                 spreadOverHours(r.startTime, r.endTime, r.count, zone) { hour, steps ->
-                    val byHour = stepsByHourBySource.getOrPut(hour) { HashMap() }
-                    byHour[src] = (byHour[src] ?: 0L) + steps
+                    if (hour >= hourlyStepsFrom) {
+                        val byHour = stepsByHourBySource.getOrPut(hour) { HashMap() }
+                        byHour[src] = (byHour[src] ?: 0L) + steps
+                    }
                 }
             }
             // --- Total calories burned (basal + active) ---
@@ -1100,6 +1105,9 @@ object HealthConnectImporter {
         // #589: per-SOURCE sums so the live top-up de-overlaps a phone+watch pair exactly like [import]
         // (sum within a source, MAX across sources), instead of summing them into a ~2x inflated count.
         val stepsBySource = HashMap<String, Long>()
+        // Today's steps per hour and per source, for the core's gap rule (see the spread below).
+        val stepsByHourBySource = HashMap<Long, HashMap<String, Long>>()
+        val todayStart = today.atStartOfDay(zone).toEpochSecond()
         val selfPackage = context.packageName // #528: skip our own writes (see readAll / isSelfWritten)
         // readAll swallows a failed read (the map stays empty), so a flaky provider degrades to the stored
         // row below rather than clobbering it with zero.
@@ -1119,9 +1127,20 @@ object HealthConnectImporter {
             // agrees with [import]'s dayOf(r.startTime, r.startZoneOffset). #1002: keyed by the
             // record's own offset for that agreement; `today` stays the phone's zone, which is what
             // "today" means for a live top-up of the screen you are looking at.
+            val src = r.metadata.dataOrigin.packageName
             if (localDayKey(r.startTime, r.startZoneOffset, zone) == dayKey) {
-                val src = r.metadata.dataOrigin.packageName
                 stepsBySource[src] = (stepsBySource[src] ?: 0L) + r.count
+            }
+            // Today's hours too, or the core's gap rule has no phone steps for today until the next full
+            // import and simply never fires for the day the wearer is looking at. Spread over the hours a
+            // record touches exactly as [import] does, keeping only the hours of today: a record that
+            // started yesterday contributes the part that falls after midnight, and nothing before it is
+            // rewritten from this partial read.
+            spreadOverHours(r.startTime, r.endTime, r.count, zone) { hour, steps ->
+                if (hour >= todayStart) {
+                    val byHour = stepsByHourBySource.getOrPut(hour) { HashMap() }
+                    byHour[src] = (byHour[src] ?: 0L) + steps
+                }
             }
         }
         val sum = maxSourceLong(stepsBySource) // #589 de-overlap: max source, not cross-source sum
@@ -1139,6 +1158,11 @@ object HealthConnectImporter {
         try {
             if (existing == null) repo.upsertDevice(HC_DEVICE, name = "Health Connect")
             repo.upsertAppleDaily(listOf(updated))
+            val hourRows = stepsByHourBySource.mapNotNull { (hour, bySource) ->
+                val steps = maxSourceLong(bySource)
+                if (steps > 0L) AppleStepHour(deviceId = HC_DEVICE, ts = hour, steps = steps.toInt()) else null
+            }
+            if (hourRows.isNotEmpty()) repo.upsertAppleStepHours(hourRows)
         } catch (e: Exception) {
             return existing?.steps
         }
@@ -1378,6 +1402,14 @@ object HealthConnectImporter {
 
     /** Longest record the hourly split will speak for; beyond it no single hour can be named. */
     internal const val MAX_HOURLY_SPREAD_HOURS = 6
+
+    /**
+     * How far back hourly step rows are written, in days. [WINDOW_YEARS] is the window for the DAY
+     * aggregates; keeping hourly rows for the same decade would be ~87,600 rows written one statement at a
+     * time on every import, for a rule (`ActivityCandidates.gapWalks`) that only ever reads the last few
+     * days. iOS bounds the same table the same way: a one-time 90-day backfill, then its sync window.
+     */
+    internal const val HOURLY_STEPS_DAYS = 90L
 
     /**
      * #589 de-overlap for a per-source step map: SUM is already folded WITHIN each source by the read

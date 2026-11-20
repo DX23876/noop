@@ -54,6 +54,10 @@ public enum ActivityCandidates {
     /// Steps a minute assumed for the phone's steps when the day holds no walked minute to measure the
     /// wearer's own pace from. The measured median on 2026-11-20 was 95.
     public static let fallbackCadence = 95
+    /// How far the walking the phone's steps stand for may overshoot the gap it is credited to before the
+    /// credit is refused. The pace it is divided by is a median, and phone and strap count differently, so
+    /// some overshoot is normal; twice the gap is not the gap.
+    public static let surplusFit = 1.5
     public static let everydayMarginHRR = 0.12
     public static let everydayQuantile = 0.75
     /// Without enough history, the heart-rate track uses this fixed reserve instead of the everyday level.
@@ -253,8 +257,14 @@ public enum ActivityCandidates {
             // cannot both claim the same steps.
             let surplus = minutesByHour.filter { $0.value >= minimumGapMinutes }
                 .reduce(0) { $0 + max(0, (phoneStepHours[$1.key] ?? 0) - (strapStepsByHour[$1.key] ?? 0)) }
+            // The walking the surplus stands for has to FIT in the gap, or the claim that it happened there
+            // is wrong: a surplus worth half an hour inside a ten-minute gap says the steps belong to the
+            // rest of the hour, not that the gap is certainly a walk. Without this an oversized surplus
+            // passes the density test most easily of all, and in the hours where the phone counts more than
+            // the strap (under a tenth of them, but they exist) any gap would become a walk.
             let estimate = surplus / cadence
             guard estimate >= minimumWalkMinutes,
+                  Double(estimate) <= Double(gap.count) * surplusFit,
                   Double(estimate) / Double(gap.count) >= walkDensity else { return }
             let span = gap.compactMap { byTs[$0] }
             let bpms = span.compactMap(\.bpm)
