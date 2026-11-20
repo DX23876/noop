@@ -1967,3 +1967,59 @@ is lost while they are unset, and nothing reaches the public repository either, 
 question.
 
 Analysis migration required: no
+
+## 2026-11-20 — A walk is the walking in it, and a stop is not part of it
+
+The owner asked for walks to be captured properly, after a span that held a tram ride was offered as
+one walk. Measured on the database pulled the same day (`quick_check` ok, data to 18:40), over the
+window `activityCandidate` actually keeps, 2026-10-22 to 2026-11-20: 76 candidates, 33 of them with an
+answer that still resolves to a span, 2538 walked minutes, median 89 a day.
+
+Three findings decided it.
+
+**The second share was the defect.** `locomotionShare` counted classified SECONDS, so a weak continuous
+signal of ten to twenty-five walking seconds a minute summed to 0.3 to 0.7 with no walked minute in it.
+That is how a ride got the walk label. Counted in minutes the same spans read 0.13 and 0.15.
+
+**The gates, not the data, were losing walks.** Long walks were already found (90 % of the bouts with
+at least fifteen walked minutes, 94 % from twenty). What fell through were walks of ten to twenty-one
+walked minutes, 13 of 67 bouts, because a walk had to be 80 steps a minute, fifteen minutes long and
+80 % dense. The missed ones were strolls: 10-22 08:54 with 21 walked minutes in 32, 10-27 18:50 with
+20 in 26, 10-31 13:46 with 18 in 22.
+
+**Shortening a span would have made the card contradict itself** ("walk 15:21 to 16:12, 24 minutes"),
+which the readout rule forbids. The stops are contiguous, so splitting is available instead: still
+block from five minutes, each piece from ten walked minutes, and 26 of 29 confirmed walks keep a
+proposal. Of the three that do not, two are the 11-09 strap gap and one is errands with the walking
+scattered over 58 minutes (10-23 08:42), which is a real loss and accepted. A density floor of 0.6
+costs nothing further (63 pieces instead of 66, no additional confirmed walk lost) and stops a run of
+"three minutes on, four off" from becoming a two-hour span.
+
+So, rule `activity-v3`: a walked minute is 30 classified seconds, 30 of them walking or running, and
+40 steps. A walk is a run of walked minutes cut wherever more than `walkStopMinutes` of standing lie
+between two of them, offered from `minimumWalkMinutes` 10 with `walkDensity` 0.6, and a thinner run is
+cut at its longest stop and judged again. Start and end are its first and last walked minute, so the
+duration is the walking. Gone with no replacement: `walkCadence` 80, `walkSlowSteps`, `boutShare` for
+walks, `minimumMinutes` as a walk gate, `walkEdgeMinutes` and the edge growing, `mostlyWalkingShare`
+and the mixed way. `likelyKinds` counts walked minutes out of classified minutes at
+`walkingKindShare` 0.5. A heart-rate span is asked about on its load alone.
+
+`activitybench` on the same data, 30 worn awake days: the walk track offers 2.00 spans a day without a
+logged entry against the published detector's 5.17, hits 3 of 4 logged walks against 2, and the mean
+end error falls from 47.2 to 10.3 minutes. Only five entries exist in the window, so those hit counts
+carry no rate; the answer-based measurement above is the stronger evidence.
+
+Not built, deliberately: nothing reads the phone. Strap coverage is a median 1399 of 1440 minutes a day
+over 129 days, but 2026-11-09 has 283, and in such a gap every per-second stream is missing at once
+while the heart rate keeps arriving (2354 rows against zero between 15:04 and 15:45). The gap is
+permanent, so waiting for it is pointless: eleven days later the day is unchanged. Apple's hourly steps
+would prove walking there (4501 against the strap's 913), but they can only ever prove walking, never
+stillness, because in 530 fully covered hours with movement the strap counts a median 3.17 times the
+phone's steps, upper quartile 13.9. A phone-gap track is therefore its own piece of work, not a clause
+in this rule. Also not built: a vehicle signal. `gravitySample.dynAccel` separates a desk (median
+0.024, n=60656) from being out (0.135, n=324), but "out" holds standing, queueing and talking as well
+as riding, and for a duration it changes nothing, since a ride and a stand are both not walking.
+
+Measurements and scripts: `backlog/plans/walk-detection-2026-11-20.md`.
+
+Analysis migration required: no
