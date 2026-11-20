@@ -48,6 +48,10 @@ on:
         description: "release, or testing for a build attached to the rolling testing release"
         required: false
         default: release
+      ref:
+        description: "Branch, tag or commit to build (default main)"
+        required: false
+        default: main
 
 permissions:
   contents: write
