@@ -7312,4 +7312,11 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_sl_add_blocked">У вас уже есть сон с %1$s до %2$s. Два сна на одни и те же часы учтут их дважды.</string>
     <string name="forge_sl_add_edit_that">Изменить тот сон</string>
     <string name="forge_sl_add_row">Добавить сон</string>
+    <string name="forge_fin_title">Завершить тренировку</string>
+    <string name="forge_fin_sub">Одно число на всю тренировку, чтобы день ног можно было сравнить с пробежкой.</string>
+    <string name="forge_fin_question">Насколько тяжёлой была вся тренировка? (1 до 10)</string>
+    <string name="forge_fin_note">Это RPE тренировки. Умноженный на её длительность, он даёт нагрузку тренировки, единственное число, которое сравнивает совсем разные занятия.</string>
+    <string name="forge_fin_save">Сохранить тренировку</string>
+    <string name="forge_fin_easy">Легко</string>
+    <string name="forge_fin_allout">На максимум</string>
 </resources>

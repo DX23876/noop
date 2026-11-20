@@ -7299,4 +7299,11 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="forge_sl_add_blocked">Já tens um sono das %1$s às %2$s. Dois sonos sobre as mesmas horas contariam essas horas duas vezes.</string>
     <string name="forge_sl_add_edit_that">Editar esse sono</string>
     <string name="forge_sl_add_row">Adicionar um sono</string>
+    <string name="forge_fin_title">Terminar a sessão</string>
+    <string name="forge_fin_sub">Um número para toda a sessão, para que um dia de pernas se compare com uma corrida.</string>
+    <string name="forge_fin_question">Quão dura foi toda a sessão? (1 a 10)</string>
+    <string name="forge_fin_note">Isto é o RPE da sessão. Multiplicado pela duração dá a carga da sessão, o único número que compara treinos completamente diferentes.</string>
+    <string name="forge_fin_save">Guardar a sessão</string>
+    <string name="forge_fin_easy">Fácil</string>
+    <string name="forge_fin_allout">No máximo</string>
 </resources>

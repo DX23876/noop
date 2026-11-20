@@ -28,6 +28,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -81,6 +83,36 @@ internal fun EffortBadge(text: String, color: Color?, modifier: Modifier = Modif
         contentAlignment = Alignment.Center) {
         Text(text, style = Forge.type.subhead.copy(fontWeight = FontWeight.Bold, fontFeatureSettings = "tnum"),
              color = if (color == null) Forge.colors.textTertiary else Forge.colors.text)
+    }
+}
+
+/**
+ * The session rating, 1 to 10, as badges to tap rather than a number to type.
+ *
+ * The per-set picker next door describes its levels in reps in reserve, which is a SET's language and
+ * says nothing about a whole session. So this keeps the badges, the colours and the tap, and leaves the
+ * words to the two ends of the scale.
+ */
+@Composable
+internal fun SessionEffortPicker(selected: Double?, onPick: (Double?) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+            (1..10).forEach { value ->
+                val isOn = selected == value.toDouble()
+                Box(Modifier.weight(1f).height(44.dp)
+                        .clickable(role = Role.Button) { onPick(if (isOn) null else value.toDouble()) },
+                    contentAlignment = Alignment.Center) {
+                    EffortBadge(value.toString(),
+                                if (isOn) SetEffort.color(SetEffort.level("rpe", value.toDouble())) else null,
+                                Modifier.fillMaxWidth().height(40.dp))
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.forge_fin_easy), style = Forge.type.caption, color = Forge.colors.textTertiary)
+            Spacer(Modifier.weight(1f))
+            Text(stringResource(R.string.forge_fin_allout), style = Forge.type.caption, color = Forge.colors.textTertiary)
+        }
     }
 }
 

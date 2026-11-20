@@ -7274,4 +7274,11 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="forge_sl_add_blocked">Hai già un sonno dalle %1$s alle %2$s. Due sonni sulle stesse ore le conterebbero due volte.</string>
     <string name="forge_sl_add_edit_that">Modifica quel sonno</string>
     <string name="forge_sl_add_row">Aggiungi un sonno</string>
+    <string name="forge_fin_title">Concludi la sessione</string>
+    <string name="forge_fin_sub">Un numero per l\'intera sessione, così un giorno di gambe si confronta con una corsa.</string>
+    <string name="forge_fin_question">Quanto è stata dura tutta la sessione? (da 1 a 10)</string>
+    <string name="forge_fin_note">Questo è l\'RPE della sessione. Moltiplicato per la sua durata dà il carico della sessione, l\'unico numero che confronta allenamenti del tutto diversi.</string>
+    <string name="forge_fin_save">Salva la sessione</string>
+    <string name="forge_fin_easy">Facile</string>
+    <string name="forge_fin_allout">Al massimo</string>
 </resources>

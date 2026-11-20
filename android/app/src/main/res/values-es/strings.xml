@@ -7307,4 +7307,11 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_sl_add_blocked">Ya tienes un sueño de %1$s a %2$s. Dos sueños sobre las mismas horas las contarían dos veces.</string>
     <string name="forge_sl_add_edit_that">Editar ese sueño</string>
     <string name="forge_sl_add_row">Añadir un sueño</string>
+    <string name="forge_fin_title">Terminar la sesión</string>
+    <string name="forge_fin_sub">Un número para toda la sesión, para poder comparar un día de piernas con una carrera.</string>
+    <string name="forge_fin_question">¿Qué tan dura fue toda la sesión? (1 a 10)</string>
+    <string name="forge_fin_note">Esto es el RPE de la sesión. Multiplicado por su duración da la carga de la sesión, la única cifra que compara entrenamientos completamente distintos.</string>
+    <string name="forge_fin_save">Guardar la sesión</string>
+    <string name="forge_fin_easy">Fácil</string>
+    <string name="forge_fin_allout">A tope</string>
 </resources>

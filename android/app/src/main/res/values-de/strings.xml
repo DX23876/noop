@@ -7323,4 +7323,11 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_sl_add_blocked">Du hast schon einen Schlaf von %1$s bis %2$s. Zwei Schläfe über denselben Stunden würden diese Stunden doppelt zählen.</string>
     <string name="forge_sl_add_edit_that">Diesen Schlaf bearbeiten</string>
     <string name="forge_sl_add_row">Schlaf nachtragen</string>
+    <string name="forge_fin_title">Einheit beenden</string>
+    <string name="forge_fin_sub">Eine Zahl für die ganze Einheit, damit sich ein Beintag mit einem Lauf vergleichen lässt.</string>
+    <string name="forge_fin_question">Wie hart war die ganze Einheit? (1 bis 10)</string>
+    <string name="forge_fin_note">Das ist der Einheits-RPE. Mit der Dauer multipliziert ergibt er die Einheitslast, die eine Zahl, die ganz verschiedene Trainings vergleichbar macht.</string>
+    <string name="forge_fin_save">Einheit sichern</string>
+    <string name="forge_fin_easy">Leicht</string>
+    <string name="forge_fin_allout">Volle Kraft</string>
 </resources>

@@ -3144,6 +3144,13 @@
     <string name="forge_training_finish_gone">This workout is no longer open. It was either saved already or ended somewhere else.</string>
     <string name="forge_training_finish_failed">The workout could not be saved. Nothing was lost; try again, and if it keeps failing, share your strap log.</string>
     <string name="forge_training_effort">How hard was it? (1 to 10)</string>
+    <string name="forge_fin_title">Finish session</string>
+    <string name="forge_fin_sub">One number for the whole session, so a leg day can be compared with a run.</string>
+    <string name="forge_fin_question">How hard was the whole session? (1 to 10)</string>
+    <string name="forge_fin_note">This is session RPE. Multiplied by the session\'s length it gives session load, the one figure that compares across completely different training.</string>
+    <string name="forge_fin_save">Save session</string>
+    <string name="forge_fin_easy">Easy</string>
+    <string name="forge_fin_allout">All out</string>
     <string name="forge_training_skip">Skip</string>
     <string name="forge_training_save">Save</string>
     <string name="forge_training_routine_name">Routine name</string>

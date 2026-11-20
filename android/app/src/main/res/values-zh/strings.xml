@@ -7251,4 +7251,11 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_sl_add_blocked">你已经有一段 %1$s 到 %2$s 的睡眠。同一段时间记录两次会被重复计算。</string>
     <string name="forge_sl_add_edit_that">编辑那段睡眠</string>
     <string name="forge_sl_add_row">补记睡眠</string>
+    <string name="forge_fin_title">结束本次训练</string>
+    <string name="forge_fin_sub">给整次训练一个数字，这样腿部训练日也能和一次跑步相比。</string>
+    <string name="forge_fin_question">整次训练有多累？（1 到 10）</string>
+    <string name="forge_fin_note">这是训练 RPE。乘以时长就得到训练负荷，这是唯一能比较完全不同训练的数字。</string>
+    <string name="forge_fin_save">保存本次训练</string>
+    <string name="forge_fin_easy">轻松</string>
+    <string name="forge_fin_allout">全力</string>
 </resources>

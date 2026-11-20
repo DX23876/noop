@@ -7304,4 +7304,11 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="forge_sl_add_blocked">Tu as déjà un sommeil de %1$s à %2$s. Deux sommeils sur les mêmes heures les compteraient deux fois.</string>
     <string name="forge_sl_add_edit_that">Modifier ce sommeil</string>
     <string name="forge_sl_add_row">Ajouter un sommeil</string>
+    <string name="forge_fin_title">Terminer la séance</string>
+    <string name="forge_fin_sub">Un chiffre pour toute la séance, pour qu\'un jour de jambes se compare à une course.</string>
+    <string name="forge_fin_question">À quel point la séance a-t-elle été dure ? (1 à 10)</string>
+    <string name="forge_fin_note">C\'est le RPE de la séance. Multiplié par sa durée, il donne la charge de séance, le seul chiffre qui compare des entraînements totalement différents.</string>
+    <string name="forge_fin_save">Enregistrer la séance</string>
+    <string name="forge_fin_easy">Facile</string>
+    <string name="forge_fin_allout">À fond</string>
 </resources>

@@ -7356,4 +7356,11 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_sl_add_blocked">Masz już sen od %1$s do %2$s. Dwa sny w tych samych godzinach policzyłyby je dwa razy.</string>
     <string name="forge_sl_add_edit_that">Edytuj ten sen</string>
     <string name="forge_sl_add_row">Dodaj sen</string>
+    <string name="forge_fin_title">Zakończ sesję</string>
+    <string name="forge_fin_sub">Jedna liczba dla całej sesji, żeby dzień nóg dało się porównać z biegiem.</string>
+    <string name="forge_fin_question">Jak ciężka była cała sesja? (1 do 10)</string>
+    <string name="forge_fin_note">To jest RPE sesji. Pomnożone przez jej długość daje obciążenie sesji, jedyną liczbę porównującą zupełnie różne treningi.</string>
+    <string name="forge_fin_save">Zapisz sesję</string>
+    <string name="forge_fin_easy">Lekko</string>
+    <string name="forge_fin_allout">Na maksa</string>
 </resources>
