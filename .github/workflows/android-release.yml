@@ -16,6 +16,22 @@ on:
       version:
         required: true
         type: string
+      channel:
+        # Which CHANNEL this APK belongs to, and the ONE place that decides it. Both things a tester
+        # can read - the file's name and the stamp under More - are derived from this below, so an APK
+        # cannot be called a testing build on the download page and name itself a release on screen
+        # (#47). "release" keeps the behaviour the release path has always had.
+        required: false
+        type: string
+        default: release
+      ref:
+        # WHAT to build. `main` is what the release path has always used and stays the default. A
+        # testing build dispatched from a staging branch passes its own sha instead, because the stamp
+        # and the APK would otherwise name a commit this APK was not built from, which is the one
+        # thing the stamp exists to rule out.
+        required: false
+        type: string
+        default: main
   workflow_dispatch:
     inputs:
       version:
@@ -28,6 +44,10 @@ on:
       tag:
         description: "Release tag to attach to when not a dry run (for example v12.2.1-dx)"
         required: false
+      channel:
+        description: "release, or testing for a build attached to the rolling testing release"
+        required: false
+        default: release
 
 permissions:
   contents: write
@@ -52,10 +72,10 @@ jobs:
       run:
         working-directory: android
     steps:
-      - name: Checkout main
+      - name: Checkout the tree to build
         uses: actions/checkout@v5
         with:
-          ref: main
+          ref: ${{ inputs.ref || 'main' }}
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -121,15 +141,18 @@ jobs:
       # points at by the time this runs) and the date, printed in the log header and under More.
       # Releases carry it as well, so a report against a release names its build the same way.
       - name: Build the release APK
+        env:
+          CHANNEL: ${{ inputs.channel || 'release' }}
         run: |
           ./gradlew assembleFullRelease \
-            "-Pnoop.buildStamp=release $(git rev-parse --short=7 HEAD) $(date -u +%Y-%m-%d)" \
+            "-Pnoop.buildStamp=${CHANNEL} $(git rev-parse --short=7 HEAD) $(date -u +%Y-%m-%d)" \
             "-Dorg.gradle.jvmargs=-Xmx6g -XX:MaxMetaspaceSize=1g -Dfile.encoding=UTF-8"
 
       - name: Check the signature
         id: apk
         env:
           VERSION: ${{ inputs.version }}
+          CHANNEL: ${{ inputs.channel || 'release' }}
         run: |
           set -euo pipefail
           [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::version must be X.Y.Z"; exit 1; }
@@ -139,7 +162,14 @@ jobs:
           grep -qi "certificate SHA-256 digest: $RELEASE_CERT_SHA256" "$RUNNER_TEMP/certs.txt" || {
             echo "::error::the APK is not signed with the release certificate"; exit 1;
           }
-          OUT="NOOP-Forge-android-${VERSION}-testing.apk"
+          # The same `channel` that went into the stamp names the file, so the two agree by
+          # construction. The release name keeps its own `-testing` suffix: the Android app itself is
+          # still in testing (plan D9), which is a different statement from the build's channel.
+          if [ "${CHANNEL:-release}" = "release" ]; then
+            OUT="NOOP-Forge-android-${VERSION}-testing.apk"
+          else
+            OUT="NOOP-${CHANNEL}-android-v${VERSION}.apk"
+          fi
           cp "$APK" "$RUNNER_TEMP/$OUT"
           echo "file=$RUNNER_TEMP/$OUT" >> "$GITHUB_OUTPUT"
           ls -l "$RUNNER_TEMP/$OUT"

@@ -1,8 +1,9 @@
 # Fork-only: ONE on-demand testing build that publishes ALL platforms into ONE release.
 #
-# A `meta` job creates a single dated prerelease, then the macOS / iOS jobs each attach their
-# artifact to that SAME tag — so every build has NOOP-testing-macos.zip + NOOP-testing-ios-unsigned.ipa
-# each stamped with the base app version.
+# A `meta` job names the build, the macOS / iOS legs deliver their artifacts to the run, `publish`
+# then recreates the single rolling prerelease and attaches them, and `android` adds the signed APK —
+# so every build has NOOP-testing-macos.zip, NOOP-testing-ios-unsigned.ipa and
+# NOOP-testing-android.apk, each stamped with the base app version.
 # Unsigned/debug-keyed, no secrets. Trigger from the Actions tab. (Built from noop-staging via --ref.)
 name: Testing build (fork)
 
@@ -374,6 +375,7 @@ jobs:
           - **macOS:** \`NOOP-testing-macos-v${VER}.zip\`. Unzip, then **right-click, Open** (ad-hoc signed, not notarized; Gatekeeper warns once). If it says *\"damaged\"*, run \`xattr -dr com.apple.quarantine /Applications/NOOP.app\`.
           - **iOS (AltStore):** \`NOOP-testing-ios-unsigned-v${VER}.ipa\`. iPhone and iPad only, for reliable free Apple ID sideloading.
           - **iOS (Full):** \`NOOP-testing-ios-full-unsigned-v${VER}.ipa\`. Includes the widgets, the Watch app and its complication; needs provisioning for every embedded target.
+          - **Android:** \`NOOP-testing-android-v${VER}.apk\`. Signed with the same key as the releases, so it installs straight over NOOP Forge. It is attached a few minutes after the other files, because it is built after them.
 
           Base app version ${VER} · built ${DATE} · \`${SHA}\` · testing channel."
           # Belt-and-braces: a rolling tag is deleted with --cleanup-tag and recreated seconds later, and
@@ -387,13 +389,41 @@ jobs:
           # shellcheck disable=SC2086
           gh release upload "$TAG" $FILES --repo "$GITHUB_REPOSITORY" --clobber
 
+  # The Android APK, on ubuntu. It is NOT one of `publish`'s artifacts: the APK has to be signed with
+  # the release key for it to install over an existing NOOP Forge and keep the tester's data, and the
+  # signing job already exists and already checks the certificate. So it runs AFTER `publish` and
+  # uploads into the release `publish` has just made - attached before, it would be wiped by the
+  # recreate.
+  #
+  # Why this leg was missing at all: `testing-latest` carried macOS and iOS only, so the Android
+  # testers got nothing out of a testing build and had to wait for a release (reported from the app,
+  # #53). It runs on ubuntu, so it does not join the queue for a macOS runner and cannot be the leg
+  # that costs the run its artifacts.
+  #
+  # `channel: testing` is what keeps the APK honest: it names the file `NOOP-testing-android-v*.apk`
+  # AND compiles the same word into the stamp the app shows under More, from one input.
+  android:
+    name: Build and attach the Android APK
+    needs: [meta, publish]
+    uses: ./.github/workflows/android-release.yml
+    with:
+      tag: ${{ needs.meta.outputs.tag }}
+      version: ${{ needs.meta.outputs.ver }}
+      channel: testing
+      # The commit under test, not whatever `main` points at by now: a testing build is usually
+      # dispatched from a branch, and the release's own tag pins this sha.
+      ref: ${{ github.sha }}
+    secrets: inherit
+
   # Fork-only housekeeping: the disposable `noop-staging` branch exists ONLY to feed this build. Once every
   # platform job has finished (pass OR fail — always()), delete it so GitHub's "Compare & pull request"
   # banner doesn't linger after each run. The rolling release tag (testing-latest) pins the built sha, so
   # deleting the branch orphans nothing. Guarded to the disposable branch name — a run dispatched from main
   # (or any other ref) is left alone.
   cleanup:
-    needs: [meta, macos, ios, publish]
+    # `android` too, although it checks out a sha rather than this branch: the job must not have the
+    # branch pulled out from under it while it is still fetching.
+    needs: [meta, macos, ios, publish, android]
     if: ${{ always() && github.ref_type == 'branch' && github.ref_name == 'noop-staging' }}
     runs-on: ubuntu-latest
     steps:
