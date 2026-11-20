@@ -27,6 +27,11 @@ struct LiveView: View {
     /// the request; LiveView never needs to know which.
     @EnvironmentObject private var router: NavRouter
 
+    /// This screen's hold on the realtime heart-rate stream, taken on appear and given back on
+    /// disappear. `@State`, so it survives the view values SwiftUI makes and unmakes while the screen
+    /// stays up, and so one appearance can never release twice.
+    @State private var realtimeHold = LiveHeartRateHold()
+
     /// Which strap the user is pairing — persists across launches. Drives which
     /// BLE service we scan for so a WHOOP 4.0 scan never hangs on a WHOOP 5 wrist.
     @AppStorage("selectedWhoopModel") private var selectedModelRaw = WhoopModel.whoop4.rawValue
@@ -198,7 +203,7 @@ struct LiveView: View {
         }
         #endif
         .onAppear { refreshLiveSession(); consumeActiveWorkoutRequest() }
-        .onDisappear { model.stopRealtimeHR() }
+        .onDisappear { releaseLiveSession() }
         // A fresh bond/connection re-arms the BLE stream (Apple must re-send startRealtime on a new
         // connection) WITHOUT bumping the ref-count — `refreshLiveSession`'s `startRealtimeHR` already
         // counted this screen once on `.onAppear`, balanced by the single `stopRealtimeHR` above.
@@ -915,12 +920,21 @@ struct LiveView: View {
         .disabled(!live.connected)
     }
 
-    /// Live tab appeared: take a ref-count on the realtime stream (arms it on the 0→1 edge) and pull a
-    /// battery reading. Balanced by the single `stopRealtimeHR()` on `.onDisappear`.
+    /// Live tab appeared: take this screen's hold on the realtime stream and pull a battery reading.
+    ///
+    /// The hold is taken for a WHOOP strap whether or not the link is up at this instant, and released
+    /// only if it was taken - see `LiveHeartRateHold` for the two faults the old connected-and-bonded
+    /// guard caused. The battery read keeps that guard, because it is a command with nowhere to go
+    /// while the strap is not there, and the link event below asks again.
     private func refreshLiveSession() {
+        if realtimeHold.take(isWhoop: activeIsWhoop) { model.startRealtimeHR() }
         guard activeConnection else { return }
-        model.startRealtimeHR()
         model.getBattery()
+    }
+
+    /// Live tab left: give the hold back, once, and only if this screen ever took one.
+    private func releaseLiveSession() {
+        if realtimeHold.release() { model.stopRealtimeHR() }
     }
 
     /// Honour a one-shot "Return to workout" from the Today indicator card: present the in-exercise screen
@@ -939,6 +953,9 @@ struct LiveView: View {
     /// these events can fire several times per appearance against the single `.onDisappear` release.
     private func reconnectLiveSession() {
         guard activeConnection else { return }
+        // A screen that opened under a strap the registry had not resolved yet still has no hold; take
+        // it now rather than re-arming a want that does not exist.
+        if realtimeHold.take(isWhoop: activeIsWhoop) { model.startRealtimeHR() }
         model.rearmRealtimeIfWanted()
         model.getBattery()
     }
