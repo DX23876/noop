@@ -39,6 +39,9 @@ public enum ActivitySuggestions {
         public let asks: Bool
         /// Newest minute of data the suggestion was computed against; nil before a refresh recorded one.
         public let dataThrough: Int?
+        /// `ActivityCandidates.Candidate.strapStepsMissing`: a walk the strap has no step data for, so its
+        /// times are a gap's bounds and a screen showing it must say so.
+        public let strapStepsMissing: Bool
 
         public var id: String { "\(track.rawValue):\(start)" }
         public var durationMinutes: Int { (end - start) / 60 }
@@ -83,7 +86,7 @@ public enum ActivitySuggestions {
             return Suggestion(track: track, start: row.startTs, end: row.endTs, avgBpm: row.avgBpm, load: row.load,
                               kinds: row.kinds.compactMap(ActivityDetectionScore.Kind.init(rawValue:)),
                               ruleVersion: row.ruleVersion, state: state, asks: candidate.asks(at: settings.level),
-                              dataThrough: dataThrough)
+                              dataThrough: dataThrough, strapStepsMissing: candidate.strapStepsMissing)
         }
     }
 

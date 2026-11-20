@@ -142,6 +142,16 @@ public enum ActivityCandidates {
             self.kinds = kinds
         }
 
+        /// Whether the strap counted no steps at all over this span, resolved HERE and nowhere else so no
+        /// screen has to guess it.
+        ///
+        /// A walk is found FROM step minutes, so a walk-track span without a single step reading can only
+        /// be one `gapWalks` built out of the phone's own steps over a stretch the strap never delivered.
+        /// Its start and end are the gap's, not the walking's, and that is the one thing a card showing it
+        /// has to say out loud. Never true of a walk the strap saw, and it claims nothing about any other
+        /// track: a heart-rate span is free to have no steps in it.
+        public var strapStepsMissing: Bool { track == .walk && cadence == nil }
+
         /// Whether a span is asked about at `level`. Walks always are: the walk track is already specific.
         /// A heart-rate span is when it carries enough load. A way with a stop in it is two walks on the
         /// walk track, so nothing here needs a share of walking to be asked about.

@@ -357432,6 +357432,64 @@
         }
       }
     },
+    "No steps from the strap here, so the times are rough" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keine Schritte vom Strap, die Zeiten sind daher ungefähr"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin pasos de la pulsera, así que las horas son aproximadas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun pas du bracelet, les horaires sont donc approximatifs"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun passo dalla fascia, quindi gli orari sono approssimativi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak kroków z opaski, więc godziny są przybliżone"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sem passos da bracelete, pelo que as horas são aproximadas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Шагов с браслета нет, поэтому время приблизительное"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有手环步数，时间为大致范围"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有手環步數，時間為大致範圍"
+          }
+        }
+      }
+    },
     "No strap connected" : {
       "localizations" : {
         "de" : {

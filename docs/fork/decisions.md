@@ -2114,3 +2114,29 @@ only from a read that completed. The day aggregates keep their existing behaviou
 only ever reads low.
 
 Analysis migration required: no
+
+## 2026-11-20 — A card showing a gap's bounds says so, in one fact resolved once
+
+The gap rule's one open end: a suggestion the phone's steps spoke for carries the bounds of the stretch
+the strap missed, not of the walking inside it, and the card showed them like any measured span.
+
+The fact has one home, `ActivityCandidates.Candidate.strapStepsMissing`: a walk-track span with no step
+reading at all. A walk is found FROM step minutes, so that can only be a `gapWalks` span, and no screen
+has to guess it (the Alarms lesson: resolve a fact once, pass it in). It claims nothing about any other
+track, since a heart-rate span is free to have no steps in it. `ActivitySuggestions.Suggestion` carries
+it through, and the JNI `Item` too, so the iPhone card and the Forge card on Android both show one
+caption and both take the wording from the same catalogue entry.
+
+The catalogue key had to be added by hand. `xcodebuild` treats `Localizable.xcstrings` as an input and
+never writes it back, which a successful macOS build proved by leaving the file untouched, and
+`Tools/fill-missing-translations.py` deliberately refuses to invent catalogue keys. The entry was
+inserted as text at its place in the file rather than through a JSON round trip, which would have
+reformatted all 135,000 lines, and it carries all nine languages. The strap's name per language follows
+what the catalogue already uses (Strap, pulsera, bracelet, fascia, opaska, bracelete, браслет, 手环).
+
+The label key is `times.rough`, not `roughTimes`, and that is not cosmetic: `Tools/i18n_audit.py` reads a
+lower-case literal with no space as an identifier and anything else inside a `Text(` as copy, so the
+camel-case key failed the Android hardcoded-literal gate. Renaming it keeps the gate's rule intact
+instead of adding a new finding to its baseline.
+
+Analysis migration required: no

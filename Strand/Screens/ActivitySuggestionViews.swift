@@ -145,6 +145,16 @@ struct ActivitySuggestionCard: View {
                     .foregroundStyle(StrandPalette.textSecondary)
                     .lineLimit(2)
                     .fixedSize(horizontal: false, vertical: true)
+                // A walk the strap has no steps for: its times are the bounds of the stretch the strap
+                // missed, not of the walking inside it, and the card may not show them as if they were
+                // measured. Only ever true of a suggestion the phone's own steps spoke for.
+                if suggestion.strapStepsMissing {
+                    Text("No steps from the strap here, so the times are rough")
+                        .font(StrandFont.caption)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             .layoutPriority(1)
             if curve.count >= 2 {

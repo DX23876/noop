@@ -393,6 +393,18 @@ final class ActivityCandidatesTests: XCTestCase {
             .map(\.durationMinutes), [10])
     }
 
+    func testOnlyAWalkWithoutAStepReadingSaysTheStrapMissedIt() {
+        let minutes = gapDay { i in (10..<30).contains(i) ? self.walking() : (60..<70).contains(i) ? nil : self.still }
+        let gap = A.gapWalks(minutes, phoneStepHours: [self.hour(1): 1_800], hrMax: 180)
+        XCTAssertEqual(gap.map(\.strapStepsMissing), [true], "the phone spoke for it, so its times are rough")
+        XCTAssertEqual(A.walkCandidates(minutes, hrMax: 180).map(\.strapStepsMissing), [false],
+                       "a walk the strap counted steps for says nothing of the sort")
+        let hr = A.heartRateCandidates(day { i in (100..<140).contains(i) ? (140, nil, nil, nil, nil)
+                                               : (65, nil, nil, nil, nil) },
+                                       restingHR: 55, hrMax: 180, everydayHRR: nil)
+        XCTAssertEqual(hr.map(\.strapStepsMissing), [false], "and it claims nothing about a heart-rate span")
+    }
+
     func testOnlyAnHourTheGapTakesABiteOutOfMaySpeakForIt() {
         // Two five-minute holes in one hour: neither is long enough, and together they may not claim the
         // hour's steps either.
