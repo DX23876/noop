@@ -1,7 +1,7 @@
 {
   "counts": {
     "fixed": 5,
-    "reported": 5,
+    "reported": 2,
     "working": 0
   },
   "decided": [],
@@ -32,36 +32,18 @@
     },
     {
       "closed": "2026-11-20",
-      "n": 41,
+      "n": 47,
       "status": "fixed",
-      "title": "Effort shows different numbers on different type of dashboard styles"
+      "title": "Still some problem in workouts"
     }
   ],
-  "generated": "2026-11-20T12:45:16Z",
+  "generated": "2026-11-20T12:45:55Z",
   "issues": [
     {
       "n": 49,
       "opened": "2026-11-14",
       "status": "reported",
       "title": "Nap algorithm"
-    },
-    {
-      "n": 47,
-      "opened": "2026-11-13",
-      "status": "reported",
-      "title": "Still some problem in workouts"
-    },
-    {
-      "n": 46,
-      "opened": "2026-11-09",
-      "status": "reported",
-      "title": "Sync loop"
-    },
-    {
-      "n": 45,
-      "opened": "2026-11-07",
-      "status": "reported",
-      "title": "No charge after 5 nights"
     },
     {
       "n": 42,
