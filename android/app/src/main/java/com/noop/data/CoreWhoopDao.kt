@@ -516,7 +516,9 @@ class CoreWhoopDao : WhoopDao {
         private val SQL_coachMessages: String = "SELECT * FROM coachMessage ORDER BY orderIndex ASC"
         private val SQL_clearCoachMessages: String = "DELETE FROM coachMessage"
         private val SQL_pairedDevices: String = "SELECT * FROM pairedDevice ORDER BY addedAt ASC"
-        private val SQL_activeDeviceId: String = "SELECT id FROM pairedDevice WHERE status = 'active' LIMIT 1"
+        private val SQL_activeDeviceId: String = "SELECT id FROM pairedDevice WHERE status = 'active' " +
+            "ORDER BY (id = 'my-whoop'), (COALESCE(peripheralId, '') = ''), lastSeenAt DESC, addedAt DESC, id " +
+            "LIMIT 1"
         private val SQL_demoteActive: String = "UPDATE pairedDevice SET status = 'paired' WHERE status = 'active'"
         private val SQL_promote: String = "UPDATE pairedDevice SET status = 'active', lastSeenAt = :now WHERE id = :id"
         private val SQL_touchLastSeen: String = "UPDATE pairedDevice SET lastSeenAt = :now WHERE id = :id AND status != 'archived'"

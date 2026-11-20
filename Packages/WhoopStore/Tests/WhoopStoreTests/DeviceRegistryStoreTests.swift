@@ -90,6 +90,41 @@ final class DeviceRegistryStoreTests: XCTestCase {
         XCTAssertEqual(try store.all().filter { $0.status == .active }.map(\.id), ["whoop-a"])
     }
 
+    /// #53, finding 3: an upstream backup imported beside a strap this phone had already adopted left two
+    /// active rows, and the unordered read handed back the seeded alias, which owned no days at all - so
+    /// every Today card said "No data" while the strap was syncing happily. The read now answers with the
+    /// row the repair would keep, which is the strap that is actually in use.
+    func testTwoActiveDevicesStillResolveToTheStrapTheRepairWouldKeep() throws {
+        let dbq = try makeDB()
+        let store = DeviceRegistryStore(dbQueue: dbq)
+        try store.add(whoop("whoop-5AG", address: "BB:02", seen: 5))
+        // Both active, as the field store was: the seeded alias has no strap behind it, the pairing has.
+        try dbq.write { try $0.execute(sql: "UPDATE pairedDevice SET status = 'active'") }
+        XCTAssertEqual(try store.all().filter { $0.status == .active }.count, 2)
+        XCTAssertEqual(try store.activeDeviceId(), "whoop-5AG")
+    }
+
+    /// The read and the repair must not be able to disagree about which row that is.
+    func testTheReadAgreesWithTheRepair() throws {
+        let dbq = try makeDB()
+        let store = DeviceRegistryStore(dbQueue: dbq)
+        try store.add(whoop("whoop-a", address: "AA:01", seen: 9))
+        try store.add(whoop("whoop-b", address: "BB:02", seen: 42))
+        try dbq.write { try $0.execute(sql: "UPDATE pairedDevice SET status = 'active'") }
+        let read = try store.activeDeviceId()
+        XCTAssertEqual(read, "whoop-b", "the strap seen last")
+        XCTAssertEqual(try dbq.write { try DeviceRegistryStore.keepOneActive($0) }, read)
+    }
+
+    /// With one active row the ordering must change nothing at all.
+    func testOneActiveDeviceIsReadAsBefore() throws {
+        let dbq = try makeDB()
+        let store = DeviceRegistryStore(dbQueue: dbq)
+        try store.add(whoop("whoop-5AG", address: "BB:02", seen: 5))
+        try store.setActive("whoop-5AG")
+        XCTAssertEqual(try store.activeDeviceId(), "whoop-5AG")
+    }
+
     func testALoneSeedOnAFreshStoreIsLeftAlone() throws {
         let dbq = try makeDB()
         XCTAssertEqual(try dbq.write { try DeviceRegistryStore.keepOneActive($0) }, "my-whoop")

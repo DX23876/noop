@@ -14,8 +14,20 @@ interface DeviceRegistryDao {
     @Query("SELECT * FROM pairedDevice ORDER BY addedAt ASC")
     suspend fun pairedDevices(): List<PairedDeviceRow>
 
-    /** The single `active` device id, or null if none (e.g. after archiving the only device). */
-    @Query("SELECT id FROM pairedDevice WHERE status = 'active' LIMIT 1")
+    /**
+     * The single `active` device id, or null if none (e.g. after archiving the only device).
+     *
+     * The ORDER BY is the one the core's repair keeps a row by (`DeviceRegistryStore.keepOneActive`),
+     * so a store that holds two active rows hands every reader the SAME strap, and the same one the
+     * repair would leave standing: a real pairing before the seeded `my-whoop` alias, one that has
+     * adopted a strap before one that has not, then the one seen last. Without it the pick was
+     * arbitrary, and the row a reader happened to get held no days at all (#53, finding 3).
+     */
+    @Query(
+        "SELECT id FROM pairedDevice WHERE status = 'active' " +
+            "ORDER BY (id = 'my-whoop'), (COALESCE(peripheralId, '') = ''), lastSeenAt DESC, addedAt DESC, id " +
+            "LIMIT 1",
+    )
     suspend fun activeDeviceId(): String?
 
     /** Insert-or-replace a device by its id PK (Swift `add`'s ON CONFLICT(id) DO UPDATE upsert). */

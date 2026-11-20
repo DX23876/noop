@@ -50,11 +50,24 @@ public struct DeviceRegistryStore: Sendable {
     /// strap a night belongs to, and the Android twin already keeps it in exactly one place
     /// (`DeviceRegistryDao`).
     ///
-    /// `LIMIT 1` with no `ORDER BY` is deliberate but only safe because single-active is an invariant
-    /// the writers maintain (demote every active row, then promote one, in that order). If two rows were
-    /// ever active at once the pick would be arbitrary, so the invariant is what makes this total, not
-    /// the query.
-    static let activeDeviceIdSQL = "SELECT id FROM pairedDevice WHERE status = 'active' LIMIT 1"
+    /// The order `keepOneActive` keeps a row by, and the order this query reads one in - the same text,
+    /// used in both places, so the row every reader sees is the row the repair would keep: a real
+    /// pairing before the seeded `my-whoop` alias, one that has adopted a strap before one that has not,
+    /// then the one seen last, then the older pairing, then by id so the answer is never arbitrary.
+    static let activePreferenceOrder =
+        "ORDER BY (id = 'my-whoop'), (COALESCE(peripheralId, '') = ''), lastSeenAt DESC, addedAt DESC, id"
+
+    /// `LIMIT 1` used to carry no `ORDER BY`, on the grounds that single-active is an invariant the
+    /// writers maintain (demote every active row, then promote one, in that order). The field has now
+    /// broken that invariant twice - an Android backup converted on top of the seeded `my-whoop` (#42),
+    /// and an upstream backup imported beside a strap this phone had already adopted (#53, finding 3) -
+    /// and each time the arbitrary pick was the damage: the link banked under one strap while the
+    /// screens read the other, and the one the reader happened to get held no days, so Today said "No
+    /// data" beside a strap that was syncing. An invariant that has been broken is not what should make
+    /// a read total. Ordered, two active rows cost a stale row in the list and nothing else, and every
+    /// reader at least agrees which strap it is.
+    static let activeDeviceIdSQL =
+        "SELECT id FROM pairedDevice WHERE status = 'active' \(activePreferenceOrder) LIMIT 1"
 
     public func activeDeviceId() throws -> String? {
         try dbQueue.read { db in
@@ -74,8 +87,7 @@ public struct DeviceRegistryStore: Sendable {
     @discardableResult
     public static func keepOneActive(_ db: Database, preferring: String? = nil) throws -> String? {
         let active = try String.fetchAll(db, sql: """
-            SELECT id FROM pairedDevice WHERE status = 'active'
-            ORDER BY (id = 'my-whoop'), (COALESCE(peripheralId, '') = ''), lastSeenAt DESC, addedAt DESC, id
+            SELECT id FROM pairedDevice WHERE status = 'active' \(activePreferenceOrder)
             """)
         let kept = active.first { $0 == preferring } ?? active.first
         for id in active where id != kept {
