@@ -36,6 +36,28 @@ class ForgeDesignTest {
         assertTrue(p.getBoolean(ForgeDesign.FLIPPED_KEY, false))
     }
 
+    /** The case [flipOnce] deliberately left alone: an "off" set after 18 November was a decision, and it
+     *  survived. There is nothing to decide any more, so this one clears it too. */
+    @Test fun retiringReachesAnOffChosenAfterTheFlip() {
+        val p = FakePrefs()
+        ForgeDesign.flipOnce(p)
+        p.edit().putBoolean(ForgeDesign.KEY, false).apply()
+        assertFalse(on(p))
+        ForgeDesign.retireTheOldDesign(p)
+        assertTrue(on(p))
+    }
+
+    /** Its own marker, or the clear would run at every launch and nothing could ever be stored again. */
+    @Test fun retiringRunsOnce() {
+        val p = FakePrefs()
+        assertFalse(p.getBoolean(ForgeDesign.RETIRED_KEY, false))
+        ForgeDesign.retireTheOldDesign(p)
+        assertTrue(p.getBoolean(ForgeDesign.RETIRED_KEY, false))
+        p.edit().putBoolean(ForgeDesign.KEY, false).apply()
+        ForgeDesign.retireTheOldDesign(p)
+        assertFalse(on(p))
+    }
+
     // In-memory SharedPreferences: remove() must really remove, which is the whole mechanism here.
     private class FakePrefs : SharedPreferences {
         private val map = HashMap<String, Any?>()

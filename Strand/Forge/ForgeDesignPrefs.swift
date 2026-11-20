@@ -20,6 +20,9 @@ enum ForgeDesignPrefs {
     /// whether an "off" was the old default or a decision, and the difference is the whole point.
     static let flippedKey = "noop.forgeDesign.flipped"
 
+    /// Marks that `retireTheOldDesign` has run on this install.
+    static let retiredKey = "noop.forgeDesign.retired"
+
     /// Turn the new design on for everyone, exactly once per install (owner, 2026-11-18).
     ///
     /// `defaultPreview` alone would not do it. `isEnabled` reads "the stored value, else the default", so
@@ -34,6 +37,22 @@ enum ForgeDesignPrefs {
         guard !defaults.bool(forKey: flippedKey) else { return }
         defaults.removeObject(forKey: previewKey)
         defaults.set(true, forKey: flippedKey)
+    }
+
+    /// Retire the old design: clear the switch once more, whatever it holds (owner, 2026-11-20).
+    ///
+    /// `flipOnce` on 2026-11-18 deliberately respected an "off" set AFTER it, because an off set then was
+    /// a decision rather than the old default. The decision now is that there is no old design to choose:
+    /// the switch is gone from Settings, the dashboard styles under it are macOS-only, and the three
+    /// installs that had gone back would otherwise sit for ever on screens nobody maintains, reporting
+    /// faults from them. The code stays where it is; only the way back is closed.
+    ///
+    /// Its own marker, for the same reason `flipOnce` has one: without it the clear would run at every
+    /// launch, and the DEBUG launch override would be the only way to see anything else ever again.
+    static func retireTheOldDesign(_ defaults: UserDefaults = .standard) {
+        guard !defaults.bool(forKey: retiredKey) else { return }
+        defaults.removeObject(forKey: previewKey)
+        defaults.set(true, forKey: retiredKey)
     }
 
     /// The day-cycle sky follows the colour profile until the person sets it: on under Colorful, off under

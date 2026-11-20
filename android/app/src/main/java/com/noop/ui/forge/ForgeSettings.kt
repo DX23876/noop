@@ -521,7 +521,10 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
                 }
                 ForgeSettingsPage.LanguageUnits -> LanguageUnitsSection(context, ::change)
                 ForgeSettingsPage.Appearance -> AppearanceSection(::change)
-                ForgeSettingsPage.TodayTrends -> { DashboardStyleSection(::change); TodayCardsSection(::change) }
+                // The dashboard styles were the Today screens under the old design; with no way back to it
+                // they would only offer a Today nobody reaches. The Mac still has them, where there is no
+                // new design (iOS `todayLayoutCard`, macOS only since the same day).
+                ForgeSettingsPage.TodayTrends -> TodayCardsSection(::change)
                 ForgeSettingsPage.Calculations -> CalculationsSection(viewModel, ::change, onOpen)
                 ForgeSettingsPage.DataBackup -> DataBackupSection(viewModel, onOpen)
                 ForgeSettingsPage.Help -> HelpSection(viewModel, onOpen)
@@ -1458,10 +1461,9 @@ private fun HelpSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> U
 private fun LabSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Unit) {
     val context = LocalContext.current
     SettingsCard(title = stringResource(R.string.forge_experimental_section), blurb = null) {
-        // The 2026-11 redesign preview, as iOS's first Lab switch: off by default, the tabs redraw at once.
-        ToggleRow(stringResource(R.string.forge_lab_new_design), stringResource(R.string.forge_lab_new_design_detail),
-                  ForgeDesign.preview) { ForgeDesign.set(context, it) }
-        RowDivider()
+        // The redesign's switch stood here until 2026-11-20. It is gone, not hidden: the design ships to
+        // everyone and the screens under it are not maintained any more, so a way back only produces
+        // reports from pages nobody is looking at (`ForgeDesign.retireTheOldDesign`).
         // The two Lab passes of the shared core, as on iOS: off by default, scored at the next analysis.
         var ageless by remember { mutableStateOf(com.noop.core.CoreFeatures.healthspan(context)) }
         ToggleRow(stringResource(R.string.forge_lab_ageless), stringResource(R.string.forge_lab_ageless_detail), ageless) {

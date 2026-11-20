@@ -84,6 +84,7 @@ struct StrandiOSApp: App {
         // The new design goes to everyone (owner, 2026-11-18), once per install and before the first read
         // below, so the first frame is already the one the wearer will keep.
         ForgeDesignPrefs.flipOnce()
+        ForgeDesignPrefs.retireTheOldDesign()
 
         // The shared chrome follows the "New design" switch from the first frame, so every screen pushed
         // from the redesigned tabs wears its colours. RootTabView keeps it in step when the switch changes.

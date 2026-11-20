@@ -42,4 +42,28 @@ final class ForgeDesignFlipTests: XCTestCase {
         ForgeDesignPrefs.flipOnce(defaults)
         XCTAssertTrue(ForgeDesignPrefs.isEnabled(defaults))
     }
+
+    // MARK: Retiring the old design (owner, 2026-11-20)
+
+    /// The case `flipOnce` deliberately left alone: an "off" set after 18 November was a decision, and it
+    /// survived. There is nothing to decide any more, so this one clears it too.
+    func testRetiringReachesAnOffChosenAfterTheFlip() {
+        ForgeDesignPrefs.flipOnce(defaults)
+        defaults.set(false, forKey: ForgeDesignPrefs.previewKey)
+        XCTAssertFalse(ForgeDesignPrefs.isEnabled(defaults))
+        ForgeDesignPrefs.retireTheOldDesign(defaults)
+        XCTAssertTrue(ForgeDesignPrefs.isEnabled(defaults))
+    }
+
+    /// Its own marker, or the clear would run at every launch and the DEBUG launch override would be the
+    /// only way to see anything else ever again.
+    func testRetiringRunsOnce() {
+        XCTAssertFalse(defaults.bool(forKey: ForgeDesignPrefs.retiredKey))
+        ForgeDesignPrefs.retireTheOldDesign(defaults)
+        XCTAssertTrue(defaults.bool(forKey: ForgeDesignPrefs.retiredKey))
+        defaults.set(false, forKey: ForgeDesignPrefs.previewKey)
+        ForgeDesignPrefs.retireTheOldDesign(defaults)
+        XCTAssertFalse(ForgeDesignPrefs.isEnabled(defaults),
+                       "a second run would make the stored value unusable for anything, tests included")
+    }
 }

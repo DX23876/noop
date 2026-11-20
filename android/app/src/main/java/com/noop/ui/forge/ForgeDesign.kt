@@ -49,14 +49,34 @@ object ForgeDesign {
         prefs.edit().remove(KEY).putBoolean(FLIPPED_KEY, true).apply()
     }
 
+    /** Marks that [retireTheOldDesign] has run on this install, iOS's `ForgeDesignPrefs.retiredKey`. */
+    const val RETIRED_KEY = "noop.forgeDesign.retired"
+
+    /**
+     * Retire the old design: clear the switch once more, whatever it holds (owner, 2026-11-20).
+     *
+     * [flipOnce] deliberately respected an "off" set after 18 November, because an off set then was a
+     * decision rather than the old default. The decision now is that there is no old design to choose: the
+     * switch is gone from Lab, the dashboard styles under it are gone with it, and whoever had gone back
+     * would otherwise sit for ever on screens nobody maintains, reporting faults from them. The code stays
+     * where it is; only the way back is closed.
+     *
+     * Its own marker, for the same reason [flipOnce] has one.
+     */
+    internal fun retireTheOldDesign(prefs: android.content.SharedPreferences) {
+        if (prefs.getBoolean(RETIRED_KEY, false)) return
+        prefs.edit().remove(KEY).putBoolean(RETIRED_KEY, true).apply()
+    }
+
     /** Observed by the shell, so flipping the switch in Lab redraws the tabs at once. */
     var preview by mutableStateOf(DEFAULT)
         private set
 
     fun load(context: Context, intent: Intent? = null) {
         val prefs = context.getSharedPreferences(NoopPrefs.NAME, Context.MODE_PRIVATE)
-        // Before the read: the new design goes to everyone, once per install.
+        // Before the read: the new design goes to everyone, once per install, and the way back closes.
         flipOnce(prefs)
+        retireTheOldDesign(prefs)
         // The launch extra is a debug-build override that leaves the stored switch alone, as iOS's `--new-design`:
         // a release build ignores it, so no other app can flip the wearer's choice through the launcher.
         val override = intent?.takeIf { com.noop.BuildConfig.DEBUG && it.hasExtra(EXTRA) }?.getBooleanExtra(EXTRA, DEFAULT)
