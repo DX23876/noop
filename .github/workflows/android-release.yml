@@ -49,7 +49,7 @@ on:
         required: false
         default: release
       ref:
-        description: "Branch, tag or commit to build (default main)"
+        description: "Branch, tag or FULL 40-character commit sha to build (default main); a short sha fails the checkout"
         required: false
         default: main
 
