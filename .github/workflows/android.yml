@@ -101,8 +101,30 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v5
 
+      # What this job has left to work with, before it packages anything. The step that writes the APKs is
+      # also the one that needs the most room, and when it ran out on 2026-11-20 the build said only which
+      # task had failed and which internal class was running - no exception, no message, nothing to read.
+      # This job unpacks a Swift toolchain, an NDK and a Swift Android SDK, builds the shared core for two
+      # architectures and then writes three APKs, so how much room is left is a fact worth having in the
+      # log whether or not anything fails.
+      - name: Room and memory before the build
+        run: |
+          df -h /
+          free -h || true
+
       - name: Build debug APKs
-        run: ./gradlew assembleFullDebug assembleDemoDebug assembleFullDebugAndroidTest
+        # `--stacktrace`: AGP's packaging worker wraps its failure, and without this Gradle prints the
+        # wrapper and drops the cause, which is the one line anybody reading the failure needs.
+        run: ./gradlew --stacktrace assembleFullDebug assembleDemoDebug assembleFullDebugAndroidTest
+
+      # `always()`: a build that failed for want of room is exactly the one whose free space matters, and
+      # it is the run that does not reach this step that leaves the next person guessing.
+      - name: Room and memory after the build
+        if: always()
+        run: |
+          df -h /
+          free -h || true
+          du -sh app/build ~/.gradle 2>/dev/null || true
 
       - name: Verify packaged Swift core resources
         run: python3 swift-core/check-apk-resources.py app/build/outputs/apk/full/debug/*.apk app/build/outputs/apk/demo/debug/*.apk
