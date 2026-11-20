@@ -1317,6 +1317,10 @@ class WhoopRepository(
         dao.upsertAppleDaily(rows)
         mirror("appleDaily", rows.map { listOf(it.deviceId, it.day) })
     }
+    suspend fun upsertAppleStepHours(rows: List<AppleStepHour>) {
+        dao.upsertAppleStepHours(rows)
+        mirror("appleStepHour", rows.map { listOf(it.deviceId, it.ts) })
+    }
 
     // MARK: - Live Sessions (silent guardian, v22). The runner banks the row at start (endTs null) and
     // again at end (totals); the summary reads the recent rows for its guarded-count / streak line.

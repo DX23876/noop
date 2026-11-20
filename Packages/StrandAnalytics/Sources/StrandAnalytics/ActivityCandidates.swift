@@ -48,6 +48,12 @@ public enum ActivityCandidates {
     public static let walkDensity = 0.6
     /// Share of a span's minutes with a class that must be walked for it to be offered as a walk first.
     public static let walkingKindShare = 0.5
+    /// Shortest stretch the strap never delivered that the phone's own steps may still speak for. Below
+    /// this no walk could be offered anyway.
+    public static let minimumGapMinutes = 10
+    /// Steps a minute assumed for the phone's steps when the day holds no walked minute to measure the
+    /// wearer's own pace from. The measured median on 2026-11-20 was 95.
+    public static let fallbackCadence = 95
     public static let everydayMarginHRR = 0.12
     public static let everydayQuantile = 0.75
     /// Without enough history, the heart-rate track uses this fixed reserve instead of the everyday level.
@@ -191,6 +197,82 @@ public enum ActivityCandidates {
         }
     }
 
+    // MARK: - The walks the strap missed
+
+    /// Walks inside a stretch the strap never delivered, spoken for by the PHONE's own hourly steps.
+    ///
+    /// A gap is not stillness: when the strap's offload is missing, every per-second stream goes at once
+    /// while the heart rate keeps arriving, and the stretch never fills in later (2026-11-09 still read 283
+    /// of 1440 minutes eleven days on). So waiting for it is pointless and reading it as standing still
+    /// loses a real walk.
+    ///
+    /// The phone can only ever prove walking, never stillness: in 530 fully covered hours with movement the
+    /// strap counted a median 3.17 times the phone's steps (upper quartile 13.9, the phone on a desk), so a
+    /// low phone count says nothing. A gap is therefore offered only when the steps the phone counted BEYOND
+    /// what the strap's own minutes in those hours account for, divided by the wearer's own pace that day,
+    /// fill `walkDensity` of the gap and reach `minimumWalkMinutes`. Then the whole gap is the walk, because
+    /// nothing in the data can place the walking inside it more precisely. Otherwise the gap stays silent:
+    /// 2026-11-09 06:00 is seven walked minutes somewhere in fifty-two, which is not a walk anyone can name.
+    ///
+    /// `phoneStepHours` maps the start of an hour to the steps the phone counted in it. Empty means no phone
+    /// data, and then nothing is offered rather than a gap being read as stillness.
+    public static func gapWalks(_ minutes: [Minute], phoneStepHours: [Int: Int], hrMax: Int) -> [Candidate] {
+        guard !phoneStepHours.isEmpty, let first = minutes.first, let last = minutes.last,
+              // A strap with no step stream at all (WHOOP 4.0) has no gaps to find, only absence.
+              minutes.contains(where: { $0.steps != nil }) else { return [] }
+        let byTs = Dictionary(minutes.map { ($0.ts, $0) }, uniquingKeysWith: { a, _ in a })
+        let paces = minutes.filter(isWalkMinute).compactMap(\.steps).sorted()
+        let cadence = paces.isEmpty ? fallbackCadence : paces[paces.count / 2]
+        guard cadence > 0 else { return [] }
+
+        // An hour is named by the key the phone wrote it under, never by arithmetic on the timestamp: the
+        // phone buckets by LOCAL hours, and in a half-hour time zone those do not start on a unix hour.
+        let keys = phoneStepHours.keys.sorted()
+        func hourKey(_ ts: Int) -> Int? {
+            var lo = 0, hi = keys.count - 1, found: Int?
+            while lo <= hi {
+                let mid = (lo + hi) / 2
+                if keys[mid] <= ts { found = keys[mid]; lo = mid + 1 } else { hi = mid - 1 }
+            }
+            return found.flatMap { ts - $0 < 3_600 ? $0 : nil }
+        }
+        var strapStepsByHour: [Int: Int] = [:]
+        for m in minutes {
+            guard let steps = m.steps, let key = hourKey(m.ts) else { continue }
+            strapStepsByHour[key, default: 0] += steps
+        }
+
+        var out: [Candidate] = []
+        var gap: [Int] = []
+        func close() {
+            defer { gap.removeAll() }
+            guard let from = gap.first, let to = gap.last, gap.count >= minimumGapMinutes else { return }
+            var minutesByHour: [Int: Int] = [:]
+            for ts in gap { if let key = hourKey(ts) { minutesByHour[key, default: 0] += 1 } }
+            // Only an hour the gap takes a real bite out of may speak for it, so two gaps in one hour
+            // cannot both claim the same steps.
+            let surplus = minutesByHour.filter { $0.value >= minimumGapMinutes }
+                .reduce(0) { $0 + max(0, (phoneStepHours[$1.key] ?? 0) - (strapStepsByHour[$1.key] ?? 0)) }
+            let estimate = surplus / cadence
+            guard estimate >= minimumWalkMinutes,
+                  Double(estimate) / Double(gap.count) >= walkDensity else { return }
+            let span = gap.compactMap { byTs[$0] }
+            let bpms = span.compactMap(\.bpm)
+            out.append(Candidate(track: .walk, start: from, end: to + 60,
+                                 avgBpm: bpms.isEmpty ? nil : Int((bpms.reduce(0, +) / Double(bpms.count)).rounded()),
+                                 peakBpm: bpms.max().map { Int($0.rounded()) },
+                                 load: edwardsLoad(span, hrMax: hrMax), cadence: nil, locomotionShare: nil,
+                                 kinds: [.walk]))
+        }
+        for ts in stride(from: first.ts, through: last.ts, by: 60) {
+            // A minute the strap delivered ends a gap, and so does a minute spent asleep: neither is a walk
+            // nobody saw.
+            if let m = byTs[ts], m.steps != nil || m.asleep { close() } else { gap.append(ts) }
+        }
+        close()
+        return out
+    }
+
     // MARK: - Heart-rate track
 
     public static func heartRateReserve(_ bpm: Double, restingHR: Int, hrMax: Int) -> Double? {
@@ -279,9 +361,12 @@ public enum ActivityCandidates {
 
     /// Walk spans plus the heart-rate spans with the walks cut out; a heart-rate span still overlapping a
     /// walk span at the bench's match overlap is dropped, so one stretch is never asked about twice.
-    public static func candidates(_ minutes: [Minute], restingHR: Int, hrMax: Int,
-                                  everydayHRR: Double?) -> [Candidate] {
-        let walks = walkCandidates(minutes, hrMax: hrMax)
+    public static func candidates(_ minutes: [Minute], restingHR: Int, hrMax: Int, everydayHRR: Double?,
+                                  phoneStepHours: [Int: Int] = [:]) -> [Candidate] {
+        let found = walkCandidates(minutes, hrMax: hrMax)
+        let walks = (found + gapWalks(minutes, phoneStepHours: phoneStepHours, hrMax: hrMax)
+            .filter { gap in !found.contains { gap.start < $0.end && gap.end > $0.start } })
+            .sorted { $0.start < $1.start }
         let hr = heartRateCandidates(minutes, restingHR: restingHR, hrMax: hrMax, everydayHRR: everydayHRR,
                                      walks: walks)
             .filter { h in

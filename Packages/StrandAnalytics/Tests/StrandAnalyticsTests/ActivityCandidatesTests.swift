@@ -323,6 +323,72 @@ final class ActivityCandidatesTests: XCTestCase {
         XCTAssertTrue(walk.asks(at: .onlyClear))
     }
 
+    /// A day from the start of an hour, so an hour of phone steps is `hour(n)`. `shape` returning nil means
+    /// the strap delivered no step stream for that minute: the heart rate still arrives, as it does in a
+    /// real offload gap.
+    private func gapDay(_ count: Int = 600,
+                        _ shape: (Int) -> (bpm: Double?, steps: Int?, walk: Int?, run: Int?, classed: Int?)?)
+        -> [A.Minute] {
+        (0..<count).map { i in
+            guard let s = shape(i) else {
+                return A.Minute(ts: Self.hourBase + i * 60, bpm: 110, steps: nil, walkSeconds: nil,
+                                runSeconds: nil, classSeconds: nil, asleep: false)
+            }
+            return A.Minute(ts: Self.hourBase + i * 60, bpm: s.bpm, steps: s.steps, walkSeconds: s.walk,
+                            runSeconds: s.run, classSeconds: s.classed, asleep: false)
+        }
+    }
+    private static let hourBase = 1_000_000_020 - (1_000_000_020 % 3_600)
+    private func hour(_ n: Int) -> Int { Self.hourBase + n * 3_600 }
+
+    func testAGapThePhoneSpeaksForBecomesTheWalkTheStrapMissed() {
+        // Twenty walked minutes in hour 0, then fifty minutes the strap never delivered in hour 1.
+        let minutes = gapDay { i in (10..<30).contains(i) ? self.walking() : (60..<110).contains(i) ? nil : self.still }
+        let gaps = A.gapWalks(minutes, phoneStepHours: [self.hour(1): 4_000], hrMax: 180)
+        XCTAssertEqual(gaps.map(\.durationMinutes), [50])
+        XCTAssertEqual(gaps.first?.start, minutes[60].ts)
+        XCTAssertEqual(gaps.first?.kinds, [.walk])
+        XCTAssertNil(gaps.first?.cadence, "the strap counted no steps there, so there is no pace to report")
+        XCTAssertTrue(gaps.first!.asks(at: .onlyClear))
+        let all = A.candidates(minutes, restingHR: 55, hrMax: 180, everydayHRR: 0.1,
+                               phoneStepHours: [self.hour(1): 4_000])
+        XCTAssertEqual(all.map(\.track), [.walk, .walk])
+        XCTAssertEqual(all.map(\.durationMinutes), [20, 50])
+        for pair in zip(all, all.dropFirst()) { XCTAssertLessThanOrEqual(pair.0.end, pair.1.start) }
+    }
+
+    func testAGapThePhoneCannotFillStaysSilent() {
+        let minutes = gapDay { i in (10..<30).contains(i) ? self.walking() : (60..<110).contains(i) ? nil : self.still }
+        // Nine walked minutes somewhere in fifty is not a walk anyone can name.
+        XCTAssertTrue(A.gapWalks(minutes, phoneStepHours: [self.hour(1): 1_000], hrMax: 180).isEmpty)
+        XCTAssertTrue(A.gapWalks(minutes, phoneStepHours: [:], hrMax: 180).isEmpty, "no phone data, no claim")
+        // The steps the strap itself counted in that hour are not a surplus.
+        let covered = gapDay { i in (60..<110).contains(i) ? self.walking() : self.still }
+        XCTAssertTrue(A.gapWalks(covered, phoneStepHours: [self.hour(1): 4_000], hrMax: 180).isEmpty,
+                      "nothing is missing, so there is no gap to speak for")
+    }
+
+    func testAGapIsNotClaimedWithoutAStepStreamOrWhileAsleep() {
+        let whoop4 = gapDay { _ in nil }
+        XCTAssertTrue(A.gapWalks(whoop4, phoneStepHours: [self.hour(1): 4_000], hrMax: 180).isEmpty,
+                      "a strap with no step stream has absence, not gaps")
+        let asleep = gapDay { i in (10..<30).contains(i) ? self.walking() : (60..<110).contains(i) ? nil : self.still }
+            .map { m in
+                A.Minute(ts: m.ts, bpm: m.bpm, steps: m.steps, walkSeconds: m.walkSeconds, runSeconds: m.runSeconds,
+                         classSeconds: m.classSeconds, asleep: m.steps == nil)
+            }
+        XCTAssertTrue(A.gapWalks(asleep, phoneStepHours: [self.hour(1): 4_000], hrMax: 180).isEmpty)
+    }
+
+    func testOnlyAnHourTheGapTakesABiteOutOfMaySpeakForIt() {
+        // Two five-minute holes in one hour: neither is long enough, and together they may not claim the
+        // hour's steps either.
+        let minutes = gapDay { i in
+            (10..<30).contains(i) ? self.walking() : (60..<65).contains(i) || (80..<85).contains(i) ? nil : self.still
+        }
+        XCTAssertTrue(A.gapWalks(minutes, phoneStepHours: [self.hour(1): 4_000], hrMax: 180).isEmpty)
+    }
+
     func testSleepNeverStartsASpan() {
         let minutes = (0..<600).map { i in
             A.Minute(ts: 1_000_000_020 + i * 60, bpm: (100..<140).contains(i) ? 140 : 65, steps: 0, walkSeconds: 0,

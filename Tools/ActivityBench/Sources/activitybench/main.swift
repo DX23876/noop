@@ -56,6 +56,8 @@ struct DayInput {
     let history: [ActivityCandidates.Minute]
     let restingHR: Int?
     let hrMax: Int
+    /// The phone's hourly steps, for the walks the strap never delivered.
+    let phoneStepHours: [Int: Int]
 }
 
 /// A detector as the bench runs it: the shipped rule, fed one local day.
@@ -68,7 +70,8 @@ func newTracks(_ d: DayInput, level: ActivityCandidates.Level?, tracks: Set<Acti
     -> [ActivityDetectionScore.Span] {
     guard let resting = d.restingHR else { return [] }
     let everyday = ActivityCandidates.everydayHRR(history: d.history, restingHR: resting, hrMax: d.hrMax)
-    return ActivityCandidates.candidates(d.minutes, restingHR: resting, hrMax: d.hrMax, everydayHRR: everyday)
+    return ActivityCandidates.candidates(d.minutes, restingHR: resting, hrMax: d.hrMax, everydayHRR: everyday,
+                                         phoneStepHours: d.phoneStepHours)
         .filter { tracks.contains($0.track) && (level.map($0.asks) ?? true) }
         .map { .init(start: $0.start, end: $0.end) }
 }
@@ -162,6 +165,7 @@ do {
         return max(150, Int(peak.rounded()))
     }
 
+    let phoneSteps = try db.phoneStepHours(from: rangeStart, to: rangeEndExclusive)
     print("activitybench \(opts.from) to \(opts.to), device \(opts.device): \(dayStarts.count) days, "
           + "\(wornDays.count) worn awake days (≥ \(opts.minAwakeHours) h), \(entries.count) unique entries")
 
@@ -177,7 +181,8 @@ do {
                                  minutes: minutes(start, end).filter { $0.ts < start + 86_400 },
                                  history: minutes(start - 14 * 86_400, start),
                                  restingHR: resting[day] ?? resting[previousDay],
-                                 hrMax: opts.hrMax ?? trailingHRMax(before: start))
+                                 hrMax: opts.hrMax ?? trailingHRMax(before: start),
+                                 phoneStepHours: phoneSteps)
             let found = detector.run(input)
             if opts.dump == day {
                 let f = DateFormatter()

@@ -27,6 +27,7 @@ import com.noop.analytics.FitnessAgeEngine
 import com.noop.analytics.HydrationStore
 import com.noop.analytics.RouteMath
 import com.noop.data.AppleDaily
+import com.noop.data.AppleStepHour
 import com.noop.data.DailyMetric
 import com.noop.data.ImportSummary
 import com.noop.data.MetricSeriesRow
@@ -527,6 +528,12 @@ object HealthConnectImporter {
         val hcSleepSessions = ArrayList<Pair<String, SleepSession>>()
         // Sessions whose route Health Connect holds back until the wearer allows routes there ([routesAwaitingConsent]).
         var routesHeldBack = 0
+        // The phone's steps per HOUR and per source, for the core's gap rule: a walk inside a stretch the
+        // strap never delivered is offered only when the phone's steps in those hours speak for it
+        // (ActivityCandidates.gapWalks). iOS fills the same `appleStepHour` table from HealthKit, so the
+        // rule itself lives in the core once and Android only supplies the data. Keyed by the start of a
+        // LOCAL hour, because that is the key the rule looks an hour up by.
+        val stepsByHourBySource = HashMap<Long, HashMap<String, Long>>()
 
         try {
             // --- Steps ---
@@ -538,6 +545,10 @@ object HealthConnectImporter {
                 val b = bucket(dayOf(r.startTime, r.startZoneOffset))
                 val src = r.metadata.dataOrigin.packageName
                 b.stepsBySource[src] = (b.stepsBySource[src] ?: 0L) + r.count
+                spreadOverHours(r.startTime, r.endTime, r.count, zone) { hour, steps ->
+                    val byHour = stepsByHourBySource.getOrPut(hour) { HashMap() }
+                    byHour[src] = (byHour[src] ?: 0L) + steps
+                }
             }
             // --- Total calories burned (basal + active) ---
             // #589: per-SOURCE sums, max-across-sources at write-out (same overlap reasoning as steps).
@@ -982,6 +993,16 @@ object HealthConnectImporter {
                 repo.upsertDevice(HC_DEVICE, name = "Health Connect")
                 repo.upsertAppleDaily(appleRows)
             }
+            // The phone's steps per hour, for the core's gap rule. Same #589 de-overlap as the day total:
+            // the MAX source for an hour, never the sum across sources.
+            val hourRows = stepsByHourBySource.mapNotNull { (hour, bySource) ->
+                val steps = maxSourceLong(bySource)
+                if (steps > 0L) AppleStepHour(deviceId = HC_DEVICE, ts = hour, steps = steps.toInt()) else null
+            }
+            if (hourRows.isNotEmpty()) {
+                repo.upsertDevice(HC_DEVICE, name = "Health Connect")
+                repo.upsertAppleStepHours(hourRows)
+            }
             if (metricSeriesRows.isNotEmpty()) repo.upsertMetricSeries(metricSeriesRows)
             if (dailyRows.isNotEmpty()) {
                 repo.upsertDevice(WHOOP, name = "WHOOP")
@@ -1314,6 +1335,49 @@ object HealthConnectImporter {
     internal fun localDayKey(instant: Instant, offset: ZoneOffset?, zone: ZoneId): String =
         // Not `LocalDate.ofInstant` (API 34): minSdk is 26 and desugaring is off.
         instant.atZone(offset ?: zone).toLocalDate().toString()
+
+    /**
+     * `count` steps of one record handed to [emit] per LOCAL hour its window touches, split in proportion
+     * to how much of the window falls in each hour.
+     *
+     * Health Connect hands over step records of whatever length the writing app chose, and the core's gap
+     * rule (`ActivityCandidates.gapWalks`) asks what the phone counted in ONE hour, so putting a long
+     * record's whole count into the hour it started in would move steps into an hour the wearer was not
+     * walking in. Hour starts come from the zone, not from arithmetic on the epoch, because a local hour
+     * does not begin on a unix hour in a half-hour zone, and the rule looks an hour up by that key.
+     *
+     * A window of zero length belongs to the hour it starts in. Rounding leftovers go to the last hour, so
+     * the parts add up to `count` exactly. A window longer than [MAX_HOURLY_SPREAD_HOURS] is left out
+     * entirely: no honest hour can be named for it, and the day total has it anyway.
+     */
+    internal fun spreadOverHours(start: Instant, end: Instant, count: Long, zone: ZoneId,
+                                 emit: (Long, Long) -> Unit) {
+        if (count <= 0L) return
+        val from = start.epochSecond
+        val to = maxOf(from, end.epochSecond)
+        if (to - from > MAX_HOURLY_SPREAD_HOURS * 3_600L) return
+        var cursor = start.atZone(zone).withMinute(0).withSecond(0).withNano(0)
+        val hours = ArrayList<Pair<Long, Long>>()      // hour start, overlapping seconds
+        while (true) {
+            val hourStart = cursor.toEpochSecond()
+            val hourEnd = cursor.plusHours(1).toEpochSecond()
+            if (hourStart >= to && hours.isNotEmpty()) break
+            hours.add(hourStart to maxOf(0L, minOf(to, hourEnd) - maxOf(from, hourStart)))
+            if (hourEnd >= to) break
+            cursor = cursor.plusHours(1)
+        }
+        val span = hours.sumOf { it.second }
+        if (span <= 0L) { emit(hours.first().first, count); return }
+        var left = count
+        for ((index, hour) in hours.withIndex()) {
+            val steps = if (index == hours.size - 1) left else count * hour.second / span
+            if (steps > 0L) emit(hour.first, steps)
+            left -= steps
+        }
+    }
+
+    /** Longest record the hourly split will speak for; beyond it no single hour can be named. */
+    internal const val MAX_HOURLY_SPREAD_HOURS = 6
 
     /**
      * #589 de-overlap for a per-source step map: SUM is already folded WITHIN each source by the read

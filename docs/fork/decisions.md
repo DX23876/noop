@@ -2009,7 +2009,8 @@ logged entry against the published detector's 5.17, hits 3 of 4 logged walks aga
 end error falls from 47.2 to 10.3 minutes. Only five entries exist in the window, so those hit counts
 carry no rate; the answer-based measurement above is the stronger evidence.
 
-Not built, deliberately: nothing reads the phone. Strap coverage is a median 1399 of 1440 minutes a day
+Not built in this step, and built in the next one after the owner asked for it the same evening (see
+below): nothing here reads the phone. Strap coverage is a median 1399 of 1440 minutes a day
 over 129 days, but 2026-11-09 has 283, and in such a gap every per-second stream is missing at once
 while the heart rate keeps arriving (2354 rows against zero between 15:04 and 15:45). The gap is
 permanent, so waiting for it is pointless: eleven days later the day is unchanged. Apple's hourly steps
@@ -2021,5 +2022,46 @@ in this rule. Also not built: a vehicle signal. `gravitySample.dynAccel` separat
 as riding, and for a duration it changes nothing, since a ride and a stand are both not walking.
 
 Measurements and scripts: `backlog/plans/walk-detection-2026-11-20.md`.
+
+Analysis migration required: no
+
+## 2026-11-20 — The phone may speak for a walk the strap never delivered, and only for walking
+
+The same evening, the owner asked for the gap the entry above left open, and asked the question that
+decides where it lives: if the rule reads the phone's steps, does Android not need that too?
+
+It does, and it did not have it. The rule belongs in the core, so `ActivityCandidates.gapWalks` owns it
+once and reads an hour of phone steps from whichever source the platform filled: `appleStepHour` under
+`apple-health` (iOS, `HealthKitBridge`) or under `health-connect` (Android), the LARGER of the two for an
+hour rather than their sum, since a phone and a watch writing the same hour are the same steps twice
+(#589). Android read Health Connect steps already but folded them into day totals only, so the rule
+would have arrived empty there and never fired, silently. `HealthConnectImporter` now buckets the same
+records by LOCAL hour as well, splitting a record proportionally over the hours it touches rather than
+dropping it into the hour it started in, and a record longer than six hours is left out because no
+honest hour can be named for it. Hour keys come from the zone, never from arithmetic on the epoch: in a
+half-hour zone a local hour does not begin on a unix hour, and that key is what the rule looks an hour
+up by. Kotlin supplies the data, the core keeps the rule; six tests pin the split.
+
+The rule itself is asymmetric on purpose, because the evidence is: the phone can prove walking and can
+never prove stillness. In 530 fully covered hours with movement the strap counted a median 3.17 times
+the phone's steps, upper quartile 13.9 (the phone on a desk). So a gap is offered only when the steps
+the phone counted BEYOND what the strap's own minutes in those hours account for, divided by the
+wearer's own measured pace that day, reach `minimumWalkMinutes` and fill `walkDensity` of the gap. Then
+the whole gap is the walk, because nothing in the data can place the walking inside it more precisely.
+Otherwise the gap stays silent: 2026-11-09 06:00 is seven walked minutes somewhere in fifty-two, which
+is not a walk anyone can name. Only an hour the gap takes at least `minimumGapMinutes` out of may speak
+for it, so two gaps in one hour cannot both claim the same steps. A minute spent asleep ends a gap, and
+a strap with no step stream at all (WHOOP 4.0) has absence rather than gaps, so neither is claimed.
+
+`activitybench` on 2026-10-22 to 2026-11-20 with the phone's hours fed in: the walk track goes from 2.00
+to 2.03 spans a day, so the rule fires ONCE in thirty days, and that once is 2026-11-09 15:04 to 15:45,
+the 41 minutes the strap missed and the owner had answered as a walk. A rule that rare is still worth
+its code because the alternative loses a 40-minute walk outright, but it is not a rule anyone should
+expect to see work often.
+
+Open: the card says nothing about the strap data being incomplete. Such a proposal carries coarse times
+by construction, and a word on it needs a new catalogue key, which only an Xcode build can add. Until
+then the card shows the window as the duration like any other walk, which is honest but silent about
+why the times are rounder than usual.
 
 Analysis migration required: no

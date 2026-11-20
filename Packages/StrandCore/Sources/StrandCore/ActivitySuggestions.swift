@@ -167,6 +167,7 @@ public enum ActivitySuggestions {
                                                 from: readFrom, to: now + 1)
         let restingByDay = try await restingByDay(store: store, deviceId: deviceId, computedId: computedId,
                                                   from: dayKey(readFrom, calendar), to: dayKey(now, calendar))
+        let phoneSteps = await phoneStepHours(store: store, from: firstDay, to: now + 1)
 
         var found: [ActivityCandidates.Candidate] = []
         var day = firstDay
@@ -178,7 +179,8 @@ public enum ActivitySuggestions {
                 let dayMinutes = slice(minutes, day, next)
                 let everyday = ActivityCandidates.everydayHRR(history: slice(minutes, day - 14 * 86_400, day),
                                                               restingHR: rest, hrMax: hrMax)
-                found += ActivityCandidates.candidates(dayMinutes, restingHR: rest, hrMax: hrMax, everydayHRR: everyday)
+                found += ActivityCandidates.candidates(dayMinutes, restingHR: rest, hrMax: hrMax,
+                                                       everydayHRR: everyday, phoneStepHours: phoneSteps)
             }
             day = next
         }
@@ -202,7 +204,23 @@ public enum ActivitySuggestions {
         let everyday = ActivityCandidates.everydayHRR(history: slice(minutes, dayStart - 14 * 86_400, dayStart),
                                                       restingHR: rest, hrMax: hrMax)
         return ActivityCandidates.candidates(slice(minutes, dayStart, dayEnd), restingHR: rest, hrMax: hrMax,
-                                             everydayHRR: everyday)
+                                             everydayHRR: everyday,
+                                             phoneStepHours: await phoneStepHours(store: store, from: dayStart,
+                                                                                  to: dayEnd))
+    }
+
+    /// The PHONE's own hourly steps over the window, for the walks the strap never delivered. Read from both
+    /// sources a phone can carry them in, Apple Health on iOS and Health Connect on Android, taking the
+    /// larger of the two for an hour rather than their sum: a phone and a watch writing the same hour are
+    /// the same steps twice (#589). The core owns the rule, each platform only fills the table.
+    static func phoneStepHours(store: WhoopStore, from: Int, to: Int) async -> [Int: Int] {
+        var out: [Int: Int] = [:]
+        for id in [MetricResolver.appleHealthSource, MetricResolver.healthConnectSource] {
+            for row in (try? await store.appleStepHours(deviceId: id, fromTs: from, toTs: to)) ?? [] {
+                out[row.ts] = max(out[row.ts] ?? 0, row.steps)
+            }
+        }
+        return out
     }
 
     /// The stored row of a computed candidate.

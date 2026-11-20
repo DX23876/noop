@@ -120,6 +120,20 @@ extension ReadOnlyDB {
         return out
     }
 
+    /// The phone's own hourly steps, from both sources a phone can carry them in, the larger of the two for
+    /// an hour rather than their sum (a phone and a watch writing the same hour are the same steps twice).
+    func phoneStepHours(from: Int, to: Int) throws -> [Int: Int] {
+        var out: [Int: Int] = [:]
+        try query("""
+            SELECT ts, steps FROM appleStepHour WHERE deviceId IN ('apple-health', 'health-connect')
+            AND ts >= \(from) AND ts < \(to) ORDER BY ts
+            """) { s in
+            let ts = ReadOnlyDB.int(s, 0)
+            out[ts] = max(out[ts] ?? 0, ReadOnlyDB.int(s, 1))
+        }
+        return out
+    }
+
     func sleepSpans(device: String, from: Int, to: Int) throws -> [ActivityDetectionScore.Span] {
         var out: [ActivityDetectionScore.Span] = []
         try query("""
