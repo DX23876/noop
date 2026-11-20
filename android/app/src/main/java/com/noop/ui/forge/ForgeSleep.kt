@@ -23,6 +23,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.heightIn
@@ -773,7 +774,13 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
                            onAlarms: () -> Unit, bodyClock: com.noop.analytics.CircadianEngine.PhaseEstimate?) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var editing by remember { mutableStateOf<CoreRead.Night?>(null) }
+    // Non-null while the "add a sleep" dialog is up, holding the window its pickers open with.
+    var adding by remember { mutableStateOf<Pair<Long, Long>?>(null) }
     var undo by remember { mutableStateOf<List<com.noop.data.SleepSession>>(emptyList()) }
+    // "Add entry, Sleep" lands here and opens the dialog, instead of opening the tab and stopping.
+    LaunchedEffect(Unit) {
+        if (SleepArrival.consume()) adding = seedForAdd(night != null)
+    }
     SleepTonightCard(viewModel, need, onAlarms)
     if (undo.isNotEmpty()) SleepUndoStrip {
         val restore = undo; undo = emptyList()
@@ -791,6 +798,11 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
                 undo = group
             }
         }, onDismiss = { editing = null })
+    }
+    adding?.let { (seedStart, seedEnd) ->
+        SleepAddDialog(seedStart, seedEnd, viewModel,
+                       onEditInstead = { adding = null; editing = night },
+                       onDismiss = { adding = null })
     }
     if (night != null && wakeDay != null) {
         val key = wakeDay.toString()
@@ -826,6 +838,10 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
                 }
             }
         }
+        // Adding a sleep NOOP never recorded: a night it missed, or a nap. Under the night it would join,
+        // because that is where someone is standing when they notice the gap.
+        LargeRow(Icons.Rounded.Add, Forge.colors.rest, stringResource(R.string.forge_sl_add_row), "",
+                 onClick = { scope.launch { adding = seedForAdd(true) } })
         ForgeGoalsContextCard("sleep")
         SleepHighlights(night, tiles)
         SleepThisNight(days, key, hasStageMinutes(night))

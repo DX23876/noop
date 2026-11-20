@@ -151,6 +151,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     var quickActions by remember { mutableStateOf(false) }
     var logOpen by remember { mutableStateOf(false) }
     var addingWorkout by remember { mutableStateOf(false) }
+    var settingStatus by remember { mutableStateOf(false) }
     var settingsOpen by remember { mutableStateOf(false) }
     var devicesOpen by remember { mutableStateOf(false) }
     // The metric page a "Your cards" row opens, so each card reaches its own figure (#40).
@@ -209,16 +210,18 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                 // Logging is for what already happened; a live session starts from the Training tab.
                 ForgeLogChoice.Workout -> addingWorkout = true
                 ForgeLogChoice.Weight -> more.push(MoreRoute.Dest(MoreDest.Body))
+                ForgeLogChoice.Status -> settingStatus = true
                 ForgeLogChoice.Journal -> more.push(MoreRoute.Dest(MoreDest.Journal))
                 ForgeLogChoice.Drink -> more.push(MoreRoute.Dest(MoreDest.Hydration))
                 ForgeLogChoice.Food -> { FoodArrival.requestAdd(); more.push(MoreRoute.Dest(MoreDest.Food)) }
-                ForgeLogChoice.Sleep -> selectTab(ForgeTab.Sleep)
+                ForgeLogChoice.Sleep -> { SleepArrival.requestAdd(); selectTab(ForgeTab.Sleep) }
                 ForgeLogChoice.LabMarkers -> more.push(MoreRoute.Dest(MoreDest.Biomarkers))
                 ForgeLogChoice.Breathe -> more.push(MoreRoute.Dest(MoreDest.Breathe))
                 ForgeLogChoice.LiveHeartRate -> more.push(MoreRoute.Dest(MoreDest.Live))
             }
         }
     }
+    if (settingStatus) ForgeActivityStatusSheetHost(onDismiss = { settingStatus = false })
     if (addingWorkout) com.noop.ui.ManualWorkoutDialog(editing = null, onDismiss = { addingWorkout = false },
         onSave = { row, replacing -> viewModel.saveManualWorkout(row, replacing); addingWorkout = false })
     if (liveSession) ForgeLiveSessionCover(viewModel, onClose = { liveSession = false })
@@ -361,6 +364,10 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             // today, so a past day does not repeat it.
             val healthAlert by viewModel.healthAlert.collectAsState()
             if (shown == today) healthAlert?.let { com.noop.ui.IllnessBanner(it) }
+            // A status the wearer set themselves (ill, injured, on a break) suppresses the training
+            // suggestions, so the page says it holds rather than going quiet. Today only: a status is about
+            // now, not about the day being looked at.
+            if (shown == today) ForgeActivityStatusLine()
             // First run, as iOS's `WearableConnectionStateCard` on Today: nothing recorded or imported yet, and
             // the one next step. The question is the core's (`read.hasAnyDay`), which is iOS's own
             // `repo.days.isEmpty` over the same merge — asking instead whether a Rest or Charge SCORE existed

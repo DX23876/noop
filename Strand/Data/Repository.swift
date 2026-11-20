@@ -2172,6 +2172,23 @@ final class Repository: ObservableObject {
         await refresh()
     }
 
+    /// Reads what `ManualSleepPlan` needs and hands it the decision. The RULE is shared with Android
+    /// (one `decide`); only reading the rows differs by platform.
+    func manualSleepPreflight(startTs: Int, endTs: Int) async -> ManualSleepPlan.Outcome {
+        let now = Int(Date().timeIntervalSince1970)
+        guard let store = await ensureStore(),
+              let window = SleepEditGuard.clampedEditWindow(start: startTs, end: endTs, now: now)
+        else { return .invalidWindow }
+        // A day either side, so a night that starts before the window and ends inside it is seen.
+        let existing = (try? await store.sleepSessions(deviceId: computedDeviceId,
+                                                       from: window.start - 86_400, to: window.end + 86_400,
+                                                       limit: 200)) ?? []
+        return ManualSleepPlan.decide(
+            start: startTs, end: endTs, now: now,
+            existing: existing.map { SleepEditGuard.Span(start: $0.effectiveStartTs, end: $0.endTs) },
+            hasRawData: await restageFromRaw(start: window.start, end: window.end) != nil)
+    }
+
     /// Manually ADD a missed sleep session , typically a daytime NAP the detector didn't pick up (#508).
     /// Stages it from the raw streams over `[startTs, endTs]` (exactly the editing path's `restageFromRaw`),
     /// falling back to a single "awake" block when the strap has no dense data there yet , the post-sync

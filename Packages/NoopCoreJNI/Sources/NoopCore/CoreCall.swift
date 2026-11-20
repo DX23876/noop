@@ -173,6 +173,38 @@ public enum CoreCall {
                 store: store, deviceId: string("deviceId"), start: int("start", 0), end: int("end", 0),
                 staging: .init(method: method, motionAwareWake: args["motionAwareWake"] as? Bool ?? false))
             return CoreRead.json(["stages": stages])
+        case "sleep.addSeed":
+            // Where the "add a sleep" pickers open, by the one rule both platforms use.
+            let seed = ManualSleepPlan.seed(
+                dayStart: Date(timeIntervalSince1970: TimeInterval(int("dayStart", Int(Date().timeIntervalSince1970)))),
+                hasMainSleep: args["hasMainSleep"] as? Bool ?? false,
+                now: Date(timeIntervalSince1970: TimeInterval(int("now", Int(Date().timeIntervalSince1970)))))
+            return CoreRead.json(["start": "\(seed.start)", "end": "\(seed.end)"])
+        case "sleep.addPreflight":
+            // What adding a sleep by hand over [start, end] would do, decided by `ManualSleepPlan`, which
+            // the Apple side asks the same question. Android reads the rows through here rather than
+            // keeping its own copy of the rule.
+            guard let (store, _) = ShadowSession.storeAndPath else { return #"{"error":"noStore"}"# }
+            let start = int("start", 0), end = int("end", 0)
+            let now = int("now", Int(Date().timeIntervalSince1970))
+            let computedId = string("computedDeviceId")
+            let rows = (try? await store.sleepSessions(deviceId: computedId,
+                                                       from: start - 86_400, to: end + 86_400, limit: 200)) ?? []
+            let method = SleepStager.Method(rawValue: string("method")) ?? .v2
+            let staged = await EditedSleepHeal.restage(
+                store: store, deviceId: string("deviceId"), start: start, end: end,
+                staging: .init(method: method, motionAwareWake: args["motionAwareWake"] as? Bool ?? false))
+            let outcome = ManualSleepPlan.decide(
+                start: start, end: end, now: now,
+                existing: rows.map { SleepEditGuard.Span(start: $0.effectiveStartTs, end: $0.endTs) },
+                hasRawData: staged != nil)
+            switch outcome {
+            case .ok: return CoreRead.json(["outcome": "ok"])
+            case .noRawData: return CoreRead.json(["outcome": "noRawData"])
+            case .invalidWindow: return CoreRead.json(["outcome": "invalidWindow"])
+            case .blocked(let s, let e):
+                return CoreRead.json(["outcome": "blocked", "start": "\(s)", "end": "\(e)"])
+            }
         case "nap.evaluate":
             // Android's nap review card (CORE-ONLY-PLAN, decision 6): the core's NapDetector over the strap's
             // gravity and heart rate in [from, to], with the wearer's settings.
@@ -799,6 +831,8 @@ public enum CoreCall {
             let maxHR = (args["maxHR"] as? NSNumber)?.doubleValue ?? Double(StrainScorer.defaultMaxHR())
             return CoreRead.json(await CoreTodayStatus.read(reader: reader, maxHR: maxHR, sex: string("sex"),
                                                             dismissedWorkoutSpans: args["dismissedWorkouts"] as? [String] ?? []))
+        case "today.activity":
+            return CoreRead.json(CoreTodayStatus.activity())
         case "today.setActivity":
             return ok(CoreTodayStatus.setActivity(state: string("state"), duration: string("duration"),
                                                   customUntil: (args["until"] as? NSNumber)?.intValue))

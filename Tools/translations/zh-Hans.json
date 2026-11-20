@@ -4776,5 +4776,14 @@
   "This week %1$@ · %2$@ a day": "本周 %1$@ · 每天 %2$@",
   "Weighed %@": "称重于%@",
   "Weighed %1$@ · %2$@ this week": "称重于%1$@ · 本周 %2$@",
-  "7-day average %@": "7 天平均 %@"
+  "7-day average %@": "7 天平均 %@",
+  "Add a sleep": "补记睡眠",
+  "For a night or a nap NOOP did not record. Stages are taken from your data for those hours, so the entry counts from now on.": "用于 NOOP 未记录的一夜或小睡。睡眠阶段取自你在那段时间的数据，记录即刻生效。",
+  "Those times aren't a valid sleep window, so nothing was added.": "这些时间不是有效的睡眠区间，没有添加任何内容。",
+  "Edit that sleep": "编辑那段睡眠",
+  "Add it anyway": "仍然添加",
+  "The strap has nothing recorded for those hours yet. The sleep will count its length, but it gets no stages and Charge for that day stays empty until the data arrives.": "手环在那段时间还没有任何记录。睡眠会计入时长，但没有阶段，当天的 Charge 也会一直为空，直到数据到达。",
+  "Until you change it": "直到你更改",
+  "For today": "仅限今天",
+  "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "你已经有一段 %@ 的睡眠。同一段时间记录两次会被重复计算。"
 }

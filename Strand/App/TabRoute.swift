@@ -41,6 +41,9 @@ enum TabRoute: Hashable {
     case dataSources
     case stress
     case sleep
+    /// The Sleep screen with the "add a sleep" sheet already open: the Log sheet's Sleep entry, which
+    /// used to open the tab and do nothing else (reported 2026-11-20).
+    case sleepAdd
     case health
     case hydration
     case coupled
@@ -108,6 +111,7 @@ extension View {
             case .dataSources: DataSourcesView()
             case .stress: StressView()
             case .sleep: SleepView()
+            case .sleepAdd: SleepView(opensAdd: true)
             case .health: HealthView()
             case .hydration: HydrationView()
             case .coupled: CoupledView()

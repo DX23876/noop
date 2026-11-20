@@ -112,6 +112,40 @@ final class ActivityStatusTests: XCTestCase {
         XCTAssertEqual(ActivityStatusStore.load(from: d), .active)
     }
 
+    // MARK: Today's "Unwell" chip (2026-11-20)
+
+    func testUnwellSetsSickForTodayOnly() {
+        let now = Date(timeIntervalSince1970: 1_763_630_000)
+        guard let set = ActivityStatus.settingSick(from: .active, now: now) else {
+            return XCTFail("answering the warning sets the status")
+        }
+        XCTAssertEqual(set.state, .sick)
+        XCTAssertEqual(set.validUntil, ActivityStatus.Duration.today.validUntil(from: now))
+        // Tomorrow it is gone by itself: one tap says what today was, not how long the illness runs.
+        XCTAssertEqual(set.resolved(now: Calendar.current.date(byAdding: .day, value: 1, to: now)!), .active)
+    }
+
+    func testUnwellNeverShortensAStatusTheWearerSet() {
+        let now = Date(timeIntervalSince1970: 1_763_630_000)
+        for state in [ActivityStatus.State.sick, .injured, .onBreak] {
+            let chosen = ActivityStatus(state: state, validUntil: date(3 * 86_400, from: now), setAt: now)
+            XCTAssertNil(ActivityStatus.settingSick(from: chosen, now: now),
+                         "a deliberate \(state) for three days outranks one tap on a chip")
+        }
+    }
+
+    func testDecodeReadsWhatLoadReturnsAndWritesNothing() {
+        let d = isolatedDefaults()
+        let now = Date()
+        let expired = ActivityStatus(state: .sick, validUntil: date(-60, from: now), setAt: date(-3600, from: now))
+        ActivityStatusStore.save(expired, to: d)
+        // The screen observes the bytes; it must read the same status `load` would return.
+        XCTAssertEqual(ActivityStatusStore.decode(d.data(forKey: ActivityStatusStore.key), now: now), .active)
+        // And observing must not rewrite the store: the stored bytes are still the expired status.
+        let stillStored = try? JSONDecoder().decode(ActivityStatus.self, from: d.data(forKey: ActivityStatusStore.key) ?? Data())
+        XCTAssertEqual(stillStored, expired)
+    }
+
     func testStoreLoadAppliesAndPersistsFallback() {
         let d = isolatedDefaults()
         let now = Date()

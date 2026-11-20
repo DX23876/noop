@@ -17,6 +17,22 @@ object CoreTodayStatus {
         return SwiftCore.call("today.status", args.toString())?.let(::parse)
     }
 
+    /** The wearer's own status alone: [read] evaluates the day's readiness behind it, which a line that
+     *  only names the status must not pay for. */
+    data class Activity(val state: String, val validUntil: Long?) {
+        val isActive: Boolean get() = state == "active"
+    }
+
+    fun activity(): Activity? {
+        if (!SwiftCore.available) return null
+        return SwiftCore.call("today.activity", "{}")?.let(::parseActivity)
+    }
+
+    internal fun parseActivity(json: String): Activity? = runCatching {
+        val o = JSONObject(json)
+        Activity(o.getString("activity"), if (o.has("validUntil") && !o.isNull("validUntil")) o.getLong("validUntil") else null)
+    }.getOrNull()
+
     /** [duration] is today, threeDays, thisWeek or untilChanged, as the iOS sheet offers them. */
     fun setActivity(state: String, duration: String): Boolean =
         SwiftCore.available && SwiftCore.call("today.setActivity",

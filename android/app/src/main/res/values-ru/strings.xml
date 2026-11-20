@@ -7299,4 +7299,17 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_g_nutrition_sub">Маленький · сколько осталось сегодня</string>
     <string name="forge_nut_grams">%1$d g</string>
     <string name="forge_nut_grams_of">%1$d / %2$d g</string>
+    <string name="forge_as_end">Завершить</string>
+    <string name="forge_as_holds_today">На сегодня</string>
+    <string name="forge_as_holds_until_changed">Пока не измените</string>
+    <string name="forge_as_holds_until">До %1$s</string>
+    <string name="forge_log_status">Статус</string>
+    <string name="forge_sl_add_title">Добавить сон</string>
+    <string name="forge_sl_add_blurb">Для ночи или дневного сна, который NOOP не записал. Стадии берутся из ваших данных за эти часы, запись учитывается сразу.</string>
+    <string name="forge_sl_add_invalid">Это не корректное окно сна, ничего не добавлено.</string>
+    <string name="forge_sl_add_no_raw">За эти часы у ремешка пока нет записей. Длительность засчитается, стадий не будет, а Charge за этот день останется пустым, пока данные не придут.</string>
+    <string name="forge_sl_add_anyway">Всё равно добавить</string>
+    <string name="forge_sl_add_blocked">У вас уже есть сон с %1$s до %2$s. Два сна на одни и те же часы учтут их дважды.</string>
+    <string name="forge_sl_add_edit_that">Изменить тот сон</string>
+    <string name="forge_sl_add_row">Добавить сон</string>
 </resources>

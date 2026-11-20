@@ -97,4 +97,26 @@ public enum SleepEditGuard {
         guard cappedEnd > start, cappedEnd - start <= maxEditWindowSec else { return nil }
         return (start, cappedEnd)
     }
+
+    /// One stored sleep's window, for rule 4.
+    public struct Span: Equatable, Sendable {
+        public let start: Int
+        public let end: Int
+        public init(start: Int, end: Int) { self.start = start; self.end = end }
+    }
+
+    /// Rule 4: the sleep a hand-added window would land on top of, or nil when the window is free.
+    ///
+    /// Adding a sleep by hand is additive by design: the insert refuses only an onset that matches an
+    /// existing one to the second, so "I slept from midnight to 4:30" on a night the detector already
+    /// found from 00:15 to 04:00 would store BOTH, and the day would count the overlap twice. Clipping
+    /// or merging the two would decide something the wearer never said, so the caller refuses and names
+    /// the session that is in the way, which it can then offer to edit instead.
+    ///
+    /// Touching edges do not overlap: a nap that ends exactly when the night begins is two sleeps, not
+    /// one conflict.
+    public static func overlapping(start: Int, end: Int, existing: [Span]) -> Span? {
+        existing.filter { $0.end > start && $0.start < end }
+            .min { ($0.start, $0.end) < ($1.start, $1.end) }
+    }
 }

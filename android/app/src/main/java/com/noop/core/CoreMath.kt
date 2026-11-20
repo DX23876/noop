@@ -101,6 +101,45 @@ object CoreMath {
         )
     }
 
+    /**
+     * What adding a sleep by hand over [start, end] would do (`sleep.addPreflight`).
+     *
+     * The rule is `ManualSleepPlan` in the core, which the Apple side asks the same question: a window on
+     * top of a stored sleep is refused with that sleep's span, a window the strap has nothing recorded for
+     * is accepted after a warning.
+     */
+    sealed class AddSleepOutcome {
+        object Ok : AddSleepOutcome()
+        object NoRawData : AddSleepOutcome()
+        object InvalidWindow : AddSleepOutcome()
+        data class Blocked(val start: Long, val end: Long) : AddSleepOutcome()
+    }
+
+    /** Where the "add a sleep" pickers open (`sleep.addSeed`), by the rule both platforms use. */
+    fun addSleepSeed(hasMainSleep: Boolean, dayStart: Long, now: Long): Pair<Long, Long>? {
+        if (!CoreShadow.running) return null
+        val a = call("sleep.addSeed", JSONObject().put("hasMainSleep", hasMainSleep)
+            .put("dayStart", dayStart).put("now", now)) ?: return null
+        val start = a.optString("start").toLongOrNull() ?: return null
+        val end = a.optString("end").toLongOrNull() ?: return null
+        return start to end
+    }
+
+    fun addSleepPreflight(deviceId: String, computedDeviceId: String, start: Long, end: Long,
+                          method: String, motionAwareWake: Boolean): AddSleepOutcome? {
+        if (!CoreShadow.running) return null
+        val a = call("sleep.addPreflight", JSONObject().put("deviceId", deviceId)
+            .put("computedDeviceId", computedDeviceId).put("start", start).put("end", end)
+            .put("method", method).put("motionAwareWake", motionAwareWake)) ?: return null
+        return when (a.optString("outcome")) {
+            "ok" -> AddSleepOutcome.Ok
+            "noRawData" -> AddSleepOutcome.NoRawData
+            "blocked" -> AddSleepOutcome.Blocked(a.optString("start").toLongOrNull() ?: 0L,
+                                                 a.optString("end").toLongOrNull() ?: 0L)
+            else -> AddSleepOutcome.InvalidWindow
+        }
+    }
+
     /** A night staged by the core (`sleep.restage`) with [method] and [motionAwareWake]. */
     fun restage(deviceId: String, start: Long, end: Long, method: String, motionAwareWake: Boolean): Answer<String?>? {
         if (!CoreShadow.running) return null

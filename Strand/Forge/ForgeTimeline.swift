@@ -138,6 +138,17 @@ enum ForgeTimeline {
         /// state offered different ways out depending on which screen the reader was on.
         var secondaryAction: Action = .none
         var secondaryActionTitle: String? = nil
+
+        /// Whether this notice may ask what explains it.
+        ///
+        /// The chips exist to CALM a warning: a raised signal with a known cause stops being a warning.
+        /// They were drawn from the topic alone, and `bodySignals` carries two messages that point in
+        /// opposite directions, so a reader whose HRV had been ABOVE baseline for three days was asked
+        /// whether illness, alcohol, travel or stress explained the good news (reported 2026-11-20 with
+        /// a screenshot). A tone is what separates them, so a tone is what decides.
+        var asksForCause: Bool {
+            topic == TimelineFeed.Topic.bodySignals.rawValue && (tone == .caution || tone == .critical)
+        }
     }
 
     /// The evening report without a coach: Effort against today's target, the sessions, tomorrow's plan,

@@ -29,6 +29,9 @@ struct ForgeSleepView: View {
     @State private var model: SleepModel?
     /// 0 = the latest night; 1 the one before, and so on (the arrows above the tiles).
     @State private var nightOffset = 0
+    /// The night offset whose editor should open once that night is on screen (an add refused for lying on
+    /// top of it).
+    @State private var pendingEdit: Int?
     @State private var shownNight: Night?
     @State private var restByDay: [String: Double] = [:]
     @State private var historyRange: HistoryRange = .week
@@ -74,12 +77,16 @@ struct ForgeSleepView: View {
                         } else if loaded {
                             ForgeTabHero(overline: String(localized: "Last night"),
                                          headline: String(localized: "No night recorded yet"))
+                            // A night the strap missed entirely is exactly when someone needs this, and
+                            // there is no night card below to hang it on.
+                            addSleepRow(endTs: Int(Date().timeIntervalSince1970))
                         }
                         tonightCard
                         SleepUndoStrip(editor: editor)
                         if let model, let night {
                             nightCard(night)
                             naps(night)
+                            addSleepRow(endTs: night.session.endTs)
                             if night.stages.total > 0 { ForgeNightBreakdown(model: model, night: night) }
                             GoalsContextCard(context: .sleep)
                             highlights(model, night: night)
@@ -103,6 +110,16 @@ struct ForgeSleepView: View {
         .overlay { ForgeStatusBarScrim(tab: .sleep) }
         .refreshable { await repo.refresh() }
         .sleepNightEditing(editor)
+        // An add refused for lying on top of a stored sleep offers that sleep. This page browses one night
+        // at a time, so it moves to the night that holds the onset and opens the editor there.
+        .onChange(of: editor.jumpToSleepStart) { target in
+            guard let target, let groups = presentation?.groups else { return }
+            editor.jumpToSleepStart = nil
+            guard let index = groups.firstIndex(where: { $0.contains { $0.effectiveStartTs == target } })
+            else { return }
+            pendingEdit = index
+            nightOffset = index
+        }
         .task(id: revision) {
             let key = revision
             if let p = try? await sleepStore.presentation(repo: repo, revision: key), key == revision {
@@ -114,6 +131,13 @@ struct ForgeSleepView: View {
             restByDay = Dictionary(series.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
         }
         .task(id: nightOffset) {
+            defer {
+                // The night asked for is on screen now, so the editor can open on it.
+                if pendingEdit == nightOffset, let night = shownNight ?? model?.night {
+                    pendingEdit = nil
+                    editor.edit(night)
+                }
+            }
             guard nightOffset > 0, let presentation else { shownNight = nil; return }
             shownNight = try? await sleepStore.night(offset: nightOffset, presentation: presentation, repo: repo,
                                                      revision: revision)
@@ -357,6 +381,27 @@ struct ForgeSleepView: View {
 
     static func percentText(_ value: Double?) -> String {
         value.map { "\(Int($0.rounded()))%" } ?? "—"
+    }
+
+    /// Adding a sleep NOOP never recorded: a night it missed, or a nap. It sits under the night it would
+    /// join, because that is where someone is standing when they notice the gap.
+    private func addSleepRow(endTs: Int) -> some View {
+        Button {
+            let anchor = Date(timeIntervalSince1970: TimeInterval(endTs))
+            let day = Repository.localDayKey(anchor)
+            let hasMain = repo.sleeps.contains {
+                Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval($0.endTs))) == day
+            }
+            editor.startAdding(dayStart: anchor, hasMainSleep: hasMain)
+        } label: {
+            Label("Add a sleep", systemImage: "plus")
+                .font(.system(.subheadline, weight: .medium))
+                .foregroundStyle(ForgeColor.accent)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 40)
+                .background(Capsule().fill(ForgeColor.fill))
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: Naps

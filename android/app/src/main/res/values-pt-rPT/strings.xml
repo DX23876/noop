@@ -7286,4 +7286,17 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="forge_g_nutrition_sub">Pequeno · o que falta hoje</string>
     <string name="forge_nut_grams">%1$d g</string>
     <string name="forge_nut_grams_of">%1$d / %2$d g</string>
+    <string name="forge_as_end">Terminar</string>
+    <string name="forge_as_holds_today">Por hoje</string>
+    <string name="forge_as_holds_until_changed">Até o alterares</string>
+    <string name="forge_as_holds_until">Até %1$s</string>
+    <string name="forge_log_status">Estado</string>
+    <string name="forge_sl_add_title">Adicionar um sono</string>
+    <string name="forge_sl_add_blurb">Para uma noite ou uma sesta que o NOOP não registou. As fases vêm dos teus dados dessas horas, por isso a entrada conta a partir de agora.</string>
+    <string name="forge_sl_add_invalid">Essas horas não formam uma janela de sono válida, não foi adicionado nada.</string>
+    <string name="forge_sl_add_no_raw">A pulseira ainda não tem nada registado nessas horas. O sono conta a duração, mas fica sem fases, e o Charge desse dia continua vazio até os dados chegarem.</string>
+    <string name="forge_sl_add_anyway">Adicionar mesmo assim</string>
+    <string name="forge_sl_add_blocked">Já tens um sono das %1$s às %2$s. Dois sonos sobre as mesmas horas contariam essas horas duas vezes.</string>
+    <string name="forge_sl_add_edit_that">Editar esse sono</string>
+    <string name="forge_sl_add_row">Adicionar um sono</string>
 </resources>

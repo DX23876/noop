@@ -142,6 +142,9 @@ struct ForgeTodayView: View {
                             .id("forge-today-top")
                         VStack(alignment: .leading, spacing: 14) {
                             HealthAlertBanner()
+                            // A status the wearer set themselves (ill, injured, on a break) suppresses the
+                            // training suggestions, so the page says it holds rather than going quiet.
+                            ForgeActivityStatusLine()
                             ActiveWorkoutIndicatorSection()
                             if snapshot.loaded && repo.days.isEmpty {
                                 // First run: nothing recorded or imported yet. The same calm state Health and
@@ -796,8 +799,10 @@ struct ForgeTodayView: View {
                 }
             }
             // The signals themselves stand on the morning entry and the Charge page; here only the question
-            // that can calm the warning, so one fact is not drawn twice on the same page.
-            if notice.topic == TimelineFeed.Topic.bodySignals.rawValue {
+            // that can calm the warning, so one fact is not drawn twice on the same page. Whether this
+            // notice may ask at all is the notice's own answer (`asksForCause`), never a second reading of
+            // its topic here.
+            if notice.asksForCause {
                 causeChips.padding(.leading, 52)
             }
             explainBlock(key: notice.key, title: notice.headline, figures: notice.detail)
@@ -844,6 +849,13 @@ struct ForgeTodayView: View {
         Task {
             await repo.saveJournalAnswer(day: Repository.logicalDayKey(Date()), question: cause.question,
                                          answeredYes: true, notes: cause.key)
+            // "Unwell" and the status "Sick" are the same statement about the same day. Keeping them apart
+            // let the wearer answer the warning while the app went on proposing training, so the chip sets
+            // the status too. `settingSick` owns both bounds: it never shortens a status the wearer set
+            // themselves, and one tap lasts only for today.
+            if cause == .sick, let sick = ActivityStatus.settingSick(from: ActivityStatusStore.load()) {
+                ActivityStatusStore.save(sick)
+            }
             model?.reevaluateIllness()
             await load()
         }

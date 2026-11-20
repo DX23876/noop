@@ -7310,4 +7310,17 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_g_nutrition_sub">Klein · was heute übrig ist</string>
     <string name="forge_nut_grams">%1$d g</string>
     <string name="forge_nut_grams_of">%1$d / %2$d g</string>
+    <string name="forge_as_end">Beenden</string>
+    <string name="forge_as_holds_today">Für heute</string>
+    <string name="forge_as_holds_until_changed">Bis du es änderst</string>
+    <string name="forge_as_holds_until">Bis %1$s</string>
+    <string name="forge_log_status">Status</string>
+    <string name="forge_sl_add_title">Schlaf nachtragen</string>
+    <string name="forge_sl_add_blurb">Für eine Nacht oder ein Nickerchen, das NOOP nicht aufgezeichnet hat. Die Stadien kommen aus deinen Daten für diese Stunden, der Eintrag zählt ab sofort.</string>
+    <string name="forge_sl_add_invalid">Diese Zeiten ergeben kein gültiges Schlaffenster, es wurde nichts eingetragen.</string>
+    <string name="forge_sl_add_no_raw">Der Strap hat für diese Stunden noch nichts aufgezeichnet. Die Länge zählt, Stadien gibt es keine, und Charge bleibt für diesen Tag leer, bis die Daten da sind.</string>
+    <string name="forge_sl_add_anyway">Trotzdem eintragen</string>
+    <string name="forge_sl_add_blocked">Du hast schon einen Schlaf von %1$s bis %2$s. Zwei Schläfe über denselben Stunden würden diese Stunden doppelt zählen.</string>
+    <string name="forge_sl_add_edit_that">Diesen Schlaf bearbeiten</string>
+    <string name="forge_sl_add_row">Schlaf nachtragen</string>
 </resources>

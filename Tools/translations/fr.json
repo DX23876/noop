@@ -4676,5 +4676,14 @@
   "This week %1$@ · %2$@ a day": "Cette semaine %1$@ · %2$@ par jour",
   "Weighed %@": "Pesé %@",
   "Weighed %1$@ · %2$@ this week": "Pesé %1$@ · %2$@ cette semaine",
-  "7-day average %@": "Moyenne sur 7 jours %@"
+  "7-day average %@": "Moyenne sur 7 jours %@",
+  "Add a sleep": "Ajouter un sommeil",
+  "For a night or a nap NOOP did not record. Stages are taken from your data for those hours, so the entry counts from now on.": "Pour une nuit ou une sieste que NOOP n'a pas enregistrée. Les phases viennent de tes données sur ces heures, l'entrée compte dès maintenant.",
+  "Those times aren't a valid sleep window, so nothing was added.": "Ces heures ne forment pas une fenêtre de sommeil valable, rien n'a été ajouté.",
+  "Edit that sleep": "Modifier ce sommeil",
+  "Add it anyway": "Ajouter quand même",
+  "The strap has nothing recorded for those hours yet. The sleep will count its length, but it gets no stages and Charge for that day stays empty until the data arrives.": "Le bracelet n'a encore rien enregistré sur ces heures. Le sommeil comptera sa durée, mais sans phases, et Charge restera vide ce jour-là jusqu'à l'arrivée des données.",
+  "Until you change it": "Jusqu'à ce que tu le changes",
+  "For today": "Pour aujourd'hui",
+  "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "Tu as déjà un sommeil de %@. Deux sommeils sur les mêmes heures les compteraient deux fois."
 }

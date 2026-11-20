@@ -107,6 +107,125 @@ internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long) -> Unit
     }
 }
 
+/**
+ * "Add entry, Sleep" asking the Sleep page to open the add dialog when it appears, as the food log's
+ * `FoodArrival` does. The entry used to open the tab and stop there (reported 2026-11-20).
+ */
+internal object SleepArrival {
+    @Volatile private var pending = false
+    fun requestAdd() { pending = true }
+    fun consume(): Boolean = pending.also { pending = false }
+}
+
+/** Where the add dialog's pickers open, from the core's own rule; the last hour if the core is not up. */
+internal suspend fun seedForAdd(hasMainSleep: Boolean): Pair<Long, Long> {
+    val now = System.currentTimeMillis() / 1000L
+    return withContext(Dispatchers.IO) {
+        com.noop.core.CoreMath.addSleepSeed(hasMainSleep, now, now)
+    } ?: (now - 3600 to now)
+}
+
+/**
+ * Adding a sleep NOOP never recorded, the twin of iOS's "Add a sleep" sheet.
+ *
+ * The seed decides where the pickers start: the previous evening to the morning on a day with no main
+ * sleep, the last hour on a day that has one. The core answers whether the window is free
+ * (`CoreMath.addSleepPreflight`), so the refusal and the warning read the same on both platforms, and
+ * neither screen decides for itself what counts as a conflict.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun SleepAddDialog(seedStart: Long, seedEnd: Long, viewModel: AppViewModel,
+                            onEditInstead: (Long) -> Unit, onDismiss: () -> Unit) {
+    val colors = Forge.colors
+    val zone = ZoneId.systemDefault()
+    val seedFrom = Instant.ofEpochSecond(seedStart).atZone(zone)
+    val seedTo = Instant.ofEpochSecond(seedEnd).atZone(zone)
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val is24 = android.text.format.DateFormat.is24HourFormat(context)
+    val bed = rememberTimePickerState(seedFrom.hour, seedFrom.minute, is24)
+    val wake = rememberTimePickerState(seedTo.hour, seedTo.minute, is24)
+    val scope = rememberCoroutineScope()
+    val experiment = remember(context) { com.noop.ble.PuffinExperiment.from(context) }
+    var problem by remember { mutableStateOf<String?>(null) }
+    var exit by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
+    val pickerColors = TimePickerDefaults.colors(
+        timeSelectorSelectedContainerColor = colors.rest.copy(alpha = 0.18f), timeSelectorSelectedContentColor = colors.rest,
+        timeSelectorUnselectedContainerColor = colors.inset, timeSelectorUnselectedContentColor = colors.text,
+        periodSelectorBorderColor = colors.divider)
+
+    fun chosen(): Pair<Long, Long>? {
+        var newEnd = seedTo.withHour(wake.hour).withMinute(wake.minute).withSecond(0)
+        var newStart = seedFrom.withHour(bed.hour).withMinute(bed.minute).withSecond(0)
+        if (newStart >= newEnd) newStart = newStart.minusDays(1)
+        if (newEnd.toEpochSecond() - newStart.toEpochSecond() > 20 * 3600) newEnd = newEnd.minusDays(1)
+        return if (newEnd > newStart) newStart.toEpochSecond() to newEnd.toEpochSecond() else null
+    }
+
+    fun commit(start: Long, end: Long) {
+        scope.launch { viewModel.addManualNap(start, end); onDismiss() }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Column(Modifier.background(colors.surface, RoundedCornerShape(20.dp)).padding(20.dp).verticalScroll(rememberScrollState()),
+               verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
+            Text(stringResource(R.string.forge_sl_add_title), style = Forge.type.headline, color = colors.text)
+            Text(stringResource(R.string.forge_sl_add_blurb), style = Forge.type.caption, color = colors.textSecondary)
+            Text(stringResource(R.string.forge_se_asleep), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+            TimeInput(bed, colors = pickerColors)
+            Text(stringResource(R.string.forge_se_woke), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+            TimeInput(wake, colors = pickerColors)
+            problem?.let {
+                Text(it, style = Forge.type.caption, color = ForgeTokens.Color.systemRed.resolve())
+            }
+            // The one thing to do about the refusal, when there is one. Only a labelled control commits.
+            exit?.let { (title, run) ->
+                Text(title, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.accent,
+                     modifier = Modifier.clickable(role = Role.Button, onClick = run).padding(vertical = 8.dp))
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.weight(1f))
+                Text(stringResource(R.string.forge_se_cancel), style = Forge.type.subhead, color = colors.textSecondary,
+                     modifier = Modifier.clickable(role = Role.Button, onClick = onDismiss).padding(8.dp))
+                Spacer(Modifier.width(ForgeMetrics.space2))
+                Text(stringResource(R.string.forge_se_save), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.rest,
+                     modifier = Modifier.clickable(role = Role.Button) {
+                         val window = chosen() ?: return@clickable
+                         problem = null; exit = null
+                         scope.launch {
+                             val outcome = withContext(Dispatchers.IO) {
+                                 com.noop.core.CoreMath.addSleepPreflight(
+                                     deviceId = viewModel.activeStrapId,
+                                     computedDeviceId = viewModel.repo.computedDeviceId(viewModel.activeStrapId),
+                                     start = window.first, end = window.second,
+                                     method = experiment.sleepStagerMethod,
+                                     motionAwareWake = experiment.motionAwareWake)
+                             }
+                             when (outcome) {
+                                 is com.noop.core.CoreMath.AddSleepOutcome.Ok, null -> commit(window.first, window.second)
+                                 is com.noop.core.CoreMath.AddSleepOutcome.InvalidWindow ->
+                                     problem = context.getString(R.string.forge_sl_add_invalid)
+                                 is com.noop.core.CoreMath.AddSleepOutcome.NoRawData -> {
+                                     problem = context.getString(R.string.forge_sl_add_no_raw)
+                                     exit = context.getString(R.string.forge_sl_add_anyway) to
+                                         { commit(window.first, window.second) }
+                                 }
+                                 is com.noop.core.CoreMath.AddSleepOutcome.Blocked -> {
+                                     val fmt = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT)
+                                     problem = context.getString(R.string.forge_sl_add_blocked,
+                                         fmt.format(java.util.Date(outcome.start * 1000)),
+                                         fmt.format(java.util.Date(outcome.end * 1000)))
+                                     exit = context.getString(R.string.forge_sl_add_edit_that) to
+                                         { onEditInstead(outcome.start) }
+                                 }
+                             }
+                         }
+                     }.padding(8.dp))
+            }
+        }
+    }
+}
+
 /** "Sleep deleted." with Undo, as iOS's `SleepUndoStrip`, while a deletion can still be taken back. */
 @Composable
 internal fun SleepUndoStrip(onUndo: () -> Unit) {

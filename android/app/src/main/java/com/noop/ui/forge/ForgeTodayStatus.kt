@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -61,6 +62,107 @@ private val ACTIVITY_CHOICES = listOf(
     ActivityChoice("injured", R.string.forge_as_injured, R.string.forge_as_injured_sub, Icons.Rounded.Healing, ForgeTokens.Color.systemOrange),
     ActivityChoice("onBreak", R.string.forge_as_break, R.string.forge_as_break_sub, Icons.Rounded.BeachAccess, ForgeTokens.Color.systemYellow),
 )
+
+/**
+ * Bumped whenever the status is written, so every surface showing it redraws. iOS gets this from observing
+ * the stored key; here one counter does the same job, and keeps the line and the sheet from each holding
+ * their own idea of the status.
+ */
+internal object ActivityStatusRevision {
+    val flow = kotlinx.coroutines.flow.MutableStateFlow(0)
+    fun bump() { flow.value += 1 }
+}
+
+/**
+ * The line at the head of Today while the status is not active, the twin of iOS `ForgeActivityStatusLine`.
+ *
+ * A status nobody can see is a status nobody remembers setting, and it quietly suppresses the training
+ * suggestions. Tapping the line OPENS the sheet; only the labelled button ends the status, because a tap on
+ * a card body must not commit what the card does not say it commits.
+ */
+@Composable
+internal fun ForgeActivityStatusLine() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val revision by ActivityStatusRevision.flow.collectAsState()
+    var status by remember { mutableStateOf<CoreTodayStatus.Activity?>(null) }
+    var editing by remember { mutableStateOf(false) }
+    LaunchedEffect(revision) {
+        status = withContext(Dispatchers.IO) { CoreRead.open(context); CoreTodayStatus.activity() }
+    }
+    val s = status
+    if (s != null && !s.isActive) {
+        val choice = ACTIVITY_CHOICES.firstOrNull { it.raw == s.state } ?: ACTIVITY_CHOICES.first()
+        val tint = choice.color.resolve()
+        Row(Modifier.fillMaxWidth()
+                .background(Forge.colors.surface, RoundedCornerShape(ForgeMetrics.cardRadius))
+                .clickable(role = Role.Button) { editing = true }
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Icon(choice.icon, null, tint = tint,
+                 modifier = Modifier.size(36.dp).background(tint.copy(alpha = 0.14f), CircleShape).padding(9.dp))
+            Spacer(Modifier.width(ForgeMetrics.space3))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(choice.title), style = Forge.type.body, color = Forge.colors.text)
+                Text(holdsUntilText(s), style = Forge.type.caption, color = Forge.colors.textSecondary)
+            }
+            Button(onClick = {
+                scope.launch {
+                    withContext(Dispatchers.IO) { CoreTodayStatus.setActivity("active", "untilChanged") }
+                    ActivityStatusRevision.bump()
+                }
+            }) { Text(stringResource(R.string.forge_as_end)) }
+        }
+    }
+    if (editing) {
+        ActivityStatusSheet(status?.state ?: "active", onDismiss = { editing = false }) { state, duration ->
+            scope.launch {
+                withContext(Dispatchers.IO) { CoreTodayStatus.setActivity(state, duration) }
+                editing = false
+                ActivityStatusRevision.bump()
+            }
+        }
+    }
+}
+
+/**
+ * The Log sheet's "Status" entry: the same sheet, opened from anywhere.
+ */
+@Composable
+internal fun ForgeActivityStatusSheetHost(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var current by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(Unit) {
+        current = withContext(Dispatchers.IO) { CoreRead.open(context); CoreTodayStatus.activity()?.state } ?: "active"
+    }
+    val state = current ?: return
+    ActivityStatusSheet(state, onDismiss = onDismiss) { picked, duration ->
+        scope.launch {
+            withContext(Dispatchers.IO) { CoreTodayStatus.setActivity(picked, duration) }
+            ActivityStatusRevision.bump()
+            onDismiss()
+        }
+    }
+}
+
+/**
+ * How long the status holds, in the reader's words. A status set for "today" stores the START of tomorrow,
+ * which printed as a date would name a day the wearer never chose.
+ */
+@Composable
+private fun holdsUntilText(status: CoreTodayStatus.Activity): String {
+    val until = status.validUntil ?: return stringResource(R.string.forge_as_holds_until_changed)
+    val endOfToday = java.util.Calendar.getInstance().apply {
+        add(java.util.Calendar.DAY_OF_YEAR, 1)
+        set(java.util.Calendar.HOUR_OF_DAY, 0); set(java.util.Calendar.MINUTE, 0)
+        set(java.util.Calendar.SECOND, 0); set(java.util.Calendar.MILLISECOND, 0)
+    }.timeInMillis / 1000
+    if (until <= endOfToday) return stringResource(R.string.forge_as_holds_today)
+    val date = java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM)
+        .format(java.util.Date(until * 1000))
+    return stringResource(R.string.forge_as_holds_until, date)
+}
 
 /** The sheet's durations (`SharedActivityStatusSheet.DurationChoice`), without iOS's custom date. */
 private val DURATIONS = listOf("untilChanged" to R.string.forge_as_until_changed, "today" to R.string.forge_as_today,
@@ -134,7 +236,7 @@ internal fun TodayStatusPills(onReadiness: (() -> Unit)? = null) {
 /** `SharedActivityStatusSheet`: the four states with their subtitles, how long, Apply. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ActivityStatusSheet(current: String, onDismiss: () -> Unit, onApply: (String, String) -> Unit) {
+internal fun ActivityStatusSheet(current: String, onDismiss: () -> Unit, onApply: (String, String) -> Unit) {
     val colors = Forge.colors
     var picked by remember { mutableStateOf(current) }
     var duration by remember { mutableStateOf("untilChanged") }

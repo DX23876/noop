@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Accessibility
 import androidx.compose.material.icons.rounded.Air
 import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.ChatBubble
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.MedicalServices
@@ -52,7 +53,7 @@ import com.noop.R
  * already exists, so the sheet only gathers the entry points. The coach's Photo shows only while its provider reads
  * images, as on iOS.
  */
-enum class ForgeLogChoice { CoachWrite, CoachSpeak, CoachPhoto, Workout, Weight, Journal, Drink, Food, Sleep, LabMarkers, Breathe, LiveHeartRate }
+enum class ForgeLogChoice { CoachWrite, CoachSpeak, CoachPhoto, Workout, Weight, Status, Journal, Drink, Food, Sleep, LabMarkers, Breathe, LiveHeartRate }
 
 private class LogItem(val choice: ForgeLogChoice, val title: Int, val icon: ImageVector, val tint: Color)
 
@@ -68,6 +69,7 @@ internal fun ForgeLogSheet(coachOn: Boolean, onDismiss: () -> Unit, coachPhotos:
     val direct = listOf(
         LogItem(ForgeLogChoice.Workout, R.string.forge_log_add_workout, Icons.AutoMirrored.Rounded.DirectionsWalk, colors.effort),
         LogItem(ForgeLogChoice.Weight, R.string.forge_log_weight, Icons.Rounded.Accessibility, ForgeTokens.Color.systemPink.resolve()),
+        LogItem(ForgeLogChoice.Status, R.string.forge_log_status, Icons.Rounded.Bolt, colors.charge),
         LogItem(ForgeLogChoice.Journal, R.string.forge_log_journal, Icons.AutoMirrored.Rounded.MenuBook, ForgeTokens.Color.systemBrown.resolve()),
         LogItem(ForgeLogChoice.Drink, R.string.forge_log_drink, Icons.Rounded.WaterDrop, ForgeTokens.Color.systemCyan.resolve()),
         LogItem(ForgeLogChoice.Food, R.string.forge_log_food, Icons.Rounded.Restaurant, ForgeTokens.Color.systemOrange.resolve()),

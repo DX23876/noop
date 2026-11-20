@@ -72,6 +72,22 @@ struct ActivityStatus: Codable, Equatable {
         }
     }
 
+    /// The status one tap on Today's "Unwell" cause chip sets, or nil when it must not touch the status.
+    ///
+    /// Answering the cause question and setting the status are the SAME statement about the same day, and
+    /// two places that can answer it differently is the shape this project has been bitten by before. So
+    /// the chip sets it. Two bounds keep that honest: it only ever moves a status that is `active`, so a
+    /// deliberate "sick for three days" is never shortened by a later tap, and it lasts until the end of
+    /// today, because one tap on a chip says what today was, not how long the illness will run. The line
+    /// on Today then shows it, and the sheet extends it.
+    static func settingSick(from current: ActivityStatus, now: Date = Date(),
+                            calendar: Calendar = .current) -> ActivityStatus? {
+        guard current.state == .active else { return nil }
+        return ActivityStatus(state: .sick,
+                              validUntil: Duration.today.validUntil(from: now, calendar: calendar),
+                              setAt: now)
+    }
+
     /// Applies the automatic fallback rule (spec §1: "Beim Erreichen von validUntil fällt der Status
     /// automatisch auf .active zurück. Kein Reminder, kein Nachfragen — stiller Reset."). Pure — callers
     /// that read via `ActivityStatusStore.load` get the resolved value and the store persists it.
@@ -90,13 +106,22 @@ enum ActivityStatusStore {
     /// writes the resolved `.active` value back so a stale non-active state never survives past the next
     /// read even if nothing else re-saves it.
     static func load(from d: UserDefaults = .standard, now: Date = Date()) -> ActivityStatus {
-        guard let data = d.data(forKey: key),
-              let decoded = try? JSONDecoder().decode(ActivityStatus.self, from: data) else {
+        let data = d.data(forKey: key)
+        let resolved = decode(data, now: now)
+        if let data, let stored = try? JSONDecoder().decode(ActivityStatus.self, from: data), resolved != stored {
+            save(resolved, to: d)
+        }
+        return resolved
+    }
+
+    /// The stored bytes as a resolved status, writing nothing. A screen that OBSERVES the stored value
+    /// (`@AppStorage`) decodes it through here, so the status a screen draws and the status `load` returns
+    /// can never be two different readings of the same bytes.
+    static func decode(_ data: Data?, now: Date = Date()) -> ActivityStatus {
+        guard let data, let decoded = try? JSONDecoder().decode(ActivityStatus.self, from: data) else {
             return .active
         }
-        let resolved = decoded.resolved(now: now)
-        if resolved != decoded { save(resolved, to: d) }
-        return resolved
+        return decoded.resolved(now: now)
     }
 
     static func save(_ status: ActivityStatus, to d: UserDefaults = .standard) {

@@ -736,6 +736,10 @@ struct RootTabView: View {
                 .presentationDragIndicator(.visible)
         case .addWorkout:
             ForgeWorkoutEditor()
+        case .activityStatus:
+            ActivityStatusQuickSheet()
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
         case .liveSession, .battery, .customizeToday, .goals:
             // Never reached: the picker routes the guardian to `showLiveSession` (a full-screen cover) and
             // the device row to the Today stack, so this arm only keeps the switch exhaustive.
@@ -965,6 +969,7 @@ struct RootTabView: View {
                 }
             // Logging is for what already happened; a live session starts from the Training tab.
             case .workout: withAnimation(Self.sheetEase) { quickAction = .addWorkout }
+            case .status: withAnimation(Self.sheetEase) { quickAction = .activityStatus }
             case .journal: withAnimation(Self.sheetEase) { quickAction = .journal }
             case .breathe: withAnimation(Self.sheetEase) { quickAction = .breathe }
             case .liveHeartRate: withAnimation(Self.sheetEase) { quickAction = .live }
@@ -973,9 +978,10 @@ struct RootTabView: View {
             // Straight to adding, as the Health card's button; the page itself is one tap back.
             case .energy: pushOnToday(ForgeRoute.foodAdd)
             case .sleep:
-                // The full Sleep screen, where marks are logged and a night is edited.
+                // The full Sleep screen with the add sheet open. It used to open the tab and stop there,
+                // so "Add entry, Sleep" promised something that did not exist (reported 2026-11-20).
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 3 }
-                tabPaths[3] = NavigationPath([TabRoute.sleep])
+                tabPaths[3] = NavigationPath([TabRoute.sleepAdd])
             case .labMarkers: routedPillar = .labBook
             }
         }
@@ -1342,6 +1348,8 @@ private enum QuickAction: Int, Identifiable {
     case forgeLog
     /// Adding a session that already happened, from the Log sheet.
     case addWorkout
+    /// The wearer's own day status (active, sick, injured, on a break), from the Log sheet.
+    case activityStatus
     var id: Int { rawValue }
 }
 

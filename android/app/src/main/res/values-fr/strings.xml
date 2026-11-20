@@ -7291,4 +7291,17 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="forge_g_nutrition_sub">Petit · ce qui reste aujourd\'hui</string>
     <string name="forge_nut_grams">%1$d g</string>
     <string name="forge_nut_grams_of">%1$d / %2$d g</string>
+    <string name="forge_as_end">Terminer</string>
+    <string name="forge_as_holds_today">Pour aujourd\'hui</string>
+    <string name="forge_as_holds_until_changed">Jusqu\'à ce que tu le changes</string>
+    <string name="forge_as_holds_until">Jusqu\'au %1$s</string>
+    <string name="forge_log_status">Statut</string>
+    <string name="forge_sl_add_title">Ajouter un sommeil</string>
+    <string name="forge_sl_add_blurb">Pour une nuit ou une sieste que NOOP n\'a pas enregistrée. Les phases viennent de tes données sur ces heures, l\'entrée compte dès maintenant.</string>
+    <string name="forge_sl_add_invalid">Ces heures ne forment pas une fenêtre de sommeil valable, rien n\'a été ajouté.</string>
+    <string name="forge_sl_add_no_raw">Le bracelet n\'a encore rien enregistré sur ces heures. Le sommeil comptera sa durée, mais sans phases, et Charge restera vide ce jour-là jusqu\'à l\'arrivée des données.</string>
+    <string name="forge_sl_add_anyway">Ajouter quand même</string>
+    <string name="forge_sl_add_blocked">Tu as déjà un sommeil de %1$s à %2$s. Deux sommeils sur les mêmes heures les compteraient deux fois.</string>
+    <string name="forge_sl_add_edit_that">Modifier ce sommeil</string>
+    <string name="forge_sl_add_row">Ajouter un sommeil</string>
 </resources>

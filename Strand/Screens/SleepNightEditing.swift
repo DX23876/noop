@@ -35,15 +35,40 @@ struct WakeEdit: Identifiable {
 /// One night's corrections in one place: the bed and wake editor, deleting a night or a nap, the few-second
 /// undo and the targeted re-score after each. The full Sleep screen and the new design's Sleep tab both
 /// hold one, so a night is edited the same way from either.
+/// A sleep the wearer is adding by hand: the window the sheet opens with.
+struct AddSleep: Identifiable {
+    let bedTs: Int
+    let wakeTs: Int
+    var id: Int { bedTs }
+}
+
 @MainActor
 final class SleepNightEditor: ObservableObject {
     @Published var wakeEdit: WakeEdit?
+    /// Non-nil while the "add a sleep" sheet is up.
+    @Published var adding: AddSleep?
+    /// The effective onset of a sleep a screen should move to and open for editing: set when an add was
+    /// refused because that sleep is in the way. Only the screen knows how its nights are grouped and
+    /// paged, so the decision travels and the screen carries it out.
+    @Published var jumpToSleepStart: Int?
     @Published var napPendingDelete: CachedSleepSession?
     @Published var undo: SleepUndoBanner?
     private var undoTask: Task<Void, Never>?
 
     /// Open the editor on `night`'s whole bridged group.
     func edit(_ night: Night) { wakeEdit = Self.wakeEdit(for: night) }
+
+    /// Open the "add a sleep" sheet, seeded for the day being looked at.
+    func startAdding(dayStart: Date, hasMainSleep: Bool, now: Date = Date(), calendar: Calendar = .current) {
+        adding = Self.addSeed(dayStart: dayStart, hasMainSleep: hasMainSleep, now: now, calendar: calendar)
+    }
+
+    /// What the two pickers open with. The rule is `ManualSleepPlan.seed`, which Android asks for through
+    /// the core, so both platforms open on the same window.
+    static func addSeed(dayStart: Date, hasMainSleep: Bool, now: Date, calendar: Calendar = .current) -> AddSleep {
+        let seed = ManualSleepPlan.seed(dayStart: dayStart, hasMainSleep: hasMainSleep, now: now, calendar: calendar)
+        return AddSleep(bedTs: seed.start, wakeTs: seed.end)
+    }
 
     static func wakeEdit(for night: Night) -> WakeEdit? {
         guard let target = night.editTarget, let window = SleepGroupEdit.groupWindow(night.editGroup) else { return nil }
@@ -136,6 +161,52 @@ final class SleepNightEditor: ObservableObject {
     }
 }
 
+extension SleepNightEditing {
+    /// Writing a hand-added sleep, with the two things the wearer has to hear first.
+    ///
+    /// Both of those come back as a refusal with one labelled way out, rather than as a dialog: the
+    /// overlap offers the sleep that is in the way, and a window the strap has no dense data for offers to
+    /// store it anyway. Neither commits anything the sheet has not said.
+    @MainActor
+    static func saveAdded(bedTs: Int, wakeTs: Int, editor: SleepNightEditor,
+                          repo: Repository, appModel: AppModel?) async -> SleepEditorActionOutcome {
+        switch await repo.manualSleepPreflight(startTs: bedTs, endTs: wakeTs) {
+        case .invalidWindow:
+            return .failure(String(localized: "Those times aren't a valid sleep window, so nothing was added."))
+        case .blocked(let start, let end):
+            let span = Self.spanText(start: start, end: end)
+            return .refused(String(localized: "You already have a sleep from \(span). Two sleeps over the same hours would count those hours twice."),
+                            SleepEditorExit(title: String(localized: "Edit that sleep")) {
+                                editor.jumpToSleepStart = start
+                            })
+        case .noRawData:
+            return .refused(String(localized: "The strap has nothing recorded for those hours yet. The sleep will count its length, but it gets no stages and Charge for that day stays empty until the data arrives."),
+                            SleepEditorExit(title: String(localized: "Add it anyway")) {
+                                Task { await Self.commitAdded(bedTs: bedTs, wakeTs: wakeTs, repo: repo, appModel: appModel) }
+                            })
+        case .ok:
+            await Self.commitAdded(bedTs: bedTs, wakeTs: wakeTs, repo: repo, appModel: appModel)
+            return .success
+        }
+    }
+
+    @MainActor
+    static func commitAdded(bedTs: Int, wakeTs: Int, repo: Repository, appModel: AppModel?) async {
+        await repo.addManualNap(startTs: bedTs, endTs: wakeTs)
+        CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: wakeTs)
+        SleepNightEditor.scheduleRescore(wakeDays: [Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(wakeTs)))],
+                                         required: true, repo: repo, appModel: appModel)
+    }
+
+    /// "23:00 to 06:30", in the reader's clock.
+    static func spanText(start: Int, end: Int) -> String {
+        let style = Date.FormatStyle.dateTime.hour().minute().locale(AppLanguage.activeLocale)
+        let from = Date(timeIntervalSince1970: TimeInterval(start)).formatted(style)
+        let to = Date(timeIntervalSince1970: TimeInterval(end)).formatted(style)
+        return String(localized: "\(from) to \(to)", comment: "A clock span, as in 23:00 to 06:30")
+    }
+}
+
 /// The editor's sheet and the nap delete confirmation, attached to whichever screen holds the editor.
 struct SleepNightEditing: ViewModifier {
     @ObservedObject var editor: SleepNightEditor
@@ -156,6 +227,19 @@ struct SleepNightEditing: ViewModifier {
                 Button("Cancel", role: .cancel) { editor.napPendingDelete = nil }
             } message: {
                 Text("It no longer counts toward the day's sleep, and the next analysis leaves it out.")
+            }
+            // Adding a sleep the detector never found: the same editor, the same guards, with the window
+            // as a seed rather than a correction. Refused when it lies on top of a sleep already stored,
+            // because two sessions over the same hours count that sleep twice in the day's Rest.
+            .sheet(item: $editor.adding) { add in
+                SleepTimeEditor(bedTs: add.bedTs, wakeTs: add.wakeTs,
+                                title: "Add a sleep",
+                                blurb: "For a night or a nap NOOP did not record. Stages are taken from your data for those hours, so the entry counts from now on.",
+                                suppressesReDetection: false,
+                                onSave: { bedTs, wakeTs, _ in
+                    await Self.saveAdded(bedTs: bedTs, wakeTs: wakeTs, editor: editor,
+                                         repo: repo, appModel: appModel)
+                })
             }
             .sheet(item: $editor.wakeEdit) { edit in
                 // Validate against the WHOLE bridged night, not just its selector-winning fragment.

@@ -7343,4 +7343,17 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_g_nutrition_sub">Mały · ile zostało dziś</string>
     <string name="forge_nut_grams">%1$d g</string>
     <string name="forge_nut_grams_of">%1$d / %2$d g</string>
+    <string name="forge_as_end">Zakończ</string>
+    <string name="forge_as_holds_today">Na dziś</string>
+    <string name="forge_as_holds_until_changed">Dopóki tego nie zmienisz</string>
+    <string name="forge_as_holds_until">Do %1$s</string>
+    <string name="forge_log_status">Status</string>
+    <string name="forge_sl_add_title">Dodaj sen</string>
+    <string name="forge_sl_add_blurb">Dla nocy lub drzemki, której NOOP nie zarejestrował. Fazy pochodzą z twoich danych z tych godzin, więc wpis liczy się od teraz.</string>
+    <string name="forge_sl_add_invalid">Te godziny nie tworzą poprawnego okna snu, nic nie zostało dodane.</string>
+    <string name="forge_sl_add_no_raw">Opaska nie ma jeszcze nic zapisanego z tych godzin. Sen policzy swoją długość, ale bez faz, a Charge tego dnia pozostanie pusty, dopóki dane nie dotrą.</string>
+    <string name="forge_sl_add_anyway">Dodaj mimo to</string>
+    <string name="forge_sl_add_blocked">Masz już sen od %1$s do %2$s. Dwa sny w tych samych godzinach policzyłyby je dwa razy.</string>
+    <string name="forge_sl_add_edit_that">Edytuj ten sen</string>
+    <string name="forge_sl_add_row">Dodaj sen</string>
 </resources>

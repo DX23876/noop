@@ -7261,4 +7261,17 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="forge_g_nutrition_sub">Piccolo · quanto resta oggi</string>
     <string name="forge_nut_grams">%1$d g</string>
     <string name="forge_nut_grams_of">%1$d / %2$d g</string>
+    <string name="forge_as_end">Termina</string>
+    <string name="forge_as_holds_today">Per oggi</string>
+    <string name="forge_as_holds_until_changed">Finché non lo cambi</string>
+    <string name="forge_as_holds_until">Fino al %1$s</string>
+    <string name="forge_log_status">Stato</string>
+    <string name="forge_sl_add_title">Aggiungi un sonno</string>
+    <string name="forge_sl_add_blurb">Per una notte o un pisolino che NOOP non ha registrato. Le fasi vengono dai tuoi dati di quelle ore, quindi la voce conta da ora.</string>
+    <string name="forge_sl_add_invalid">Quegli orari non formano una finestra di sonno valida, non è stato aggiunto nulla.</string>
+    <string name="forge_sl_add_no_raw">Il bracciale non ha ancora nulla registrato in quelle ore. Il sonno conterà la sua durata, ma senza fasi, e Charge per quel giorno resta vuoto finché i dati non arrivano.</string>
+    <string name="forge_sl_add_anyway">Aggiungilo comunque</string>
+    <string name="forge_sl_add_blocked">Hai già un sonno dalle %1$s alle %2$s. Due sonni sulle stesse ore le conterebbero due volte.</string>
+    <string name="forge_sl_add_edit_that">Modifica quel sonno</string>
+    <string name="forge_sl_add_row">Aggiungi un sonno</string>
 </resources>

@@ -42,6 +42,23 @@ enum CoreTodayStatus {
                       validUntil: status.validUntil.map { Int($0.timeIntervalSince1970) })
     }
 
+    /// The wearer's own status ALONE, with no readiness behind it.
+    ///
+    /// `read` evaluates the day's readiness, which prices the cardio history and reads four hundred days
+    /// of rows. A line that only says "Sick, for today" must not pay for that, and a screen that asked
+    /// `read` for the status would also be holding a second copy of a verdict another card already draws.
+    static func activity(now: Date = Date()) -> Activity {
+        let status = ActivityStatusStore.load(now: now)
+        return Activity(activity: status.state.rawValue,
+                        validUntil: status.validUntil.map { Int($0.timeIntervalSince1970) })
+    }
+
+    struct Activity: Encodable {
+        /// `ActivityStatus.State` raw value: active, sick, injured or onBreak.
+        var activity: String
+        var validUntil: Int?
+    }
+
     /// Sets the wearer's status for one of the sheet's durations (`SharedActivityStatusSheet`); `active` clears it.
     static func setActivity(state raw: String, duration: String, customUntil: Int?, now: Date = Date()) -> Bool {
         guard let state = ActivityStatus.State(rawValue: raw) else { return false }

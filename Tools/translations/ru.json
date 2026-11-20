@@ -4652,5 +4652,14 @@
   "This week %1$@ · %2$@ a day": "На этой неделе %1$@ · %2$@ в день",
   "Weighed %@": "Взвешивание %@",
   "Weighed %1$@ · %2$@ this week": "Взвешивание %1$@ · %2$@ за неделю",
-  "7-day average %@": "Среднее за 7 дней %@"
+  "7-day average %@": "Среднее за 7 дней %@",
+  "Add a sleep": "Добавить сон",
+  "For a night or a nap NOOP did not record. Stages are taken from your data for those hours, so the entry counts from now on.": "Для ночи или дневного сна, который NOOP не записал. Стадии берутся из ваших данных за эти часы, запись учитывается сразу.",
+  "Those times aren't a valid sleep window, so nothing was added.": "Это не корректное окно сна, ничего не добавлено.",
+  "Edit that sleep": "Изменить тот сон",
+  "Add it anyway": "Всё равно добавить",
+  "The strap has nothing recorded for those hours yet. The sleep will count its length, but it gets no stages and Charge for that day stays empty until the data arrives.": "За эти часы у ремешка пока нет записей. Длительность засчитается, стадий не будет, а Charge за этот день останется пустым, пока данные не придут.",
+  "Until you change it": "Пока не измените",
+  "For today": "На сегодня",
+  "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "У вас уже есть сон %@. Два сна на одни и те же часы учтут их дважды."
 }

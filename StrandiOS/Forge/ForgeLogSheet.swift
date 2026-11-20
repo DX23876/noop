@@ -11,6 +11,8 @@ enum ForgeLogChoice: Hashable {
     /// A photo for the coach to read (PNG, base64), when the provider can read one.
     case coachPhoto(String)
     case workout, weight, journal, drink, energy, sleep, labMarkers, breathe, liveHeartRate
+    /// The wearer's own day status: active, sick, injured or on a break.
+    case status
 }
 
 /// The redesign's "Log" sheet: logging through the coach first (when it is on), then the direct forms.
@@ -36,6 +38,7 @@ struct ForgeLogSheet: View {
         [
             Item(choice: .workout, title: String(localized: "Add workout"), systemImage: "figure.walk", tint: ForgeColor.effort),
             Item(choice: .weight, title: String(localized: "Weight"), systemImage: "figure.stand", tint: .pink),
+            Item(choice: .status, title: String(localized: "Status"), systemImage: "bolt.fill", tint: ForgeColor.charge),
             Item(choice: .journal, title: String(localized: "Journal"), systemImage: "book.fill", tint: .brown),
             Item(choice: .drink, title: String(localized: "Drink"), systemImage: "drop.fill", tint: StrandPalette.metricCyan),
             Item(choice: .energy, title: String(localized: "Food"), systemImage: "fork.knife", tint: .orange),

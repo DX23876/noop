@@ -7294,4 +7294,17 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_g_nutrition_sub">Pequeño · lo que queda hoy</string>
     <string name="forge_nut_grams">%1$d g</string>
     <string name="forge_nut_grams_of">%1$d / %2$d g</string>
+    <string name="forge_as_end">Terminar</string>
+    <string name="forge_as_holds_today">Por hoy</string>
+    <string name="forge_as_holds_until_changed">Hasta que lo cambies</string>
+    <string name="forge_as_holds_until">Hasta %1$s</string>
+    <string name="forge_log_status">Estado</string>
+    <string name="forge_sl_add_title">Añadir un sueño</string>
+    <string name="forge_sl_add_blurb">Para una noche o una siesta que NOOP no registró. Las fases salen de tus datos de esas horas, así que la entrada cuenta desde ahora.</string>
+    <string name="forge_sl_add_invalid">Esas horas no forman una ventana de sueño válida, no se añadió nada.</string>
+    <string name="forge_sl_add_no_raw">La pulsera aún no tiene nada registrado en esas horas. El sueño contará su duración, pero no tendrá fases y Charge de ese día seguirá vacío hasta que lleguen los datos.</string>
+    <string name="forge_sl_add_anyway">Añadirlo igualmente</string>
+    <string name="forge_sl_add_blocked">Ya tienes un sueño de %1$s a %2$s. Dos sueños sobre las mismas horas las contarían dos veces.</string>
+    <string name="forge_sl_add_edit_that">Editar ese sueño</string>
+    <string name="forge_sl_add_row">Añadir un sueño</string>
 </resources>

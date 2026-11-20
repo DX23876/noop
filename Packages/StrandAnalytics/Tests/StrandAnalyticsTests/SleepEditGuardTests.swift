@@ -247,4 +247,40 @@ final class SleepEditGuardTests: XCTestCase {
             end: Int(date(2026, 7, 18, 7, 0).timeIntervalSince1970),
             now: Int(date(2026, 7, 18, 8, 0).timeIntervalSince1970)))
     }
+
+    // MARK: Rule 4 - a hand-added window on top of a stored sleep (2026-11-20)
+
+    func testAFreeWindowIsNotBlocked() {
+        let night = SleepEditGuard.Span(start: 1_000, end: 2_000)
+        XCTAssertNil(SleepEditGuard.overlapping(start: 3_000, end: 4_000, existing: [night]))
+    }
+
+    func testTouchingEdgesAreTwoSleepsNotAConflict() {
+        let night = SleepEditGuard.Span(start: 1_000, end: 2_000)
+        XCTAssertNil(SleepEditGuard.overlapping(start: 2_000, end: 3_000, existing: [night]))
+        XCTAssertNil(SleepEditGuard.overlapping(start: 0, end: 1_000, existing: [night]))
+    }
+
+    /// The reported case: "I slept from midnight to 4:30" on a night the detector found from 00:15 to
+    /// 04:00. The insert alone would store both, because only an identical onset second is refused.
+    func testAWindowAroundAStoredNightIsBlocked() {
+        let detected = SleepEditGuard.Span(start: 900, end: 15_600)
+        let hit = SleepEditGuard.overlapping(start: 0, end: 16_200, existing: [detected])
+        XCTAssertEqual(hit, detected)
+    }
+
+    func testPartialOverlapsAtEitherEndAreBlocked() {
+        let night = SleepEditGuard.Span(start: 1_000, end: 2_000)
+        XCTAssertEqual(SleepEditGuard.overlapping(start: 1_500, end: 2_500, existing: [night]), night)
+        XCTAssertEqual(SleepEditGuard.overlapping(start: 500, end: 1_500, existing: [night]), night)
+        XCTAssertEqual(SleepEditGuard.overlapping(start: 1_200, end: 1_300, existing: [night]), night)
+    }
+
+    /// With several in the way the earliest is named, so the message does not change between two runs
+    /// over the same data.
+    func testTheEarliestBlockerIsNamed() {
+        let late = SleepEditGuard.Span(start: 5_000, end: 6_000)
+        let early = SleepEditGuard.Span(start: 1_000, end: 2_000)
+        XCTAssertEqual(SleepEditGuard.overlapping(start: 0, end: 9_000, existing: [late, early]), early)
+    }
 }
