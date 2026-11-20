@@ -11,7 +11,8 @@ import WhoopStore
 /// Calls arrive from Android's Bluetooth and IO threads. Each becomes an event on one stream, and a single task
 /// on the main actor (where the Collector and Backfiller live) works through it in arrival order, so a history
 /// chunk's START, records and END reach the Backfiller exactly as the strap sent them. The daily pass is the one
-/// exception: it starts in order with the frames and then runs beside them (`AnalysisRuns`).
+/// exception: it starts in order with the frames, then runs beside them (`AnalysisRuns`) and waits while the
+/// strap is still handing history over (`OffloadWatch`).
 public enum ShadowSession {
     public enum Event: Sendable {
         case family(whoop5: Bool)
@@ -224,7 +225,10 @@ public enum ShadowSession {
                 }
             })
         let passForTesting = state.lock.withLock { state.analysisPassForTesting }
-        let analyses = AnalysisRuns { request in
+        // While the strap is handing history over, the daily pass waits: it would otherwise hold this actor
+        // for longer than the client waits for a chunk to be banked (#53, finding 1).
+        let offload = OffloadWatch()
+        let analyses = AnalysisRuns(hold: { offload.holdsAnalysis() }) { request in
             if let passForTesting { await passForTesting(); return }
             let result = await CoreAnalysis.run(store: store, deviceId: request.deviceId, profile: request.profile,
                                                 settings: request.settings)
@@ -248,8 +252,10 @@ public enum ShadowSession {
             case .live(let frame):
                 collector.ingest(frame)
             case .offloadBegin(let continued):
+                offload.began()
                 backfiller.begin(family: family, continuedAfterRows: continued)
             case .offload(let frame):
+                offload.frameArrived()
                 await backfiller.ingest(frame)
             case .flush:
                 await collector.flush()

@@ -181,6 +181,41 @@ final class ShadowSessionTests: XCTestCase {
         XCTAssertEqual(ran.map(\.history), [false, true, false], "an ordinary request must not swallow a history pass")
         XCTAssertEqual(ran.map(\.age), [1, 3, 4], "the joined pass uses the newest profile")
     }
+
+    /// #53, finding 1: the pass waits while the strap is handing history over, so the frames behind it
+    /// are banked and the client's acks go out inside the ten seconds it waits for them.
+    @MainActor
+    func testAPassWaitsWhileHistoryIsStillArriving() async {
+        final class Held: @unchecked Sendable { var value = true }
+        let holding = Held()
+        var ran = 0
+        let runs = AnalysisRuns(hold: { holding.value }, pollStep: .milliseconds(5)) { _ in ran += 1 }
+        runs.request(.init(profile: .init(age: 30, sex: "male", weightKg: 80, heightCm: 180, hrMaxOverride: 0),
+                           settings: .standard, deviceId: "a"))
+        try? await Task.sleep(nanoseconds: 60_000_000)
+        XCTAssertEqual(0, ran, "no pass may start while history is still arriving")
+        holding.value = false
+        await runs.settled()
+        XCTAssertEqual(1, ran, "and it runs as soon as the handover is over")
+    }
+
+    /// Nothing is skipped: a pass held back still runs, and it reads what the handover banked meanwhile.
+    @MainActor
+    func testAHeldPassIsNotLost() async {
+        final class Held: @unchecked Sendable { var value = true }
+        let holding = Held()
+        var ran: [Int] = []
+        let runs = AnalysisRuns(hold: { holding.value }, pollStep: .milliseconds(5)) { ran.append($0.profile.age) }
+        for age in [1, 2, 3] {
+            runs.request(.init(profile: .init(age: age, sex: "male", weightKg: 80, heightCm: 180, hrMaxOverride: 0),
+                               settings: .standard, deviceId: "a"))
+        }
+        try? await Task.sleep(nanoseconds: 40_000_000)
+        XCTAssertEqual([], ran)
+        holding.value = false
+        await runs.settled()
+        XCTAssertEqual([3], ran, "the requests that waited are one pass, with the newest profile")
+    }
 }
 
 /// Holds a test's daily pass open until the test releases it; passes after the release run straight through.
