@@ -19,6 +19,10 @@ enum DebugDataDiagnostics {
     /// so the Kotlin twin can state the SAME number — a night is ~30k rows at 1 Hz, so this is slack.
     static let spo2CandidateAuxLimit = 200_000
 
+    /// Skin-temperature rows read for the WHOOP 4 device anchor, over a 14-day window. Twin of the
+    /// Android `AndroidDiagnostics.SKIN_TEMP_ANCHOR_WINDOW_LIMIT`.
+    static let skinTempAnchorWindowLimit = 200_000
+
 
     /// Strap identity + timezone from persisted defaults (sync, offline-safe). Mirrors the prefs-backed
     /// portion of the Android strap-state block; keys match the iOS @AppStorage / persisted values.
@@ -361,8 +365,16 @@ enum DebugDataDiagnostics {
         // Mirror the real per-device anchor (#404): learn it from the WHOLE recent window's raws — not just
         // this night — so a single sparse night (<100 in-band) can't misreport under the global fallback when
         // the window as a whole has enough in-band samples for analyzeDay to learn a device anchor.
-        let windowSkin = (try? await store.skinTempSamples(deviceId: did, from: nowSec - 14 * 86400, to: nowSec, limit: 200_000)) ?? []
-        let devAnchor = family == .whoop4 ? Whoop4SkinTemp.deviceAnchorRaw(windowSkin.map { $0.raw }) : nil
+        // Read ONLY when the answer is wanted: the anchor is a WHOOP 4 concept, so under a 5/MG this
+        // window was read in full and then dropped. Apple has the headroom Android does not, so here it
+        // was waste rather than a crash, but the two platforms should not differ about when they read it
+        // (#53, finding 4).
+        var devAnchor: Double?
+        if family == .whoop4 {
+            let windowSkin = (try? await store.skinTempSamples(deviceId: did, from: nowSec - 14 * 86400,
+                                                               to: nowSec, limit: skinTempAnchorWindowLimit)) ?? []
+            devAnchor = Whoop4SkinTemp.deviceAnchorRaw(windowSkin.map { $0.raw })
+        }
         lines.append(AnalyticsEngine.skinTempFunnel([det], hr: hr, skinTemp: skin,
                                                     family: family, anchorRaw: devAnchor).summary)
 

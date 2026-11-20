@@ -39,6 +39,17 @@ object AndroidDiagnostics {
      *  `DebugDataDiagnostics.spo2CandidateAuxLimit`. */
     private const val SPO2_CANDIDATE_AUX_LIMIT = 200_000
 
+    /**
+     * Skin-temperature rows read for the WHOOP 4 device anchor, over a 14-day window. Twin of the Swift
+     * `DebugDataDiagnostics`, which has always passed this same number; Android passed `Int.MAX_VALUE`.
+     *
+     * On a 5/MG that window is around 1.2 million rows, and the whole of it crossed JNI as one JSON
+     * string, was parsed into objects a second time, and was then dropped unused - the anchor is a
+     * WHOOP 4 concept. Both exports a tester took after a merge died there with an OutOfMemoryError
+     * against the 256 MB heap limit (#53, finding 4).
+     */
+    private const val SKIN_TEMP_ANCHOR_WINDOW_LIMIT = 200_000
+
     fun summaryLines(context: Context): List<String> = buildList {
         add("Device: ${Build.MANUFACTURER} ${Build.MODEL}")
         add("Android: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
@@ -480,9 +491,15 @@ object AndroidDiagnostics {
             // Mirror the real per-device anchor (#404): learn it from the WHOLE recent window's raws — not
             // just this night — so a single sparse night (<100 in-band) can't misreport under the global
             // fallback when the window as a whole has enough in-band samples for analyzeDay to learn one.
-            val windowSkin = repo.skinTempSamples(id, nowSec - 14L * 86400L, nowSec, Int.MAX_VALUE)
-            val devAnchor = if (family == com.noop.protocol.DeviceFamily.WHOOP4)
-                com.noop.protocol.Whoop4SkinTemp.deviceAnchorRaw(windowSkin.map { it.raw }) else null
+            // Read ONLY when the answer is wanted. The anchor is a WHOOP 4 concept, so on a 5/MG this
+            // window was read in full and thrown away, which is what ran the heap out (#53, finding 4).
+            val devAnchor = if (family == com.noop.protocol.DeviceFamily.WHOOP4) {
+                val windowSkin =
+                    repo.skinTempSamples(id, nowSec - 14L * 86400L, nowSec, SKIN_TEMP_ANCHOR_WINDOW_LIMIT)
+                com.noop.protocol.Whoop4SkinTemp.deviceAnchorRaw(windowSkin.map { it.raw })
+            } else {
+                null
+            }
             add(com.noop.analytics.AnalyticsEngine.skinTempFunnel(listOf(det), hr, skin, family, devAnchor).summary)
 
             // #112/#103 — the 5/MG SpO2 CANDIDATE (@82), as one number a wearer can check against the
