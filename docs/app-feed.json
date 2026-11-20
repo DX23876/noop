@@ -1,11 +1,17 @@
 {
   "counts": {
-    "fixed": 3,
-    "reported": 11,
+    "fixed": 4,
+    "reported": 10,
     "working": 0
   },
   "decided": [],
   "fixed": [
+    {
+      "closed": "2026-11-20",
+      "n": 53,
+      "status": "fixed",
+      "title": "Android: endless history-sync loop, stale active id after a WHOOP merge, OOM in the strap-log export"
+    },
     {
       "closed": "2026-11-15",
       "n": 44,
@@ -25,14 +31,8 @@
       "title": "Package appears to be invalid while installing"
     }
   ],
-  "generated": "2026-11-19T21:11:53Z",
+  "generated": "2026-11-20T12:42:43Z",
   "issues": [
-    {
-      "n": 53,
-      "opened": "2026-11-19",
-      "status": "reported",
-      "title": "Android: endless history-sync loop, stale active id after a WHOOP merge, OOM in the strap-log export"
-    },
     {
       "n": 52,
       "opened": "2026-11-18",
