@@ -218,9 +218,18 @@ final class LongTermGoalReaderTests: XCTestCase {
                              templateId: GoalTemplateID.trainingWeekly.rawValue,
                              measure: .init(metric: .weeklyAdherence, adherenceTarget: 0.8,
                                             fixedEnd: daysAgo(1), weeklyGoalId: weeklyId))
-        let history = (0..<12).map {
-            PeriodGoalSnapshot.HistoryEntry(periodStart: PeriodGoalTracker.dayKey(daysAgo(Double((12 - $0) * 7)), calendar: calendar),
-                                            target: 3, value: $0 < 4 ? 1 : 3, outcome: $0 < 4 ? .missed : .achieved)
+        // Written out rather than built in one expression: Xcode 26.6, which the workflows pin, gives up
+        // type-checking the compact form ("unable to type-check this expression in reasonable time") and
+        // every later use of `reading` then fails with it. The newer compiler on a contributor's machine
+        // accepts it, so this only ever failed in CI.
+        var history: [PeriodGoalSnapshot.HistoryEntry] = []
+        for week in 0..<12 {
+            let start: String = PeriodGoalTracker.dayKey(daysAgo(Double((12 - week) * 7)), calendar: calendar)
+            let missed: Bool = week < 4
+            let value: Double = missed ? 1 : 3
+            let outcome: PeriodOutcome = missed ? .missed : .achieved
+            history.append(PeriodGoalSnapshot.HistoryEntry(periodStart: start, target: 3,
+                                                           value: value, outcome: outcome))
         }
         let reading = LongTermGoalReader.consistency(goal: goal, spec: goal.measure!, weeklyGoalId: weeklyId,
                                                      history: history, thisWeek: 0, weeklyTarget: 3,
