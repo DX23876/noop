@@ -71,16 +71,15 @@ final class HealthWritebackTests: XCTestCase {
 
     // MARK: - HRV/SDNN repair (#hrv-sdnn-truncation)
 
-    /// The repair is a SECOND writer of the nightly-vitals samples. If it spelled the external key
-    /// differently from the regular write-back, that pass would no longer delete the repair's samples
-    /// before re-saving its own and every overlapping day would double up in Apple Health. Pin the
-    /// literal shape so a rename cannot silently break the dedup contract.
-    func testVitalsExternalKeyShapeIsStable() {
+    /// The repair is a SECOND writer of the nightly-vitals samples, and it must give a day the key the
+    /// regular write-back gives it: the sync identifier is derived from this key, so a second spelling
+    /// is a second sample in Apple Health for the same night. There is one key function for both, and
+    /// its literal shape is pinned so a rename cannot silently break the dedup contract.
+    func testNightlyVitalKeyShapeIsStable() {
         XCTAssertEqual(
-            HealthWriteback.vitalsExternalKey(noopDeviceId: "AA:BB",
-                                              identifier: "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
-                                              day: "2026-08-13"),
-            "noop:AA:BB:HKQuantityTypeIdentifierHeartRateVariabilitySDNN:2026-08-13")
+            HealthWriteback.appleHealthVitalKey(metricId: "HKQuantityTypeIdentifierHeartRateVariabilitySDNN",
+                                                day: "2026-08-13"),
+            "noop:HKQuantityTypeIdentifierHeartRateVariabilitySDNN:2026-08-13")
     }
 
     /// Both migrations must share ONE boundary implementation, or their resume behavior drifts apart.
