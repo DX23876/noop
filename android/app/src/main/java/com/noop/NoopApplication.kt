@@ -9,6 +9,7 @@ import com.noop.ble.SourceCoordinator
 import com.noop.ble.SourceIdentity
 import com.noop.ble.WhoopBleClient
 import com.noop.ble.WhoopModel
+import com.noop.data.ActiveDeviceResolution
 import com.noop.data.DeviceRegistry
 import com.noop.data.WhoopDatabase
 import com.noop.data.WhoopRepository
@@ -127,6 +128,25 @@ class NoopApplication : Application() {
     }
 
     /**
+     * Follow the registry after something re-pointed the active device behind this process's back, and
+     * follow it with BOTH things that hold the id: this handle and the live source.
+     *
+     * The merge of several WHOOP entries used to move only the source. The registry then read
+     * `whoop-<serial>` while this handle still said `my-whoop`, an id the merge had just emptied, so the
+     * scoring pass and the screens worked under a device with no days and Today reported "No data" until
+     * the process was restarted (#53, finding 2). Which id that is, is [ActiveDeviceResolution]'s
+     * answer, so the merge and serial adoption cannot drift apart.
+     */
+    suspend fun adoptActiveDeviceFromRegistry() {
+        val active = ActiveDeviceResolution.resolve(
+            registrySays = runCatching { deviceRegistry.activeDeviceId() }.getOrNull(),
+            inUse = activeDeviceId,
+        )
+        onActiveDeviceAdopted(active)
+        sourceCoordinator.reconcileActiveDevice(active)
+    }
+
+    /**
      * The id the BLE client should stamp WHOOP samples with at startup (#1881).
      *
      * [activeDeviceId] answers "which device did the user select", which is NOT the same question once a
@@ -227,10 +247,7 @@ class NoopApplication : Application() {
             // A merge is a rare event, so its evidence goes into the strap log the wearer can share
             // whether or not Test Centre is on.
             log = { ble.externalLog(it) },
-            onFinished = {
-                val active = deviceRegistry.activeDeviceId() ?: activeDeviceId
-                sourceCoordinator.reconcileActiveDevice(active)
-            },
+            onFinished = { adoptActiveDeviceFromRegistry() },
         )
     }
 
