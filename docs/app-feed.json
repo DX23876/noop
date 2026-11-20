@@ -1,7 +1,7 @@
 {
   "counts": {
     "fixed": 5,
-    "reported": 8,
+    "reported": 5,
     "working": 0
   },
   "decided": [],
@@ -25,31 +25,25 @@
       "title": "Native training sessions show no HR / Effort in workout lists (grey on Today)"
     },
     {
-      "closed": "2026-11-15",
-      "n": 44,
+      "closed": "2026-11-20",
+      "n": 48,
       "status": "fixed",
-      "title": "testing data on Whoop mg and Android 16"
+      "title": "UI: Syncing bar stops working if I switch to other views"
     },
     {
-      "closed": "2026-11-15",
-      "n": 43,
+      "closed": "2026-11-20",
+      "n": 41,
       "status": "fixed",
-      "title": "Android Strap log and some issues"
+      "title": "Effort shows different numbers on different type of dashboard styles"
     }
   ],
-  "generated": "2026-11-20T12:43:23Z",
+  "generated": "2026-11-20T12:45:16Z",
   "issues": [
     {
       "n": 49,
       "opened": "2026-11-14",
       "status": "reported",
       "title": "Nap algorithm"
-    },
-    {
-      "n": 48,
-      "opened": "2026-11-13",
-      "status": "reported",
-      "title": "UI: Syncing bar stops working if I switch to other views"
     },
     {
       "n": 47,
@@ -74,18 +68,6 @@
       "opened": "2026-11-04",
       "status": "reported",
       "title": "Sync, sleep and visual issue"
-    },
-    {
-      "n": 41,
-      "opened": "2026-11-02",
-      "status": "reported",
-      "title": "Effort shows different numbers on different type of dashboard styles"
-    },
-    {
-      "n": 40,
-      "opened": "2026-11-01",
-      "status": "reported",
-      "title": "In your card section when all card redirect to same page"
     }
   ],
   "schema": 1,
