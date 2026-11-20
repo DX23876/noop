@@ -7281,4 +7281,5 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="forge_fin_save">Salva la sessione</string>
     <string name="forge_fin_easy">Facile</string>
     <string name="forge_fin_allout">Al massimo</string>
+    <string name="forge_sl_add_day">Giorno in cui è iniziato</string>
 </resources>

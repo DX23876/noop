@@ -4787,5 +4787,6 @@
   "For today": "仅限今天",
   "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "你已经有一段 %@ 的睡眠。同一段时间记录两次会被重复计算。",
   "All out": "全力",
-  "%lld of 10": "10 中的 %lld"
+  "%lld of 10": "10 中的 %lld",
+  "Adding this sleep failed. Nothing was changed; try again.": "这段睡眠没有添加成功。没有任何改动，请再试一次。"
 }

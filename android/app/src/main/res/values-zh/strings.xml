@@ -7258,4 +7258,5 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_fin_save">保存本次训练</string>
     <string name="forge_fin_easy">轻松</string>
     <string name="forge_fin_allout">全力</string>
+    <string name="forge_sl_add_day">开始的那天</string>
 </resources>

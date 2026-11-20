@@ -145,6 +145,12 @@ internal fun SleepAddDialog(seedStart: Long, seedEnd: Long, viewModel: AppViewMo
     val is24 = android.text.format.DateFormat.is24HourFormat(context)
     val bed = rememberTimePickerState(seedFrom.hour, seedFrom.minute, is24)
     val wake = rememberTimePickerState(seedTo.hour, seedTo.minute, is24)
+    // The DAY the sleep began. Without it the window could only ever be pinned to the two days the seed
+    // opened on, so times typed into the small hours landed a day early and a nap from last week could not
+    // be added at all. The wake day follows from the times: a wake at or before the bed time is the morning
+    // after, which is what every night does.
+    var bedDay by remember { mutableStateOf(seedFrom.toLocalDate()) }
+    var pickingDate by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val experiment = remember(context) { com.noop.ble.PuffinExperiment.from(context) }
     var problem by remember { mutableStateOf<String?>(null) }
@@ -155,22 +161,54 @@ internal fun SleepAddDialog(seedStart: Long, seedEnd: Long, viewModel: AppViewMo
         periodSelectorBorderColor = colors.divider)
 
     fun chosen(): Pair<Long, Long>? {
-        var newEnd = seedTo.withHour(wake.hour).withMinute(wake.minute).withSecond(0)
-        var newStart = seedFrom.withHour(bed.hour).withMinute(bed.minute).withSecond(0)
-        if (newStart >= newEnd) newStart = newStart.minusDays(1)
-        if (newEnd.toEpochSecond() - newStart.toEpochSecond() > 20 * 3600) newEnd = newEnd.minusDays(1)
-        return if (newEnd > newStart) newStart.toEpochSecond() to newEnd.toEpochSecond() else null
+        val start = bedDay.atTime(bed.hour, bed.minute).atZone(zone)
+        var end = bedDay.atTime(wake.hour, wake.minute).atZone(zone)
+        if (!end.isAfter(start)) end = end.plusDays(1)
+        return if (end.isAfter(start)) start.toEpochSecond() to end.toEpochSecond() else null
     }
 
     fun commit(start: Long, end: Long) {
         scope.launch { viewModel.addManualNap(start, end); onDismiss() }
     }
 
+    if (pickingDate) {
+        // Today at the latest: a sleep cannot have begun in the future, and the core would refuse it.
+        val state = androidx.compose.material3.rememberDatePickerState(
+            initialSelectedDateMillis = bedDay.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
+            selectableDates = object : androidx.compose.material3.SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                    utcTimeMillis <= java.time.LocalDate.now().atStartOfDay(java.time.ZoneOffset.UTC)
+                        .toInstant().toEpochMilli()
+            })
+        androidx.compose.material3.DatePickerDialog(
+            onDismissRequest = { pickingDate = false },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    state.selectedDateMillis?.let {
+                        bedDay = java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                    }
+                    pickingDate = false
+                }) { Text(stringResource(R.string.forge_se_save)) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { pickingDate = false }) {
+                    Text(stringResource(R.string.forge_se_cancel))
+                }
+            }) { androidx.compose.material3.DatePicker(state) }
+    }
     Dialog(onDismissRequest = onDismiss) {
         Column(Modifier.background(colors.surface, RoundedCornerShape(20.dp)).padding(20.dp).verticalScroll(rememberScrollState()),
                verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
             Text(stringResource(R.string.forge_sl_add_title), style = Forge.type.headline, color = colors.text)
             Text(stringResource(R.string.forge_sl_add_blurb), style = Forge.type.caption, color = colors.textSecondary)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.forge_sl_add_day), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                     color = colors.text)
+                Spacer(Modifier.weight(1f))
+                Text(bedDay.format(java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM)),
+                     style = Forge.type.subhead, color = colors.accent,
+                     modifier = Modifier.clickable(role = Role.Button) { pickingDate = true }.padding(8.dp))
+            }
             Text(stringResource(R.string.forge_se_asleep), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
             TimeInput(bed, colors = pickerColors)
             Text(stringResource(R.string.forge_se_woke), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)

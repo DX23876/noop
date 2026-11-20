@@ -32,9 +32,6 @@ struct WakeEdit: Identifiable {
     var id: Int { detectedStartTs }
 }
 
-/// One night's corrections in one place: the bed and wake editor, deleting a night or a nap, the few-second
-/// undo and the targeted re-score after each. The full Sleep screen and the new design's Sleep tab both
-/// hold one, so a night is edited the same way from either.
 /// A sleep the wearer is adding by hand: the window the sheet opens with.
 struct AddSleep: Identifiable {
     let bedTs: Int
@@ -42,6 +39,9 @@ struct AddSleep: Identifiable {
     var id: Int { bedTs }
 }
 
+/// One night's corrections in one place: the bed and wake editor, deleting a night or a nap, the few-second
+/// undo and the targeted re-score after each. The full Sleep screen and the new design's Sleep tab both
+/// hold one, so a night is edited the same way from either.
 @MainActor
 final class SleepNightEditor: ObservableObject {
     @Published var wakeEdit: WakeEdit?
@@ -185,17 +185,26 @@ extension SleepNightEditing {
                                 Task { await Self.commitAdded(bedTs: bedTs, wakeTs: wakeTs, repo: repo, appModel: appModel) }
                             })
         case .ok:
-            await Self.commitAdded(bedTs: bedTs, wakeTs: wakeTs, repo: repo, appModel: appModel)
-            return .success
+            return await Self.commitAdded(bedTs: bedTs, wakeTs: wakeTs, repo: repo, appModel: appModel)
         }
     }
 
+    /// Writes the sleep and says whether the store took it.
+    ///
+    /// `addManualNap` answers whether the row is there; a refused write (a busy timeout under a long
+    /// backfill, a full disk) must not dismiss this sheet as if the night had been added. The wearer
+    /// would look for it, not find it, and have nothing to go on.
     @MainActor
-    static func commitAdded(bedTs: Int, wakeTs: Int, repo: Repository, appModel: AppModel?) async {
-        await repo.addManualNap(startTs: bedTs, endTs: wakeTs)
+    @discardableResult
+    static func commitAdded(bedTs: Int, wakeTs: Int, repo: Repository, appModel: AppModel?) async
+        -> SleepEditorActionOutcome {
+        guard await repo.addManualNap(startTs: bedTs, endTs: wakeTs) else {
+            return .failure(String(localized: "Adding this sleep failed. Nothing was changed; try again."))
+        }
         CoachBriefStamp.invalidateAfterSleepCorrection(wakeTs: wakeTs)
         SleepNightEditor.scheduleRescore(wakeDays: [Repository.localDayKey(Date(timeIntervalSince1970: TimeInterval(wakeTs)))],
                                          required: true, repo: repo, appModel: appModel)
+        return .success
     }
 
     /// "23:00 to 06:30", in the reader's clock.

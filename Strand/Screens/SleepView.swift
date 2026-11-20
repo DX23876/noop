@@ -206,8 +206,15 @@ struct SleepView: View {
             editor.jumpToSleepStart = nil
             guard let index = navDays.firstIndex(where: { $0.contains { $0.effectiveStartTs == target } })
             else { return }
-            SleepEditRequest.pending = (offset: index, action: .editNight)
-            nightOffset = index
+            // The night in the way is often the one already on screen. Setting the offset it already holds
+            // restarts no load, so the request would never be consumed: the button would do nothing and
+            // the pending request would then fire on the next unrelated load, opening the editor by itself.
+            if index == nightOffset {
+                if let night = navNight ?? model?.night { editor.edit(night) }
+            } else {
+                SleepEditRequest.pending = (offset: index, action: .editNight)
+                nightOffset = index
+            }
         }
         .onAppear {
             guard opensAdd, !openedAdd else { return }

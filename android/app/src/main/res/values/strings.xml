@@ -4807,6 +4807,7 @@
     <string name="forge_sl_add_blocked">You already have a sleep from %1$s to %2$s. Two sleeps over the same hours would count those hours twice.</string>
     <string name="forge_sl_add_edit_that">Edit that sleep</string>
     <string name="forge_sl_add_row">Add a sleep</string>
+    <string name="forge_sl_add_day">Day it began</string>
     <string name="forge_sl_tap_to_log">Tap to log</string>
     <string name="forge_qa_guardian">Silent Guardian</string>
     <string name="forge_qa_guardian_sub">Quiet strap coaching against today\'s Charge</string>

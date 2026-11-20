@@ -7306,4 +7306,5 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="forge_fin_save">Guardar a sessão</string>
     <string name="forge_fin_easy">Fácil</string>
     <string name="forge_fin_allout">No máximo</string>
+    <string name="forge_sl_add_day">Dia em que começou</string>
 </resources>

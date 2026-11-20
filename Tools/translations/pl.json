@@ -5883,5 +5883,6 @@
   "For today": "Na dziś",
   "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "Masz już sen od %@. Dwa sny w tych samych godzinach policzyłyby je dwa razy.",
   "All out": "Na maksa",
-  "%lld of 10": "%lld z 10"
+  "%lld of 10": "%lld z 10",
+  "Adding this sleep failed. Nothing was changed; try again.": "Nie udało się dodać tego snu. Nic nie zostało zmienione, spróbuj ponownie."
 }

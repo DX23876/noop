@@ -679724,6 +679724,70 @@
           }
         }
       }
+    },
+    "Adding this sleep failed. Nothing was changed; try again." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adding this sleep failed. Nothing was changed; try again."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Nachtragen hat nicht geklappt. Es wurde nichts geändert, versuch es nochmal."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo añadir este sueño. No se cambió nada, inténtalo de nuevo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'ajout de ce sommeil a échoué. Rien n'a été modifié, réessaie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foi possível adicionar este sono. Nada foi alterado, tenta de novo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nie udało się dodać tego snu. Nic nie zostało zmienione, spróbuj ponownie."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non è stato possibile aggiungere questo sonno. Non è stato cambiato nulla, riprova."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось добавить этот сон. Ничего не изменено, попробуйте ещё раз."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这段睡眠没有添加成功。没有任何改动，请再试一次。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這段睡眠沒有新增成功。沒有任何改動，請再試一次。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

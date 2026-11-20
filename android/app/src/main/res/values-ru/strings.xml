@@ -7319,4 +7319,5 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_fin_save">Сохранить тренировку</string>
     <string name="forge_fin_easy">Легко</string>
     <string name="forge_fin_allout">На максимум</string>
+    <string name="forge_sl_add_day">День начала</string>
 </resources>

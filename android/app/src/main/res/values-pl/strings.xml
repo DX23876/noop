@@ -7363,4 +7363,5 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_fin_save">Zapisz sesję</string>
     <string name="forge_fin_easy">Lekko</string>
     <string name="forge_fin_allout">Na maksa</string>
+    <string name="forge_sl_add_day">Dzień, w którym się zaczął</string>
 </resources>

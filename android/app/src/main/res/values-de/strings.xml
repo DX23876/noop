@@ -7330,4 +7330,5 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_fin_save">Einheit sichern</string>
     <string name="forge_fin_easy">Leicht</string>
     <string name="forge_fin_allout">Volle Kraft</string>
+    <string name="forge_sl_add_day">Tag des Einschlafens</string>
 </resources>

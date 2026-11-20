@@ -113,12 +113,21 @@ struct ForgeSleepView: View {
         // An add refused for lying on top of a stored sleep offers that sleep. This page browses one night
         // at a time, so it moves to the night that holds the onset and opens the editor there.
         .onChange(of: editor.jumpToSleepStart) { target in
-            guard let target, let groups = presentation?.groups else { return }
+            guard let target else { return }
+            // Cleared FIRST, whatever happens next: a jump dropped because the page had not loaded used to
+            // leave the value set, and `onChange` then never fired again for the same sleep.
             editor.jumpToSleepStart = nil
-            guard let index = groups.firstIndex(where: { $0.contains { $0.effectiveStartTs == target } })
+            guard let groups = presentation?.groups,
+                  let index = groups.firstIndex(where: { $0.contains { $0.effectiveStartTs == target } })
             else { return }
-            pendingEdit = index
-            nightOffset = index
+            // The night in the way is often the one already on screen. Setting the offset it already holds
+            // restarts nothing, so the editor has to be opened here rather than waited for.
+            if index == nightOffset {
+                if let night = shownNight ?? model?.night { editor.edit(night) }
+            } else {
+                pendingEdit = index
+                nightOffset = index
+            }
         }
         .task(id: revision) {
             let key = revision

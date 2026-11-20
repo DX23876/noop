@@ -295,7 +295,13 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
         }
         if (ForgeDesign.preview) {
             NewDesignSleep(viewModel, night, i == nights.lastIndex, wakeDay, zone, model?.days.orEmpty(), tiles, traits, need,
-                           onAlarms = { alarms = true }, bodyClock = v5?.bodyClock)
+                           onAlarms = { alarms = true }, bodyClock = v5?.bodyClock,
+                           // An add refused for lying on top of a stored sleep offers THAT sleep. Only this
+                           // level knows how the nights are paged, so it moves to the one holding the onset.
+                           onShowNightAt = { onset ->
+                               val target = nights.indexOfFirst { onset >= it.startTs && onset < it.endTs }
+                               if (target >= 0) index = target
+                           })
             Spacer(Modifier.height(ForgeMetrics.space2))
             return@Column
         }
@@ -771,7 +777,8 @@ internal suspend fun nightSteadiness(viewModel: com.noop.ui.AppViewModel, night:
 private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.Night?, isLatest: Boolean,
                            wakeDay: java.time.LocalDate?, zone: ZoneId, days: List<com.noop.data.DailyMetric>,
                            tiles: com.noop.ui.SleepModel?, traits: com.noop.analytics.RestTraitLookup, need: Double,
-                           onAlarms: () -> Unit, bodyClock: com.noop.analytics.CircadianEngine.PhaseEstimate?) {
+                           onAlarms: () -> Unit, bodyClock: com.noop.analytics.CircadianEngine.PhaseEstimate?,
+                           onShowNightAt: (Long) -> Unit) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     var editing by remember { mutableStateOf<CoreRead.Night?>(null) }
     // Non-null while the "add a sleep" dialog is up, holding the window its pickers open with.
@@ -799,9 +806,21 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
             }
         }, onDismiss = { editing = null })
     }
+    // The onset of the sleep an add was refused for, held until the page is showing the night that holds
+    // it. Opening `night` instead would correct whichever night happened to be on screen, which on another
+    // day is not the one that was in the way at all.
+    var pendingEditAt by remember { mutableStateOf<Long?>(null) }
+    LaunchedEffect(night?.startTs, pendingEditAt) {
+        val onset = pendingEditAt ?: return@LaunchedEffect
+        val shown = night ?: return@LaunchedEffect
+        if (onset >= shown.startTs && onset < shown.endTs) {
+            pendingEditAt = null
+            editing = shown
+        }
+    }
     adding?.let { (seedStart, seedEnd) ->
         SleepAddDialog(seedStart, seedEnd, viewModel,
-                       onEditInstead = { adding = null; editing = night },
+                       onEditInstead = { onset -> adding = null; pendingEditAt = onset; onShowNightAt(onset) },
                        onDismiss = { adding = null })
     }
     if (night != null && wakeDay != null) {

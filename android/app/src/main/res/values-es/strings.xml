@@ -7314,4 +7314,5 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_fin_save">Guardar la sesión</string>
     <string name="forge_fin_easy">Fácil</string>
     <string name="forge_fin_allout">A tope</string>
+    <string name="forge_sl_add_day">Día en que empezó</string>
 </resources>

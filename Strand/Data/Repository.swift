@@ -2196,13 +2196,17 @@ final class Repository: ObservableObject {
     /// separate session row with `userEdited = 1`, so the recompute overlap guard preserves it and it is
     /// NEVER folded into the night's main sleep (which would mislabel awake daytime as light sleep). Purely
     /// additive , `insertManualSleepSession` no-ops if a session already exists at that exact onset.
-    func addManualNap(startTs: Int, endTs: Int) async {
+    /// Returns whether the row is in the store. A caller that dismisses a sheet on success must have an
+    /// answer: a refused write used to be swallowed here, and the only sign of it was the sleep not being
+    /// there afterwards.
+    @discardableResult
+    func addManualNap(startTs: Int, endTs: Int) async -> Bool {
         // #940 belt-and-braces (same rule as editSleepGroupTimes): a manually-added session can't end in
         // the future or invert; a future nap would otherwise own the tab's newest day as an
         // all-awake phantom exactly like the bad edit did. The clamped end is used verbatim.
         guard let store = await ensureStore(),
               let window = SleepEditGuard.clampedEditWindow(
-                  start: startTs, end: endTs, now: Int(Date().timeIntervalSince1970)) else { return }
+                  start: startTs, end: endTs, now: Int(Date().timeIntervalSince1970)) else { return false }
         let (safeStartTs, safeEndTs) = window
         // Stage from raw over the chosen window; fall back to a single awake block when the strap has no
         // dense data there yet (the self-heal re-stages once raw arrives). A nap's efficiency is the asleep
@@ -2210,11 +2214,14 @@ final class Repository: ObservableObject {
         let stagesJSON = await restageFromRaw(start: safeStartTs, end: safeEndTs)
             ?? AnalyticsEngine.encodeStages([StageSegment(start: safeStartTs, end: safeEndTs, stage: "wake")])
         let efficiency = sleepEfficiency(fromStagesJSON: stagesJSON)
-        _ = try? await store.insertManualSleepSession(
+        // Rows inserted, so a write the store refused (0) and one it already held (0, the ON CONFLICT
+        // no-op) are both told apart from a row that is now there.
+        let inserted = (try? await store.insertManualSleepSession(
             deviceId: computedDeviceId, startTs: safeStartTs, endTs: safeEndTs,
-            efficiency: efficiency, stagesJSON: stagesJSON)
+            efficiency: efficiency, stagesJSON: stagesJSON)) ?? 0
         sleepPresentationRevision &+= 1
         await refresh()
+        return inserted > 0
     }
 
     /// Asleep fraction (light+deep+rem ÷ total in-bed) of a segment-array `stagesJSON`, or nil when the

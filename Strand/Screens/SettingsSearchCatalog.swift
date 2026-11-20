@@ -167,7 +167,14 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable {
         case .batteryRecording: return [.batteryRecording]
         case .strapActions: return [.strapActions]
         case .training: return [.training, .guidedTraining]
+        // The dashboard styles are the old Today screens. The iPhone has no way back to them since
+        // 2026-11-20, so the card would stand there with a title, a promise to switch back and nothing
+        // inside it; on the Mac, which has no new design, they are still its Today.
+        #if os(macOS)
         case .todayTrends: return [.todayLayout, .todayCards]
+        #else
+        case .todayTrends: return [.todayCards]
+        #endif
         case .notifications: return [.notifications]
         case .coach: return [.coach]
         case .siri: return [.siri]
@@ -216,7 +223,17 @@ struct SettingsSearchEntry: Identifiable, Sendable {
 /// section added later cannot silently become unfindable.
 enum SettingsSearchCatalog {
 
-    static let entries: [SettingsSearchEntry] = [
+    /// What search offers. The dashboard card is macOS only with its section: searching "dashboard style"
+    /// on an iPhone must not land on a card that is not shown there any more.
+    static var entries: [SettingsSearchEntry] {
+        #if os(macOS)
+        return allEntries
+        #else
+        return allEntries.filter { $0.id != .todayLayout }
+        #endif
+    }
+
+    private static let allEntries: [SettingsSearchEntry] = [
         SettingsSearchEntry(
             id: .roadmap,
             title: "Project",

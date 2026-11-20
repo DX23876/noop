@@ -4663,5 +4663,6 @@
   "For today": "На сегодня",
   "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "У вас уже есть сон %@. Два сна на одни и те же часы учтут их дважды.",
   "All out": "На максимум",
-  "%lld of 10": "%lld из 10"
+  "%lld of 10": "%lld из 10",
+  "Adding this sleep failed. Nothing was changed; try again.": "Не удалось добавить этот сон. Ничего не изменено, попробуйте ещё раз."
 }
