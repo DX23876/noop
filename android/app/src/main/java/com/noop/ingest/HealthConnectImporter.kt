@@ -537,6 +537,7 @@ object HealthConnectImporter {
         val stepsByHourBySource = HashMap<Long, HashMap<String, Long>>()
         val hourlyStepsFrom = LocalDate.now(zone).minusDays(HOURLY_STEPS_DAYS)
             .atStartOfDay(zone).toEpochSecond()
+        var stepsReadOk = false
 
         try {
             // --- Steps ---
@@ -544,7 +545,10 @@ object HealthConnectImporter {
             // walk, so summing across sources double-counts (~2x). Sum WITHIN a source (keyed by the record's
             // dataOrigin package), then take the MAX source per day at write-out, mirroring the de-overlap
             // already shipped on iOS/macOS and the Android XML importer.
-            readSelected(StepsRecord::class) { r ->
+            // Whether the steps read FINISHED. The hourly rows below are replaced wholesale, so a read
+            // that died on a later page would write part of an hour over a complete figure; the day
+            // aggregates only ever read low, which the write-out already lives with.
+            stepsReadOk = readSelected(StepsRecord::class) { r ->
                 val b = bucket(dayOf(r.startTime, r.startZoneOffset))
                 val src = r.metadata.dataOrigin.packageName
                 b.stepsBySource[src] = (b.stepsBySource[src] ?: 0L) + r.count
@@ -999,8 +1003,9 @@ object HealthConnectImporter {
                 repo.upsertAppleDaily(appleRows)
             }
             // The phone's steps per hour, for the core's gap rule. Same #589 de-overlap as the day total:
-            // the MAX source for an hour, never the sum across sources.
-            val hourRows = stepsByHourBySource.mapNotNull { (hour, bySource) ->
+            // the MAX source for an hour, never the sum across sources. Only from a read that finished,
+            // since an hour's row is replaced and a partial one would write over a complete figure.
+            val hourRows = if (!stepsReadOk) emptyList() else stepsByHourBySource.mapNotNull { (hour, bySource) ->
                 val steps = maxSourceLong(bySource)
                 if (steps > 0L) AppleStepHour(deviceId = HC_DEVICE, ts = hour, steps = steps.toInt()) else null
             }
@@ -1110,8 +1115,10 @@ object HealthConnectImporter {
         val todayStart = today.atStartOfDay(zone).toEpochSecond()
         val selfPackage = context.packageName // #528: skip our own writes (see readAll / isSelfWritten)
         // readAll swallows a failed read (the map stays empty), so a flaky provider degrades to the stored
-        // row below rather than clobbering it with zero.
-        readAll(
+        // row below rather than clobbering it with zero. Whether it finished matters for the HOURLY rows
+        // too, and for them it is worse: an hour's row is REPLACED, so a read that died on a later page
+        // would write a third of an hour over the complete figure the last full import left.
+        val stepsReadOk = readAll(
             client, StepsRecord::class,
             // #1002: reach back an extra day. The FILTER is in the phone's zone but the day key below is
             // now the record's own, and a record whose offset sits EAST of the phone's zone can belong to
@@ -1158,7 +1165,7 @@ object HealthConnectImporter {
         try {
             if (existing == null) repo.upsertDevice(HC_DEVICE, name = "Health Connect")
             repo.upsertAppleDaily(listOf(updated))
-            val hourRows = stepsByHourBySource.mapNotNull { (hour, bySource) ->
+            val hourRows = if (!stepsReadOk) emptyList() else stepsByHourBySource.mapNotNull { (hour, bySource) ->
                 val steps = maxSourceLong(bySource)
                 if (steps > 0L) AppleStepHour(deviceId = HC_DEVICE, ts = hour, steps = steps.toInt()) else null
             }

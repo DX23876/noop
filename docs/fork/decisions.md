@@ -2091,3 +2091,26 @@ avoid. It now spreads the same records it already reads over today's hours and w
 daily row. All sixteen Health Connect suites pass (110 tests).
 
 Analysis migration required: no
+
+## 2026-11-20 — The gap's own fit test asks what the gap could hold, not how fast the day was
+
+Reviewing the corrections above found that the first of them traded a false card for a silent miss.
+`surplusFit` bounded the surplus at 1.5 times an estimate derived from the day's MEDIAN walked-minute
+pace, so a gap walked faster than the strolls that set that median was refused for producing too many
+steps: a twenty-minute gap walked at 140 to 170 steps a minute reads as 31 to 38 minutes against a
+median of 90, and 30 was the ceiling.
+
+The bound now asks the one question it can answer: could these steps have been made inside the gap at
+all. `surplus <= gap.count * fastestCadence` with `fastestCadence` 200, which is a run, not a stroll.
+4000 steps credited to a ten-minute hole still fall (2000 is the most ten minutes can hold), 1800 pass,
+and the median pace keeps its old job of deciding whether there were ENOUGH steps, never whether there
+were too many. 2026-11-09 still reads 15:04 to 15:45 and the walk track stays at 2.03 spans a day.
+
+The review's second finding was the hourly write replacing a complete hour with a partial one after a
+read that died on a later page — the shape the daily path already guards as "a swallowed error must not
+be mistaken for an authoritative zero". `readAll` and `readSelected` both report whether they finished
+and both call sites discarded it; the hourly rows in `refreshTodaySteps` AND in `import` are now written
+only from a read that completed. The day aggregates keep their existing behaviour, where a partial read
+only ever reads low.
+
+Analysis migration required: no
