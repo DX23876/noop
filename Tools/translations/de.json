@@ -4685,5 +4685,7 @@
   "The strap has nothing recorded for those hours yet. The sleep will count its length, but it gets no stages and Charge for that day stays empty until the data arrives.": "Der Strap hat für diese Stunden noch nichts aufgezeichnet. Die Länge zählt, Stadien gibt es keine, und Charge bleibt für diesen Tag leer, bis die Daten da sind.",
   "Until you change it": "Bis du es änderst",
   "For today": "Für heute",
-  "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "Du hast schon einen Schlaf von %@. Zwei Schläfe über denselben Stunden würden diese Stunden doppelt zählen."
+  "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "Du hast schon einen Schlaf von %@. Zwei Schläfe über denselben Stunden würden diese Stunden doppelt zählen.",
+  "All out": "Volle Kraft",
+  "%lld of 10": "%lld von 10"
 }

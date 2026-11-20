@@ -4785,5 +4785,7 @@
   "The strap has nothing recorded for those hours yet. The sleep will count its length, but it gets no stages and Charge for that day stays empty until the data arrives.": "手环在那段时间还没有任何记录。睡眠会计入时长，但没有阶段，当天的 Charge 也会一直为空，直到数据到达。",
   "Until you change it": "直到你更改",
   "For today": "仅限今天",
-  "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "你已经有一段 %@ 的睡眠。同一段时间记录两次会被重复计算。"
+  "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "你已经有一段 %@ 的睡眠。同一段时间记录两次会被重复计算。",
+  "All out": "全力",
+  "%lld of 10": "10 中的 %lld"
 }

@@ -379,6 +379,45 @@ struct EffortBadge: View {
     }
 }
 
+/// The session rating, 1 to 10, as badges to tap rather than a number to type.
+///
+/// The per-set picker beside it describes its levels in reps in reserve, which is a SET's language and
+/// says nothing about a whole session. So this keeps the badges and the zone colours and leaves the words
+/// to the two ends of the scale. Tapping the chosen value again clears it, because no rating is a real
+/// answer: session RPE is optional and an empty one simply records nothing.
+struct SessionEffortPicker: View {
+    @Binding var value: Double?
+
+    private func color(_ step: Int) -> Color? {
+        guard value == Double(step), let rating = TrainingEffortRating(scale: .rpe, value: Double(step))
+        else { return nil }
+        return EffortChoice.color(for: rating)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            HStack(spacing: 6) {
+                ForEach(1...10, id: \.self) { step in
+                    Button {
+                        value = value == Double(step) ? nil : Double(step)
+                    } label: {
+                        EffortBadge(text: "\(step)", color: color(step))
+                            .frame(height: 40)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("\(step) of 10")
+                    .accessibilityAddTraits(value == Double(step) ? [.isSelected] : [])
+                }
+            }
+            HStack {
+                Text("Easy").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                Spacer()
+                Text("All out").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+            }
+        }
+    }
+}
+
 struct EffortPickerRequest: Identifiable {
     let exerciseIndex: Int
     let setIndex: Int

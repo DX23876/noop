@@ -4684,5 +4684,7 @@
   "The strap has nothing recorded for those hours yet. The sleep will count its length, but it gets no stages and Charge for that day stays empty until the data arrives.": "La pulsera aún no tiene nada registrado en esas horas. El sueño contará su duración, pero no tendrá fases y Charge de ese día seguirá vacío hasta que lleguen los datos.",
   "Until you change it": "Hasta que lo cambies",
   "For today": "Por hoy",
-  "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "Ya tienes un sueño de %@. Dos sueños sobre las mismas horas las contarían dos veces."
+  "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "Ya tienes un sueño de %@. Dos sueños sobre las mismas horas las contarían dos veces.",
+  "All out": "A tope",
+  "%lld of 10": "%lld de 10"
 }

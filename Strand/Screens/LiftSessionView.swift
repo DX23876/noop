@@ -30,7 +30,9 @@ struct LiftSessionView: View {
 
     @State private var showingFinish = false
     @State private var confirmingDiscard = false
-    @State private var sessionRpeText = ""
+    /// Tapped, not typed, since 2026-11-20: the logger has had a picker for per-set effort since it was
+    /// written, and asking for the session with a keyboard beside it was the odd one out.
+    @State private var sessionRpe: Double?
     @State private var saving = false
     /// The store refused the session. The sheet stays open with every set still on it, because the
     /// hour of work on this screen exists nowhere else.
@@ -656,12 +658,7 @@ struct LiftSessionView: View {
                 NoopCard {
                     VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                         Text("How hard was the whole session? (1–10)").strandOverline()
-                        TextField("7", text: $sessionRpeText)
-                            .textFieldStyle(.plain)
-                            .font(StrandFont.bodyNumber)
-                            .foregroundStyle(StrandPalette.textPrimary)
-                            .numericKeyboard()
-                            .focused($focused, equals: .sessionRpe)
+                        SessionEffortPicker(value: $sessionRpe)
                         Text("This is session RPE. Multiplied by the session's length it gives session load — the one figure that compares across completely different training.")
                             .font(StrandFont.footnote)
                             .foregroundStyle(StrandPalette.textTertiary)
@@ -867,7 +864,7 @@ struct LiftSessionView: View {
             programId: session.programId,
             // Snapshot the name: renaming or deleting the program never rewrites this session.
             programName: session.programName,
-            sessionRpe: LiftFormat.number(sessionRpeText),
+            sessionRpe: sessionRpe,
             note: session.programName)
         let keptSession = (try? await store.upsertLiftSessions([row])) != nil
 

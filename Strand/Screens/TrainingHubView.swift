@@ -1433,6 +1433,11 @@ struct NativeWorkoutLoggerView: View {
     @State private var plateRequest: TrainingPlateRequest?
     @State private var replacementExerciseId: UUID?
     @State private var confirmingPartialFinish = false
+    /// The finish sheet, where the session is rated before it is saved. Android has asked since its
+    /// logger was written; this screen saved with no rating at all, and the only screen that did ask
+    /// (`LiftSessionView`) is not reachable from anywhere (2026-11-20).
+    @State private var finishing = false
+    @State private var sessionRpe: Double?
     @State private var confirmingDiscard = false
     @FocusState private var focusedSetField: TrainingSetField?
     @State private var historyRequest: TrainingHistoryRequest?
@@ -1609,9 +1614,10 @@ struct NativeWorkoutLoggerView: View {
             .alert("Workout", isPresented: Binding(get: { model.errorMessage != nil }, set: { if !$0 { model.errorMessage = nil } })) {
                 Button("OK", role: .cancel) {}
             } message: { Text(model.errorMessage ?? "") }
+            .sheet(isPresented: $finishing) { finishSheet }
             .confirmationDialog("Incomplete sets", isPresented: $confirmingPartialFinish,
                                 titleVisibility: .visible) {
-                Button("Finish completed sets", role: .destructive) { finishNow() }
+                Button("Finish completed sets", role: .destructive) { finishing = true }
                 Button("Keep logging", role: .cancel) {}
             } message: {
                 Text("Some sets are incomplete. Only completed sets will be saved.")
@@ -1625,7 +1631,10 @@ struct NativeWorkoutLoggerView: View {
             }
             .onChange(of: model.watchFinishRequested) { requested in
                 guard requested else { return }
-                requestFinish()
+                // From the watch the session ends where the wearer pressed it. Opening the rating sheet on
+                // the phone would leave the workout hanging on a screen they are not looking at, so this
+                // path saves without a rating, as it did before the sheet existed.
+                finishNow()
             }
             .onChange(of: scenePhase) { phase in
                 if phase == .active { model.appReturnedToForeground() }
@@ -2995,7 +3004,44 @@ struct NativeWorkoutLoggerView: View {
         if validation.state == .partial {
             confirmingPartialFinish = true
         } else {
-            finishNow()
+            finishing = true
+        }
+    }
+
+    /// Rating the session before it is saved, as Android's own finish sheet asks: the question, the
+    /// rating as badges to tap, what session RPE is for, and what saving adds to the week's goals.
+    ///
+    /// One way out. A separate "Skip" would save in exactly the same way and read as a second choice,
+    /// which is why the older lift sheet dropped its own; no rating chosen is simply no rating.
+    private var finishSheet: some View {
+        ScreenScaffold(title: "Finish session",
+                       subtitle: "One number for the whole session, so a leg day can be compared with a run.") {
+            VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+                NoopCard {
+                    VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                        Text("How hard was the whole session? (1–10)").strandOverline()
+                        SessionEffortPicker(value: $sessionRpe)
+                        Text("This is session RPE. Multiplied by the session's length it gives session load — the one figure that compares across completely different training.")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                GoalSessionPreviewNote(
+                    row: WorkoutRow(startTs: model.draft.startedAt,
+                                    endTs: Int(Date().timeIntervalSince1970),
+                                    sport: "Strength Training", source: "native-training",
+                                    durationS: Date().timeIntervalSince1970 - Double(model.draft.startedAt),
+                                    energyKcal: nil, avgHr: nil, maxHr: nil, strain: nil, distanceM: nil,
+                                    zonesJSON: nil, notes: nil, steps: nil),
+                    workingSets: NativeWorkoutEngine.completionValidation(for: model.draft).completedSetCount)
+                Button("Save session") {
+                    model.sessionRPE = sessionRpe
+                    finishing = false
+                    finishNow()
+                }
+                .buttonStyle(.noopPrimary)
+            }
         }
     }
 

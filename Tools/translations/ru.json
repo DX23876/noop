@@ -4661,5 +4661,7 @@
   "The strap has nothing recorded for those hours yet. The sleep will count its length, but it gets no stages and Charge for that day stays empty until the data arrives.": "За эти часы у ремешка пока нет записей. Длительность засчитается, стадий не будет, а Charge за этот день останется пустым, пока данные не придут.",
   "Until you change it": "Пока не измените",
   "For today": "На сегодня",
-  "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "У вас уже есть сон %@. Два сна на одни и те же часы учтут их дважды."
+  "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "У вас уже есть сон %@. Два сна на одни и те же часы учтут их дважды.",
+  "All out": "На максимум",
+  "%lld of 10": "%lld из 10"
 }

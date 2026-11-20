@@ -4683,5 +4683,7 @@
   "The strap has nothing recorded for those hours yet. The sleep will count its length, but it gets no stages and Charge for that day stays empty until the data arrives.": "A pulseira ainda não tem nada registado nessas horas. O sono conta a duração, mas fica sem fases, e o Charge desse dia continua vazio até os dados chegarem.",
   "Until you change it": "Até o alterares",
   "For today": "Por hoje",
-  "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "Já tens um sono das %@. Dois sonos sobre as mesmas horas contariam essas horas duas vezes."
+  "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "Já tens um sono das %@. Dois sonos sobre as mesmas horas contariam essas horas duas vezes.",
+  "All out": "No máximo",
+  "%lld of 10": "%lld de 10"
 }
