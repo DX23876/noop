@@ -1112,7 +1112,7 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
      * ("0 ticked") or that it was not ("9 ticked" against the core finding no completed work).
      */
     fun draftShape(): String {
-        val exercises = d?.exercises ?: emptyList()
+        val exercises = draft?.exercises ?: emptyList()
         val sets = exercises.sumOf { it.sets.size }
         val ticked = exercises.sumOf { e -> e.sets.count { it.done } }
         return "${exercises.size} exercise(s), $sets set(s), $ticked ticked"
@@ -1148,9 +1148,17 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
      * asked and it reports the same reason the core would have. That short-circuit is why the refusal has
      * to be logged HERE as well — a log written only where the core answers stays silent on the most
      * common refusal of all, and says nothing about what the draft held when it happened.
+     *
+     * It reads [draft], the state, NOT the `d` snapshot the body takes. The top bar used to be handed
+     * `::requestFinish`, and a reference to a local function carries the locals it closed over: the one
+     * the bar kept was made on the first composition, when the draft had not loaded yet, so the guard
+     * asked an empty draft for ever after. Every tick was stored, the header counted them, the screen drew
+     * them, and the finish said "mark at least one set as done" — the loop reported on Discord on
+     * 2026-11-20 and reproduced here. The bar now gets a lambda, and the guard reads the state through it,
+     * so neither half can go stale again.
      */
     fun requestFinish() {
-        if (d?.exercises?.any { e -> e.sets.any { it.done } } == true) {
+        if (draft?.exercises?.any { e -> e.sets.any { it.done } } == true) {
             finishing = true
             return
         }
@@ -1255,7 +1263,7 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
                    .padding(horizontal = ForgeMetrics.screenPadding).navigationBarsPadding()
                    .padding(bottom = if (rest != null) 150.dp else ForgeMetrics.space4),
                verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            LoggerTopBar(d?.title ?: stringResource(R.string.forge_training), onMinimize = onClose, onFinish = ::requestFinish) { dismiss ->
+            LoggerTopBar(d?.title ?: stringResource(R.string.forge_training), onMinimize = onClose, onFinish = { requestFinish() }) { dismiss ->
                 DropdownMenuItem(text = { Text(stringResource(R.string.forge_lg_add_exercise)) },
                                  leadingIcon = { Icon(Icons.Rounded.Add, contentDescription = null) },
                                  onClick = { dismiss(); picking = true })
