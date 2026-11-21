@@ -277,7 +277,7 @@ public enum WorkoutSource: Equatable, Sendable {
     /// #975: a DETECTED bout that shadows a real logged session is dropped FIRST so the transient
     /// live+detected duplicate never shows and can't pollute the Effort/HR read-out.
     public static func dedupCrossSource(_ rows: [WorkoutRow]) -> [WorkoutRow] {
-        collapseCrossSource(dropDetectedShadows(rows))
+        collapseCrossSport(collapseCrossSource(dropDetectedShadows(rows)))
     }
 
     /// The shared cross-source collapse walk behind `dedupCrossSource` and `dedupCrossSourceTrace`.
@@ -370,6 +370,93 @@ public enum WorkoutSource: Equatable, Sendable {
         return words.isEmpty ? "Workout" : words.joined(separator: " ")
     }
 
+    // MARK: - One session under two sport names (#2929)
+
+    /// How far two starts may sit apart and still be the same session logged twice. Tight on purpose: an
+    /// app that copies a session back into Apple Health keeps its clock, so the drift is seconds, while two
+    /// genuinely different activities around the same time (a ride, then strength) start minutes apart.
+    public static let crossSportStartToleranceS = 60
+
+    /// True when an Apple Health row and one of NOOP's OWN rows are the SAME session under two different
+    /// sport names.
+    ///
+    /// `sameActivity` requires the sports to match, which is right for two imports of one activity, and
+    /// wrong for the session another app copied back into Apple Health under a name of its choosing: a
+    /// NOOP "Treadmill run" and a Health "Running" starting in the same second stood in the list as two
+    /// workouts, and so did "Strength" beside a Health "Workout". The pair has to be narrow to be safe:
+    /// exactly one side from the phone's health store, the other NOOP's own capture (strap, logged or
+    /// detected — never a second importer, which can legitimately hold its own session), starts within
+    /// `crossSportStartToleranceS`, and the windows overlapping by more than half the shorter one.
+    /// (Refs #2929)
+    public static func crossSportSameSession(_ a: WorkoutRow, _ b: WorkoutRow) -> Bool {
+        guard sportKey(a.sport) != sportKey(b.sport) else { return false }
+        let sides = Set([crossSportSide(a.source), crossSportSide(b.source)])
+        guard sides == [.phoneHealth, .noopOwn] else { return false }
+        guard abs(a.startTs - b.startTs) <= crossSportStartToleranceS else { return false }
+        return overlapsInTime(a, b)
+    }
+
+    /// Which side of the cross-sport pair a source sits on. Only a phone-health row paired with one of
+    /// NOOP's own can be the same session under two names: a second importer (a lifting export, the Hevy
+    /// or Oura API, an activity file) legitimately holds its OWN session, which may genuinely run beside
+    /// another sport. Android mirrors this table in `WorkoutEditing.crossSportSide`, where the source
+    /// enum is narrower. (Refs #2929)
+    public enum CrossSportSide: Sendable, Hashable { case phoneHealth, noopOwn, otherImport }
+
+    public static func crossSportSide(_ source: String) -> CrossSportSide {
+        switch classify(source) {
+        case .apple:                                return .phoneHealth   // also Health Connect / unknown
+        case .whoop, .detected, .manual, .confirmed: return .noopOwn
+        case .lifting, .activityFile, .hevy, .oura:  return .otherImport
+        }
+    }
+
+    /// Of a `crossSportSameSession` pair, the row to KEEP: NOOP's own. It carries the sport the wearer
+    /// chose and the strap trace behind it, where the Health copy carries whichever name the app that
+    /// wrote it back picked.
+    public static func preferredCrossSport(_ a: WorkoutRow, _ b: WorkoutRow) -> WorkoutRow {
+        classify(a.source) == .apple ? b : a
+    }
+
+    /// Collapse `crossSportSameSession` pairs, after the same-sport collapse has run. Walks the rows in
+    /// start order and compares each only with those starting within the tolerance, so the pass stays
+    /// linear over a ten-year list. Order-stable the same way `collapseCrossSource` is: the kept row takes
+    /// the pair's earliest input slot.
+    private static func collapseCrossSport(
+        _ input: [WorkoutRow],
+        onMerge: ((_ winner: WorkoutRow, _ loser: WorkoutRow) -> Void)? = nil
+    ) -> [WorkoutRow] {
+        guard input.count > 1 else { return input }
+        let order = input.indices.sorted { lhs, rhs in
+            if input[lhs].startTs != input[rhs].startTs { return input[lhs].startTs < input[rhs].startTs }
+            return lhs < rhs
+        }
+        var removed = Set<Int>()
+        var replacements: [Int: WorkoutRow] = [:]
+        for (position, index) in order.enumerated() {
+            if removed.contains(index) { continue }
+            var next = position + 1
+            while next < order.count {
+                let other = order[next]
+                next += 1
+                guard input[other].startTs - input[index].startTs <= crossSportStartToleranceS else { break }
+                if removed.contains(other) { continue }
+                let current = replacements[index] ?? input[index]
+                let candidate = replacements[other] ?? input[other]
+                guard crossSportSameSession(current, candidate) else { continue }
+                let winner = preferredCrossSport(current, candidate)
+                onMerge?(winner, winner == current ? candidate : current)
+                let anchor = min(index, other), loserSlot = max(index, other)
+                replacements[anchor] = winner
+                replacements.removeValue(forKey: loserSlot)
+                removed.insert(loserSlot)
+            }
+        }
+        return input.indices.compactMap { index in
+            removed.contains(index) ? nil : (replacements[index] ?? input[index])
+        }
+    }
+
     /// Diagnostic twin of `dedupCrossSource(...)` for the Workouts & GPS test mode: returns the BYTE-IDENTICAL
     /// kept list (the SAME walk, the SAME `preferred` choice) plus a trace line per collapsed pair naming the
     /// kept vs dropped source and their richness. The kept output equals `dedupCrossSource(...)` exactly, so
@@ -397,12 +484,15 @@ public enum WorkoutSource: Equatable, Sendable {
         // Same bucketed collapse as the plain path, so the kept list can never diverge from what the screen
         // shows; the callback records one dedup line per collapsed pair. traceSportKey reads the winner's
         // sport — same sportKey as the loser (they matched), so the emitted token is stable either way.
-        let kept = collapseCrossSource(input) { winner, loser in
+        func record(_ winner: WorkoutRow, _ loser: WorkoutRow) {
             lines.append(WorkoutsTrace.dedupLine(
                 sportKey: traceSportKey(winner.sport),   // PRIVACY: catalogue key or "custom", never free text
                 keptSource: sourceLabel(winner), droppedSource: sourceLabel(loser),
                 keptRichness: richness(winner), droppedRichness: richness(loser)))
         }
+        // The SAME two passes the plain path runs, in the same order, so the kept list can never diverge
+        // from what the screen shows; each callback records one dedup line per collapsed pair.
+        let kept = collapseCrossSport(collapseCrossSource(input, onMerge: record), onMerge: record)
         return (kept, lines)
     }
 

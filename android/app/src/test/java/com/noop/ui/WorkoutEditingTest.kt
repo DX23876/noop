@@ -33,6 +33,85 @@ class WorkoutEditingTest {
         strain = strain,
     )
 
+    // MARK: - one session under two sport names (#2929)
+
+    /**
+     * The Swift suite's cases, verbatim (`WorkoutSourceTests`): a session another app copied back into
+     * the health store under its own sport name collapses into NOOP's own row, and NOOP's row is kept.
+     * Both pairs are real ones from a strap database.
+     */
+    @Test
+    fun crossSport_healthCopyUnderAnotherNameCollapsesIntoNoopsRow() {
+        val strap = row("my-whoop", 1_000, 1_780, "Spazieren", "whoop")
+        val health = row("apple-health", 1_000, 1_780, "Walking", "apple-health")
+        assertTrue(WorkoutEditing.crossSportSameSession(strap, health))
+        assertEquals(listOf("Spazieren"), WorkoutEditing.dedupCrossSource(listOf(strap, health)).map { it.sport })
+        assertEquals(listOf("Spazieren"), WorkoutEditing.dedupCrossSource(listOf(health, strap)).map { it.sport })
+
+        val logged = row("my-whoop", 10_000, 12_400, "Treadmill run", "manual")
+        val copy = row("apple-health", 10_030, 12_430, "Running", "apple-health")
+        assertEquals(listOf("Treadmill run"), WorkoutEditing.dedupCrossSource(listOf(logged, copy)).map { it.sport })
+    }
+
+    /** What is NOT one session under two names — the Swift suite's counter-cases. */
+    @Test
+    fun crossSport_whatIsNotOneSession() {
+        val ride = row("my-whoop", 20_000, 21_620, "Radfahren", "whoop")
+        val strength = row("apple-health", 21_164, 21_944, "Strength Training", "apple-health")
+        assertFalse(WorkoutEditing.crossSportSameSession(ride, strength))
+        assertEquals(2, WorkoutEditing.dedupCrossSource(listOf(ride, strength)).size)
+
+        val healthA = row("apple-health", 30_000, 32_000, "Strength Training", "apple-health")
+        val healthB = row("apple-health", 30_000, 32_000, "Functional strength training", "apple_health")
+        assertFalse(WorkoutEditing.crossSportSameSession(healthA, healthB))
+        assertEquals(2, WorkoutEditing.dedupCrossSource(listOf(healthA, healthB)).size)
+
+        val hevy = row("hevy", 40_000, 42_000, "Strength Training", "hevy")
+        val health = row("apple-health", 40_000, 42_000, "Workout", "apple-health")
+        assertFalse(WorkoutEditing.crossSportSameSession(hevy, health))
+        assertEquals(2, WorkoutEditing.dedupCrossSource(listOf(hevy, health)).size)
+
+        val crumb = row("my-whoop", 50_000, 50_100, "Walking", "whoop")
+        val long = row("apple-health", 50_060, 53_000, "Running", "apple-health")
+        assertFalse(WorkoutEditing.crossSportSameSession(crumb, long))
+        assertEquals(2, WorkoutEditing.dedupCrossSource(listOf(crumb, long)).size)
+    }
+
+    /** The side table, which is where this enum is narrower than Swift's. */
+    @Test
+    fun crossSport_sideTable() {
+        assertEquals(WorkoutEditing.CrossSportSide.PHONE_HEALTH, WorkoutEditing.crossSportSide("apple-health"))
+        assertEquals(WorkoutEditing.CrossSportSide.PHONE_HEALTH, WorkoutEditing.crossSportSide("apple_health"))
+        assertEquals(WorkoutEditing.CrossSportSide.PHONE_HEALTH, WorkoutEditing.crossSportSide("health-connect"))
+        assertEquals(WorkoutEditing.CrossSportSide.NOOP_OWN, WorkoutEditing.crossSportSide("whoop"))
+        assertEquals(WorkoutEditing.CrossSportSide.NOOP_OWN, WorkoutEditing.crossSportSide("my-whoop-noop"))
+        assertEquals(WorkoutEditing.CrossSportSide.NOOP_OWN, WorkoutEditing.crossSportSide("manual"))
+        assertEquals(WorkoutEditing.CrossSportSide.NOOP_OWN, WorkoutEditing.crossSportSide("detected-confirmed"))
+        assertEquals(WorkoutEditing.CrossSportSide.NOOP_OWN, WorkoutEditing.crossSportSide("native-training-1"))
+        assertEquals(WorkoutEditing.CrossSportSide.OTHER_IMPORT, WorkoutEditing.crossSportSide("hevy"))
+        assertEquals(WorkoutEditing.CrossSportSide.OTHER_IMPORT, WorkoutEditing.crossSportSide("oura-api"))
+        assertEquals(WorkoutEditing.CrossSportSide.OTHER_IMPORT, WorkoutEditing.crossSportSide("lifting"))
+        assertEquals(WorkoutEditing.CrossSportSide.OTHER_IMPORT, WorkoutEditing.crossSportSide("activity-file"))
+    }
+
+    /**
+     * A day of ordinary walks, each from both sources under both spellings, collapses to one row per
+     * walk and never folds two walks into one. Same case as the Swift suite.
+     */
+    @Test
+    fun crossSport_backToBackWalksKeepOneRowEach() {
+        val rows = ArrayList<WorkoutRow>()
+        for (i in 0 until 40) {
+            val start = 100_000L + i * 3_600L
+            rows.add(row("my-whoop", start, start + 1_800, "Spazieren", "whoop"))
+            rows.add(row("apple-health", start + 5, start + 1_805, "Walking", "apple-health"))
+        }
+        val kept = WorkoutEditing.dedupCrossSource(rows)
+        assertEquals(40, kept.size)
+        assertTrue(kept.all { it.sport == "Spazieren" })
+        assertEquals((0 until 40).map { 100_000L + it * 3_600L }, kept.map { it.startTs })
+    }
+
     // MARK: - classify
 
     @Test

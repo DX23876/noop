@@ -242,7 +242,7 @@ object WorkoutEditing {
      * live+detected duplicate never shows and can't pollute the Effort/HR read-out.
      */
     fun dedupCrossSource(rows: List<WorkoutRow>): List<WorkoutRow> =
-        collapseCrossSource(dropDetectedShadows(rows))
+        collapseCrossSport(collapseCrossSource(dropDetectedShadows(rows)))
 
     /**
      * The shared cross-source collapse walk behind [dedupCrossSource] and [dedupCrossSourceTrace]. Byte-
@@ -278,6 +278,99 @@ object WorkoutEditing {
             }
         }
         return kept
+    }
+
+    // ---- One session under two sport names (#2929) ----
+
+    /**
+     * How far two starts may sit apart and still be the same session logged twice. Tight on purpose: an
+     * app that copies a session back into the phone's health store keeps its clock, so the drift is
+     * seconds, while two genuinely different activities around the same time start minutes apart.
+     * Mirrors Swift's `crossSportStartToleranceS`.
+     */
+    const val CROSS_SPORT_START_TOLERANCE_S = 60L
+
+    /** Which side of a cross-sport pair a source sits on. Mirrors Swift's `CrossSportSide`. */
+    enum class CrossSportSide { PHONE_HEALTH, NOOP_OWN, OTHER_IMPORT }
+
+    /**
+     * The side table, read off the raw source rather than [classify] because this enum is narrower than
+     * Swift's: a confirmed suggestion, a native training session, the Hevy and Oura lanes all fall into
+     * [WorkoutSource.APPLE] here, and treating those as the phone's store would merge sessions Apple
+     * never wrote. Only a phone-health row paired with one of NOOP's own can be the same session under
+     * two names; a second importer legitimately holds its OWN session. Mirrors Swift's `crossSportSide`,
+     * including its "unknown source reads as the phone's store" fallback. (Refs #2929)
+     */
+    fun crossSportSide(source: String): CrossSportSide {
+        val s = source.lowercase()
+        return when {
+            s == "lifting" || s == "activity-file" || s == "hevy" || s == "oura-api" ->
+                CrossSportSide.OTHER_IMPORT
+            s.endsWith("-noop") || s == "manual" || s == "detected-confirmed" ||
+                s.startsWith("native-training") || s.contains("whoop") -> CrossSportSide.NOOP_OWN
+            else -> CrossSportSide.PHONE_HEALTH   // apple-health / apple_health / health-connect / unknown
+        }
+    }
+
+    /**
+     * True when a phone-health row and one of NOOP's OWN rows are the SAME session under two different
+     * sport names.
+     *
+     * [sameActivity] requires the sports to match, which is right for two imports of one activity, and
+     * wrong for the session another app copied back into the health store under a name of its choosing: a
+     * NOOP "Treadmill run" and a Health "Running" starting in the same second stood in the list as two
+     * workouts. Mirrors Swift's `crossSportSameSession`. (Refs #2929)
+     */
+    fun crossSportSameSession(a: WorkoutRow, b: WorkoutRow): Boolean {
+        if (sportKey(a.sport) == sportKey(b.sport)) return false
+        val sides = setOf(crossSportSide(a.source), crossSportSide(b.source))
+        if (sides != setOf(CrossSportSide.PHONE_HEALTH, CrossSportSide.NOOP_OWN)) return false
+        if (kotlin.math.abs(a.startTs - b.startTs) > CROSS_SPORT_START_TOLERANCE_S) return false
+        return overlapsInTime(a, b)
+    }
+
+    /**
+     * Of a [crossSportSameSession] pair, the row to KEEP: NOOP's own. It carries the sport the wearer
+     * chose and the strap trace behind it. Mirrors Swift's `preferredCrossSport`.
+     */
+    fun preferredCrossSport(a: WorkoutRow, b: WorkoutRow): WorkoutRow =
+        if (crossSportSide(a.source) == CrossSportSide.PHONE_HEALTH) b else a
+
+    /**
+     * Collapse [crossSportSameSession] pairs, after the same-sport collapse has run. Walks the rows in
+     * start order and compares each only with those starting within the tolerance, so the pass stays
+     * linear over a ten-year list, and keeps the pair's earliest input slot. Mirrors Swift's
+     * `collapseCrossSport`.
+     */
+    private fun collapseCrossSport(
+        input: List<WorkoutRow>,
+        onMerge: ((winner: WorkoutRow, loser: WorkoutRow) -> Unit)? = null,
+    ): List<WorkoutRow> {
+        if (input.size < 2) return input
+        val order = input.indices.sortedWith(compareBy({ input[it].startTs }, { it }))
+        val removed = HashSet<Int>()
+        val replacements = HashMap<Int, WorkoutRow>()
+        for ((position, index) in order.withIndex()) {
+            if (index in removed) continue
+            var next = position + 1
+            while (next < order.size) {
+                val other = order[next]
+                next++
+                if (input[other].startTs - input[index].startTs > CROSS_SPORT_START_TOLERANCE_S) break
+                if (other in removed) continue
+                val current = replacements[index] ?: input[index]
+                val candidate = replacements[other] ?: input[other]
+                if (!crossSportSameSession(current, candidate)) continue
+                val winner = preferredCrossSport(current, candidate)
+                onMerge?.invoke(winner, if (winner === current) candidate else current)
+                val anchor = minOf(index, other)
+                val loserSlot = maxOf(index, other)
+                replacements[anchor] = winner
+                replacements.remove(loserSlot)
+                removed.add(loserSlot)
+            }
+        }
+        return input.indices.mapNotNull { if (it in removed) null else (replacements[it] ?: input[it]) }
     }
 
     /** A short, source-only descriptor of a row for the Workouts test-mode dedup trace. Mirrors Swift. */
@@ -321,7 +414,7 @@ object WorkoutEditing {
         // shows; the callback records one dedup line per collapsed pair. winner/loser come from the REAL
         // [preferred] decision (identity, not a startTs+source tuple that collides on a same-start same-source
         // pair). traceSportKey reads the winner's sport — same sportKey as the loser, so the token is stable.
-        val kept = collapseCrossSource(input) { winner, loser ->
+        val record: (WorkoutRow, WorkoutRow) -> Unit = { winner, loser ->
             lines.add(
                 WorkoutsTrace.dedupLine(
                     sportKey = traceSportKey(winner.sport), // PRIVACY: catalogue key or "custom", never free text
@@ -330,6 +423,8 @@ object WorkoutEditing {
                 ),
             )
         }
+        // Both passes the plain path runs, in the same order (#2929), so the kept list can never diverge.
+        val kept = collapseCrossSport(collapseCrossSource(input, record), record)
         return kept to lines
     }
 

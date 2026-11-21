@@ -36,6 +36,70 @@ final class WorkoutSourceTests: XCTestCase {
         XCTAssertEqual(strapNative, [.detected, .manual, .confirmed])
     }
 
+    // MARK: - one session under two sport names (#2929)
+
+    /// A session another app copied back into Apple Health under its own sport name used to stand beside
+    /// NOOP's own row: both pairs below are real ones from a strap database ("Spazieren" beside Health's
+    /// "Walking", a hand-logged treadmill run beside Health's "Running"). NOOP's row is the one kept.
+    func testAHealthCopyUnderAnotherSportNameCollapsesIntoNoopsOwnRow() {
+        let strap = row(start: 1_000, end: 1_780, sport: "Spazieren", source: "whoop")
+        let health = row(start: 1_000, end: 1_780, sport: "Walking", source: "apple-health")
+        XCTAssertTrue(WorkoutSource.crossSportSameSession(strap, health))
+        XCTAssertEqual(WorkoutSource.dedupCrossSource([strap, health]).map(\.sport), ["Spazieren"])
+        XCTAssertEqual(WorkoutSource.dedupCrossSource([health, strap]).map(\.sport), ["Spazieren"],
+                       "whichever order they arrive in")
+
+        let logged = row(start: 10_000, end: 12_400, sport: "Treadmill run", source: "manual")
+        let copy = row(start: 10_030, end: 12_430, sport: "Running", source: "apple-health")
+        XCTAssertEqual(WorkoutSource.dedupCrossSource([logged, copy]).map(\.sport), ["Treadmill run"])
+    }
+
+    /// The pair has to be narrow, or two genuinely different activities would be merged. Starts further
+    /// apart than the tolerance, two importers, and two rows from the phone's own store all stand.
+    func testWhatIsNotOneSessionUnderTwoNames() {
+        let ride = row(start: 20_000, end: 21_620, sport: "Radfahren", source: "whoop")
+        let strength = row(start: 21_164, end: 21_944, sport: "Strength Training", source: "apple-health")
+        XCTAssertFalse(WorkoutSource.crossSportSameSession(ride, strength), "starts 19 minutes apart")
+        XCTAssertEqual(WorkoutSource.dedupCrossSource([ride, strength]).count, 2)
+
+        let healthA = row(start: 30_000, end: 32_000, sport: "Strength Training", source: "apple-health")
+        let healthB = row(start: 30_000, end: 32_000, sport: "Functional strength training", source: "apple_health")
+        XCTAssertFalse(WorkoutSource.crossSportSameSession(healthA, healthB), "both are the phone's store")
+        XCTAssertEqual(WorkoutSource.dedupCrossSource([healthA, healthB]).count, 2)
+
+        let hevy = row(start: 40_000, end: 42_000, sport: "Strength Training", source: "hevy")
+        let health = row(start: 40_000, end: 42_000, sport: "Workout", source: "apple-health")
+        XCTAssertFalse(WorkoutSource.crossSportSameSession(hevy, health), "a second importer keeps its session")
+        XCTAssertEqual(WorkoutSource.dedupCrossSource([hevy, health]).count, 2)
+
+        let walk = row(start: 50_000, end: 51_000, sport: "Walking", source: "whoop")
+        let drifted = row(start: 50_030, end: 51_030, sport: "Running", source: "apple-health")
+        XCTAssertTrue(WorkoutSource.crossSportSameSession(walk, drifted), "seconds of drift is the same session")
+        // A near-simultaneous start is not enough on its own: a 100-second strap bout at the head of a
+        // 49-minute Health session shares only 40 of its own 100 seconds with it.
+        let crumb = row(start: 50_000, end: 50_100, sport: "Walking", source: "whoop")
+        let long = row(start: 50_060, end: 53_000, sport: "Running", source: "apple-health")
+        XCTAssertFalse(WorkoutSource.crossSportSameSession(crumb, long),
+                       "needs more than half of the shorter session to overlap")
+        XCTAssertEqual(WorkoutSource.dedupCrossSource([crumb, long]).count, 2)
+    }
+
+    /// A day of ordinary walks, each from both sources under both spellings, collapses to one row per
+    /// walk and never folds two walks into one — the sweep is start-ordered and bounded by the tolerance,
+    /// so a long history cannot merge across neighbours.
+    func testAListOfBackToBackWalksKeepsOneRowPerWalk() {
+        var rows: [WorkoutRow] = []
+        for i in 0..<40 {
+            let start = 100_000 + i * 3_600
+            rows.append(row(start: start, end: start + 1_800, sport: "Spazieren", source: "whoop"))
+            rows.append(row(start: start + 5, end: start + 1_805, sport: "Walking", source: "apple-health"))
+        }
+        let kept = WorkoutSource.dedupCrossSource(rows)
+        XCTAssertEqual(kept.count, 40)
+        XCTAssertTrue(kept.allSatisfy { $0.sport == "Spazieren" })
+        XCTAssertEqual(kept.map(\.startTs), (0..<40).map { 100_000 + $0 * 3_600 }, "order and bounds kept")
+    }
+
     // MARK: - cross-source dedup (#687)
 
     private func richRow(start: Int, end: Int, sport: String, source: String) -> WorkoutRow {

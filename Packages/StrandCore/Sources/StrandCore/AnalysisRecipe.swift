@@ -253,7 +253,15 @@ public enum AnalysisRecipe {
     // testing build of 2026-11-14 (`7b8d2d928`) carries it, which supersedes the clause above. The
     // `.workoutHeartRate` step runs the pass over the whole history, so every session already recorded or
     // imported gets its fill; no stored input is rewritten.
-    public static let currentVersion = 36
+    // AI-37 (2026-11-21, fork) collapses the session another app copied back into the phone's health
+    // store under a different sport name into NOOP's own row (`WorkoutSource.crossSportSameSession`,
+    // Refs #2929). The dedup the Workouts list reads is the same one the energy model prices the day
+    // from (`EnergyModelRefresh.workoutIntervals`), so a day that carried both rows was priced from
+    // whichever sport came first in the list — an imported "Walking" beside the strap's own "Spazieren"
+    // for one walk, 636 such pairs in the owner's history. Its own number because AI-36 has shipped: the
+    // testing build of 2026-11-20 (`048b50a38`) carries it. The full rebuild re-derives every day's
+    // energy from the collapsed list; no stored input is rewritten.
+    public static let currentVersion = 37
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy
     /// repairs of older recipes, which fix stored inputs rather than derive anything (`LegacyRepair`).

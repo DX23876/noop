@@ -20,17 +20,18 @@ final class AnalysisRecipeTests: XCTestCase {
     }
 
     /// The tests above are written against `current`, so they stay green through a bump without ever
-    /// witnessing one. This one names AI-36 (the sessions recorded in Training get their heart rate and
-    /// Effort, #51) and requires every older stored recipe, AI-35 included, to request that migration.
+    /// witnessing one. This one names AI-37 (one session copied back into the phone's health store under
+    /// another sport name is one row, so the day's energy is priced from one interval, Refs #2929) and
+    /// requires every older stored recipe, AI-36 included, to request that migration.
     ///
     /// It is deliberately a LITERAL pin. A future bump is supposed to make this line fail, because that
     /// failure is the prompt to answer "Analysis migration required: yes/no" for whatever the bump carries.
-    func testRecipeVersionIsThirtySixAndOlderInstallsMigrateToIt() {
-        XCTAssertEqual(AnalysisRecipe.currentVersion, 36,
+    func testRecipeVersionIsThirtySevenAndOlderInstallsMigrateToIt() {
+        XCTAssertEqual(AnalysisRecipe.currentVersion, 37,
                        "recipe version changed — answer 'Analysis migration required' for what moved")
-        for stored in [0, 8, 11, 15, 19, 20, 28, 29, 30, 31, 32, 33, 34, 35] {
+        for stored in [0, 8, 11, 15, 19, 20, 28, 29, 30, 31, 32, 33, 34, 35, 36] {
             XCTAssertEqual(AnalysisRecipe.decision(storedVersion: stored),
-                           .migrate(from: stored, to: 36))
+                           .migrate(from: stored, to: 37))
         }
     }
 
