@@ -40,13 +40,13 @@ struct FoodNoteCard: View {
                     FoodQualityRing(score: note?.score, size: 88)
                     VStack(alignment: .leading, spacing: 8) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(note?.provisional == true ? String(localized: "Today so far") : String(localized: "Day"))
+                            Text(note?.provisional == true ? String(localized: "Today so far") : String(localized: "This day"))
                                 .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                             Text(note.map { FoodText.noteWord($0.score) } ?? "–")
                                 .font(ForgeFont.cardTitle).foregroundStyle(FoodQualityRing.tint(note?.score))
                         }
                         HStack(spacing: 16) {
-                            small(String(localized: "Week"), week)
+                            small(String(localized: "Last 7 days"), week)
                             small(String(localized: "Month"), month)
                         }
                     }

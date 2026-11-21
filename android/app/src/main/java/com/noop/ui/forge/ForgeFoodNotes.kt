@@ -24,6 +24,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.WineBar
+import androidx.compose.material.icons.rounded.Grain
+import androidx.compose.material.icons.rounded.Opacity
+import androidx.compose.material.icons.rounded.SetMeal
+import androidx.compose.material.icons.rounded.OutdoorGrill
+import androidx.compose.material.icons.rounded.Grass
+import androidx.compose.material.icons.rounded.LocalDrink
+import androidx.compose.material.icons.rounded.RiceBowl
+import androidx.compose.material.icons.rounded.ShoppingBasket
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Eco
@@ -224,6 +233,21 @@ private fun badgeIcon(key: String): ImageVector = when (key) {
     "firstFullWeek" -> Icons.Rounded.CalendarMonth
     "days30", "days100" -> Icons.Rounded.MilitaryTech
     "goodWeek", "goodMonth" -> Icons.Rounded.Star
+    else -> habitIcon(key.removePrefix("habit."))
+}
+
+/** A habit badge's icon, one per part, so the medals can be told apart (iOS `FoodText.habitSymbol`). */
+private fun habitIcon(component: String): ImageVector = when (component) {
+    "vegetables" -> Icons.Rounded.Eco
+    "fruit" -> Icons.Rounded.ShoppingBasket
+    "wholeGrains" -> Icons.Rounded.RiceBowl
+    "sugaryDrinks" -> Icons.Rounded.LocalDrink
+    "nutsLegumes" -> Icons.Rounded.Grass
+    "redMeat" -> Icons.Rounded.OutdoorGrill
+    "fishOmega3" -> Icons.Rounded.SetMeal
+    "polyFats" -> Icons.Rounded.Opacity
+    "sodium" -> Icons.Rounded.Grain
+    "alcohol" -> Icons.Rounded.WineBar
     else -> Icons.Rounded.Eco
 }
 

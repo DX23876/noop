@@ -512,10 +512,10 @@ private fun NewDesignHeader(date: LocalDate, isToday: Boolean, backfilling: Bool
                 style = Forge.type.title2.copy(shadow = sceneShadow), color = Forge.sceneInk.text, maxLines = 1,
                 overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
             )
-            // The coach before the plus, as iOS's `ForgeCoachButton` in Today's header (owner, 2026-11-21).
-            ForgeHeaderCoachButton("today", date.toString())
-            // As iOS's `addMenu`: start (or return to) a workout, add an entry, customise Today behind one plus.
-            TodayHeaderButtons(onProfile, onQuickActions, viewModel = viewModel, onBattery = onBattery) { close ->
+            // As iOS's `addMenu`: start (or return to) a workout, add an entry, customise Today behind one plus. The
+            // coach sits between the strap and the plus, as iOS's `ForgeCoachButton` (owner, 2026-11-21).
+            TodayHeaderButtons(onProfile, onQuickActions, viewModel = viewModel, onBattery = onBattery,
+                               coach = { ForgeHeaderCoachButton("today", date.toString()) }) { close ->
                 ForgeMenuItem(stringResource(if (workoutRunning) R.string.forge_log_back_to_workout else R.string.forge_qa_start_workout),
                               Icons.AutoMirrored.Rounded.DirectionsRun) { close(); onWorkout() }
                 ForgeMenuItem(stringResource(R.string.forge_log_add_entry), Icons.Rounded.EditNote) { close(); onQuickActions() }

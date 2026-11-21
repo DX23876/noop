@@ -55,6 +55,19 @@ struct ForgeFoodView: View {
                         ForgeSearchButton()
                     }
                     .padding(.horizontal, -16)
+                    // The bar's Food data and Add food: a tab hides its bar, so they sit here, as on Android.
+                    HStack(spacing: 4) {
+                        Spacer(minLength: 0)
+                        Button("Food data", systemImage: "gearshape", action: openSettings)
+                            .foregroundStyle(ForgeColor.text)
+                            .frame(width: 44, height: 44)
+                        Button("Add food", systemImage: "plus", action: openAdd)
+                            .foregroundStyle(ForgeColor.accent)
+                            .frame(width: 44, height: 44)
+                    }
+                    .labelStyle(.iconOnly)
+                    .font(.title3.weight(.semibold))
+                    .buttonStyle(.plain)
                 } else {
                     ForgeDetailHeader(overline: FoodDayPicker.title(model.day), title: String(localized: "Nutrition"),
                                       scrolledPast: $scrolledPast)

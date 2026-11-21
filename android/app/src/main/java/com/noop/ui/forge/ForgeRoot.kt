@@ -92,7 +92,7 @@ fun ForgeRoot(viewModel: AppViewModel) {
                     val select = LocalForgeTabSelect.current
                     androidx.activity.compose.BackHandler { select(ForgeTab.Today) }
                     androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.padding(padding)) {
-                        ForgeFoodPage(onBack = { select(ForgeTab.Today) }, asTab = true)
+                        ForgeFoodPage(onBack = { select(ForgeTab.Today) }, asTab = true, viewModel = viewModel)
                     }
                 }
                 // No bar shows the coach as a tab any more (owner, 2026-11-21); selecting it opens the coach sheet.

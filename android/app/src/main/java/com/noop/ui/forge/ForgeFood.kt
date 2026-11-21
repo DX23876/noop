@@ -99,7 +99,8 @@ import kotlin.math.roundToInt
  * a quick calorie entry and, with the coach on, a described meal. Every figure comes from the core.
  */
 @Composable
-internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTab: Boolean = false) {
+internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTab: Boolean = false,
+                           viewModel: com.noop.ui.AppViewModel? = null) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var day by remember { mutableStateOf(LocalDate.now()) }
@@ -420,7 +421,8 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
                 // the coach, search and profile at its end; adding and the food data stay one row below.
                 val openSettings = LocalForgeOpenSettings.current ?: LocalForgeOpenMore.current
                 TabHeader(stringResource(R.string.food_title), onProfile = { openSettings?.invoke() },
-                          onSearch = rememberOpenSearch(), coach = CoachPage("nutrition", day.toString()), subtitle = dayTitle(day))
+                          onSearch = rememberOpenSearch(), coach = CoachPage("nutrition", day.toString()), subtitle = dayTitle(day),
+                          viewModel = viewModel)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { foodButtons() }
             } else {
                 PageTitle(stringResource(R.string.food_title), onBack) { foodButtons() }

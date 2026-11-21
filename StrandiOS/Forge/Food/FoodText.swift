@@ -265,7 +265,24 @@ enum FoodText {
         case .days100: "rosette"
         case .goodWeek: "star.circle.fill"
         case .goodMonth: "star.square.on.square.fill"
-        case .habit: "leaf.circle.fill"
+        case .habit(let component): habitSymbol(component)
+        }
+    }
+
+    /// A habit badge's symbol, one per part, so the medals can be told apart (Android `habitIcon`).
+    static func habitSymbol(_ component: FoodScore.Component) -> String {
+        switch component {
+        case .vegetables: "carrot.fill"
+        case .fruit: "basket.fill"
+        case .wholeGrains: "fork.knife"
+        case .sugaryDrinks: "waterbottle.fill"
+        case .nutsLegumes: "leaf.fill"
+        case .redMeat: "flame.fill"
+        case .fishOmega3: "fish.fill"
+        case .polyFats: "drop.fill"
+        case .sodium: "circle.grid.3x3.fill"
+        case .alcohol: "wineglass.fill"
+        case .fiber: "leaf.circle.fill"
         }
     }
 

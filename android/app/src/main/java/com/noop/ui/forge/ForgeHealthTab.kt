@@ -147,7 +147,7 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
         val openMore = LocalForgeOpenMore.current
         val openSettings = LocalForgeOpenSettings.current ?: openMore
         TabHeader(stringResource(R.string.nav_health), onProfile = { openSettings?.invoke() ?: run { settingsOpen = true } },
-                  coach = CoachPage("health", LocalDate.now().toString()),
+                  coach = CoachPage("health", LocalDate.now().toString()), viewModel = viewModel,
                   onSearch = rememberOpenSearch())
 
         // The tab's answer: how many of last night's vitals sat in the wearer's own range, then each by name.
@@ -357,7 +357,7 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
  */
 @Composable
 internal fun TabHeader(title: String, onProfile: () -> Unit, onSearch: (() -> Unit)? = null, coach: CoachPage? = null,
-                      subtitle: String? = null) {
+                      subtitle: String? = null, viewModel: com.noop.ui.AppViewModel? = null) {
     val locale = Locale.getDefault()
     Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4), verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -371,6 +371,9 @@ internal fun TabHeader(title: String, onProfile: () -> Unit, onSearch: (() -> Un
             },
             style = Forge.type.title2, color = Forge.sceneInk.text, maxLines = 1, modifier = Modifier.weight(1f),
         )
+        // The strap's ring on every tab, as iOS's `ForgeLargeHeader`; it opens what Today's ring opens.
+        val openMore = LocalForgeOpenMore.current
+        if (viewModel != null && openMore != null) TodayHeaderBattery(viewModel, openMore)
         // The coach left of the search, as iOS's `ForgeCoachButton` (owner, 2026-11-21).
         if (coach != null) ForgeHeaderCoachButton(coach.kind, coach.day)
         // The magnifier before the profile, as iOS's `ForgeSearchButton` in each tab's header.

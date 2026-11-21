@@ -84,6 +84,7 @@ enum class QuickAction { Battery, Live, Workout, Journal, Food, Breathe, Goals, 
 @Composable
 internal fun TodayHeaderButtons(onProfile: () -> Unit, onQuickActions: () -> Unit, modifier: Modifier = Modifier,
                                 viewModel: AppViewModel? = null, onBattery: (() -> Unit)? = null,
+                                coach: (@Composable () -> Unit)? = null,
                                 menu: (@Composable ColumnScope.(close: () -> Unit) -> Unit)? = null) {
     val colors = Forge.colors
     val profileLabel = stringResource(R.string.forge_qa_profile_settings)
@@ -91,6 +92,8 @@ internal fun TodayHeaderButtons(onProfile: () -> Unit, onQuickActions: () -> Uni
     var menuOpen by remember { mutableStateOf(false) }
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space3), verticalAlignment = Alignment.CenterVertically) {
         if (viewModel != null && onBattery != null) TodayHeaderBattery(viewModel, onBattery)
+        // The coach after the strap, as iOS's header orders them.
+        coach?.invoke()
         Box {
             Box(Modifier.size(HEADER_BUTTON).background(colors.heroFill, CircleShape).border(1.dp, colors.heroBorder, CircleShape)
                     .clickable(role = Role.Button) { if (menu != null) menuOpen = true else onQuickActions() }
@@ -120,7 +123,7 @@ internal fun TodayHeaderButtons(onProfile: () -> Unit, onQuickActions: () -> Uni
  * not shown: `Disconnected` wins over a stale number, as iOS's `offline` does.
  */
 @Composable
-private fun TodayHeaderBattery(viewModel: AppViewModel, onBattery: () -> Unit) {
+internal fun TodayHeaderBattery(viewModel: AppViewModel, onBattery: () -> Unit) {
     val colors = Forge.colors
     val live by viewModel.live.collectAsState()
     val name by viewModel.activeDeviceName.collectAsState()
