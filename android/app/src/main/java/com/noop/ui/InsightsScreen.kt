@@ -421,10 +421,11 @@ fun InsightsScreen(vm: AppViewModel, onOpenInsightsHub: () -> Unit = {}) {
             val candidates = experimentCandidates(behaviours, importedQuestions, hiddenQuestions, experimentBehaviour)
             val expOutcome = Outcome.entries.firstOrNull { it.outcomeName == experimentOutcomeName } ?: Outcome.Recovery
             val resolvedBehaviour = resolveExperimentBehaviour(candidates, experimentBehaviour)
-            val snapshot = remember(model, behaviours, experimentStartedDay, experimentOutcomeName, experimentDurationDays, experimentBaselineDays, experimentSeq) {
+            val snapshot = remember(model, behaviours, controls, experimentStartedDay, experimentOutcomeName, experimentDurationDays, experimentBaselineDays, experimentSeq) {
                 buildExperimentSnapshot(
                     model = model,
                     behaviours = behaviours,
+                    controls = controls,
                     startedDay = experimentStartedDay,
                     outcome = expOutcome,
                     behaviour = resolvedBehaviour,
@@ -1312,9 +1313,46 @@ private fun resolveExperimentBehaviour(candidates: List<String>, saved: String):
     return candidates.firstOrNull()
 }
 
+/** The days each side of a Personal Experiment is read over. */
+internal data class ExperimentDaySplit(val baseline: List<String>, val intervention: List<String>)
+
+/**
+ * Which days the experiment card compares, the twin of the core's `PersonalExperiment.snapshot` the
+ * Apple card reads (Refs #2923).
+ *
+ * Baseline = the latest EXPLICIT NO days BEFORE the start, the same control set Behaviour Effects reads
+ * (`EffectRanker`). A day the wearer never answered enters NEITHER side: silence is not evidence that
+ * the behaviour was absent. Taking every day that was not a logged YES padded the baseline with
+ * unanswered days, let the confidence label be reached without a single NO day, and made this card
+ * disagree with Behaviour Effects about one behaviour on one screen.
+ *
+ * Intervention = the first `durationDays` outcome days from the start, keeping the logged ones.
+ * `internal` so the parity test can assert it against the numbers the Swift suite pins.
+ */
+internal fun experimentDaySplit(
+    outcomeDays: Set<String>,
+    loggedDays: Set<String>,
+    controlDays: Set<String>,
+    startedDay: String,
+    today: String,
+    durationDays: Int,
+    baselineDays: Int,
+): ExperimentDaySplit = ExperimentDaySplit(
+    baseline = outcomeDays
+        .filter { it < startedDay && it in controlDays && it !in loggedDays }
+        .sorted()
+        .takeLast(baselineDays.coerceAtLeast(1)),
+    intervention = outcomeDays
+        .filter { it >= startedDay && it <= today }
+        .sorted()
+        .take(durationDays.coerceAtLeast(1))
+        .filter { it in loggedDays },
+)
+
 private fun buildExperimentSnapshot(
     model: InsightModel,
     behaviours: Map<String, Set<String>>,
+    controls: Map<String, Set<String>>,
     startedDay: String,
     outcome: Outcome,
     behaviour: String?,
@@ -1327,21 +1365,19 @@ private fun buildExperimentSnapshot(
     val duration = durationDays.coerceAtLeast(1)
     val outcomeDays = model.outcomeByDay[outcome] ?: emptyMap()
     val loggedDays = behaviours[behaviour] ?: emptySet()
+    val controlDays = controls[behaviour] ?: emptySet()
 
-    // Baseline = behaviour-ABSENT days BEFORE the start (with/without model, matching
-    // Behaviour Effects). Restricting to absent days is triage fix (c): "Baseline" vs
-    // "Intervention" is an honest present-vs-absent contrast, not a raw pre/post window.
-    val baselineKeys = outcomeDays.keys
-        .filter { it < startedDay && it !in loggedDays }
-        .sorted()
-        .takeLast(baselineDays.coerceAtLeast(1))
-    // Intervention = the first `duration` outcome days from the start where the
-    // behaviour WAS logged.
-    val interventionWindow = outcomeDays.keys
-        .filter { it >= startedDay && it <= today }
-        .sorted()
-        .take(duration)
-    val interventionKeys = interventionWindow.filter { it in loggedDays }
+    val split = experimentDaySplit(
+        outcomeDays = outcomeDays.keys,
+        loggedDays = loggedDays,
+        controlDays = controlDays,
+        startedDay = startedDay,
+        today = today,
+        durationDays = duration,
+        baselineDays = baselineDays,
+    )
+    val baselineKeys = split.baseline
+    val interventionKeys = split.intervention
 
     val baselineValues = baselineKeys.mapNotNull { outcomeDays[it] }
     val interventionValues = interventionKeys.mapNotNull { outcomeDays[it] }

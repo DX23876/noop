@@ -914,44 +914,37 @@ struct InsightsView: View {
 
         let today = Repository.localDayKey(Date())
         let duration = max(1, experimentDurationDays)
-        let outcomeDays = outcomeByKey[outcome.key] ?? [:]
         let loggedDays = behaviours[behavior] ?? []
 
-        // Baseline = behaviour-ABSENT days BEFORE the start (with/without model, matching
-        // Behaviour Effects). Restricting to absent days is triage fix (c): "Baseline" vs
-        // "Intervention" is now an honest present-vs-absent contrast, not a raw pre/post window.
-        let baselineDays = outcomeDays.keys
-            .filter { $0 < experimentStartedDay && !loggedDays.contains($0) }
-            .sorted()
-            .suffix(max(1, experimentBaselineDays))
-        // Intervention = the first `duration` outcome days in the window where the behaviour
-        // WAS logged.
-        let interventionWindow = outcomeDays.keys
-            .filter { $0 >= experimentStartedDay && $0 <= today }
-            .sorted()
-            .prefix(duration)
-        let interventionDays = interventionWindow.filter { loggedDays.contains($0) }
-
-        let baselineValues = baselineDays.compactMap { outcomeDays[$0] }
-        let interventionValues = interventionDays.compactMap { outcomeDays[$0] }
-        let daysElapsed = max(1, min(duration, dayDistance(from: experimentStartedDay, to: today) + 1))
-        let complianceFraction = Double(interventionDays.count) / Double(max(daysElapsed, 1))
-        let confidence = experimentConfidence(baselineCount: baselineValues.count,
-                                              interventionCount: interventionValues.count,
-                                              compliance: complianceFraction)
+        // The contrast itself is the core's (`PersonalExperiment`), so the two Insights screens cannot
+        // derive it differently: baseline = the latest EXPLICIT NO days before the start, intervention =
+        // the logged days inside the window. A day the wearer never answered enters neither side; it used
+        // to be counted as a baseline day here, which both padded the baseline with silence and let the
+        // card disagree with Behaviour Effects about the same behaviour on one screen. (Refs #2923)
+        guard let core = PersonalExperiment.snapshot(outcomeByDay: outcomeByKey[outcome.key] ?? [:],
+                                                     loggedDays: loggedDays,
+                                                     controlDays: controls[behavior] ?? [],
+                                                     startedDay: experimentStartedDay,
+                                                     today: today,
+                                                     durationDays: duration,
+                                                     baselineWindowDays: experimentBaselineDays)
+        else { return nil }
+        let confidence = experimentConfidence(baselineCount: core.baselineCount,
+                                              interventionCount: core.interventionCount,
+                                              compliance: core.compliancePct / 100)
 
         return ExperimentSnapshot(
             behavior: behavior,
             outcome: outcome,
             startDay: experimentStartedDay,
             durationDays: duration,
-            daysElapsed: daysElapsed,
-            baselineMean: Self.mean(baselineValues),
-            baselineCount: baselineValues.count,
-            interventionMean: Self.mean(interventionValues),
-            interventionCount: interventionValues.count,
+            daysElapsed: core.daysElapsed,
+            baselineMean: core.baselineMean,
+            baselineCount: core.baselineCount,
+            interventionMean: core.interventionMean,
+            interventionCount: core.interventionCount,
             loggedToday: loggedDays.contains(today),
-            compliance: complianceFraction * 100,
+            compliance: core.compliancePct,
             confidence: confidence
         )
     }
@@ -1036,29 +1029,6 @@ struct InsightsView: View {
         case .rhr:
             return "\(prefix)\(Int(absDelta.rounded())) bpm"
         }
-    }
-
-    private func dayDistance(from start: String, to end: String) -> Int {
-        guard let startDate = Self.dateFromDayKey(start),
-              let endDate = Self.dateFromDayKey(end)
-        else { return 0 }
-        return Calendar.current.dateComponents([.day], from: startDate, to: endDate).day ?? 0
-    }
-
-    private static func dateFromDayKey(_ key: String) -> Date? {
-        let parts = key.split(separator: "-").compactMap { Int($0) }
-        guard parts.count == 3 else { return nil }
-        var components = DateComponents()
-        components.calendar = Calendar(identifier: .gregorian)
-        components.year = parts[0]
-        components.month = parts[1]
-        components.day = parts[2]
-        return components.date
-    }
-
-    private static func mean(_ values: [Double]) -> Double? {
-        guard !values.isEmpty else { return nil }
-        return values.reduce(0, +) / Double(values.count)
     }
 
     /// The namespaced outcome key a numeric journal item's series is folded under (#322). Prefixed so
