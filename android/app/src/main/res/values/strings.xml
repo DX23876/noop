@@ -5826,6 +5826,12 @@
     <string name="forge_se_recomputing">Recomputing…</string>
     <string name="forge_se_import_note">If this sleep came only from an import and no raw samples are stored, it may not reappear.</string>
     <string name="forge_se_delete_nap">Delete nap</string>
+    <string name="forge_se_delete_q">Delete this sleep session?</string>
+    <string name="forge_se_delete_msg_suppress">Removes this recorded sleep and recomputes the day without it. NOOP won\'t look for sleep in this window again. You can undo for a few seconds after.</string>
+    <string name="forge_se_delete_msg">Removes this sleep and recomputes the day without it. You can undo for a few seconds after.</string>
+    <string name="forge_se_delete_confirm">Delete</string>
+    <string name="forge_se_delete_nap_q">Delete this nap?</string>
+    <string name="forge_se_delete_nap_msg">It no longer counts toward the day\'s sleep, and the next analysis leaves it out.</string>
     <string name="forge_hv_edit">Edit</string>
     <string name="forge_hv_edit_vitals">Edit Vitals</string>
     <string name="forge_hv_done">Done</string>

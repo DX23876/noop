@@ -5729,6 +5729,12 @@
     <string name="forge_se_recomputing">Ricalcolo…</string>
     <string name="forge_se_import_note">Se questo sonno proveniva solo da un\'importazione e non ci sono campioni grezzi salvati, potrebbe non ricomparire.</string>
     <string name="forge_se_delete_nap">Elimina pisolino</string>
+    <string name="forge_se_delete_q">Eliminare questo sonno?</string>
+    <string name="forge_se_delete_msg_suppress">Rimuove questo sonno registrato e ricalcola la giornata senza di esso. NOOP non cercherà più il sonno in questo intervallo. Puoi annullare per qualche secondo.</string>
+    <string name="forge_se_delete_msg">Rimuove questo sonno e ricalcola la giornata senza di esso. Puoi annullare per qualche secondo.</string>
+    <string name="forge_se_delete_confirm">Elimina</string>
+    <string name="forge_se_delete_nap_q">Eliminare questo pisolino?</string>
+    <string name="forge_se_delete_nap_msg">Non conta più nel sonno della giornata e la prossima analisi lo esclude.</string>
     <string name="forge_hv_edit">Modifica</string>
     <string name="forge_hv_edit_vitals">Modifica parametri vitali</string>
     <string name="forge_hv_done">Fatto</string>

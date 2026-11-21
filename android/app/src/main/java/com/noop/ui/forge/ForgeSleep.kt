@@ -156,6 +156,10 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
     }
     var customizing by remember { mutableStateOf(false) }
     var alarms by remember { mutableStateOf(false) }
+    // The undo offer and the last refusal, held HERE rather than on a night's page: deleting a night takes
+    // its page out of the pager, and with it any state that lived there, so the strip that offers to put
+    // the night back was never shown at all.
+    val changes = remember { SleepChangeHost() }
     // The night whose times the shipped page is correcting; the new design keeps its own.
     var shippedEditing by remember { mutableStateOf<CoreRead.Night?>(null) }
     // The retired layout's own editing state. The scope is the SCREEN's, never the dialog's block: saving
@@ -302,6 +306,7 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
         }
         if (ForgeDesign.preview) {
             NewDesignSleep(viewModel, night, i == nights.lastIndex, wakeDay, zone, model?.days.orEmpty(), tiles, traits, need,
+                           changes = changes,
                            onAlarms = { alarms = true }, bodyClock = v5?.bodyClock,
                            // An add refused for lying on top of a stored sleep offers THAT sleep. Only this
                            // level knows how the nights are paged, so it moves to the one holding the onset.
@@ -517,6 +522,27 @@ private fun DayNaps(night: CoreRead.Night, wakeDay: java.time.LocalDate, zone: Z
     }
     if (naps.isEmpty()) return
     val clockFormat = rememberClockFormatter()
+    // The nap this screen is asking about, as iOS's "Delete this nap?" confirmation.
+    var confirming by remember { mutableStateOf<CoreRead.Nap?>(null) }
+    confirming?.let { nap ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirming = null },
+            title = { Text(stringResource(R.string.forge_se_delete_nap_q), style = Forge.type.headline,
+                           color = Forge.colors.text) },
+            text = { Text(stringResource(R.string.forge_se_delete_nap_msg), style = Forge.type.body,
+                          color = Forge.colors.textSecondary) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { confirming = null; onDelete?.invoke(nap) }) {
+                    Text(stringResource(R.string.forge_se_delete_nap),
+                         color = ForgeTokens.Color.systemRed.resolve())
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { confirming = null }) {
+                    Text(stringResource(R.string.forge_se_cancel))
+                }
+            })
+    }
     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
         Text(stringResource(R.string.forge_sleep_naps), style = Forge.type.headline, color = Forge.colors.text,
              modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
@@ -534,10 +560,11 @@ private fun DayNaps(night: CoreRead.Night, wakeDay: java.time.LocalDate, zone: Z
                         Text(TodayTimeline.hoursMinutes(nap.asleepMinutes), style = Forge.type.caption,
                              color = Forge.colors.textSecondary)
                     }
-                    // A wrongly detected nap goes with the shared editor's delete and its undo (iOS `napRow`).
+                    // A wrongly detected nap goes with the shared editor's delete and its undo (iOS `napRow`),
+                    // and, as there, only after it has been asked for: one tap on a bin recomputes the day.
                     if (onDelete != null) {
                         Spacer(Modifier.weight(1f))
-                        IconButton(onClick = { onDelete(nap) }) {
+                        IconButton(onClick = { confirming = nap }) {
                             Icon(androidx.compose.material.icons.Icons.Rounded.Delete, stringResource(R.string.forge_se_delete_nap),
                                  tint = Forge.colors.textSecondary)
                         }
@@ -803,6 +830,7 @@ internal suspend fun nightSteadiness(viewModel: com.noop.ui.AppViewModel, night:
 private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.Night?, isLatest: Boolean,
                            wakeDay: java.time.LocalDate?, zone: ZoneId, days: List<com.noop.data.DailyMetric>,
                            tiles: com.noop.ui.SleepModel?, traits: com.noop.analytics.RestTraitLookup, need: Double,
+                           changes: SleepChangeHost,
                            onAlarms: () -> Unit, bodyClock: com.noop.analytics.CircadianEngine.PhaseEstimate?,
                            onShowNightAt: (Long) -> Unit) {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
@@ -811,27 +839,22 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
     var adding by remember { mutableStateOf<Pair<Long, Long>?>(null) }
     val context = androidx.compose.ui.platform.LocalContext.current
     val experiment = remember(context) { com.noop.ble.PuffinExperiment.from(context) }
-    // What the undo strip is offering, or nothing. The rows themselves are held by the core under the
-    // token; the markers are lifted here, where they are kept.
-    var undo by remember { mutableStateOf<SleepUndoOffer?>(null) }
-    // Why the last correction or deletion did not happen, in the wearer's words; null while nothing has.
-    var problem by remember { mutableStateOf<String?>(null) }
     // "Add entry, Sleep" lands here and opens the dialog, instead of opening the tab and stopping.
     LaunchedEffect(Unit) {
         if (SleepArrival.consume()) adding = seedForAdd(night != null)
     }
     SleepTonightCard(viewModel, need, onAlarms)
-    undo?.let { held ->
+    changes.undo?.let { held ->
         SleepUndoStrip(held, onUndo = {
-            undo = null
+            changes.undo = null
             scope.launch {
                 // A failed undo is not a quiet one: the rows the core was holding can be gone (it keeps
                 // one retirement, and only until the process does), and the night then stays deleted.
                 if (!viewModel.undoSleepRetirement(held.token, held.retired)) {
-                    problem = context.getString(R.string.forge_sl_undo_failed)
+                    changes.problem = context.getString(R.string.forge_sl_undo_failed)
                 }
             }
-        }, onExpire = { undo = null })
+        }, onExpire = { changes.undo = null })
     }
     editing?.let { n ->
         // Both writes go through the core on the night's OWN blocks, and both say what came of it. A
@@ -839,26 +862,18 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
         // nights NOOP computes itself lost every one he made (2026-11-21).
         SleepEditDialog(n, onSave = { start, end ->
             editing = null
-            scope.launch {
-                val change = applySleepEdit(viewModel, context, n, start, end, experiment)
-                problem = change.message
-                change.undo?.let { undo = it }
-            }
+            scope.launch { changes.accept(applySleepEdit(viewModel, context, n, start, end, experiment)) }
         }, onDelete = {
             editing = null
-            scope.launch {
-                val change = applySleepDelete(viewModel, context, n)
-                problem = change.message
-                change.undo?.let { undo = it }
-            }
+            scope.launch { changes.accept(applySleepDelete(viewModel, context, n)) }
         }, onDismiss = { editing = null })
     }
-    problem?.let { text ->
+    changes.problem?.let { text ->
         androidx.compose.material3.AlertDialog(
-            onDismissRequest = { problem = null },
+            onDismissRequest = { changes.problem = null },
             text = { Text(text, style = Forge.type.body, color = Forge.colors.text) },
             confirmButton = {
-                androidx.compose.material3.TextButton(onClick = { problem = null }) {
+                androidx.compose.material3.TextButton(onClick = { changes.problem = null }) {
                     Text(stringResource(android.R.string.ok))
                 }
             })
@@ -891,12 +906,10 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
             val block = nap.block
             scope.launch {
                 if (block == null) {
-                    problem = context.getString(R.string.forge_sl_edit_failed_missing)
+                    changes.problem = context.getString(R.string.forge_sl_edit_failed_missing)
                     return@launch
                 }
-                val change = applyNapDelete(viewModel, context, nap, block)
-                problem = change.message
-                change.undo?.let { undo = it }
+                changes.accept(applyNapDelete(viewModel, context, nap, block))
             }
         })
         if (hasStageMinutes(night)) {

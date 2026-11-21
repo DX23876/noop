@@ -5722,6 +5722,12 @@
     <string name="forge_se_recomputing">正在重新计算…</string>
     <string name="forge_se_import_note">如果这段睡眠仅仅来源于外部导入，且手机内没有留存原始心率样本，它被删除后可能就无法恢复了。</string>
     <string name="forge_se_delete_nap">删除小睡</string>
+    <string name="forge_se_delete_q">删除这段睡眠？</string>
+    <string name="forge_se_delete_msg_suppress">移除这段记录的睡眠并重新计算当天。NOOP 不会再在这个时间段内寻找睡眠。几秒内可以撤销。</string>
+    <string name="forge_se_delete_msg">移除这段睡眠并重新计算当天。几秒内可以撤销。</string>
+    <string name="forge_se_delete_confirm">删除</string>
+    <string name="forge_se_delete_nap_q">删除这次小睡？</string>
+    <string name="forge_se_delete_nap_msg">它不再计入当天的睡眠，下次分析也会跳过它。</string>
     <string name="forge_hv_edit">编辑</string>
     <string name="forge_hv_edit_vitals">编辑生命体征</string>
     <string name="forge_hv_done">完成</string>

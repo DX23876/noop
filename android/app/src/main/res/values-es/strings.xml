@@ -5762,6 +5762,12 @@
     <string name="forge_se_recomputing">Recalculando…</string>
     <string name="forge_se_import_note">Si este sueño procede únicamente de una importación y no hay muestras sin procesar guardadas, es posible que no vuelva a aparecer.</string>
     <string name="forge_se_delete_nap">Eliminar siesta</string>
+    <string name="forge_se_delete_q">¿Eliminar este sueño?</string>
+    <string name="forge_se_delete_msg_suppress">Elimina este sueño registrado y recalcula el día sin él. NOOP no volverá a buscar sueño en este intervalo. Puedes deshacerlo durante unos segundos.</string>
+    <string name="forge_se_delete_msg">Elimina este sueño y recalcula el día sin él. Puedes deshacerlo durante unos segundos.</string>
+    <string name="forge_se_delete_confirm">Eliminar</string>
+    <string name="forge_se_delete_nap_q">¿Eliminar esta siesta?</string>
+    <string name="forge_se_delete_nap_msg">Deja de contar para el sueño del día y el próximo análisis la omite.</string>
     <string name="forge_hv_edit">Editar</string>
     <string name="forge_hv_edit_vitals">Editar constantes vitales</string>
     <string name="forge_hv_done">Listo</string>

@@ -5778,6 +5778,12 @@
     <string name="forge_se_recomputing">Wird neu berechnet…</string>
     <string name="forge_se_import_note">Wenn dieser Schlaf nur aus einem Import stammt und keine Rohdaten gespeichert sind, wird er möglicherweise nicht wieder angezeigt.</string>
     <string name="forge_se_delete_nap">Nickerchen löschen</string>
+    <string name="forge_se_delete_q">Diesen Schlaf löschen?</string>
+    <string name="forge_se_delete_msg_suppress">Entfernt diesen aufgezeichneten Schlaf und rechnet den Tag ohne ihn neu. NOOP sucht in diesem Zeitraum nicht wieder nach Schlaf. Ein paar Sekunden lang lässt es sich zurücknehmen.</string>
+    <string name="forge_se_delete_msg">Entfernt diesen Schlaf und rechnet den Tag ohne ihn neu. Ein paar Sekunden lang lässt es sich zurücknehmen.</string>
+    <string name="forge_se_delete_confirm">Löschen</string>
+    <string name="forge_se_delete_nap_q">Dieses Nickerchen löschen?</string>
+    <string name="forge_se_delete_nap_msg">Es zählt nicht mehr zum Schlaf des Tages, und die nächste Auswertung lässt es aus.</string>
     <string name="forge_hv_edit">Bearbeiten</string>
     <string name="forge_hv_edit_vitals">Vitalwerte bearbeiten</string>
     <string name="forge_hv_done">Fertig</string>

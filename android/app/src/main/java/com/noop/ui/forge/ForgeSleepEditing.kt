@@ -81,6 +81,23 @@ internal data class SleepUndoOffer(
     val endTs: Long,
 )
 
+/**
+ * The undo offer and the last refusal, held ABOVE the night pages.
+ *
+ * Deleting a night takes its page out of the pager, and state that lives on the page goes with it: the
+ * strip was offered to nobody, every time. It promises an undo, so it has to outlive the thing it undoes.
+ */
+internal class SleepChangeHost {
+    var undo by mutableStateOf<SleepUndoOffer?>(null)
+    var problem by mutableStateOf<String?>(null)
+
+    /** Take what one change left behind: the sentence, if any, and the offer, if any. */
+    fun accept(change: SleepChange) {
+        problem = change.message
+        change.undo?.let { undo = it }
+    }
+}
+
 /** Correct the times of [night], on the blocks the night itself names. */
 internal suspend fun applySleepEdit(viewModel: AppViewModel, context: android.content.Context,
                                     night: CoreRead.Night, newStartTs: Long, newEndTs: Long,
@@ -141,6 +158,32 @@ internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long) -> Unit
     val is24 = android.text.format.DateFormat.is24HourFormat(androidx.compose.ui.platform.LocalContext.current)
     val bed = rememberTimePickerState(start.hour, start.minute, is24)
     val wake = rememberTimePickerState(end.hour, end.minute, is24)
+    // Deleting a night is one tap away from a correction, it recomputes the day, and on a detected night
+    // it also writes a marker that keeps the night from coming back. iOS has asked first since the editor
+    // shipped; this is that question, with the same two answers.
+    var confirmingDelete by remember { mutableStateOf(false) }
+    if (confirmingDelete) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmingDelete = false },
+            title = { Text(stringResource(R.string.forge_se_delete_q), style = Forge.type.headline,
+                           color = colors.text) },
+            // A detected night is suppressed so the next pass cannot find it again; a hand-corrected or
+            // hand-added one writes no marker, so its copy must not promise that (iOS `SleepTimeEditor`).
+            text = { Text(stringResource(if (night.edited) R.string.forge_se_delete_msg
+                                         else R.string.forge_se_delete_msg_suppress),
+                          style = Forge.type.body, color = colors.textSecondary) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { confirmingDelete = false; onDelete() }) {
+                    Text(stringResource(R.string.forge_se_delete_confirm),
+                         color = ForgeTokens.Color.systemRed.resolve())
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { confirmingDelete = false }) {
+                    Text(stringResource(R.string.forge_se_cancel))
+                }
+            })
+    }
     val pickerColors = TimePickerDefaults.colors(
         timeSelectorSelectedContainerColor = colors.rest.copy(alpha = 0.18f), timeSelectorSelectedContentColor = colors.rest,
         timeSelectorUnselectedContainerColor = colors.inset, timeSelectorUnselectedContentColor = colors.text,
@@ -156,7 +199,7 @@ internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long) -> Unit
             TimeInput(wake, colors = pickerColors)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.forge_se_delete), style = Forge.type.subhead, color = ForgeTokens.Color.systemRed.resolve(),
-                     modifier = Modifier.clickable(role = Role.Button, onClick = onDelete).padding(vertical = 8.dp))
+                     modifier = Modifier.clickable(role = Role.Button) { confirmingDelete = true }.padding(vertical = 8.dp))
                 Spacer(Modifier.weight(1f))
                 Text(stringResource(R.string.forge_se_cancel), style = Forge.type.subhead, color = colors.textSecondary,
                      modifier = Modifier.clickable(role = Role.Button, onClick = onDismiss).padding(8.dp))

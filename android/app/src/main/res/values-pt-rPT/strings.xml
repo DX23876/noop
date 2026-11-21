@@ -5754,6 +5754,12 @@
     <string name="forge_se_recomputing">A recalcular…</string>
     <string name="forge_se_import_note">Se este sono veio apenas de uma importação e não houver amostras brutas guardadas, poderá não voltar a aparecer.</string>
     <string name="forge_se_delete_nap">Eliminar sesta</string>
+    <string name="forge_se_delete_q">Eliminar este sono?</string>
+    <string name="forge_se_delete_msg_suppress">Remove este sono registado e recalcula o dia sem ele. O NOOP não voltará a procurar sono neste intervalo. Pode anular durante alguns segundos.</string>
+    <string name="forge_se_delete_msg">Remove este sono e recalcula o dia sem ele. Pode anular durante alguns segundos.</string>
+    <string name="forge_se_delete_confirm">Eliminar</string>
+    <string name="forge_se_delete_nap_q">Eliminar esta sesta?</string>
+    <string name="forge_se_delete_nap_msg">Deixa de contar para o sono do dia e a próxima análise ignora-a.</string>
     <string name="forge_hv_edit">Editar</string>
     <string name="forge_hv_edit_vitals">Editar sinais vitais</string>
     <string name="forge_hv_done">Concluído</string>

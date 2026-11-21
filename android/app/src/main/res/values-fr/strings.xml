@@ -5758,6 +5758,12 @@
     <string name="forge_se_recomputing">Recalcul en cours…</string>
     <string name="forge_se_import_note">Si ce sommeil provient uniquement d’un import et qu’aucun échantillon brut n’est enregistré, il peut ne pas réapparaître.</string>
     <string name="forge_se_delete_nap">Supprimer la sieste</string>
+    <string name="forge_se_delete_q">Supprimer ce sommeil ?</string>
+    <string name="forge_se_delete_msg_suppress">Supprime ce sommeil enregistré et recalcule la journée sans lui. NOOP ne cherchera plus de sommeil dans cet intervalle. Vous pouvez annuler pendant quelques secondes.</string>
+    <string name="forge_se_delete_msg">Supprime ce sommeil et recalcule la journée sans lui. Vous pouvez annuler pendant quelques secondes.</string>
+    <string name="forge_se_delete_confirm">Supprimer</string>
+    <string name="forge_se_delete_nap_q">Supprimer cette sieste ?</string>
+    <string name="forge_se_delete_nap_msg">Elle ne compte plus dans le sommeil de la journée et la prochaine analyse l\'ignore.</string>
     <string name="forge_hv_edit">Modifier</string>
     <string name="forge_hv_edit_vitals">Modifier les signes vitaux</string>
     <string name="forge_hv_done">Terminé</string>

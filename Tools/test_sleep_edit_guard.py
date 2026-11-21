@@ -104,14 +104,36 @@ class SleepEditGuardTest(unittest.TestCase):
         self.assertIn("forge_se_deleted_suppressed", body)
         self.assertIn("onExpire", body, "the offer outlives nothing, so neither may the strip")
 
+    def test_deleting_is_asked_for_first(self):
+        # One tap on a red word recomputed the day and, on a detected night, wrote a marker that keeps it
+        # from coming back. iOS has asked first since its editor shipped; Android did not ask at all.
+        editor = self.editing.split("internal fun SleepEditDialog", 1)[1]
+        self.assertIn("confirmingDelete = true", editor,
+                      "the red word opens the question, it does not do the deleting")
+        self.assertIn("forge_se_delete_q", editor)
+        # And the question's copy may not promise suppression for a night that writes no marker.
+        self.assertIn("night.edited", editor)
+        self.assertIn("forge_se_delete_msg_suppress", editor)
+        self.assertIn("forge_se_delete_nap_q", self.screen, "a nap is asked for too")
+
+    def test_the_undo_offer_outlives_the_night_s_page(self):
+        # Deleting a night takes its page out of the pager. While the offer lived on that page it was
+        # shown to nobody, which made the question's "you can undo" a promise nothing kept.
+        self.assertIn("class SleepChangeHost", self.editing)
+        self.assertIn("val changes = remember { SleepChangeHost() }", self.screen)
+        self.assertIn("changes.undo?.let", self.screen)
+
     def test_a_refusal_reaches_the_wearer(self):
         # Every outcome maps to a sentence, and the mapping is exhaustive by its `else`.
         mapping = self.editing.split("fun sleepChangeMessage", 1)[1].split("\n}", 1)[0]
         for outcome in ("INVALID_WINDOW", "NO_OVERLAP", "WRITE_FAILED"):
             self.assertIn(outcome, mapping)
         self.assertIn("else ->", mapping)
-        # And the screen actually shows it rather than dropping the message on the floor.
-        self.assertIn("problem = change.message", self.screen)
+        # And the screen actually shows it rather than dropping the message on the floor: one place takes
+        # what a change left behind, so neither half can be forgotten at a call site.
+        self.assertIn("problem = change.message", self.editing)
+        self.assertIn("changes.accept(", self.screen)
+        self.assertIn("changes.problem?.let", self.screen)
         self.assertIn("forge_sl_edit_partial", self.editing,
                       "a night only partly removed must say so, not report a whole deletion")
 
