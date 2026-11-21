@@ -5791,6 +5791,9 @@
     <string name="forge_se_move_q">Przenieść ten sen?</string>
     <string name="forge_se_move_msg">To przeniesie noc w przedział bez zapisanych danych. Faz nie da się tam wyznaczyć, więc może pozostać pusta, dopóki dane jej nie obejmą.</string>
     <string name="forge_se_move_confirm">Przenieś mimo to</string>
+    <string name="forge_se_invalid_order">Pobudka musi nastąpić po pójściu spać. Sprawdź datę po obu stronach.</string>
+    <string name="forge_se_invalid_span">Te godziny obejmują ponad 24 godziny. Sprawdź datę po obu stronach — noc przekraczająca północ kończy się NASTĘPNEGO dnia.</string>
+    <string name="forge_se_invalid_future">Sen nie może kończyć się w przyszłości.</string>
     <string name="forge_hv_edit">Redagować</string>
     <string name="forge_hv_edit_vitals">Edytuj parametry życiowe</string>
     <string name="forge_hv_done">Gotowe</string>

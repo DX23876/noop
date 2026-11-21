@@ -405,6 +405,9 @@ final class AppModel: ObservableObject {
         // Each emitter re-checks `TestCentre.active(.workouts)` before building a line, so these wirings are
         // inert (one UserDefaults bool read) when the mode is off. `live` is captured strongly, as above.
         self.repo.workoutsLog = { [live] line in live.append(log: line, domain: .workouts) }
+        // Untagged: a sleep correction is rare-event evidence, not a test mode's trace, so it is in the
+        // log whether or not the Test Centre is on — as on Android.
+        self.repo.sleepEditLog = { [live] line in live.append(log: line, domain: nil) }
         self.gpsRecorder.workoutsLog = { [live] line in live.append(log: line, domain: .workouts) }
         // #961: give the read model the user's HRmax + sex so it can backfill a strap-native workout's
         // Effort on display when the stored value is nil (a live/manual session that ended with sparse HR).

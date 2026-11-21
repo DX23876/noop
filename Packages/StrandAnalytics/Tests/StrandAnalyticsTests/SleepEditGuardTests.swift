@@ -20,6 +20,24 @@ final class SleepEditGuardTests: XCTestCase {
 
     // MARK: - Rule 1: cross-midnight bed auto-correct
 
+    /// Why BOTH editors stand this rule down once a day was chosen by hand (2026-11-21). It judges a
+    /// candidate against the night's RECORDED wake, so on a night the wearer has moved to a later day an
+    /// ordinary nudge of the bed time still satisfies rule 1a, and the answer is a bed one day earlier
+    /// than the date they just picked. The rule is right for what it was written for; it simply cannot
+    /// see a deliberate move, so the screens that CAN see one keep it out of the way.
+    /// Kotlin twin: `aNightMovedToAnotherDayIsStillPulledBackByRuleOneA`.
+    func testMovedNightIsStillPulledBackByRuleOneA() {
+        // Recorded 15 Nov 23:00 -> 16 Nov 07:19; the wearer moved the bed to the 16th, then nudged it.
+        let recordedWake = date(2026, 11, 16, 7, 19)
+        let previous = date(2026, 11, 16, 23, 0)
+        let candidate = date(2026, 11, 16, 22, 45)
+        let corrected = SleepEditGuard.autoCorrectedBed(
+            previousBed: previous, candidateBed: candidate, originalWake: recordedWake,
+            now: date(2026, 11, 21, 12, 0), calendar: cal)
+        XCTAssertEqual(corrected, date(2026, 11, 15, 22, 45),
+                       "the rule answers with the day before, which is not what the wearer set")
+    }
+
     /// THE #940 SHAPE: night tracked late (bed 01:06, wake 05:00 on 2 Jul), user rolls the bed TIME
     /// back to 23:00 at 05:03 the same morning. The picker kept the date on 2 Jul, so the candidate
     /// is tonight (future, and past the wake). The guard snaps it to 1 Jul 23:00: the evening the

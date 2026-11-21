@@ -5763,6 +5763,9 @@
     <string name="forge_se_move_q">Mover este sono?</string>
     <string name="forge_se_move_msg">Isto move a noite para um intervalo sem dados registados. Aí não é possível derivar as fases, por isso pode ficar vazia até haver dados.</string>
     <string name="forge_se_move_confirm">Mover mesmo assim</string>
+    <string name="forge_se_invalid_order">A hora de acordar tem de ser depois da hora de deitar. Verifique a data em ambas.</string>
+    <string name="forge_se_invalid_span">Estas horas abrangem mais de 24 horas. Verifique a data em ambas — uma noite que passa a meia-noite termina no dia SEGUINTE.</string>
+    <string name="forge_se_invalid_future">Um sono não pode terminar no futuro.</string>
     <string name="forge_hv_edit">Editar</string>
     <string name="forge_hv_edit_vitals">Editar sinais vitais</string>
     <string name="forge_hv_done">Concluído</string>

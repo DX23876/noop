@@ -5750,6 +5750,9 @@
     <string name="forge_se_move_q">Перенести этот сон?</string>
     <string name="forge_se_move_msg">Ночь переедет в промежуток без записанных данных. Фазы там вывести не из чего, поэтому она может остаться пустой, пока данные её не покроют.</string>
     <string name="forge_se_move_confirm">Всё равно перенести</string>
+    <string name="forge_se_invalid_order">Пробуждение должно быть позже отхода ко сну. Проверьте дату с обеих сторон.</string>
+    <string name="forge_se_invalid_span">Эти времена охватывают более 24 часов. Проверьте дату с обеих сторон: ночь, переходящая через полночь, заканчивается на СЛЕДУЮЩИЙ день.</string>
+    <string name="forge_se_invalid_future">Сон не может заканчиваться в будущем.</string>
     <string name="forge_hv_edit">Изменить</string>
     <string name="forge_hv_edit_vitals">Изменить показатели</string>
     <string name="forge_hv_done">Готово</string>

@@ -90102,7 +90102,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "睡眠不能延后。"
+            "value" : "睡眠不能结束于未来。"
           }
         },
         "zh-Hant" : {
@@ -515136,7 +515136,7 @@
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Эти времена охватывают более 24 часов. Проверьте дату на обоих устройствах — ночь, которая пересекает время перехода на следующий день, заканчивается на следующий день."
+            "value" : "Эти времена охватывают более 24 часов. Проверьте дату с обеих сторон: ночь, переходящая через полночь, заканчивается на СЛЕДУЮЩИЙ день."
           }
         },
         "zh-Hans" : {
@@ -551046,7 +551046,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O horário de sono deve ocorrer após o horário de dormir. Verifique a data em ambos."
+            "value" : "A hora de acordar tem de ser depois da hora de deitar. Verifique a data em ambas."
           }
         },
         "ru" : {

@@ -5767,6 +5767,9 @@
     <string name="forge_se_move_q">Déplacer ce sommeil ?</string>
     <string name="forge_se_move_msg">Cela déplace la nuit vers une période sans données enregistrées. Les phases ne peuvent pas y être déduites, elle peut donc rester vide jusqu\'à ce que des données la couvrent.</string>
     <string name="forge_se_move_confirm">Déplacer quand même</string>
+    <string name="forge_se_invalid_order">L\'heure de réveil doit être après l\'heure du coucher. Vérifiez la date des deux.</string>
+    <string name="forge_se_invalid_span">Ces heures couvrent plus de 24 heures. Vérifiez la date des deux — une nuit qui passe minuit se termine le jour SUIVANT.</string>
+    <string name="forge_se_invalid_future">Un sommeil ne peut pas se terminer dans le futur.</string>
     <string name="forge_hv_edit">Modifier</string>
     <string name="forge_hv_edit_vitals">Modifier les signes vitaux</string>
     <string name="forge_hv_done">Terminé</string>

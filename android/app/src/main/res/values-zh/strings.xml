@@ -5731,6 +5731,9 @@
     <string name="forge_se_move_q">移动这段睡眠？</string>
     <string name="forge_se_move_msg">这会把这一晚移到没有记录数据的时间段。那里无法推导睡眠阶段，在数据覆盖之前它可能一直是空的。</string>
     <string name="forge_se_move_confirm">仍然移动</string>
+    <string name="forge_se_invalid_order">起床时间必须晚于入睡时间。请检查两边的日期。</string>
+    <string name="forge_se_invalid_span">这段时间超过 24 小时。请检查两边的日期：跨过午夜的一晚结束在第二天。</string>
+    <string name="forge_se_invalid_future">睡眠不能结束于未来。</string>
     <string name="forge_hv_edit">编辑</string>
     <string name="forge_hv_edit_vitals">编辑生命体征</string>
     <string name="forge_hv_done">完成</string>

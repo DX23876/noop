@@ -168,6 +168,34 @@ class SleepEditGuardTest(unittest.TestCase):
         self.assertIn("AppClock.formattingLocale", apple,
                       "a SwiftUI DatePicker asks the environment, so the sheet has to carry the setting")
 
+    def test_the_midnight_rule_leaves_a_chosen_day_alone_on_both_phones(self):
+        # Android got the gate first (2026-11-21); the iPhone judged a moved night against its RECORDED
+        # wake, so a nudge of the time pulled the chosen date back a day under the wearer's hands.
+        apple = (ROOT / "Strand/Screens/SleepView.swift").read_text(encoding="utf-8")
+        self.assertIn("if movedToAnotherDay {", apple)
+        self.assertIn("private var movedToAnotherDay: Bool", apple)
+        self.assertIn("if (bedDay != start.toLocalDate() || wakeDay != end.toLocalDate()) return@LaunchedEffect",
+                      self.editing)
+
+    def test_every_sleep_change_writes_one_line_on_both_phones(self):
+        # The Android proof of a working undo was a log line; the iPhone's had to be a database query,
+        # because this half wrote nothing. A correction is a handful of taps a week, so the line is
+        # always on, as the rare-event rule in AGENTS.md asks.
+        repo = (ROOT / "Strand/Data/Repository.swift").read_text(encoding="utf-8")
+        self.assertIn("var sleepEditLog: ((String) -> Void)?", repo)
+        for what in ('"Sleep edit"', '"Sleep delete"', '"Sleep undo"'):
+            self.assertIn(f"logSleepChange({what}", repo)
+        app = (ROOT / "Strand/App/AppModel.swift").read_text(encoding="utf-8")
+        self.assertIn("repo.sleepEditLog =", app, "a sink nobody wires writes nothing")
+
+    def test_the_android_editor_names_the_reason_before_saving(self):
+        editor = self.editing.split("internal fun SleepEditDialog", 1)[1]
+        self.assertIn("val invalidReason: String?", editor)
+        for key in ("forge_se_invalid_order", "forge_se_invalid_span", "forge_se_invalid_future"):
+            self.assertIn(key, editor)
+        # And the window that cannot be saved cannot be sent either.
+        self.assertIn("Modifier.clickable(enabled = invalidReason == null, role = Role.Button)", editor)
+
     def test_the_undo_offer_outlives_the_night_s_page(self):
         # Deleting a night takes its page out of the pager. While the offer lived on that page it was
         # shown to nobody, which made the question's "you can undo" a promise nothing kept.

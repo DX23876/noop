@@ -5771,6 +5771,9 @@
     <string name="forge_se_move_q">¿Mover este sueño?</string>
     <string name="forge_se_move_msg">Esto mueve la noche a un intervalo sin datos registrados. Allí no se pueden derivar las fases, así que puede aparecer vacía hasta que haya datos.</string>
     <string name="forge_se_move_confirm">Mover de todos modos</string>
+    <string name="forge_se_invalid_order">La hora de despertar debe ser posterior a la hora de acostarse. Comprueba la fecha de ambas.</string>
+    <string name="forge_se_invalid_span">Estos tiempos abarcan más de 24 horas. Comprueba la fecha de ambas — una noche que cruza la medianoche termina al día SIGUIENTE.</string>
+    <string name="forge_se_invalid_future">Un sueño no puede terminar en el futuro.</string>
     <string name="forge_hv_edit">Editar</string>
     <string name="forge_hv_edit_vitals">Editar constantes vitales</string>
     <string name="forge_hv_done">Listo</string>

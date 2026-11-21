@@ -2409,6 +2409,18 @@ struct SleepTimeEditor: View {
     /// True while the #940 "no recorded data there" confirm is up; Save proceeds only on consent.
     @State private var confirmingDisjoint = false
 
+    /// Whether either end now sits on a different calendar day than the night was RECORDED on, i.e.
+    /// the wearer has deliberately moved the night. False for "Add a nap", which has no coverage to
+    /// have moved away from.
+    private var movedToAnotherDay: Bool {
+        guard let coverage else { return false }
+        let calendar = Calendar.current
+        let recordedBed = Date(timeIntervalSince1970: TimeInterval(coverage.lowerBound))
+        let recordedWake = Date(timeIntervalSince1970: TimeInterval(coverage.upperBound))
+        return !calendar.isDate(bed, inSameDayAs: recordedBed)
+            || !calendar.isDate(wake, inSameDayAs: recordedWake)
+    }
+
     /// `title`/`blurb`/`bedLabel`/`wakeLabel` default to the edit-an-existing-night wording; the
     /// "Add a nap" caller (#508) overrides them. The save logic is identical either way — adding a nap
     /// is just an edit whose "existing" window is a seed. `onDelete` (#68) is the optional destructive
@@ -2577,6 +2589,14 @@ struct SleepTimeEditor: View {
         // date back a day so the picker visibly shows the night the user meant. Pure rule + tests:
         // SleepEditGuard.autoCorrectedBed (Android twin in com.noop.analytics).
         .onChangeCompat(of: bed) { newBed in
+            // ...unless the wearer has moved the night to another DAY themselves. The rule judges a
+            // candidate against the night's RECORDED wake, so on a moved night an ordinary nudge of
+            // the time satisfies it and the chosen date is pulled back underneath them (found by
+            // review 2026-11-21, shut on Android first: ForgeSleepEditing's twin of this gate).
+            if movedToAnotherDay {
+                previousBed = newBed
+                return
+            }
             let corrected = SleepEditGuard.autoCorrectedBed(
                 previousBed: previousBed, candidateBed: newBed,
                 originalWake: coverage.map { Date(timeIntervalSince1970: TimeInterval($0.upperBound)) },

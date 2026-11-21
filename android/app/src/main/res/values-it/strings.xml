@@ -5738,6 +5738,9 @@
     <string name="forge_se_move_q">Spostare questo sonno?</string>
     <string name="forge_se_move_msg">Sposta la notte in un intervallo senza dati registrati. Lì le fasi non possono essere derivate, quindi può restare vuota finché i dati non la coprono.</string>
     <string name="forge_se_move_confirm">Sposta comunque</string>
+    <string name="forge_se_invalid_order">L\'orario di sveglia deve seguire quello di coricarsi. Controlla la data di entrambi.</string>
+    <string name="forge_se_invalid_span">Questi orari coprono più di 24 ore. Controlla la data di entrambi: una notte che supera la mezzanotte finisce il giorno SUCCESSIVO.</string>
+    <string name="forge_se_invalid_future">Un sonno non può terminare nel futuro.</string>
     <string name="forge_hv_edit">Modifica</string>
     <string name="forge_hv_edit_vitals">Modifica parametri vitali</string>
     <string name="forge_hv_done">Fatto</string>

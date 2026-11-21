@@ -5787,6 +5787,9 @@
     <string name="forge_se_move_q">Diesen Schlaf verschieben?</string>
     <string name="forge_se_move_msg">Das verschiebt die Nacht in einen Zeitraum ohne aufgezeichnete Daten. Phasen lassen sich dort nicht ableiten, sie kann also leer bleiben, bis Daten sie abdecken.</string>
     <string name="forge_se_move_confirm">Trotzdem verschieben</string>
+    <string name="forge_se_invalid_order">Das Aufstehen muss nach dem Schlafengehen erfolgen. Überprüfe das Datum auf beiden Seiten.</string>
+    <string name="forge_se_invalid_span">Diese Zeiten umfassen mehr als 24 Stunden. Überprüfe das Datum auf beiden Seiten – eine Nacht, die die Mitternacht überschreitet, endet am NÄCHSTEN Tag.</string>
+    <string name="forge_se_invalid_future">Ein Schlaf kann nicht in der Zukunft enden.</string>
     <string name="forge_hv_edit">Bearbeiten</string>
     <string name="forge_hv_edit_vitals">Vitalwerte bearbeiten</string>
     <string name="forge_hv_done">Fertig</string>

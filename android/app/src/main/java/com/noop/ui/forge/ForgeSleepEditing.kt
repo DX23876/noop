@@ -233,6 +233,21 @@ internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long, Boolean
         }
     }
 
+    // Why the window cannot be saved, in the wearer's words, WHILE they type it — the iPhone has shown
+    // this under the rows since the editor shipped (`SleepTimeEditor.invalidReason`), Android sent the
+    // same window to the core and answered with a dialog afterwards. Same three cases, same order as
+    // `clampedEditWindow` refuses them; the core stays the last word, this only says it earlier.
+    val invalidReason: String? = run {
+        val start = at(bedDay, bed)
+        val end = at(wakeDay, wake)
+        val now = System.currentTimeMillis() / 1000L
+        if (com.noop.analytics.SleepEditGuard.clampedEditWindow(start, end, now) != null) null
+        else if (end <= start) stringResource(R.string.forge_se_invalid_order)
+        else if (end - start > com.noop.analytics.SleepEditGuard.MAX_EDIT_WINDOW_SEC)
+            stringResource(R.string.forge_se_invalid_span)
+        else stringResource(R.string.forge_se_invalid_future)
+    }
+
     pickingBed?.let { forBed ->
         val day = if (forBed) bedDay else wakeDay
         val state = androidx.compose.material3.rememberDatePickerState(
@@ -294,6 +309,9 @@ internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long, Boolean
             TimeInput(bed, colors = pickerColors)
             DayRow(stringResource(R.string.forge_se_woke), wakeDay.format(dateFormat)) { pickingBed = false }
             TimeInput(wake, colors = pickerColors)
+            invalidReason?.let { reason ->
+                Text(reason, style = Forge.type.caption, color = ForgeTokens.Color.systemRed.resolve())
+            }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.forge_se_delete), style = Forge.type.subhead, color = ForgeTokens.Color.systemRed.resolve(),
                      modifier = Modifier.clickable(role = Role.Button) { confirmingDelete = true }.padding(vertical = 8.dp))
@@ -301,8 +319,9 @@ internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long, Boolean
                 Text(stringResource(R.string.forge_se_cancel), style = Forge.type.subhead, color = colors.textSecondary,
                      modifier = Modifier.clickable(role = Role.Button, onClick = onDismiss).padding(8.dp))
                 Spacer(Modifier.width(ForgeMetrics.space2))
-                Text(stringResource(R.string.forge_se_save), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.rest,
-                     modifier = Modifier.clickable(role = Role.Button) {
+                Text(stringResource(R.string.forge_se_save), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                     color = if (invalidReason == null) colors.rest else colors.textSecondary,
+                     modifier = Modifier.clickable(enabled = invalidReason == null, role = Role.Button) {
                          // Both ends are what the two rows say; nothing is derived from the night's own
                          // day any more, which is what made a move impossible. An impossible window is
                          // the core's to refuse, and it now says which impossibility it was.

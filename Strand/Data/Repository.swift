@@ -336,6 +336,33 @@ final class Repository: ObservableObject {
     /// the workout list the query returns.
     var workoutsLog: ((String) -> Void)?
 
+    /// One line per sleep correction, deletion or undo, ALWAYS on (no Test Centre gate): a correction is
+    /// a handful of taps a week, so the line costs nothing, and it is exactly what is missing when
+    /// someone reports that editing a night did nothing. Android has written it since the shared edit
+    /// landed (`AppViewModel.finishSleepChange`); this is the Apple half, in the same wording, so one
+    /// export reads like the other. AppModel wires it to `live.append(log:domain:)`; nil in tests.
+    var sleepEditLog: ((String) -> Void)?
+
+    /// `Sleep edit: 2 block(s), 2026-11-20 23:05 → 2026-11-21 08:47 — saved (1 retired)`, the line
+    /// `finishSleepChange` writes on the other platform, built here so the three callers agree.
+    func logSleepChange(_ what: String, blocks: Int, window: (start: Int, end: Int)?,
+                        outcome: String, retired: Int = 0) {
+        guard let sleepEditLog else { return }
+        var line = "\(what): \(blocks) block(s)"
+        if let window {
+            let stamp = { (ts: Int) -> String in
+                let f = DateFormatter()
+                f.locale = Locale(identifier: "en_US_POSIX")
+                f.dateFormat = "yyyy-MM-dd HH:mm"
+                return f.string(from: Date(timeIntervalSince1970: TimeInterval(ts)))
+            }
+            line += ", \(stamp(window.start)) → \(stamp(window.end))"
+        }
+        line += " — \(outcome)"
+        if retired > 0 { line += " (\(retired) retired)" }
+        sleepEditLog(line)
+    }
+
     /// The user's HRmax + sex, injected once by AppModel so the read path can BACKFILL a strap-native
     /// workout's Effort (strain) on display when its stored value is nil (#961). Default nil (inert): tests
     /// and non-prod inits skip the fill and take the byte-identical untraced path. A live/manual session can
@@ -1892,12 +1919,18 @@ final class Repository: ObservableObject {
             rollback: { await MainActor.run { self.dismissedSleepSpans = priorTombstones } })
         switch result {
         case .failure(let why):
+            logSleepChange("Sleep edit", blocks: group.count,
+                           window: (start: newStartTs, end: newEndTs),
+                           outcome: "refused: \(why.rawValue)")
             // `noBlocks` cannot reach a caller that passes the displayed night's own blocks, and reads to
             // the wearer as the same thing as a row that could not be found.
             return .failure(why == .invalidWindow ? .invalidWindow
                             : why == .noOverlap ? .noOverlap
                             : why == .writeFailed ? .writeFailed : .ownerUnresolved)
         case .success(let done):
+            logSleepChange("Sleep edit", blocks: group.count,
+                           window: (start: newStartTs, end: newEndTs),
+                           outcome: "saved", retired: done.retired.count)
             sleepPresentationRevision &+= 1
             await refresh()
             return .success(SleepGroupEditResult(
@@ -1960,6 +1993,10 @@ final class Repository: ObservableObject {
                     self.hiddenDismissedSleepSpans = priorHidden
                 }
             })
+        logSleepChange("Sleep delete", blocks: 1,
+                       window: (start: detectedStartTs, end: endTs),
+                       outcome: removed == nil ? "refused: notFound" : "saved",
+                       retired: removed == nil ? 0 : 1)
         guard var snapshot = removed.map(SleepDeletionSnapshot.init(retired:)) else { return nil }
         if suppressesWakeDay {
             let wakeDay = Self.sleepEndDayKey(endTs)
@@ -2010,6 +2047,7 @@ final class Repository: ObservableObject {
                                    writesTombstone: DismissedSleepSpans.writesTombstoneOnDelete(
                                        userEdited: $0.session.userEdited))
         })
+        logSleepChange("Sleep undo", blocks: snapshots.count, window: nil, outcome: "saved")
         sleepPresentationRevision &+= 1
         await refresh()
     }
