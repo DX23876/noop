@@ -458,7 +458,7 @@ private fun FactRow(icon: ImageVector, tint: Color, title: String, detail: Strin
 }
 
 private fun time(context: Context, ts: Long): String {
-    val pattern = if (DateFormat.is24HourFormat(context)) "H:mm" else "h:mm a"
+    val pattern = if (com.noop.ui.ClockPrefs.uses24Hour(context)) "H:mm" else "h:mm a"
     return Instant.ofEpochSecond(ts).atZone(ZoneId.systemDefault())
         .format(DateTimeFormatter.ofPattern(pattern, Locale.getDefault()))
 }

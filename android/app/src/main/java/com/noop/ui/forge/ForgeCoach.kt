@@ -317,7 +317,7 @@ private fun ChoiceDialog(title: String, choices: List<Pair<String, String>>, onD
 private fun TimeDialog(row: CoreCoach.PlanRow, accepting: Boolean, onDismiss: () -> Unit, onSet: (Long) -> Unit, onUntimed: () -> Unit) {
     val zone = java.time.ZoneId.systemDefault()
     val start = row.time?.let { java.time.Instant.ofEpochSecond(it).atZone(zone).toLocalTime() } ?: java.time.LocalTime.of(18, 0)
-    val state = androidx.compose.material3.rememberTimePickerState(start.hour, start.minute, android.text.format.DateFormat.is24HourFormat(LocalContext.current))
+    val state = androidx.compose.material3.rememberTimePickerState(start.hour, start.minute, com.noop.ui.ClockPrefs.uses24Hour(LocalContext.current))
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(row.summary) },

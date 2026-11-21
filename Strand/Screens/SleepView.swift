@@ -2567,6 +2567,10 @@ struct SleepTimeEditor: View {
         .padding(NoopMetrics.screenPadding)
         .frame(minWidth: 360)
         .background(NoopChromeSurface())
+        // The wearer's OWN 12/24-hour setting, not the phone's. Every time this app prints goes through
+        // `AppClock`, but a `DatePicker` asks the environment, so the editor showed 11:36 PM under a card
+        // that said 23:36 whenever the two disagreed: the same instant, written two ways, one screen.
+        .environment(\.locale, AppClock.formattingLocale)
         // #940 guard 1: a time-only roll that lands the bed in the future, or at/after the night's
         // wake, almost always means the PREVIOUS evening (23:00 "yesterday", not tonight). Snap the
         // date back a day so the picker visibly shows the night the user meant. Pure rule + tests:

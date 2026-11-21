@@ -158,7 +158,10 @@ internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long, Boolean
     val zone = ZoneId.systemDefault()
     val start = Instant.ofEpochSecond(night.startTs).atZone(zone)
     val end = Instant.ofEpochSecond(night.endTs).atZone(zone)
-    val is24 = android.text.format.DateFormat.is24HourFormat(androidx.compose.ui.platform.LocalContext.current)
+    // The wearer's own 12/24-hour setting (`ClockPrefs`), which falls back to the device switch only when
+    // they asked for that. Reading the device directly made the editor print 11:32 PM under a card that
+    // said 23:32.
+    val is24 = com.noop.ui.ClockPrefs.uses24Hour(androidx.compose.ui.platform.LocalContext.current)
     val bed = rememberTimePickerState(start.hour, start.minute, is24)
     val wake = rememberTimePickerState(end.hour, end.minute, is24)
     // Deleting a night is one tap away from a correction, it recomputes the day, and on a detected night
@@ -353,7 +356,7 @@ internal fun SleepAddDialog(seedStart: Long, seedEnd: Long, viewModel: AppViewMo
     val seedFrom = Instant.ofEpochSecond(seedStart).atZone(zone)
     val seedTo = Instant.ofEpochSecond(seedEnd).atZone(zone)
     val context = androidx.compose.ui.platform.LocalContext.current
-    val is24 = android.text.format.DateFormat.is24HourFormat(context)
+    val is24 = com.noop.ui.ClockPrefs.uses24Hour(context)
     val bed = rememberTimePickerState(seedFrom.hour, seedFrom.minute, is24)
     val wake = rememberTimePickerState(seedTo.hour, seedTo.minute, is24)
     // The DAY the sleep began. Without it the window could only ever be pinned to the two days the seed

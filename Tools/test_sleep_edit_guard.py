@@ -139,6 +139,16 @@ class SleepEditGuardTest(unittest.TestCase):
         self.assertIn("onSave(window.first, window.second, true)", editor,
                       "a move only goes out with the wearer's consent behind it")
 
+    def test_the_pickers_read_the_wearer_s_own_clock(self):
+        # NOOP has its own 12/24-hour setting and everything it prints goes through it. A picker that
+        # asks the DEVICE instead shows 11:32 PM under a card that says 23:32: one instant, two ways,
+        # one screen. Both platforms had it.
+        self.assertIn("ClockPrefs.uses24Hour", self.editing)
+        self.assertNotIn("DateFormat.is24HourFormat", self.editing)
+        apple = (ROOT / "Strand/Screens/SleepView.swift").read_text(encoding="utf-8")
+        self.assertIn("AppClock.formattingLocale", apple,
+                      "a SwiftUI DatePicker asks the environment, so the sheet has to carry the setting")
+
     def test_the_undo_offer_outlives_the_night_s_page(self):
         # Deleting a night takes its page out of the pager. While the offer lived on that page it was
         # shown to nobody, which made the question's "you can undo" a promise nothing kept.
