@@ -220,6 +220,50 @@ public enum WorkoutCatalog {
     /// this is only the manual-start fallback.)
     public static let defaultSportName = "Other"
 
+    // MARK: - What the phone's health store is told about where a session happened (#2928)
+
+    /// Where a swim took place, for the health store's own swimming field.
+    public enum SwimWater: String, Codable, Sendable { case pool, openWater }
+
+    /// The location facts one session carries into Apple Health.
+    public struct HealthLocation: Equatable, Sendable {
+        public let environment: Environment
+        public let swim: SwimWater?
+
+        /// The indoor flag, or nil when the sport genuinely says nothing about it. nil writes NO flag
+        /// rather than a guess: a reader treats a missing flag as unknown, where `false` asserts outdoors.
+        public var isIndoor: Bool? { environment == .either ? nil : environment == .indoor }
+
+        public init(environment: Environment, swim: SwimWater?) {
+            self.environment = environment
+            self.swim = swim
+        }
+    }
+
+    /// What to tell the health store about one session's location.
+    ///
+    /// A workout written with only an activity type leaves the location unknown, and a reader then falls
+    /// back to outdoors for running, walking and cycling: a treadmill run exported from here showed up in
+    /// Strava as an outdoor run, and a pool swim was indistinguishable from open water. The catalogue
+    /// already knows each sport's environment, so the answer comes from there; `either` is resolved by
+    /// whether the session actually recorded a route, rather than pretending every sport without GPS is
+    /// indoors. (Refs #2928)
+    public static func healthLocation(sportNamed name: String, hasRoute: Bool) -> HealthLocation {
+        let declared = sport(named: name)?.environment ?? .either
+        let environment: Environment = (declared == .either && hasRoute) ? .outdoor : declared
+        return HealthLocation(environment: environment, swim: swimWater(sportNamed: name))
+    }
+
+    /// Pool or open water, for a sport that is a swim at all; nil for anything else and for a swim whose
+    /// name does not say (the store then carries no swimming location rather than a guess).
+    public static func swimWater(sportNamed name: String) -> SwimWater? {
+        let n = name.lowercased()
+        guard n.contains("swim") else { return nil }
+        if n.contains("pool") { return .pool }
+        if n.contains("open") { return .openWater }   // "Open-water swim", "open water swimming"
+        return nil
+    }
+
     /// Case-insensitive lookup of the suggestion matching a (possibly free-typed) label, or nil for
     /// an off-catalogue sport , which is still valid, just not in the suggestion set.
     public static func sport(named name: String) -> Sport? {

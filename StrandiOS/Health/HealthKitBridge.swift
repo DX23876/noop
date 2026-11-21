@@ -2441,11 +2441,20 @@ final class HealthKitBridge: ObservableObject {
                     sample.endDate.timeIntervalSince1970 > pause.startUnixSeconds && sample.startDate.timeIntervalSince1970 < (pause.endUnixSeconds ?? end.timeIntervalSince1970)
                 }
             }
+            // Where the session happened, from the catalogue, for EVERY row rather than only a recorded
+            // one: a hand-logged treadmill run carried no location at all and read as outdoors (#2928).
+            // `either` is resolved by whether a route was actually captured.
+            let location = WorkoutCatalog.healthLocation(sportNamed: recording?.row.sport ?? row.sport,
+                                                         hasRoute: !(route?.points.isEmpty ?? true))
             let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
             var payload = try encoder.encode(row)
             payload.append(try encoder.encode(recording))
             payload.append(try encoder.encode(route))
             payload.append(try encoder.encode(activeKcal(row)))
+            // The location travels in the fingerprint: it is part of the object written, so a row whose
+            // flag changes (or one exported before this carried any) is rewritten on the next pass
+            // instead of keeping a stale "outdoors" reading for ever.
+            payload.append(Data("loc:\(location.environment.rawValue)|swim:\(location.swim?.rawValue ?? "-")".utf8))
             let childTypes: [HKObjectType] = [HKQuantityType.quantityType(forIdentifier: .activeEnergyBurned),
                 Self.distanceTypeId(forSport: row.sport).flatMap(HKQuantityType.quantityType(forIdentifier:)),
                 HKSeriesType.workoutRoute()].compactMap { $0 }
@@ -2458,12 +2467,13 @@ final class HealthKitBridge: ObservableObject {
                 HKMetadataKeyExternalUUID: key(row), HKMetadataKeySyncVersion: NSNumber(value: version.revision)]
             let config = HKWorkoutConfiguration()
             config.activityType = Self.activityType(forSport: row.sport)
-            if let recording, let sport = WorkoutCatalog.sport(named: recording.row.sport) {
-                config.locationType = switch sport.environment {
-                case .indoor: .indoor
-                case .outdoor: .outdoor
-                case .either: .unknown
-                }
+            config.locationType = switch location.environment {
+            case .indoor: .indoor
+            case .outdoor: .outdoor
+            case .either: .unknown
+            }
+            if let swim = location.swim {
+                config.swimmingLocationType = swim == .pool ? .pool : .openWater
             }
             let builder = HKWorkoutBuilder(healthStore: store, configuration: config, device: .local())
             // Only unchanged original capture is eligible: an edited/merged envelope is not the event clock.
@@ -2473,6 +2483,16 @@ final class HealthKitBridge: ObservableObject {
                                                       HKMetadataKeySyncIdentifier: version.id,
                                                       HKMetadataKeySyncVersion: NSNumber(value: version.revision),
                                                       Self.originMetadataKey: Self.originMetadataValue]
+                // The indoor flag and the swimming water, which is what a reader outside Health looks at:
+                // Strava reads `HKMetadataKeyIndoorWorkout`, and without it a treadmill run exported from
+                // here showed as an outdoor run. Written only when the sport actually says so (#2928).
+                if let indoor = location.isIndoor {
+                    workoutMetadata[HKMetadataKeyIndoorWorkout] = NSNumber(value: indoor)
+                }
+                if let swim = location.swim {
+                    let type: HKWorkoutSwimmingLocationType = swim == .pool ? .pool : .openWater
+                    workoutMetadata[HKMetadataKeySwimmingLocationType] = NSNumber(value: type.rawValue)
+                }
                 // The barometer's climb, as Apple's own workouts carry it.
                 if let ascent = recording?.timeline.ascentM {
                     workoutMetadata[HKMetadataKeyElevationAscended] = HKQuantity(unit: .meter(), doubleValue: ascent)

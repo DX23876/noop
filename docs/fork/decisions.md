@@ -1967,3 +1967,65 @@ is lost while they are unset, and nothing reaches the public repository either, 
 question.
 
 Analysis migration required: no
+
+## 2026-11-21 — Five reported faults, checked against a real store before any of them was built
+
+Four upstream reports (ryanbr/noop #2923, #2928, #2929, #2930) and one fork report (#54) were each
+verified against this tree and, where the data could answer it, against a real strap database, rather
+than taken at face value. Two of them turned out to be partly different from their description.
+
+**#2930, two efficiencies for one night — true here, for another reason.** The report blames the
+stage breakdown falling back to today's daily figure; that fallback is already gone, and both
+breakdown copies go through `NightSummaryFacts.efficiencyPct`. What remained is a definition split:
+the breakdown divided by the fragments' stage minutes, which do not contain the wake gap between
+bridged fragments, while the daily rollup has folded that gap into its in-bed denominator since
+#777/#705. On thirty-six nights of a real store, ten were bridged, and the breakdown read 4.5 to 11.9
+points above the Night-detail tile beside it; a four-fragment night read 89.8 % against the tile's
+77.9 %. `SleepNight.main` now counts the gap as awake through the same
+`interFragmentAwakeSeconds` the rollup uses, so the night's figure reproduces the stored one exactly
+(verified against every bridged night in that store), `SleepNight.Main.efficiency` is the one
+resolver all three readers go through (`Night.efficiencyPct` on Apple, `CoreRead.nights` for
+Android), and the tile states the shown night rather than the series its sparkline draws.
+
+**#2923, the experiment baseline — true as described, on both platforms.** The baseline took every
+day before the start that was not a logged YES, so silence counted as "without". In that store 1755
+days carry a Charge value and 145 days carry a journal answer, the last of them 2026-08-02: an
+experiment started today would have had a baseline composed entirely of unanswered days. The
+contrast moved into `PersonalExperiment` (StrandAnalytics) and reads the explicit NO set Behaviour
+Effects already uses; Android's `experimentDaySplit` is its twin, pinned to the Swift suite's numbers.
+
+**#2929, one session under two sport names — the mechanism is true, the scenario is not ours.**
+`collapseCrossSource` buckets strictly by sport, so a Health copy renamed by another app survives
+beside NOOP's own row. No Strava is connected here; what the store does hold is 636 surviving
+cross-sport pairs with one Health side, almost all of them a localized WHOOP name against the English
+Apple one (313 × "Spazieren" vs "Walking"), none of them dismissed. `crossSportSameSession` collapses
+a phone-health row and one of NOOP's own when the starts are within a minute and the windows overlap,
+keeping NOOP's row; a second importer (Hevy, Oura, a lifting export, an activity file) keeps its own
+session, which is what `crossSportSide` is for.
+
+**#2928, the indoor flag — only half true, and the half that was there was conditional.** The write
+set `locationType` only when the row had a recorded GPS capture, which 71 of 76 of this store's own
+recent sessions do not, and `HKMetadataKeyIndoorWorkout` (what Strava actually reads) and the
+swimming water were written nowhere. The location now comes from `WorkoutCatalog.healthLocation` for
+every row, `either` resolved by whether a route was captured, and it travels in the export
+fingerprint, so a session already in Health is rewritten with its flag instead of keeping a stale
+"outdoors" reading.
+
+**#54, a night exported twice — the code path holds in all four of its steps.** The window reaches
+sixteen days back, the stale sweep runs with that same lower bound, a night is keyed by its first
+fragment's start, and the pass is scheduled hourly, so a bound that falls between two fragments of a
+bridged night is reachable; this store's nights span up to ten hours between their first and last
+fragment start. 37 of 218 sleep keys recorded in `healthExportVersion` are not the first fragment of
+their bridged night, which is consistent with the report, though Apple Health itself cannot be read
+from here, so the duplicate was not observed. One limit of the report does not hold: it heals if a
+later sleep change pulls that date into the historical rewrite. The fix reads a night's length wider
+than the window (`sleepReadLeadSeconds`) so a night is always planned whole, and writes only the
+nights the window owns (`sleepEntriesOwned`) while still claiming every fragment's key, so a legacy
+per-fragment sample is never orphaned and a copy the bug wrote — which carries a sync identifier no
+plan expects — is retired by the sweep.
+
+Analysis migration required: yes — AI-37, for #2929 only. The dedup the Workouts list reads is the
+same one the energy model prices a day from (`EnergyModelRefresh.workoutIntervals`), so a day that
+held both rows was priced from whichever sport came first. The other four are UI readouts and health
+exports and derive nothing stored; AI-36 shipped in the testing build of 2026-11-20 (`048b50a38`), so
+this is its own number rather than a rider.
