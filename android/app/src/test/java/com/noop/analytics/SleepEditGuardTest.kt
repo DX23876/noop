@@ -26,6 +26,18 @@ class SleepEditGuardTest {
     /** THE #940 SHAPE: night tracked late (bed 01:06, wake 05:00 on 2 Jul), user rolls the bed TIME
      *  back to 23:00 at 05:03 the same morning. The picker kept the date on 2 Jul, so the candidate
      *  is tonight (future, past the wake). The guard snaps it to 1 Jul 23:00: the evening meant. */
+    @Test
+    fun crossMidnightRollBackDecrementsDate() {
+        val corrected = SleepEditGuard.autoCorrectedBed(
+            previousBedTs = ts(2026, 7, 2, 1, 6),
+            candidateBedTs = ts(2026, 7, 2, 23, 0),
+            originalWakeTs = ts(2026, 7, 2, 5, 0),
+            nowTs = ts(2026, 7, 2, 5, 3),
+            zone = zone,
+        )
+        assertEquals(ts(2026, 7, 1, 23, 0), corrected)
+    }
+
     /**
      * Why the Forge editor stands this rule down once a day was chosen by hand (2026-11-21).
      *
@@ -48,18 +60,6 @@ class SleepEditGuardTest {
             nowTs = at("2026-11-21", 12, 0), zone = zone)
         assertEquals("the rule answers with the day before, which is not what the wearer set",
                      at("2026-11-15", 22, 45), corrected)
-    }
-
-    @Test
-    fun crossMidnightRollBackDecrementsDate() {
-        val corrected = SleepEditGuard.autoCorrectedBed(
-            previousBedTs = ts(2026, 7, 2, 1, 6),
-            candidateBedTs = ts(2026, 7, 2, 23, 0),
-            originalWakeTs = ts(2026, 7, 2, 5, 0),
-            nowTs = ts(2026, 7, 2, 5, 3),
-            zone = zone,
-        )
-        assertEquals(ts(2026, 7, 1, 23, 0), corrected)
     }
 
     /** Same roll made in the EVENING (23:00 today is not future) still decrements: the candidate
