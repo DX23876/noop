@@ -29,7 +29,8 @@ final class ToolConsentTests: XCTestCase {
         let defaults = freshDefaults()
         defaults.set(true, forKey: "ai.dataConsent")
         let consent = ToolConsent.load(defaults: defaults)
-        XCTAssertEqual(consent.enabled, [.coreBiometrics, .workouts, .planning, .memory])
+        // The food log rides with the essentials (owner, 2026-11-21): the coach sees it whenever it is on.
+        XCTAssertEqual(consent.enabled, [.coreBiometrics, .workouts, .planning, .memory, .food])
     }
 
     /// The second opt-in additionally grants `patterns` (what it always meant) AND `logs` (its own
@@ -39,7 +40,7 @@ final class ToolConsentTests: XCTestCase {
         defaults.set(true, forKey: "ai.dataConsent")
         defaults.set(true, forKey: "ai.includeOnDeviceSignals")
         let consent = ToolConsent.load(defaults: defaults)
-        XCTAssertEqual(consent.enabled, [.coreBiometrics, .workouts, .planning, .memory, .patterns, .logs])
+        XCTAssertEqual(consent.enabled, [.coreBiometrics, .workouts, .planning, .memory, .food, .patterns, .logs])
     }
 
     /// The second opt-in alone (without the first, an inconsistent state that shouldn't occur in practice
@@ -56,10 +57,25 @@ final class ToolConsentTests: XCTestCase {
     func testAnExplicitlySavedConsentIsReturnedVerbatimIgnoringLegacyKeys() {
         let defaults = freshDefaults()
         defaults.set(true, forKey: "ai.dataConsent")   // would otherwise migrate to the four essentials
+        defaults.set(true, forKey: "ai.toolConsent.foodGranted")   // the one-time food grant already happened
         var consent = ToolConsent(enabled: [.stress])
         consent.save(defaults: defaults)
         XCTAssertEqual(ToolConsent.load(defaults: defaults).enabled, [.stress],
                        "an explicit save must win over what the legacy bools would migrate to")
+    }
+
+    /// A consent saved before the food log existed gets food once; turning it off afterwards sticks, and a consent
+    /// that grants nothing at all is left alone.
+    func testTheFoodLogIsGrantedOnceToASavedConsent() {
+        let defaults = freshDefaults()
+        ToolConsent(enabled: [.stress]).save(defaults: defaults)
+        XCTAssertEqual(ToolConsent.load(defaults: defaults).enabled, [.stress, .food])
+        ToolConsent(enabled: [.stress]).save(defaults: defaults)
+        XCTAssertEqual(ToolConsent.load(defaults: defaults).enabled, [.stress], "turned off again, it stays off")
+
+        let empty = freshDefaults()
+        ToolConsent(enabled: []).save(defaults: empty)
+        XCTAssertTrue(ToolConsent.load(defaults: empty).enabled.isEmpty)
     }
 
     func testHasBeenExplicitlySavedReflectsWhetherSaveWasEverCalled() {
@@ -165,7 +181,7 @@ final class ToolConsentTests: XCTestCase {
         XCTAssertTrue(engine.toolConsent.enabled.isEmpty, "nothing persisted yet ⇒ nothing granted")
 
         engine.dataConsent = true
-        XCTAssertEqual(engine.toolConsent.enabled, [.coreBiometrics, .workouts, .planning, .memory],
+        XCTAssertEqual(engine.toolConsent.enabled, [.coreBiometrics, .workouts, .planning, .memory, .food],
                        "the migration must apply THIS session, not only on the next relaunch")
     }
 

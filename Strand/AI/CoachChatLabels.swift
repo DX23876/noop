@@ -31,6 +31,7 @@ extension CoachTool {
         case .proposePlan: return "Plan proposal"
         case .proposeGoalSetup: return "Goal and routine draft"
         case .proposeDietChange: return "Diet plan change"
+        case .foodLog: return "Food log"
         case .showCard: return "A card from your data"
         case .findHevyExercises: return "Your exercise list"
         case .hevyRoutines: return "Your routines"

@@ -100,6 +100,8 @@ enum CoachTool: String, CaseIterable {
     case proposeHevyWorkout = "propose_hevy_workout"
     /// A change to the diet plan, waiting on the plan page until the wearer confirms it (owner, 2026-11-10).
     case proposeDietChange = "propose_diet_change"
+    /// The food log with its notes, goals, nutrient gaps and badges (owner, 2026-11-21).
+    case foodLog = "get_food_log"
 
     /// Natural-language description the model reads to decide when to call the tool.
     var description: String {
@@ -244,6 +246,14 @@ enum CoachTool: String, CaseIterable {
                 + "just because they said it. Give a short rationale; they'll read it again next week. "
                 + "Only for an actual training session — never for sleep, nutrition, hydration or other "
                 + "lifestyle advice; those are simply an answer in chat, not a proposal."
+        case .foodLog:
+            return "Read what the user ate from their food log: one line per day (calories, protein, carbs, fat, "
+                + "fibre, the day's food note out of 10, and whether the day kept their calorie and protein goal), "
+                + "the single entries with times for at most 14 days, the 7- and 28-day notes with their parts, "
+                + "nutrient gaps over 28 days against EFSA references, and their logging streak and badges. Use it "
+                + "for any question about what they ate, how good their eating is, protein, calories eaten, "
+                + "vitamins and minerals, or their diet goal, short or long term. For links between food and sleep, "
+                + "HRV or weight, combine it with the other tools and call any pattern an observation, not a cause."
         case .proposeDietChange:
             return "Prepare a REVIEW-ONLY change to the user's diet plan: goal (lose, maintain, gain, recomp), "
                 + "pace in percent of body weight a week, way of eating, diet breaks, the share of calories moved to "
@@ -735,6 +745,16 @@ enum CoachTool: String, CaseIterable {
                                "description": "For kind=metric: charge, effort, hrv, rhr, sleep, or any metric key this user has data for."],
                     "workout_start": ["type": "integer",
                                       "description": "For kind=workout: the session's start timestamp in unix seconds, copied from get_recent_workouts."]
+                ]
+            ]
+        case .foodLog:
+            return [
+                "type": "object",
+                "properties": [
+                    "from": ["type": "string", "description": "First day, yyyy-MM-dd. Defaults to 6 days before `to`."],
+                    "to": ["type": "string", "description": "Last day, yyyy-MM-dd. Defaults to today."],
+                    "entries": ["type": "boolean",
+                                "description": "List the single entries too (only for spans of at most 14 logged days)."]
                 ]
             ]
         case .proposeDietChange:
@@ -1371,6 +1391,9 @@ extension AICoachEngine {
             return await proposeGoalSetupTool(input: input)
         case .proposeDietChange:
             return proposeDietChangeTool(input: input)
+        case .foodLog:
+            return await foodLogTool(from: input["from"] as? String, to: input["to"] as? String,
+                                     entries: input["entries"] as? Bool ?? false)
         case .sessionOutlook:
             return await sessionOutlookTool(
                 sport: (input["sport"] as? String) ?? "",

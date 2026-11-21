@@ -1105,6 +1105,7 @@ struct CoachSettingsView: View {
                 planningAccessBar
                 stressAccessBar
                 logsAccessBar
+                foodAccessBar
                 sensitiveLogsAccessBar
                 memoryToolsAccessBar
                 onDeviceSignalsBar
@@ -1331,6 +1332,29 @@ struct CoachSettingsView: View {
                 Toggle("", isOn: purposeBinding(.stress))
                     .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
                     .accessibilityLabel("Let the coach fetch the stress index")
+            }
+        }
+    }
+
+    /// The food log (owner, 2026-11-21): on with the coach by default, one switch to keep it private.
+    private var foodAccessBar: some View {
+        NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
+            HStack(spacing: 10) {
+                Image(systemName: "fork.knife")
+                    .foregroundStyle(coach.toolConsent.enabled.contains(.food)
+                                     ? StrandPalette.accent : StrandPalette.textTertiary)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Food")
+                        .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                    Text("Reading your food log: what you ate, its notes, goals and nutrients.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Toggle("", isOn: purposeBinding(.food))
+                    .labelsHidden().toggleStyle(.switch).appleInspiredTint("coach")
+                    .accessibilityLabel("Let the coach read your food log")
             }
         }
     }

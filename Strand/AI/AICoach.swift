@@ -2326,7 +2326,7 @@ final class AICoachEngine: ObservableObject {
         } else {
             lines.append("ADAPTIVE_EXPENDITURE_COMPARISON: unavailable — insufficient complete intake and weight history.")
         }
-        lines.append("Do not infer what the user should eat or turn either expenditure estimate into a diet recommendation.")
+        lines.append("This is expenditure only. For what the user ATE, call get_food_log; never infer intake from these estimates.")
         return lines.joined(separator: "\n")
     }
 
@@ -4132,8 +4132,9 @@ final class AICoachEngine: ObservableObject {
                          + "flagging recovery signals honestly.")
         }
         if goal.kind == .weight {
-            lines.append("NOTE: NOOP holds no nutrition data. Plan TRAINING around this goal and say "
-                         + "plainly that diet is outside what you can see.")
+            lines.append("NOTE: what the user eats is in their food log (get_food_log), when they log it. Plan "
+                         + "TRAINING around this goal; read the food log before speaking about their eating, and "
+                         + "say so when little is logged.")
         }
         // The structured WHY (motivation tags): coarse categories the user picked, so the coach can
         // frame advice around what they're actually after (8.4). Not the intimate free-text — that's the

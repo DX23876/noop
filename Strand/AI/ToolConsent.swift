@@ -8,6 +8,8 @@ import Foundation
 /// tools are offered/allowed once that master switch is already on.
 enum CoachPurpose: String, Codable, CaseIterable, Identifiable {
     case coreBiometrics, longHistory, workouts, planning, stress, logs, sensitiveLogs, memory, patterns
+    /// The food log: what was eaten, its notes and goals (owner, 2026-11-21). On with the coach by default.
+    case food
 
     var id: String { rawValue }
 }
@@ -22,13 +24,13 @@ enum CoachDataAccessMode: String, CaseIterable, Identifiable {
     var purposes: Set<CoachPurpose>? {
         switch self {
         case .essentials:
-            return [.coreBiometrics, .workouts, .planning, .memory]
+            return [.coreBiometrics, .workouts, .planning, .memory, .food]
         case .personal:
-            return [.coreBiometrics, .workouts, .planning, .stress, .logs, .memory, .patterns]
+            return [.coreBiometrics, .workouts, .planning, .stress, .logs, .memory, .patterns, .food]
         case .deepInsights:
             // Sensitive journal labels intentionally remain OFF even here: they need a conscious
             // separate choice in Expert settings rather than riding a broad convenience preset.
-            return [.coreBiometrics, .longHistory, .workouts, .planning, .stress, .logs, .memory, .patterns]
+            return [.coreBiometrics, .longHistory, .workouts, .planning, .stress, .logs, .memory, .patterns, .food]
         case .expert:
             return nil
         }
@@ -78,6 +80,8 @@ extension CoachTool {
             return .memory
         case .personalPatterns, .trainingPreferences:
             return .patterns
+        case .foodLog:
+            return .food
         }
     }
 }
@@ -90,6 +94,7 @@ struct ToolConsent: Codable, Equatable {
     func allows(_ tool: CoachTool) -> Bool { enabled.contains(tool.purpose) }
 
     private static let key = "ai.toolConsent"
+    private static let foodGrantedKey = "ai.toolConsent.foodGranted"
 
     /// Whether a `ToolConsent` has ever actually been saved — as opposed to `load()` having produced one
     /// from the legacy-key migration. Lets a caller distinguish "never touched yet" (still fine to
@@ -115,12 +120,22 @@ struct ToolConsent: Codable, Equatable {
     /// build still finds its old settings.
     static func load(defaults: UserDefaults = .standard) -> ToolConsent {
         if let data = defaults.data(forKey: key),
-           let decoded = try? JSONDecoder().decode(ToolConsent.self, from: data) {
+           var decoded = try? JSONDecoder().decode(ToolConsent.self, from: data) {
+            // The food log arrived after many consents were saved (2026-11-21). The owner's choice is that the coach
+            // sees it whenever the coach is on, so it is granted once to every saved consent that grants anything;
+            // turning it off afterwards sticks.
+            if !defaults.bool(forKey: foodGrantedKey) {
+                defaults.set(true, forKey: foodGrantedKey)
+                if !decoded.enabled.isEmpty {
+                    decoded.enabled.insert(.food)
+                    decoded.save(defaults: defaults)
+                }
+            }
             return decoded
         }
         var enabled: Set<CoachPurpose> = []
         if defaults.bool(forKey: "ai.dataConsent") {
-            enabled.formUnion([.coreBiometrics, .workouts, .planning, .memory])
+            enabled.formUnion([.coreBiometrics, .workouts, .planning, .memory, .food])
         }
         if defaults.bool(forKey: "ai.includeOnDeviceSignals") {
             enabled.formUnion([.patterns, .logs])

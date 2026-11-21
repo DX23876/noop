@@ -684254,6 +684254,180 @@
           }
         }
       }
+    },
+    "Let the coach read your food log" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coach darf dein Ernährungstagebuch lesen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dejar que el coach lea tu diario de comidas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Laisser le coach lire ton journal alimentaire"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consenti al coach di leggere il tuo diario alimentare"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pozwól coachowi czytać twój dziennik jedzenia"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deixar o coach ler o teu diário alimentar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Разрешить коучу читать дневник питания"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允许教练读取你的饮食日志"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "允許教練讀取你的飲食日誌"
+          }
+        }
+      }
+    },
+    "Reading your food log: what you ate, its notes, goals and nutrients." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dein Ernährungstagebuch lesen: was du gegessen hast, Noten, Ziele und Nährstoffe."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leer tu diario de comidas: lo que comiste, sus notas, objetivos y nutrientes."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lire ton journal alimentaire : ce que tu as mangé, ses notes, objectifs et nutriments."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leggere il tuo diario alimentare: cosa hai mangiato, voti, obiettivi e nutrienti."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Czytanie dziennika jedzenia: co jadłeś, oceny, cele i składniki odżywcze."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ler o teu diário alimentar: o que comeste, notas, objetivos e nutrientes."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Чтение дневника питания: что ты ел, оценки, цели и нутриенты."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "读取你的饮食日志：吃了什么、评分、目标和营养素。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "讀取你的飲食日誌：吃了什麼、評分、目標和營養素。"
+          }
+        }
+      }
+    },
+    "What you logged eating, its notes and goals" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Was du gegessen und geloggt hast, mit Noten und Zielen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lo que registraste haber comido, con notas y objetivos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce que tu as enregistré avoir mangé, avec notes et objectifs"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cosa hai registrato di aver mangiato, con voti e obiettivi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Co zapisałeś, że jadłeś, z ocenami i celami"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O que registaste ter comido, com notas e objetivos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Что ты записал из еды, с оценками и целями"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你记录的饮食及其评分和目标"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你記錄的飲食及其評分和目標"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

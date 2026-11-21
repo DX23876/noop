@@ -18,9 +18,9 @@ import Foundation
 /// lighter person's unflagged one. That single choice handles the obesity case without special-casing it.
 ///
 /// SCOPE: this judges the rate a goal implies. It is not medical advice and NOOP is not a medical
-/// device (see DISCLAIMER.md). Note also that NOOP holds no nutrition data whatsoever, so for a weight
-/// goal the coach tracks the number and plans TRAINING around it — it never prescribes a diet, which is
-/// where body-weight change is actually won or lost.
+/// device (see DISCLAIMER.md). For a weight goal the coach tracks the number and plans TRAINING around
+/// it; what the wearer eats is read from the food log when it is logged (`get_food_log`), and the coach
+/// never prescribes a diet beyond the wearer's own plan.
 enum GoalSafetyGate {
 
     enum Verdict: String, Codable, Equatable {

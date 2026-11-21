@@ -107,11 +107,16 @@ final class CoachMyLogsAndZonesTests: XCTestCase {
         // write side of the plan page: without it the coach could only describe a change in chat and
         // the wearer had to rebuild it in the planner by hand. Like the other proposals it drafts for
         // review, and the app, not the model, works out every number from the plan.
-        XCTAssertEqual(engine.coachTools.count, 37,
+        //
+        // 37 → 38: `get_food_log` (food notes and coach, owner 2026-11-21). Reviewed and intended. The food log
+        // had been the one thing the user logs that the coach could write but not read; without it a question
+        // about what was eaten, protein or the diet goal is answered from nothing, or from the expenditure tool,
+        // which is told never to stand in for intake.
+        XCTAssertEqual(engine.coachTools.count, 38,
                        "tool count changed — confirm the added per-round cost is intended")
 
         engine.toolConsent.enabled.insert(.patterns)
-        XCTAssertEqual(engine.coachTools.count, 39,
+        XCTAssertEqual(engine.coachTools.count, 40,
                        "the second opt-in adds personal patterns and training preferences")
     }
 
@@ -181,7 +186,8 @@ final class CoachMyLogsAndZonesTests: XCTestCase {
         XCTAssertTrue(result.contains("ENERGY_COVERAGE:"))
         XCTAssertTrue(result.contains("CONFIDENCE:"))
         XCTAssertTrue(result.localizedCaseInsensitiveContains("modelled"))
-        XCTAssertTrue(result.contains("Do not infer what the user should eat"))
+        // Expenditure is never read as intake; what was eaten comes from the food log (2026-11-21).
+        XCTAssertTrue(result.contains("never infer intake from these estimates"))
     }
 
     func testNewToolsUseExpectedConsentPurposes() {
