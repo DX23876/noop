@@ -5712,7 +5712,7 @@
     <string name="forge_se_deleted">睡眠删除了。</string>
     <string name="forge_se_removed_outside">新时间之外的睡眠已移除。</string>
     <string name="forge_se_deleted_suppressed">睡眠已删除。NOOP 不会再在 %1$s 到 %2$s 之间寻找睡眠。</string>
-    <string name="forge_sl_edit_partial">这一晚只移除了一部分，其余仍在。</string>
+    <string name="forge_sl_edit_partial">这一晚并非每个部分都能处理。其余保持不变。</string>
     <string name="forge_sl_undo_failed">无法恢复这一晚。</string>
     <string name="forge_se_undo">撤销</string>
     <string name="forge_se_windows">已删除的睡眠时间段</string>

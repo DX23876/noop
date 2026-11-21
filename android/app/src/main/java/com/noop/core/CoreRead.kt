@@ -58,7 +58,8 @@ object CoreRead {
          *
          * Empty from a core that predates the field, which is what [editableBlocks] reports on.
          */
-        data class Block(val deviceId: String?, val startTs: Long, val endTs: Long, val effectiveStartTs: Long)
+        data class Block(val deviceId: String?, val startTs: Long, val endTs: Long,
+                         val effectiveStartTs: Long, val edited: Boolean = false)
     }
 
     /**
@@ -156,6 +157,7 @@ object CoreRead {
                         deviceId = if (k.has("deviceId") && !k.isNull("deviceId")) k.getString("deviceId") else null,
                         startTs = k.getLong("startTs"), endTs = k.getLong("endTs"),
                         effectiveStartTs = k.optLong("effectiveStartTs", k.getLong("startTs")),
+                        edited = k.optBoolean("edited", false),
                     )
                 }
             }.orEmpty()
@@ -174,7 +176,8 @@ object CoreRead {
                         Night.Block(
                             deviceId = if (it.has("deviceId") && !it.isNull("deviceId")) it.getString("deviceId") else null,
                             startTs = it.getLong("startTs"), endTs = it.getLong("endTs"),
-                            effectiveStartTs = it.optLong("effectiveStartTs", it.getLong("startTs")))
+                            effectiveStartTs = it.optLong("effectiveStartTs", it.getLong("startTs")),
+                            edited = it.optBoolean("edited", false))
                     })
             }
         }

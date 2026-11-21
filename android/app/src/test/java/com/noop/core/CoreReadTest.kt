@@ -30,11 +30,15 @@ class CoreReadTest {
     @Test fun aNightNamesTheRowsItWasBuiltFrom() {
         val nights = CoreRead.parseNights(
             """[{"edited":false,"endTs":2000,"stages":[],"startTs":1000,
-                 "blocks":[{"deviceId":"my-whoop-noop","startTs":1000,"endTs":2000,"effectiveStartTs":1100}]}]""")
+                 "blocks":[{"deviceId":"my-whoop-noop","startTs":1000,"endTs":2000,"effectiveStartTs":1100,
+                            "edited":true}]}]""")
         val block = nights.single().blocks.single()
         assertEquals("my-whoop-noop", block.deviceId)
         assertEquals(1000L, block.startTs)
         assertEquals(1100L, block.effectiveStartTs)
+        // Per row, because the delete question promises re-detection suppression for a detected row and
+        // must not for a hand-made one.
+        assertTrue(block.edited)
     }
 
     /** An older core names none, which the edit reports rather than guessing a lane. */

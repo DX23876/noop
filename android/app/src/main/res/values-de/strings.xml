@@ -5768,7 +5768,7 @@
     <string name="forge_se_deleted">Schlaf gelöscht.</string>
     <string name="forge_se_removed_outside">Schlaf außerhalb der neuen Zeiten wurde entfernt.</string>
     <string name="forge_se_deleted_suppressed">Schlaf gelöscht. NOOP sucht zwischen %1$s und %2$s nicht wieder nach Schlaf.</string>
-    <string name="forge_sl_edit_partial">Nur ein Teil dieser Nacht ließ sich entfernen. Der Rest steht noch.</string>
+    <string name="forge_sl_edit_partial">Nicht jeder Teil dieser Nacht war erreichbar. Der Rest ist unverändert.</string>
     <string name="forge_sl_undo_failed">Diese Nacht ließ sich nicht zurückholen.</string>
     <string name="forge_se_undo">Undo</string>
     <string name="forge_se_windows">Gelöschte Schlafzeiträume</string>

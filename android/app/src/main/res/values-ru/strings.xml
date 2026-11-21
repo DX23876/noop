@@ -5731,7 +5731,7 @@
     <string name="forge_se_deleted">Сон удален.</string>
     <string name="forge_se_removed_outside">Сон за пределами новых границ удалён.</string>
     <string name="forge_se_deleted_suppressed">Сон удалён. NOOP больше не будет искать сон между %1$s и %2$s.</string>
-    <string name="forge_sl_edit_partial">Удалось удалить только часть этой ночи. Остальное на месте.</string>
+    <string name="forge_sl_edit_partial">Не ко всем частям этой ночи удалось обратиться. Остальное не изменилось.</string>
     <string name="forge_sl_undo_failed">Эту ночь не удалось вернуть.</string>
     <string name="forge_se_undo">отменить.</string>
     <string name="forge_se_windows">Удалённые окна сна</string>

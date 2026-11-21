@@ -59,11 +59,19 @@ public enum CoreRead {
         public struct Block: Codable, Equatable, Sendable {
             public var deviceId: String?
             public var startTs: Int, endTs: Int, effectiveStartTs: Int
-            public init(deviceId: String?, startTs: Int, endTs: Int, effectiveStartTs: Int) {
+            /// Whether the wearer's own hand made this row. It decides, per row, whether retiring it
+            /// leaves a marker behind (a detected row needs one, a hand-made one is never re-detected),
+            /// which is what a delete has to tell them BEFORE they agree to it. The night's own `edited`
+            /// cannot answer that: it is true as soon as ONE fragment was corrected, while the detected
+            /// fragment beside it still gets a marker.
+            public var edited: Bool = false
+            public init(deviceId: String?, startTs: Int, endTs: Int, effectiveStartTs: Int,
+                        edited: Bool = false) {
                 self.deviceId = deviceId
                 self.startTs = startTs
                 self.endTs = endTs
                 self.effectiveStartTs = effectiveStartTs
+                self.edited = edited
             }
         }
         public var startTs: Int, endTs: Int, efficiency: Double?, restingHr: Int?, hrv: Double?, edited: Bool
@@ -162,7 +170,8 @@ public enum CoreRead {
                          blocks: main.group
                              .sorted { $0.effectiveStartTs < $1.effectiveStartTs }
                              .map { Night.Block(deviceId: $0.deviceId, startTs: $0.startTs,
-                                                endTs: $0.endTs, effectiveStartTs: $0.effectiveStartTs) })
+                                                endTs: $0.endTs, effectiveStartTs: $0.effectiveStartTs,
+                                                edited: $0.userEdited) })
         }.sorted { $0.startTs < $1.startTs }
     }
 
@@ -180,7 +189,7 @@ public enum CoreRead {
                 Nap(startTs: $0.effectiveStartTs, endTs: $0.endTs,
                     asleepMinutes: SleepNight.asleepMinutes($0.stagesJSON, effectiveStartTs: $0.effectiveStartTs),
                     block: Night.Block(deviceId: $0.deviceId, startTs: $0.startTs, endTs: $0.endTs,
-                                       effectiveStartTs: $0.effectiveStartTs))
+                                       effectiveStartTs: $0.effectiveStartTs, edited: $0.userEdited))
             }
         }.sorted { $0.startTs < $1.startTs }
     }

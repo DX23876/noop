@@ -116,6 +116,35 @@ final class CoreSleepEditTests: XCTestCase {
         XCTAssertTrue(answer.contains("\"ok\":true"), answer)
     }
 
+    /// A block the night names but the store no longer holds makes the correction partial, not whole.
+    func testAPartlyReachableCorrectionSaysSo() async throws {
+        let (store, reader) = try await store()
+        let blocks: [[String: Any]] = [["deviceId": computed as Any, "startTs": bed],
+                                       ["deviceId": computed as Any, "startTs": bed - 7_200]]
+        let raw = await CoreSleepEdit.run("sleep.editTimes",
+                                          ["blocks": blocks, "start": bed + 600, "end": wake,
+                                           "now": wake + 3_600, "deviceId": imported],
+                                          store: store, reader: reader)
+        let answer = try XCTUnwrap(raw)
+        XCTAssertTrue(answer.contains("\"outcome\":\"partial\""), answer)
+        XCTAssertTrue(answer.contains("\"ok\":true"), answer)
+    }
+
+    /// The blocks say, per row, whether the wearer's own hand made them: the delete question needs that
+    /// to promise re-detection suppression for a detected row and not for a hand-made one.
+    func testABlockSaysWhetherItWasMadeByHand() async throws {
+        let store = try await WhoopStore.inMemory()
+        let reader = StoreReader(store: store, activeDeviceId: imported, registeredWhoopIds: [])
+        let session = CachedSleepSession(startTs: bed, endTs: wake, efficiency: 0.9, restingHr: 52,
+                                         avgHrv: 60,
+                                         stagesJSON: "[{\"start\":\(bed),\"end\":\(wake),\"stage\":\"light\"}]",
+                                         userEdited: true)
+        _ = try await store.upsertSleepSessions([session], deviceId: computed)
+        let nights = await CoreRead.nights(from: bed - 86_400, to: wake + 86_400, reader: reader,
+                                           offsetSec: 0)
+        XCTAssertEqual(nights.first?.blocks.first?.edited, true)
+    }
+
     func testAnUnknownUndoTokenIsNotReportedAsDone() async throws {
         let (store, reader) = try await store()
         let raw = await CoreSleepEdit.run("sleep.undoRetired", ["token": "nothing"],

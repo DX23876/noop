@@ -123,7 +123,11 @@ enum CoreSleepEdit {
         case .failure(let why):
             return CoreRead.json(Answer(ok: false, outcome: why.rawValue))
         case .success(let done):
-            return CoreRead.json(Answer(ok: true, outcome: "saved", edited: done.edited,
+            // A block the night named but the store no longer holds was dropped on the way in, so the
+            // correction reached fewer rows than the wearer was looking at. It happened, but not whole,
+            // and saying "saved" to that is the kind of half-truth this file exists to stop.
+            let outcome = group.count == block.count ? "saved" : "partial"
+            return CoreRead.json(Answer(ok: true, outcome: outcome, edited: done.edited,
                                         retired: wire(done.retired), undoToken: await Held.shared.retain(done.retired),
                                         wakeDays: done.affectedWakeDays.sorted(),
                                         rescore: done.requiresLocalRescore))

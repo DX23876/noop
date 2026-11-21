@@ -173,10 +173,12 @@ internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long, Boolean
             onDismissRequest = { confirmingDelete = false },
             title = { Text(stringResource(R.string.forge_se_delete_q), style = Forge.type.headline,
                            color = colors.text) },
-            // A detected night is suppressed so the next pass cannot find it again; a hand-corrected or
-            // hand-added one writes no marker, so its copy must not promise that (iOS `SleepTimeEditor`).
-            text = { Text(stringResource(if (night.edited) R.string.forge_se_delete_msg
-                                         else R.string.forge_se_delete_msg_suppress),
+            // A DETECTED row is suppressed so the next pass cannot find it again; a hand-corrected or
+            // hand-added one writes no marker, so its copy must not promise that. Asked of the rows
+            // themselves: the night's own `edited` is true as soon as ONE fragment was corrected, and
+            // would hide the promise for the detected fragment beside it, which does get a marker.
+            text = { Text(stringResource(if (night.blocks.any { !it.edited }) R.string.forge_se_delete_msg_suppress
+                                         else R.string.forge_se_delete_msg),
                           style = Forge.type.body, color = colors.textSecondary) },
             confirmButton = {
                 androidx.compose.material3.TextButton(onClick = { confirmingDelete = false; onDelete() }) {
@@ -214,6 +216,12 @@ internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long, Boolean
     // both phones correct it the same way; inert once the wearer picks a date themselves.
     var previousBed by remember { mutableStateOf(night.startTs) }
     LaunchedEffect(bed.hour, bed.minute, bedDay) {
+        // Once either end's DAY has been set by hand, this rule stands back. It judges a candidate
+        // against the night's RECORDED wake, so on a night moved to another day an ordinary nudge of
+        // the time satisfies it and the date the wearer just chose is pulled back underneath them.
+        // The iPhone's pickers carry date and time in one control and cannot tell the two apart; this
+        // one can, so it does.
+        if (bedDay != start.toLocalDate() || wakeDay != end.toLocalDate()) return@LaunchedEffect
         val candidate = at(bedDay, bed)
         val corrected = com.noop.analytics.SleepEditGuard.autoCorrectedBed(
             previousBedTs = previousBed, candidateBedTs = candidate, originalWakeTs = night.endTs,
@@ -298,10 +306,17 @@ internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long, Boolean
                          // the core's to refuse, and it now says which impossibility it was.
                          val newStart = at(bedDay, bed)
                          val newEnd = at(wakeDay, wake)
-                         if (com.noop.analytics.SleepEditGuard.isDisjoint(
+                         // Possible first, THEN "does it still touch the night". A window that cannot
+                         // exist is not a move, and asking to confirm one, only to refuse it afterwards,
+                         // is two questions for one slip (iOS validates before it offers the move).
+                         val possible = com.noop.analytics.SleepEditGuard.clampedEditWindow(
+                             newStart, newEnd, System.currentTimeMillis() / 1000L) != null
+                         if (possible && com.noop.analytics.SleepEditGuard.isDisjoint(
                                  newStart, newEnd, night.startTs, night.endTs)) {
                              confirmingMove = newStart to newEnd
                          } else {
+                             // An impossible window goes to the core all the same: it owns the refusal,
+                             // and it now says which impossibility it was.
                              onSave(newStart, newEnd, false)
                          }
                      }.padding(8.dp))

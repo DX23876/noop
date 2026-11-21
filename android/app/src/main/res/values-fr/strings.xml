@@ -5748,7 +5748,7 @@
     <string name="forge_se_deleted">Sommeil supprimé.</string>
     <string name="forge_se_removed_outside">Le sommeil en dehors des nouvelles heures a été supprimé.</string>
     <string name="forge_se_deleted_suppressed">Sommeil supprimé. NOOP ne cherchera plus de sommeil entre %1$s et %2$s.</string>
-    <string name="forge_sl_edit_partial">Seule une partie de cette nuit a pu être supprimée. Le reste est toujours là.</string>
+    <string name="forge_sl_edit_partial">Toutes les parties de cette nuit n\'ont pas pu être atteintes. Le reste est inchangé.</string>
     <string name="forge_sl_undo_failed">Cette nuit n\'a pas pu être récupérée.</string>
     <string name="forge_se_undo">Annuler</string>
     <string name="forge_se_windows">Périodes de sommeil supprimées</string>

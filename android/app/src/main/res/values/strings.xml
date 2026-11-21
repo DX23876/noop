@@ -5816,7 +5816,7 @@
     <string name="forge_se_deleted">Sleep deleted.</string>
     <string name="forge_se_removed_outside">Sleep outside the new times was removed.</string>
     <string name="forge_se_deleted_suppressed">Sleep deleted. NOOP won\'t look for sleep between %1$s and %2$s again.</string>
-    <string name="forge_sl_edit_partial">Only part of this night could be removed. The rest is still there.</string>
+    <string name="forge_sl_edit_partial">Not every part of this night could be reached. The rest is unchanged.</string>
     <string name="forge_sl_undo_failed">This night couldn\'t be brought back.</string>
     <string name="forge_se_undo">Undo</string>
     <string name="forge_se_windows">Deleted sleep windows</string>

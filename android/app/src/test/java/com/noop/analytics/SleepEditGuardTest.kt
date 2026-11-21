@@ -26,6 +26,30 @@ class SleepEditGuardTest {
     /** THE #940 SHAPE: night tracked late (bed 01:06, wake 05:00 on 2 Jul), user rolls the bed TIME
      *  back to 23:00 at 05:03 the same morning. The picker kept the date on 2 Jul, so the candidate
      *  is tonight (future, past the wake). The guard snaps it to 1 Jul 23:00: the evening meant. */
+    /**
+     * Why the Forge editor stands this rule down once a day was chosen by hand (2026-11-21).
+     *
+     * It judges a candidate against the night's RECORDED wake. On a night the wearer has moved to a
+     * later day, an ordinary nudge of the bed time still satisfies rule 1a, and the answer is a bed one
+     * day earlier than the date they just picked. The rule is right for what it was written for, a time
+     * rolled past midnight with the date left behind; it simply cannot see a deliberate move, so the
+     * screen that CAN see one keeps it out of the way.
+     */
+    @Test fun aNightMovedToAnotherDayIsStillPulledBackByRuleOneA() {
+        val zone = ZoneId.of("Europe/Berlin")
+        fun at(day: String, hour: Int, minute: Int): Long =
+            java.time.LocalDate.parse(day).atTime(hour, minute).atZone(zone).toEpochSecond()
+        // Recorded: 15 Nov 23:00 to 16 Nov 07:19. The wearer moved the bed to the 16th, then nudged it.
+        val originalWake = at("2026-11-16", 7, 19)
+        val previousBed = at("2026-11-16", 23, 0)
+        val candidate = at("2026-11-16", 22, 45)
+        val corrected = SleepEditGuard.autoCorrectedBed(
+            previousBedTs = previousBed, candidateBedTs = candidate, originalWakeTs = originalWake,
+            nowTs = at("2026-11-21", 12, 0), zone = zone)
+        assertEquals("the rule answers with the day before, which is not what the wearer set",
+                     at("2026-11-15", 22, 45), corrected)
+    }
+
     @Test
     fun crossMidnightRollBackDecrementsDate() {
         val corrected = SleepEditGuard.autoCorrectedBed(

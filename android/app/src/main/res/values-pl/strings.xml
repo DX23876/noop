@@ -5772,7 +5772,7 @@
     <string name="forge_se_deleted">Usunięto sen.</string>
     <string name="forge_se_removed_outside">Sen poza nowymi godzinami został usunięty.</string>
     <string name="forge_se_deleted_suppressed">Sen usunięty. NOOP nie będzie już szukać snu między %1$s a %2$s.</string>
-    <string name="forge_sl_edit_partial">Udało się usunąć tylko część tej nocy. Reszta nadal tu jest.</string>
+    <string name="forge_sl_edit_partial">Nie każda część tej nocy była dostępna. Reszta pozostaje bez zmian.</string>
     <string name="forge_sl_undo_failed">Nie udało się przywrócić tej nocy.</string>
     <string name="forge_se_undo">Anulować</string>
     <string name="forge_se_windows">Usunięte okna snu</string>

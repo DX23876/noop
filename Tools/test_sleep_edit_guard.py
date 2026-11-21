@@ -111,8 +111,8 @@ class SleepEditGuardTest(unittest.TestCase):
         self.assertIn("confirmingDelete = true", editor,
                       "the red word opens the question, it does not do the deleting")
         self.assertIn("forge_se_delete_q", editor)
-        # And the question's copy may not promise suppression for a night that writes no marker.
-        self.assertIn("night.edited", editor)
+        # And the question's copy may not promise suppression for a row that writes no marker; which
+        # rows those are is `test_the_delete_question_asks_the_rows` below.
         self.assertIn("forge_se_delete_msg_suppress", editor)
         self.assertIn("forge_se_delete_nap_q", self.screen, "a nap is asked for too")
 
@@ -138,6 +138,25 @@ class SleepEditGuardTest(unittest.TestCase):
         self.assertIn("forge_se_move_q", editor)
         self.assertIn("onSave(window.first, window.second, true)", editor,
                       "a move only goes out with the wearer's consent behind it")
+        # Possible BEFORE off-the-night: a window that cannot exist is not a move, and asking to confirm
+        # one only to refuse it afterwards is two questions for one slip.
+        save = editor.split("R.string.forge_se_save", 1)[1]
+        self.assertLess(save.index("clampedEditWindow"), save.index("isDisjoint"))
+
+    def test_the_midnight_rule_leaves_a_chosen_day_alone(self):
+        # It judges the candidate against the night's RECORDED wake, so on a night moved to another day
+        # an ordinary nudge of the time satisfies it and pulls the chosen date back underneath the
+        # wearer. Reachable only since Android could move a night at all.
+        effect = self.editing.split("autoCorrectedBed", 1)[0]
+        self.assertIn("if (bedDay != start.toLocalDate() || wakeDay != end.toLocalDate()) return@LaunchedEffect",
+                      effect)
+
+    def test_the_delete_question_asks_the_rows(self):
+        editor = self.editing.split("internal fun SleepEditDialog", 1)[1]
+        self.assertIn("night.blocks.any { !it.edited }", editor,
+                      "the night's own flag is true as soon as ONE fragment was corrected, and would "
+                      "hide the marker the detected fragment beside it does get")
+        self.assertNotIn("if (night.edited)", editor)
 
     def test_the_pickers_read_the_wearer_s_own_clock(self):
         # NOOP has its own 12/24-hour setting and everything it prints goes through it. A picker that

@@ -5744,7 +5744,7 @@
     <string name="forge_se_deleted">Sono excluído.</string>
     <string name="forge_se_removed_outside">O sono fora dos novos horários foi removido.</string>
     <string name="forge_se_deleted_suppressed">Sono eliminado. O NOOP não voltará a procurar sono entre as %1$s e as %2$s.</string>
-    <string name="forge_sl_edit_partial">Só foi possível remover parte desta noite. O resto continua lá.</string>
+    <string name="forge_sl_edit_partial">Não foi possível alcançar todas as partes desta noite. O resto fica inalterado.</string>
     <string name="forge_sl_undo_failed">Não foi possível recuperar esta noite.</string>
     <string name="forge_se_undo">Desfazer</string>
     <string name="forge_se_windows">Janelas de sono eliminadas</string>

@@ -5719,7 +5719,7 @@
     <string name="forge_se_deleted">Sonno cancellato.</string>
     <string name="forge_se_removed_outside">Il sonno fuori dai nuovi orari è stato rimosso.</string>
     <string name="forge_se_deleted_suppressed">Sonno eliminato. NOOP non cercherà più il sonno tra le %1$s e le %2$s.</string>
-    <string name="forge_sl_edit_partial">È stato possibile rimuovere solo una parte di questa notte. Il resto è ancora lì.</string>
+    <string name="forge_sl_edit_partial">Non è stato possibile raggiungere ogni parte di questa notte. Il resto resta invariato.</string>
     <string name="forge_sl_undo_failed">Non è stato possibile recuperare questa notte.</string>
     <string name="forge_se_undo">Annulla</string>
     <string name="forge_se_windows">Finestre di sonno eliminate</string>
