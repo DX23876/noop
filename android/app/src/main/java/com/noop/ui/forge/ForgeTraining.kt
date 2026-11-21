@@ -1,5 +1,6 @@
 package com.noop.ui.forge
 
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -240,6 +241,7 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
     // Goals and the other pages behind More, opened over the tab as Today opens them (new design).
     val more = rememberMoreNavigator()
     val workouts by viewModel.workouts.collectAsState()
+    val hcSyncing by viewModel.hcSyncing.collectAsStateWithLifecycle()
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(padding)
             .padding(horizontal = ForgeMetrics.screenPadding).widthIn(max = ForgeMetrics.maxContentWidth),
@@ -247,7 +249,11 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
     ) {
         val openMore = LocalForgeOpenMore.current
         // The new design's header, as iOS's `ForgeLargeHeader`: the title with today's date, the profile at the end.
-        if (openMore != null) TabHeader(stringResource(R.string.forge_training), onProfile = LocalForgeOpenSettings.current ?: openMore, onSearch = rememberOpenSearch())
+        // The sync button pulls a workout another app (a watch's companion) wrote to Health Connect now, rather
+        // than at the next on-open catch-up or through Data Sources.
+        if (openMore != null) TabHeader(stringResource(R.string.forge_training), onProfile = LocalForgeOpenSettings.current ?: openMore,
+                                        onSearch = rememberOpenSearch(), syncing = hcSyncing,
+                                        onSync = { viewModel.syncHealthConnectNow { msg -> Toast.makeText(context, msg, Toast.LENGTH_LONG).show() } })
         else Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
             Text(stringResource(R.string.forge_training_overline).uppercase(), style = Forge.type.overline,

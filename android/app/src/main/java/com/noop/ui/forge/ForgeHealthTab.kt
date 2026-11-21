@@ -32,6 +32,7 @@ import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Lightbulb
 import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.ShowChart
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.Box
@@ -355,7 +356,13 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
 
 /** A tab's own header row, as iOS's `ForgeLargeHeader`: the title with today's date, the profile at the end. */
 @Composable
-internal fun TabHeader(title: String, onProfile: () -> Unit, onSearch: (() -> Unit)? = null) {
+internal fun TabHeader(
+    title: String,
+    onProfile: () -> Unit,
+    onSearch: (() -> Unit)? = null,
+    onSync: (() -> Unit)? = null,
+    syncing: Boolean = false,
+) {
     val locale = Locale.getDefault()
     Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4), verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -369,6 +376,20 @@ internal fun TabHeader(title: String, onProfile: () -> Unit, onSearch: (() -> Un
             },
             style = Forge.type.title2, color = Forge.sceneInk.text, maxLines = 1, modifier = Modifier.weight(1f),
         )
+        // A sync button where a tab offers one (Training: pull a Health Connect workout now), a spinner while it runs.
+        if (onSync != null) {
+            Box(Modifier.size(ForgeMetrics.minHitTarget).clickable(role = Role.Button, enabled = !syncing, onClick = onSync),
+                contentAlignment = Alignment.Center) {
+                if (syncing) {
+                    androidx.compose.material3.CircularProgressIndicator(Modifier.size(20.dp), color = Forge.sceneInk.text,
+                                                                         strokeWidth = 2.dp)
+                } else {
+                    Icon(Icons.Rounded.Sync, contentDescription = stringResource(R.string.cx_sync_now),
+                         tint = Forge.sceneInk.text, modifier = Modifier.size(22.dp))
+                }
+            }
+            Spacer(Modifier.size(ForgeMetrics.space1))
+        }
         // The magnifier before the profile, as iOS's `ForgeSearchButton` in each tab's header.
         if (onSearch != null) {
             Box(Modifier.size(ForgeMetrics.minHitTarget).clickable(role = Role.Button, onClick = onSearch),
