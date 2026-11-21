@@ -225,6 +225,16 @@ object CoreCoach {
     fun card(title: String, summary: String): Boolean =
         call("coach.card", JSONObject().put("title", title).put("summary", summary).toString())?.optBoolean("ok") ?: false
 
+    /**
+     * The chat was opened from a main page's header (`CoachEntryPage`): the page and its day ride the coming
+     * questions, [suggestions] (in the app's language) show as chips. Blocking; call off the main thread.
+     */
+    fun page(kind: String, day: String?, suggestions: List<String>): Boolean {
+        val args = JSONObject().put("kind", kind).put("suggestions", org.json.JSONArray(suggestions))
+        day?.let { args.put("day", it) }
+        return call("coach.page", args.toString())?.optBoolean("ok") ?: false
+    }
+
     /** Whether a metric may offer "Ask coach": the Data access purposes a card read draws on are on. Blocking. */
     fun cardAllowed(): Boolean = call("coach.card.allowed", "{}")?.optBoolean("allowed") ?: false
 

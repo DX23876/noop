@@ -88,16 +88,16 @@ enum ForgeColor {
             // Each tab in the colour of what it holds: Sleep is Rest, Health is Charge. Training takes
             // OpenGym's plain look, Apple's grouped grey and black, its green the only colour to press.
             table = [.today: (0xCFE4FF, 0x12335F), .training: (0xF2F2F7, 0x000000),
-                     .sleep: (0xE0DAFF, 0x2A2270), .health: (0xCDEFDC, 0x0D4A2F)]
+                     .sleep: (0xE0DAFF, 0x2A2270), .health: (0xCDEFDC, 0x0D4A2F), .nutrition: (0xFFE0D6, 0x4A1810)]
         case .stone:
             table = [.today: (0xC9D6E8, 0x22314A), .training: (0xF0D2BC, 0x3A2418),
-                     .sleep: (0xDCD4F0, 0x241F44), .health: (0xCFE2E0, 0x173040)]
+                     .sleep: (0xDCD4F0, 0x241F44), .health: (0xCFE2E0, 0x173040), .nutrition: (0xEBD3C8, 0x3A2219)]
         case .slate:
             table = [.today: (0xD3DBE6, 0x1E2835), .training: (0xD6DEE4, 0x1F2A32),
-                     .sleep: (0xD8D9E8, 0x20233A), .health: (0xD4E0E3, 0x1C2C33)]
+                     .sleep: (0xD8D9E8, 0x20233A), .health: (0xD4E0E3, 0x1C2C33), .nutrition: (0xE3D8D4, 0x2E2422)]
         case .sage:
             table = [.today: (0xD6E0D2, 0x1F2C25), .training: (0xDCE3CE, 0x262D1E),
-                     .sleep: (0xD6DDD8, 0x20292A), .health: (0xCFE0D4, 0x1A2E25)]
+                     .sleep: (0xD6DDD8, 0x20292A), .health: (0xCFE0D4, 0x1A2E25), .nutrition: (0xE2DCCF, 0x2C2820)]
         }
         let colors = table[tab] ?? (0xE5E5EA, 0x1C1C1E)
         return dyn(colors.0, colors.1)
@@ -116,14 +116,15 @@ enum ForgeColor {
         case .training: return dyn(0x248A3D, 0x30D158)   // the shipped design's Training green
         case .sleep: return dyn(0x5856D6, 0x7D7AFF)
         case .health: return dyn(0x13896B, 0x3DDC97)
+        case .nutrition: return food
         case nil: return dyn(0x0071A4, 0x64D2FF)
         }
     }
 }
 
-/// The four primary areas of the redesign.
+/// The primary areas of the redesign; Nutrition joined on 2026-11-21 (owner).
 enum ForgeTab: Int, CaseIterable {
-    case today, training, sleep, health
+    case today, training, sleep, health, nutrition
 }
 
 enum ForgeFont {
@@ -160,6 +161,9 @@ enum ForgeFont {
 extension EnvironmentValues {
     /// The tab a page was pushed from, so a shared screen takes its tab's wash under the new design.
     @Entry var forgeTab: ForgeTab = .today
+    /// Opens the coach from a main page's header (`ForgeCoachButton`); nil while the coach is off, which hides
+    /// the button. Set once by the tab shell.
+    @Entry var forgeOpenCoach: ((CoachEntryPage) -> Void)? = nil
     /// Today sets how solid its surfaces are over the picture; nil leaves a card to Card transparency.
     @Entry var forgeSurfaceOpacity: Double? = nil
 }

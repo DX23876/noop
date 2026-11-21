@@ -13,13 +13,20 @@ struct FoodSavedMealRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            FoodThumbnail(motif: FoodSavedMealRow.motif(meal))
-            VStack(alignment: .leading, spacing: 4) {
-                Text(meal.name).font(ForgeFont.cardTitle).foregroundStyle(ForgeColor.text).lineLimit(1)
-                Text(FoodSavedMealRow.foods(meal)).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary).lineLimit(1)
+            Button(action: editMeal) {
+                HStack(spacing: 12) {
+                    FoodThumbnail(motif: FoodSavedMealRow.motif(meal))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(meal.name).font(ForgeFont.cardTitle).foregroundStyle(ForgeColor.text).lineLimit(1)
+                        Text(FoodSavedMealRow.foods(meal)).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary).lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .contentShape(.rect)
             }
-            Spacer(minLength: 0)
-            Button { log(meal) } label: {
+            .buttonStyle(.plain)
+            .accessibilityHint(Text("Edit meal"))
+            Button(action: logMeal) {
                 HStack(spacing: 4) {
                     Text("\(FoodText.kcal(FoodLog.kcal(of: meal))) kcal").monospacedDigit()
                     Image(systemName: "plus").fontWeight(.bold)
@@ -35,13 +42,15 @@ struct FoodSavedMealRow: View {
             .buttonStyle(.plain)
             .accessibilityLabel(Text("Log \(meal.name) again"))
         }
-        .contentShape(.rect)
-        .onTapGesture { edit(meal) }
         .contextMenu {
-            Button("Edit meal", systemImage: "pencil") { edit(meal) }
-            Button("Remove from favourites", systemImage: "star.slash", role: .destructive) { remove(meal) }
+            Button("Edit meal", systemImage: "pencil", action: editMeal)
+            Button("Remove from favourites", systemImage: "star.slash", role: .destructive, action: removeMeal)
         }
     }
+
+    private func editMeal() { edit(meal) }
+    private func logMeal() { log(meal) }
+    private func removeMeal() { remove(meal) }
 
     /// The still life of the group that brings the most energy, as a logged meal shows it.
     static func motif(_ meal: FoodSavedMeal) -> FoodGroupMotif? {

@@ -7471,4 +7471,15 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     </plurals>
     <string name="food_quality_title">Jakość odżywiania</string>
     <string name="food_quality_about">Jak zdrowo jesz, w skali od 0 do 10</string>
+    <string name="coach_page_today_1">Jak wygląda mój dzień?</string>
+    <string name="coach_page_today_2">Czy powinienem dziś mocno trenować?</string>
+    <string name="coach_page_training_1">Jakie było moje obciążenie treningowe w tym tygodniu?</string>
+    <string name="coach_page_training_2">Co powinienem trenować dalej?</string>
+    <string name="coach_page_nutrition_1">Czego mi dziś jeszcze brakuje?</string>
+    <string name="coach_page_nutrition_2">Jak wyglądało moje odżywianie w tym tygodniu?</string>
+    <string name="coach_page_sleep_1">Dlaczego moja noc tak wyglądała?</string>
+    <string name="coach_page_sleep_2">O której powinienem dziś iść spać?</string>
+    <string name="coach_page_health_1">Czy coś jest nietypowe?</string>
+    <string name="coach_page_health_2">Jak zmieniają się moje wartości?</string>
+    <string name="forge_workout_actions">Akcje treningu</string>
 </resources>

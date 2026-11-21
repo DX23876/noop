@@ -7420,4 +7420,15 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     </plurals>
     <string name="food_quality_title">Calidad de la alimentación</string>
     <string name="food_quality_about">Lo sano que comes, de 0 a 10</string>
+    <string name="coach_page_today_1">¿Cómo se presenta mi día?</string>
+    <string name="coach_page_today_2">¿Debería entrenar duro hoy?</string>
+    <string name="coach_page_training_1">¿Cómo fue mi carga de entrenamiento esta semana?</string>
+    <string name="coach_page_training_2">¿Qué debería entrenar a continuación?</string>
+    <string name="coach_page_nutrition_1">¿Qué me falta todavía hoy?</string>
+    <string name="coach_page_nutrition_2">¿Cómo fue mi alimentación esta semana?</string>
+    <string name="coach_page_sleep_1">¿Por qué fue así mi noche?</string>
+    <string name="coach_page_sleep_2">¿A qué hora debería acostarme esta noche?</string>
+    <string name="coach_page_health_1">¿Hay algo inusual?</string>
+    <string name="coach_page_health_2">¿Cómo evolucionan mis valores?</string>
+    <string name="forge_workout_actions">Acciones del entrenamiento</string>
 </resources>

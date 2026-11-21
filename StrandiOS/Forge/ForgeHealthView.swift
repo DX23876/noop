@@ -113,7 +113,10 @@ struct ForgeHealthView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    ForgeLargeHeader(title: "Health", onProfile: onProfile) { ForgeSearchButton() }
+                    ForgeLargeHeader(title: "Health", onProfile: onProfile) {
+                        ForgeCoachButton(page: .health, day: Repository.logicalDayKey(Date()))
+                        ForgeSearchButton()
+                    }
                     .id("forge-health-top")
                     VStack(alignment: .leading, spacing: 14) {
                         ForgeTabHero(
@@ -148,9 +151,6 @@ struct ForgeHealthView: View {
 
                         // The cycle at a glance, only while cycle tracking is on.
                         ForgeCycleSummaryCard()
-
-                        // Today's food log, one tap from the page and one more from adding.
-                        FoodHealthCard()
 
                         ForgeSectionTitle(title: "Focus areas")
                         LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {

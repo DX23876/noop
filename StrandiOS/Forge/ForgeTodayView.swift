@@ -138,7 +138,10 @@ struct ForgeTodayView: View {
                         ForgeLargeHeader(title: "Today",
                                          subtitle: Repository.logicalDay(Date()).formatted(
                                              .dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(AppLanguage.activeLocale)),
-                                         onProfile: onProfile) { addMenu }
+                                         onProfile: onProfile) {
+                            ForgeCoachButton(page: .today, day: Repository.logicalDayKey(Date()))
+                            addMenu
+                        }
                             .id("forge-today-top")
                         VStack(alignment: .leading, spacing: 14) {
                             HealthAlertBanner()

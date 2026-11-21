@@ -7417,4 +7417,15 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     </plurals>
     <string name="food_quality_title">Qualité de l’alimentation</string>
     <string name="food_quality_about">À quel point tu manges sainement, de 0 à 10</string>
+    <string name="coach_page_today_1">Comment se présente ma journée ?</string>
+    <string name="coach_page_today_2">Dois-je m\'entraîner dur aujourd\'hui ?</string>
+    <string name="coach_page_training_1">Quelle a été ma charge d\'entraînement cette semaine ?</string>
+    <string name="coach_page_training_2">Que dois-je entraîner ensuite ?</string>
+    <string name="coach_page_nutrition_1">Que me manque-t-il encore aujourd\'hui ?</string>
+    <string name="coach_page_nutrition_2">Comment était mon alimentation cette semaine ?</string>
+    <string name="coach_page_sleep_1">Pourquoi ma nuit a-t-elle été ainsi ?</string>
+    <string name="coach_page_sleep_2">À quelle heure dois-je me coucher ce soir ?</string>
+    <string name="coach_page_health_1">Y a-t-il quelque chose d\'inhabituel ?</string>
+    <string name="coach_page_health_2">Comment évoluent mes valeurs ?</string>
+    <string name="forge_workout_actions">Actions de la séance</string>
 </resources>

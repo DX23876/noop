@@ -568,10 +568,12 @@ struct CoachView: View {
                     //
                     // Only after a FINISHED reply, never mid-stream: chips appearing under half an answer
                     // invite a tap that discards the rest of it.
-                    if coach.messages.isEmpty {
-                        suggestionChips.padding(.top, 4)
-                    } else if !coach.cardSuggestions.isEmpty {
+                    // A page's own suggestions (the header button, `openedFromPage`) beat the general
+                    // starter set even in an empty thread: they are about what the person was looking at.
+                    if !coach.cardSuggestions.isEmpty {
                         cardSuggestionChips.padding(.top, 4)
+                    } else if coach.messages.isEmpty {
+                        suggestionChips.padding(.top, 4)
                     } else if showsFollowUpChips {
                         suggestionChips.padding(.top, Self.groupGap)
                             .transition(.opacity)
@@ -1635,7 +1637,9 @@ extension View {
     /// Present the Coach chat over a screen: fullScreenCover on iOS, a sheet on macOS (no
     /// fullScreenCover there). The engine is passed in (a `View` extension can't read the caller's
     /// @EnvironmentObject) and re-injected so the presented chat inherits it. Used by the Today entries.
-    @ViewBuilder func coachCover(isPresented: Binding<Bool>, coach: AICoachEngine) -> some View {
+    /// `halfSheet` (the redesign, owner 2026-11-21) opens it as a sheet that comes up halfway and pulls to full
+    /// height, so the page the question is about stays in sight.
+    @ViewBuilder func coachCover(isPresented: Binding<Bool>, coach: AICoachEngine, halfSheet: Bool = false) -> some View {
         let content = NavigationStack {
             CoachView()
                 .environmentObject(coach)
@@ -1650,7 +1654,13 @@ extension View {
                 }
         }
         #if os(iOS)
-        self.fullScreenCover(isPresented: isPresented) { content }
+        if halfSheet {
+            self.sheet(isPresented: isPresented) {
+                content.presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
+            }
+        } else {
+            self.fullScreenCover(isPresented: isPresented) { content }
+        }
         #else
         self.sheet(isPresented: isPresented) { content }
         #endif

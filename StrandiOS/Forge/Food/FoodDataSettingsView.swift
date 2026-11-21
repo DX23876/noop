@@ -80,8 +80,10 @@ struct FoodDataSettingsView: View {
                     Text("Each meal goes to Apple Health with its nutrients. Forge does not read its own meals back, so nothing is counted twice.")
                 }
                 Section {
-                    Toggle("Morning look back", isOn: reminder(FoodReminders.morningKey, $morningOn))
-                    Toggle("Evening reminder", isOn: reminder(FoodReminders.eveningKey, $eveningOn))
+                    Toggle("Morning look back", isOn: $morningOn)
+                        .onChange(of: morningOn) { _, on in apply(FoodReminders.morningKey, on: on) }
+                    Toggle("Evening reminder", isOn: $eveningOn)
+                        .onChange(of: eveningOn) { _, on in apply(FoodReminders.eveningKey, on: on) }
                     Toggle("Warn while logging", isOn: $warnOn)
                 } header: {
                     Text("Reminders")
@@ -121,15 +123,13 @@ struct FoodDataSettingsView: View {
 
     private func close() { dismiss() }
 
-    /// A reminder switch that asks for permission when turned on and falls back when it is refused.
-    private func reminder(_ key: String, _ state: Binding<Bool>) -> Binding<Bool> {
-        Binding(get: { state.wrappedValue }, set: { on in
-            state.wrappedValue = on
-            Task { @MainActor in
-                let ok = await FoodReminders.set(key, on: on)
-                if !ok { state.wrappedValue = false; remindersDenied = true }
-            }
-        })
+    /// A reminder switch asks for permission when turned on and falls back when it is refused.
+    private func apply(_ key: String, on: Bool) {
+        Task {
+            guard await !FoodReminders.set(key, on: on) else { return }
+            if key == FoodReminders.morningKey { morningOn = false } else { eveningOn = false }
+            remindersDenied = true
+        }
     }
 }
 #endif

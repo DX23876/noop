@@ -7363,4 +7363,15 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     </plurals>
     <string name="food_quality_title">饮食质量</string>
     <string name="food_quality_about">你吃得有多健康，0 到 10 分</string>
+    <string name="coach_page_today_1">我今天状态如何？</string>
+    <string name="coach_page_today_2">我今天应该高强度训练吗？</string>
+    <string name="coach_page_training_1">我本周的训练负荷如何？</string>
+    <string name="coach_page_training_2">我接下来该练什么？</string>
+    <string name="coach_page_nutrition_1">我今天还缺什么？</string>
+    <string name="coach_page_nutrition_2">我本周的饮食如何？</string>
+    <string name="coach_page_sleep_1">我昨晚为什么会这样？</string>
+    <string name="coach_page_sleep_2">我今晚应该几点睡？</string>
+    <string name="coach_page_health_1">有什么异常吗？</string>
+    <string name="coach_page_health_2">我的各项数值变化如何？</string>
+    <string name="forge_workout_actions">训练操作</string>
 </resources>

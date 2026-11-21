@@ -191,6 +191,14 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
     // A recent session opened from the list, as iOS opens `ForgeRoute.workout`.
     var recentOpen by remember { mutableStateOf<com.noop.data.WorkoutRow?>(null) }
     recentOpen?.let { row -> com.noop.ui.WorkoutDetailSheet(vm = viewModel, row = row, onDismiss = { recentOpen = null }) }
+    // A recent session edited or copied from its "•••", as on the Workouts page.
+    var recentEditing by remember { mutableStateOf<Pair<com.noop.data.WorkoutRow, Boolean>?>(null) }
+    recentEditing?.let { (row, copy) ->
+        com.noop.ui.ManualWorkoutDialog(editing = row, isCopy = copy, onDismiss = { recentEditing = null }, onSave = { saved, replacing ->
+            viewModel.saveManualWorkout(saved, if (copy) null else replacing)
+            recentEditing = null
+        })
+    }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var snapshot by remember { mutableStateOf<CoreTraining.Snapshot?>(null) }
@@ -247,7 +255,8 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
     ) {
         val openMore = LocalForgeOpenMore.current
         // The new design's header, as iOS's `ForgeLargeHeader`: the title with today's date, the profile at the end.
-        if (openMore != null) TabHeader(stringResource(R.string.forge_training), onProfile = LocalForgeOpenSettings.current ?: openMore, onSearch = rememberOpenSearch())
+        if (openMore != null) TabHeader(stringResource(R.string.forge_training), onProfile = LocalForgeOpenSettings.current ?: openMore, onSearch = rememberOpenSearch(),
+                          coach = CoachPage("training", java.time.LocalDate.now().toString()))
         else Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
             Text(stringResource(R.string.forge_training_overline).uppercase(), style = Forge.type.overline,
@@ -365,7 +374,7 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
             TrainingSectionHead(stringResource(R.string.forge_tr_recent), stringResource(R.string.forge_tr_all_link)) {
                 page = TrainingPage.Workouts
             }
-            TrainingRecentList(workouts) { recentOpen = it }
+            TrainingRecentList(workouts, viewModel, onEdit = { row, copy -> recentEditing = row to copy }) { recentOpen = it }
         } else Section(stringResource(R.string.forge_th_recent), stringResource(R.string.forge_th_logged_in_noop)) {
             ForgeCard(Modifier.fillMaxWidth()) {
                 if (s.sessions.isEmpty()) {

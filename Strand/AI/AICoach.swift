@@ -702,6 +702,9 @@ final class AICoachEngine: ObservableObject {
     /// Metric-specific follow-up questions offered as chips after a card read (11.3). Cleared on the next
     /// user turn so they don't linger past the moment they belong to.
     @Published var cardSuggestions: [String] = []
+    /// The main page the chat was last opened from through its header button (`CoachEntryPage`). It stays
+    /// until the chat is opened from another page, so every question in between carries it as context.
+    @Published private(set) var entryPage: CoachEntryPage?
 
     /// Internal so consent-gated tool extensions can resolve local proposal evidence without copying
     /// data access into another owner. Held as `CoachDataReading` so the coach does not depend on Apple's
@@ -1876,7 +1879,7 @@ final class AICoachEngine: ObservableObject {
         } else {
             context = noConsentNote
         }
-        let wire = wireMessages(context: context)
+        let wire = wireMessages(context: Self.context(context, entryPage: entryPage))
 
         // Streaming path when the provider supports it (Anthropic): the reply appears token-by-token in
         // a live-growing assistant bubble. Any tool rounds run inline. Other providers keep the plain
@@ -3541,6 +3544,21 @@ final class AICoachEngine: ObservableObject {
     /// immediately post the open notification; the generation happens on the Coach side.
     func openedFromCard(_ context: CoachCardContext) {
         pendingCardContext = context
+    }
+
+    /// The chat was opened from a main page's header button: remember the page for the coming questions and
+    /// offer its suggestions as chips. The same chat continues; nothing is sent.
+    func openedFromPage(_ page: CoachEntryPage) {
+        entryPage = page
+        if !sending { cardSuggestions = page.suggestions }
+    }
+
+    /// The context with the entry page's note in front, or the context alone when the chat was not opened
+    /// from a page. Pure, so the joining is testable without an engine.
+    nonisolated static func context(_ context: String, entryPage: CoachEntryPage?) -> String {
+        guard let note = entryPage?.promptNote else { return context }
+        let rest = context.trimmingCharacters(in: .whitespacesAndNewlines)
+        return rest.isEmpty ? note : note + "\n\n" + context
     }
 
     /// System prompt for the cheap per-card read: the persona's voice, scoped to ONE metric and told to

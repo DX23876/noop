@@ -11,6 +11,9 @@ struct ForgeFoodView: View {
     var onAsk: (String) -> Void = { _ in }
     /// Opens the add sheet once on arrival: Today's Log sheet and the Health card's button.
     var opensAdd = false
+    /// Set when the page is the Nutrition tab's root (owner, 2026-11-21): it then wears the tabs' header with the
+    /// coach, search and profile, the shown day beside the title. Pushed from elsewhere it keeps its back bar.
+    var onProfile: (() -> Void)? = nil
 
     @EnvironmentObject private var repo: Repository
     @EnvironmentObject private var profile: ProfileStore
@@ -37,6 +40,7 @@ struct ForgeFoodView: View {
     @State private var recipeFrom: FoodEntryBatch?
     /// The meal being kept as a favourite, while its name is asked for.
     @State private var keeping: FoodEntryBatch?
+    @State private var askingKeepName = false
     @State private var keepName = ""
     /// A starred food tapped in the favourites bar: its amount sheet, logged straight from there.
     @State private var favouritePick: FoodItem?
@@ -45,8 +49,16 @@ struct ForgeFoodView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                ForgeDetailHeader(overline: FoodDayPicker.title(model.day), title: String(localized: "Nutrition"),
-                                  scrolledPast: $scrolledPast)
+                if let onProfile {
+                    ForgeLargeHeader(title: "Nutrition", subtitle: FoodDayPicker.title(model.day), onProfile: onProfile) {
+                        ForgeCoachButton(page: .nutrition, day: model.day)
+                        ForgeSearchButton()
+                    }
+                    .padding(.horizontal, -16)
+                } else {
+                    ForgeDetailHeader(overline: FoodDayPicker.title(model.day), title: String(localized: "Nutrition"),
+                                      scrolledPast: $scrolledPast)
+                }
                 DietPlanLine(model: model, open: openPlan)
                 hero
                 if let other = model.otherIntake {
@@ -116,7 +128,7 @@ struct ForgeFoodView: View {
             // The picture scrolls with the page and runs up under the bar; as a background it never sets the width.
             .background(alignment: .top) { FoodHeroPicture().padding(.top, -120) }
         }
-        .background(ForgeBackground(tab: .today))
+        .background(ForgeBackground(tab: .nutrition))
         .forgeDetailBar(title: String(localized: "Nutrition"), showsTitle: scrolledPast)
         .toolbar {
             // Adding sits in the bar, always in reach, instead of a button floating over the meals.
@@ -155,7 +167,7 @@ struct ForgeFoodView: View {
         .sheet(item: $favouritePick) { item in
             FoodPortionSheet(item: item, model: model, lastGrams: model.lastGrams[item.id], add: logFavourite)
         }
-        .alert("Keep as favourite", isPresented: keepingShown) {
+        .alert("Keep as favourite", isPresented: $askingKeepName) {
             TextField("Name", text: $keepName)
             Button("Cancel", role: .cancel) { keeping = nil }
             Button("Keep", action: saveKept)
@@ -290,12 +302,10 @@ struct ForgeFoodView: View {
     private func showDay(_ day: String) { model.day = day }
     private func delete(_ entries: [FoodLogEntry]) { Task { await model.delete(entries, repo: repo) } }
 
-    private var keepingShown: Binding<Bool> {
-        Binding(get: { keeping != nil }, set: { if !$0 { keeping = nil } })
-    }
     private func keep(_ entries: [FoodLogEntry]) {
         keepName = model.suggestedName(for: entries)
         keeping = FoodEntryBatch(entries: entries)
+        askingKeepName = true
     }
     private func saveKept() {
         guard let batch = keeping else { return }

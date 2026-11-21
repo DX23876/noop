@@ -100,10 +100,11 @@ class ForgeDesignTest {
                      ForgeDesign.tabs(newDesign = false, coachEnabled = true))
     }
 
-    @Test fun newDesignHasHealthAndTheCoachOnlyWhileOn() {
-        assertEquals(listOf(ForgeTab.Today, ForgeTab.Training, ForgeTab.Sleep, ForgeTab.Health, ForgeTab.Coach),
+    /** Five tabs as on the iPhone; the coach sits in each page's header, never in the bar (owner, 2026-11-21). */
+    @Test fun newDesignHasFiveTabsAndNoCoachTab() {
+        assertEquals(listOf(ForgeTab.Today, ForgeTab.Training, ForgeTab.Nutrition, ForgeTab.Sleep, ForgeTab.Health),
                      ForgeDesign.tabs(newDesign = true, coachEnabled = true))
-        assertEquals(listOf(ForgeTab.Today, ForgeTab.Training, ForgeTab.Sleep, ForgeTab.Health),
+        assertEquals(listOf(ForgeTab.Today, ForgeTab.Training, ForgeTab.Nutrition, ForgeTab.Sleep, ForgeTab.Health),
                      ForgeDesign.tabs(newDesign = true, coachEnabled = false))
     }
 }

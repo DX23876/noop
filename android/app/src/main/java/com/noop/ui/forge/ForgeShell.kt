@@ -58,6 +58,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.material.icons.rounded.KingBed
+import androidx.compose.material.icons.rounded.Restaurant
 import com.noop.R
 
 /**
@@ -72,6 +73,8 @@ enum class ForgeTab(val labelRes: Int, val icon: ImageVector, val backdrop: Forg
     Training(R.string.forge_training, Icons.Rounded.FitnessCenter, ForgeBackdrop.Canvas, Icons.Rounded.DirectionsRun),
     Sleep(R.string.nav_sleep, Icons.Rounded.KingBed, ForgeBackdrop.Night, Icons.Rounded.Bedtime),
     Health(R.string.nav_health, Icons.Rounded.FavoriteBorder, ForgeBackdrop.Canvas, Icons.Rounded.Favorite),
+    /** The food log one tap away (owner, 2026-11-21), as iOS's Nutrition tab. */
+    Nutrition(R.string.food_title, Icons.Rounded.Restaurant, ForgeBackdrop.Canvas),
     More(R.string.nav_more, Icons.Rounded.MoreHoriz, ForgeBackdrop.Sky),
     /** The coach in its own place, as iOS's search-role tab: a round button beside the bar, only while it is on. */
     Coach(R.string.nav_coach, Icons.Rounded.AutoAwesome, ForgeBackdrop.Sky);
@@ -106,10 +109,13 @@ fun ForgeShell(screen: @Composable (tab: ForgeTab, padding: PaddingValues, width
     // A jump to More (the battery, the devices) opens the More page in the new design, which has no More tab;
     // any other tab the bar does not show leaves the selection as it is instead of falling back to Today.
     val openMore = LocalForgeOpenMore.current
+    // The coach has no tab in the new design: every "ask the coach" that selected it opens the coach sheet.
+    val openCoach = LocalForgeOpenCoach.current
     val select: (ForgeTab) -> Unit = { t ->
         when {
             t in shown -> chosen = t
             t == ForgeTab.More -> openMore?.invoke()
+            t == ForgeTab.Coach -> openCoach?.invoke(null)
         }
     }
     androidx.compose.runtime.CompositionLocalProvider(LocalForgeTabSelect provides select) {
@@ -156,9 +162,7 @@ private fun ForgeTabBar(current: ForgeTab, onSelect: (ForgeTab) -> Unit, modifie
     // and a see-through or outline-less bar fused with the white cards scrolling under it.
     // A real shadow, so the bar stays apart from the white cards that scroll under it (as iOS's glass bar does).
     val tabs = ForgeDesign.tabs(ForgeDesign.preview, com.noop.ui.BottomBarStyleStore.coachEnabled)
-    val coach = ForgeTab.Coach in tabs
-    Row(modifier.widthIn(max = 480.dp + 72.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+    Row(modifier.widthIn(max = 480.dp).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
     ForgeCard(Modifier.weight(1f)
                   .shadow(18.dp, RoundedCornerShape(32.dp), ambientColor = Color.Black.copy(alpha = 0.16f),
                           spotColor = Color.Black.copy(alpha = 0.26f))
@@ -166,27 +170,9 @@ private fun ForgeTabBar(current: ForgeTab, onSelect: (ForgeTab) -> Unit, modifie
               fill = Forge.colors.surface, contentPadding = 6.dp) {
         Row(Modifier.fillMaxWidth().height(58.dp), horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically) {
-            tabs.filter { it != ForgeTab.Coach }.forEach { t -> TabItem(t, t == current, Modifier.weight(1f)) { onSelect(t) } }
+            tabs.forEach { t -> TabItem(t, t == current, Modifier.weight(1f)) { onSelect(t) } }
         }
     }
-    if (coach) CoachTabButton(selected = current == ForgeTab.Coach) { onSelect(ForgeTab.Coach) }
-    }
-}
-
-/** The coach's round button at the bar's end, as iOS draws its search-role tab: tinted while the coach is open. */
-@Composable
-private fun CoachTabButton(selected: Boolean, onClick: () -> Unit) {
-    val colors = Forge.colors
-    val label = stringResource(R.string.nav_coach)
-    Box(Modifier.size(64.dp)
-            .shadow(18.dp, CircleShape, ambientColor = Color.Black.copy(alpha = 0.16f), spotColor = Color.Black.copy(alpha = 0.26f))
-            .background(colors.surface, CircleShape)
-            .border(BorderStroke(0.5.dp, Color.Black.copy(alpha = 0.10f)), CircleShape)
-            .clip(CircleShape)
-            .clickable(role = Role.Tab, onClickLabel = label, onClick = onClick),
-        contentAlignment = Alignment.Center) {
-        Icon(ForgeTab.Coach.icon, contentDescription = label, tint = if (selected) colors.accent else colors.text,
-             modifier = Modifier.size(26.dp))
     }
 }
 

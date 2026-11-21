@@ -228,6 +228,13 @@ enum CoreCoach {
                               String(localized: "Is this good, or something to watch?")]))
             Task { @MainActor in await coach.runCardAnalysisIfNeeded() }
             return #"{"ok":true}"#
+        case "coach.page":
+            // A main page's header button (`CoachEntryPage`, owner 2026-11-21): the page and its day ride the coming
+            // questions, its suggestions show as chips. Kotlin hands in the suggestions in the app's language.
+            guard let kind = CoachEntryPage.Kind(rawValue: args["kind"] as? String ?? "") else { return #"{"ok":false}"# }
+            coach.openedFromPage(CoachEntryPage(kind: kind, day: args["day"] as? String,
+                                                suggestions: args["suggestions"] as? [String] ?? []))
+            return #"{"ok":true}"#
         case "coach.card.allowed":
             // Whether a metric card may offer "Ask coach": iOS hides the card buttons when the Data access
             // purposes a card read draws on are off (`CoachCardContext.isAllowed`); the read would stop silently.

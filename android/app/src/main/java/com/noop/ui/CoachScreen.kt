@@ -473,7 +473,8 @@ private fun CoachChat(vm: CoachViewModel, onOpenSettings: () -> Unit, onOpenPlan
                      textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             }
             if (sending) ThinkingBubble()
-            SuggestedPrompts(prompts = suggestions, onPick = { input = it })
+            // A page's own questions (its header's coach button) come before the general starters, as on iOS.
+            SuggestedPrompts(prompts = chrome.cardSuggestions.ifEmpty { suggestions }, onPick = { input = it })
         } else {
             Column(Modifier.fillMaxWidth()) {
                 val lastAssistant = messages.lastOrNull { it.role == "assistant" }?.id

@@ -25,6 +25,8 @@ import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material.icons.rounded.MoreHoriz
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -225,10 +227,9 @@ private fun SessionRow(viewModel: AppViewModel, row: WorkoutRow, onOpen: () -> U
                               stringResource(R.string.forge_wk_min, minutes),
                               row.distanceM?.takeIf { it > 0 }?.let { UnitFormatter.distanceFromMeters(it, UnitPrefs.distanceSystem(context)) })
     var menu by remember { mutableStateOf(false) }
-    var relabel by remember { mutableStateOf(false) }
     Box {
         Row(Modifier.fillMaxWidth().combinedClickable(role = Role.Button, onClick = onOpen, onLongClick = { menu = true })
-                .padding(horizontal = 14.dp, vertical = 12.dp).semantics(mergeDescendants = true) {},
+                .padding(start = 14.dp, end = 4.dp, top = 12.dp, bottom = 12.dp).semantics(mergeDescendants = true) {},
             verticalAlignment = Alignment.CenterVertically) {
             val tint = forgeSportTint(row.sport)
             Box(Modifier.size(38.dp).background(tint.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
@@ -248,34 +249,57 @@ private fun SessionRow(viewModel: AppViewModel, row: WorkoutRow, onOpen: () -> U
                     Text(stringResource(R.string.forge_effort), style = Forge.type.caption, color = colors.textSecondary)
                 }
             }
-            Spacer(Modifier.width(ForgeMetrics.space2))
-            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))
-        }
-        // The classic list's choices: imported history stays read-only and can only be copied.
-        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            when (WorkoutEditing.classify(row.source)) {
-                WorkoutSource.DETECTED -> {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.l10n_workouts_screen_re_label_as_33fec7b2)) },
-                                     onClick = { menu = false; relabel = true })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.l10n_workouts_screen_edit_details_9e62bb59)) },
-                                     onClick = { menu = false; onEdit(row, false) })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.l10n_workouts_screen_dismiss_not_a_workout_560c7bb5), color = colors.effort) },
-                                     onClick = { menu = false; viewModel.dismissDetected(row) })
-                }
-                WorkoutSource.MANUAL -> {
-                    DropdownMenuItem(text = { Text(stringResource(R.string.l10n_workouts_screen_edit_b454359e)) },
-                                     onClick = { menu = false; onEdit(row, false) })
-                    DropdownMenuItem(text = { Text(stringResource(R.string.l10n_workouts_screen_delete_f6fdbe48), color = colors.effort) },
-                                     onClick = { menu = false; viewModel.deleteWorkout(row) })
-                }
-                else -> DropdownMenuItem(text = { Text(stringResource(R.string.l10n_workouts_screen_duplicate_as_manual_2d580d46)) },
-                                         onClick = { menu = false; onEdit(WorkoutEditing.asManualCopy(row), true) })
+            // Visible, as in the classic list (owner, 2026-11-21): a long press alone hid how to delete a workout.
+            // The menu hangs from the button, as iOS's; a long press on the row opens the same one there.
+            Box {
+                ForgeWorkoutMoreButton { menu = true }
+                ForgeWorkoutMenu(viewModel, row, expanded = menu, onDismiss = { menu = false }, onEdit = onEdit)
             }
         }
-        DropdownMenu(expanded = relabel, onDismissRequest = { relabel = false }) {
-            WorkoutEditing.relabelSports.forEach { sport ->
-                DropdownMenuItem(text = { Text(sport) }, onClick = { relabel = false; viewModel.relabelDetected(row, sport) })
+    }
+}
+
+/** The "•••" at a workout row's end, as iOS's `ForgeWorkoutActionsButton`. */
+@Composable
+internal fun ForgeWorkoutMoreButton(onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        Icon(Icons.Rounded.MoreHoriz, contentDescription = stringResource(R.string.forge_workout_actions),
+             tint = Forge.colors.textSecondary)
+    }
+}
+
+/**
+ * A workout's choices, the classic list's: a detected bout is re-labelled, edited or dismissed, a manual one edited or
+ * deleted, imported history only copied. Shared by the Workouts page and the Training tab's recent list.
+ */
+@Composable
+internal fun ForgeWorkoutMenu(viewModel: AppViewModel, row: WorkoutRow, expanded: Boolean, onDismiss: () -> Unit,
+                              onEdit: (WorkoutRow, Boolean) -> Unit) {
+    val colors = Forge.colors
+    var relabel by remember { mutableStateOf(false) }
+    DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        when (WorkoutEditing.classify(row.source)) {
+            WorkoutSource.DETECTED -> {
+                DropdownMenuItem(text = { Text(stringResource(R.string.l10n_workouts_screen_re_label_as_33fec7b2)) },
+                                 onClick = { onDismiss(); relabel = true })
+                DropdownMenuItem(text = { Text(stringResource(R.string.l10n_workouts_screen_edit_details_9e62bb59)) },
+                                 onClick = { onDismiss(); onEdit(row, false) })
+                DropdownMenuItem(text = { Text(stringResource(R.string.l10n_workouts_screen_dismiss_not_a_workout_560c7bb5), color = colors.effort) },
+                                 onClick = { onDismiss(); viewModel.dismissDetected(row) })
             }
+            WorkoutSource.MANUAL -> {
+                DropdownMenuItem(text = { Text(stringResource(R.string.l10n_workouts_screen_edit_b454359e)) },
+                                 onClick = { onDismiss(); onEdit(row, false) })
+                DropdownMenuItem(text = { Text(stringResource(R.string.l10n_workouts_screen_delete_f6fdbe48), color = colors.effort) },
+                                 onClick = { onDismiss(); viewModel.deleteWorkout(row) })
+            }
+            else -> DropdownMenuItem(text = { Text(stringResource(R.string.l10n_workouts_screen_duplicate_as_manual_2d580d46)) },
+                                     onClick = { onDismiss(); onEdit(WorkoutEditing.asManualCopy(row), true) })
+        }
+    }
+    DropdownMenu(expanded = relabel, onDismissRequest = { relabel = false }) {
+        WorkoutEditing.relabelSports.forEach { sport ->
+            DropdownMenuItem(text = { Text(sport) }, onClick = { relabel = false; viewModel.relabelDetected(row, sport) })
         }
     }
 }

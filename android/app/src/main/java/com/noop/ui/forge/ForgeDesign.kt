@@ -100,12 +100,13 @@ object ForgeDesign {
     }
 
     /**
-     * The tabs in the bar, in order. The new design follows iOS's `RootTabView` (Today, Training, Sleep, Health, and
-     * Coach while the coach is on); the shipped one keeps Trends and More. Pure, so the two rosters are tested.
+     * The tabs in the bar, in order. The new design follows iOS's `RootTabView` (Today, Training, Nutrition, Sleep,
+     * Health); the coach sits in each page's header instead of a tab (owner, 2026-11-21: an iPhone shows five). The
+     * shipped one keeps Trends and More. Pure, so the two rosters are tested.
      */
+    @Suppress("UNUSED_PARAMETER")
     fun tabs(newDesign: Boolean, coachEnabled: Boolean): List<ForgeTab> =
-        if (newDesign) listOfNotNull(ForgeTab.Today, ForgeTab.Training, ForgeTab.Sleep, ForgeTab.Health,
-                                     ForgeTab.Coach.takeIf { coachEnabled })
+        if (newDesign) listOf(ForgeTab.Today, ForgeTab.Training, ForgeTab.Nutrition, ForgeTab.Sleep, ForgeTab.Health)
         else listOf(ForgeTab.Today, ForgeTab.Trends, ForgeTab.Training, ForgeTab.Sleep, ForgeTab.More)
 }
 

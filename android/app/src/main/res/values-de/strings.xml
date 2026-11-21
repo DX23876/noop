@@ -7436,4 +7436,15 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     </plurals>
     <string name="food_quality_title">Ernährungsqualität</string>
     <string name="food_quality_about">Wie gesund du isst, von 0 bis 10</string>
+    <string name="coach_page_today_1">Wie sieht mein Tag aus?</string>
+    <string name="coach_page_today_2">Soll ich heute hart trainieren?</string>
+    <string name="coach_page_training_1">Wie war meine Belastung diese Woche?</string>
+    <string name="coach_page_training_2">Was trainiere ich als Nächstes?</string>
+    <string name="coach_page_nutrition_1">Was fehlt mir heute noch?</string>
+    <string name="coach_page_nutrition_2">Wie war meine Ernährung diese Woche?</string>
+    <string name="coach_page_sleep_1">Warum war meine Nacht so?</string>
+    <string name="coach_page_sleep_2">Wann sollte ich heute ins Bett?</string>
+    <string name="coach_page_health_1">Ist etwas auffällig?</string>
+    <string name="coach_page_health_2">Wie entwickeln sich meine Werte?</string>
+    <string name="forge_workout_actions">Workout-Aktionen</string>
 </resources>

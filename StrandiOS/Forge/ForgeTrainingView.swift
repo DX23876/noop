@@ -13,6 +13,8 @@ struct ForgeTrainingView: View {
     let onProfile: () -> Void
     let onStartWorkout: () -> Void
     @State private var addingWorkout = false
+    /// A recent workout opened for editing from its long press.
+    @State private var editing: ForgeWorkoutEditor.Target?
     var onAsk: (String) -> Void = { _ in }
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
 
@@ -83,7 +85,10 @@ struct ForgeTrainingView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    ForgeLargeHeader(title: "Training", onProfile: onProfile) { ForgeSearchButton() }.id("forge-training-top")
+                    ForgeLargeHeader(title: "Training", onProfile: onProfile) {
+                        ForgeCoachButton(page: .training, day: Repository.logicalDayKey(Date()))
+                        ForgeSearchButton()
+                    }.id("forge-training-top")
                     VStack(alignment: .leading, spacing: 14) {
                         weekHero
                         startRow
@@ -110,6 +115,7 @@ struct ForgeTrainingView: View {
         .refreshable { await repo.refresh() }
         .task(id: "\(repo.refreshSeq)|\(weekStartRaw)") { await load() }
         .sheet(isPresented: $addingWorkout) { ForgeWorkoutEditor() }
+        .sheet(item: $editing) { ForgeWorkoutEditor(target: $0) }
         .onChange(of: session.hasLiveSession) { _, live in
             if !live { Task { await load(force: true) } }
         }
@@ -369,10 +375,15 @@ struct ForgeTrainingView: View {
                 ForgeGroup {
                     ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
                         if index > 0 { ForgeRowDivider() }
-                        NavigationLink(value: ForgeRoute.workout(startTs: row.startTs, sport: row.sport)) {
-                            workoutRow(row)
+                        HStack(spacing: 0) {
+                            NavigationLink(value: ForgeRoute.workout(startTs: row.startTs, sport: row.sport)) {
+                                workoutRow(row)
+                            }
+                            .buttonStyle(.plain)
+                            .contextMenu { ForgeWorkoutMenuItems(row: row, edit: { editing = $0 }) }
+                            // Visible, as in the shipped list: the redesign had no way to delete from here.
+                            ForgeWorkoutActionsButton(row: row).padding(.trailing, 4)
                         }
-                        .buttonStyle(.plain)
                     }
                 }
             }
@@ -399,10 +410,8 @@ struct ForgeTrainingView: View {
                     Text(DomainTheme.effort.productName).font(.system(.caption2)).foregroundStyle(ForgeColor.secondary)
                 }
             }
-            Image(systemName: "chevron.right").font(.system(.footnote, weight: .semibold))
-                .foregroundStyle(ForgeColor.tertiary)
         }
-        .padding(.horizontal, 14).padding(.vertical, 12)
+        .padding(.leading, 14).padding(.vertical, 12)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }

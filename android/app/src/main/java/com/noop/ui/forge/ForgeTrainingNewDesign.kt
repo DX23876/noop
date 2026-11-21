@@ -32,6 +32,8 @@ import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -194,8 +196,10 @@ internal fun TrainingRoutineRow(routines: List<CoreTraining.Routine>, onStart: (
 }
 
 /** The last five sessions of any kind as one grouped list, as iOS's `recentActivities`, Effort on the right. */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-internal fun TrainingRecentList(workouts: List<WorkoutRow>, onOpen: (WorkoutRow) -> Unit) {
+internal fun TrainingRecentList(workouts: List<WorkoutRow>, viewModel: com.noop.ui.AppViewModel,
+                                onEdit: (WorkoutRow, Boolean) -> Unit, onOpen: (WorkoutRow) -> Unit) {
     val colors = Forge.colors
     val now = System.currentTimeMillis() / 1000
     val rows = workouts.filter { it.startTs >= now - 30 * 86_400 }.sortedByDescending { it.startTs }.take(5)
@@ -215,7 +219,10 @@ internal fun TrainingRecentList(workouts: List<WorkoutRow>, onOpen: (WorkoutRow)
             if (i > 0) Box(Modifier.padding(start = 64.dp).fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider))
             val start = java.time.Instant.ofEpochSecond(row.startTs).atZone(zone)
             val minutes = ((row.durationS ?: (row.endTs - row.startTs).coerceAtLeast(0).toDouble()) / 60).toInt()
-            Row(Modifier.fillMaxWidth().clickable(role = Role.Button) { onOpen(row) }.padding(horizontal = 14.dp, vertical = 12.dp)
+            var menu by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+            Box {
+            Row(Modifier.fillMaxWidth().combinedClickable(role = Role.Button, onClick = { onOpen(row) }, onLongClick = { menu = true })
+                    .padding(start = 14.dp, end = 4.dp, top = 12.dp, bottom = 12.dp)
                     .semantics(mergeDescendants = true) { }, verticalAlignment = Alignment.CenterVertically) {
                 val tint = forgeSportTint(row.sport)
                 Box(Modifier.size(38.dp).background(tint.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
@@ -237,8 +244,13 @@ internal fun TrainingRecentList(workouts: List<WorkoutRow>, onOpen: (WorkoutRow)
                         Text(stringResource(R.string.forge_effort), style = Forge.type.caption, color = colors.textSecondary)
                     }
                 }
-                Spacer(Modifier.width(ForgeMetrics.space2))
-                Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))
+                // Visible, as in the classic list (owner, 2026-11-21): the redesign had no way to delete from here.
+                // The menu hangs from the button, as iOS's; a long press on the row opens the same one there.
+                Box {
+                    ForgeWorkoutMoreButton { menu = true }
+                    ForgeWorkoutMenu(viewModel, row, expanded = menu, onDismiss = { menu = false }, onEdit = onEdit)
+                }
+            }
             }
         }
     }

@@ -7427,4 +7427,15 @@ NOOP не задаёт фиксированный порог, а берёт ег
     </plurals>
     <string name="food_quality_title">Качество питания</string>
     <string name="food_quality_about">Насколько здорово ты питаешься, от 0 до 10</string>
+    <string name="coach_page_today_1">Как выглядит мой день?</string>
+    <string name="coach_page_today_2">Стоит ли мне сегодня тренироваться интенсивно?</string>
+    <string name="coach_page_training_1">Какой была моя тренировочная нагрузка на этой неделе?</string>
+    <string name="coach_page_training_2">Что мне тренировать дальше?</string>
+    <string name="coach_page_nutrition_1">Чего мне сегодня ещё не хватает?</string>
+    <string name="coach_page_nutrition_2">Как я питался на этой неделе?</string>
+    <string name="coach_page_sleep_1">Почему моя ночь была такой?</string>
+    <string name="coach_page_sleep_2">Когда мне сегодня лечь спать?</string>
+    <string name="coach_page_health_1">Есть ли что-то необычное?</string>
+    <string name="coach_page_health_2">Как меняются мои показатели?</string>
+    <string name="forge_workout_actions">Действия с тренировкой</string>
 </resources>

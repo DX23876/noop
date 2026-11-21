@@ -7387,4 +7387,15 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     </plurals>
     <string name="food_quality_title">Qualità dell’alimentazione</string>
     <string name="food_quality_about">Quanto mangi in modo sano, da 0 a 10</string>
+    <string name="coach_page_today_1">Come si presenta la mia giornata?</string>
+    <string name="coach_page_today_2">Oggi dovrei allenarmi duramente?</string>
+    <string name="coach_page_training_1">Com\'è stato il mio carico di allenamento questa settimana?</string>
+    <string name="coach_page_training_2">Cosa dovrei allenare dopo?</string>
+    <string name="coach_page_nutrition_1">Cosa mi manca ancora oggi?</string>
+    <string name="coach_page_nutrition_2">Com\'è stata la mia alimentazione questa settimana?</string>
+    <string name="coach_page_sleep_1">Perché la mia notte è andata così?</string>
+    <string name="coach_page_sleep_2">A che ora dovrei andare a letto stasera?</string>
+    <string name="coach_page_health_1">C\'è qualcosa di insolito?</string>
+    <string name="coach_page_health_2">Come si stanno evolvendo i miei valori?</string>
+    <string name="forge_workout_actions">Azioni dell\'allenamento</string>
 </resources>

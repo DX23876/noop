@@ -9,10 +9,9 @@ import WhoopStore
 /// The redesign's Workouts page (prototype board "Workouts"): thirteen weeks of activity as a calendar,
 /// this week in numbers, and the sessions grouped by week. Each session opens the shipped workout detail;
 /// holding one edits, relabels or removes it; a session can be added afterwards. The shipped list stays one
-/// tap away for its filters, multi-select and merging.
+/// tap away for its filters, multi-select and merging. Every row carries a visible "•••" with the same choices.
 struct ForgeWorkoutsView: View {
     @EnvironmentObject private var repo: Repository
-    @EnvironmentObject private var intelligence: IntelligenceEngine
     @State private var editor: ForgeWorkoutEditor.Target?
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
@@ -46,11 +45,14 @@ struct ForgeWorkoutsView: View {
                     ForgeGroup {
                         ForEach(Array(week.rows.enumerated()), id: \.offset) { index, row in
                             if index > 0 { ForgeRowDivider() }
-                            NavigationLink(value: ForgeRoute.workout(startTs: row.startTs, sport: row.sport)) {
-                                sessionRow(row)
+                            HStack(spacing: 0) {
+                                NavigationLink(value: ForgeRoute.workout(startTs: row.startTs, sport: row.sport)) {
+                                    sessionRow(row)
+                                }
+                                .buttonStyle(.plain)
+                                .contextMenu { ForgeWorkoutMenuItems(row: row, edit: { editor = $0 }) }
+                                ForgeWorkoutActionsButton(row: row).padding(.trailing, 4)
                             }
-                            .buttonStyle(.plain)
-                            .contextMenu { rowMenu(row) }
                         }
                     }
                 }
@@ -82,39 +84,6 @@ struct ForgeWorkoutsView: View {
                 ForgeWorkoutActionChip(title: "Manage sessions", symbol: "line.3.horizontal.decrease")
             }
             .buttonStyle(.plain)
-        }
-    }
-
-    /// The same choices as the shipped list: imported history stays read-only and can only be copied.
-    @ViewBuilder private func rowMenu(_ row: WorkoutRow) -> some View {
-        switch WorkoutSource.classify(row.source) {
-        case .detected:
-            Menu("Re-label as") {
-                ForEach(WorkoutsView.relabelSports, id: \.self) { sport in
-                    Button(sport) { Task { await repo.relabelDetected(row, sport: sport); await repo.refresh() } }
-                }
-            }
-            Button("Edit details…") { editor = .init(editing: row) }
-            Divider()
-            Button("Dismiss (not a workout)", role: .destructive) {
-                Task { await repo.dismissDetected(row); await repo.refresh() }
-            }
-        case .manual, .confirmed:
-            Button("Edit…") { editor = .init(editing: row) }
-            Divider()
-            Button("Delete", role: .destructive) { delete(row) }
-        case .whoop, .apple, .lifting, .activityFile, .hevy, .oura:
-            Button("Duplicate as manual…") { editor = .init(editing: WorkoutsView.manualCopy(of: row), isCopy: true) }
-        }
-    }
-
-    private func delete(_ row: WorkoutRow) {
-        RouteStore.remove(startTs: row.startTs, sport: row.sport)
-        Task {
-            await repo.deleteWorkout(row)
-            // A workout mutation is invisible to the per-day fingerprint, so the day is re-derived by saying so.
-            await intelligence.analyzeRecent(allowDayReuse: false)
-            await repo.refresh()
         }
     }
 
@@ -226,9 +195,8 @@ struct ForgeWorkoutsView: View {
                     Text(DomainTheme.effort.productName).font(.system(.caption2)).foregroundStyle(ForgeColor.secondary)
                 }
             }
-            Image(systemName: "chevron.right").font(.system(.footnote, weight: .semibold)).foregroundStyle(ForgeColor.tertiary)
         }
-        .padding(.horizontal, 14).padding(.vertical, 12)
+        .padding(.leading, 14).padding(.vertical, 12)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
@@ -285,6 +253,7 @@ struct ForgeWorkoutDetailHost: View {
     @State private var row: WorkoutRow?
     @State private var lift: (breakdown: StrengthSessionBreakdown, source: StrengthDataSource)?
     @State private var looked = false
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         Group {
@@ -303,6 +272,13 @@ struct ForgeWorkoutDetailHost: View {
             }
         }
         .background(ForgeBackground(tab: .training))
+        .toolbar {
+            if let row {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ForgeWorkoutActionsButton(row: row, onRemoved: { dismiss() })
+                }
+            }
+        }
         .task {
             let age = max(1, Int(Date().timeIntervalSince1970) - startTs) / 86_400 + 2
             row = (await repo.workoutRows(days: age, reconcileHrCap: 0)).first { $0.startTs == startTs && $0.sport == sport }

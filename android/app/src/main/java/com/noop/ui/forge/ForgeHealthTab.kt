@@ -147,6 +147,7 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
         val openMore = LocalForgeOpenMore.current
         val openSettings = LocalForgeOpenSettings.current ?: openMore
         TabHeader(stringResource(R.string.nav_health), onProfile = { openSettings?.invoke() ?: run { settingsOpen = true } },
+                  coach = CoachPage("health", LocalDate.now().toString()),
                   onSearch = rememberOpenSearch())
 
         // The tab's answer: how many of last night's vitals sat in the wearer's own range, then each by name.
@@ -255,9 +256,6 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
             else TodayCycleForge(viewModel)
         }
 
-        // Today's food log, one tap from the page, as iOS's `FoodHealthCard`.
-        FoodTodayCard(onOpen = { open(MoreDest.Food) }, onAdd = { FoodArrival.requestAdd(); open(MoreDest.Food) })
-
         // The focus areas as six tiles, as iOS: each lists its pages; Sleep opens the Sleep tab.
         Heading(stringResource(R.string.forge_hf_focus))
         HealthFocusGrid { area -> focus = area }
@@ -353,9 +351,13 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
     }
 }
 
-/** A tab's own header row, as iOS's `ForgeLargeHeader`: the title with today's date, the profile at the end. */
+/**
+ * A tab's own header row, as iOS's `ForgeLargeHeader`: the title with today's date (or [subtitle]), the coach for
+ * [coach] while it is on, the search and the profile at the end.
+ */
 @Composable
-internal fun TabHeader(title: String, onProfile: () -> Unit, onSearch: (() -> Unit)? = null) {
+internal fun TabHeader(title: String, onProfile: () -> Unit, onSearch: (() -> Unit)? = null, coach: CoachPage? = null,
+                      subtitle: String? = null) {
     val locale = Locale.getDefault()
     Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space4), verticalAlignment = Alignment.CenterVertically) {
         Text(
@@ -363,18 +365,22 @@ internal fun TabHeader(title: String, onProfile: () -> Unit, onSearch: (() -> Un
                 withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(title) }
                 withStyle(Forge.type.subhead.toSpanStyle().copy(color = Forge.sceneInk.secondary)) {
                     append("  ")
-                    append(LocalDate.now().format(DateTimeFormatter.ofPattern(
+                    append(subtitle ?: LocalDate.now().format(DateTimeFormatter.ofPattern(
                         DateFormat.getBestDateTimePattern(locale, "EEEMMMd"), locale)))
                 }
             },
             style = Forge.type.title2, color = Forge.sceneInk.text, maxLines = 1, modifier = Modifier.weight(1f),
         )
+        // The coach left of the search, as iOS's `ForgeCoachButton` (owner, 2026-11-21).
+        if (coach != null) ForgeHeaderCoachButton(coach.kind, coach.day)
         // The magnifier before the profile, as iOS's `ForgeSearchButton` in each tab's header.
         if (onSearch != null) {
             Box(Modifier.size(ForgeMetrics.minHitTarget).clickable(role = Role.Button, onClick = onSearch),
                 contentAlignment = Alignment.Center) {
-                Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.forge_more_search),
-                     tint = Forge.sceneInk.text, modifier = Modifier.size(22.dp))
+                HeaderCircle {
+                    Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.forge_more_search),
+                         tint = Forge.sceneInk.text, modifier = Modifier.size(18.dp))
+                }
             }
             Spacer(Modifier.size(ForgeMetrics.space1))
         }

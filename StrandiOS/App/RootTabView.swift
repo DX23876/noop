@@ -66,9 +66,9 @@ struct RootTabView: View {
     /// Selected tab — bound so tab switches can crossfade (README §Motion: ~240ms opacity swap
     /// between tab roots, calm easing). Defaults to Today.
     @State private var selectedTab: Int = 0
-    /// The open area of the new design's tab bar; nil on the Coach tab.
+    /// The open area of the new design's tab bar.
     private var forgeOpenTab: ForgeTab? {
-        [0: ForgeTab.today, 1: .health, 2: .training, 3: .sleep][selectedTab]
+        [0: ForgeTab.today, 1: .health, 2: .training, 3: .sleep, Self.forgeNutritionTag: .nutrition][selectedTab]
     }
     @State private var customizeTodayAfterDismissal = false
     /// One `NavigationPath` per tab, indexed by tab tag. Re-tapping the already-active tab pops
@@ -76,12 +76,12 @@ struct RootTabView: View {
     /// root view alive, so an at-root re-tap keeps scroll position and never re-runs `.task`
     /// (#198; the #197 resetID/`.id()` rebuild reset both). Requires the tab roots' first-hop
     /// links to push `TabRoute`/`MoreDestination` VALUES — closure-destination links bypass the path.
-    @State private var tabPaths: [NavigationPath] = Array(repeating: NavigationPath(), count: 5)
+    @State private var tabPaths: [NavigationPath] = Array(repeating: NavigationPath(), count: 6)
     /// One scroll-to-top token per tab. Bumped when the user re-taps the active tab while it's ALREADY
     /// at its root — the other half of the iOS convention #197/#198 left unserved (an at-root re-tap was
     /// a no-op). Threaded into each tab's root via `\.scrollToTopSignal`; ScreenScaffold / LiquidTodayView
     /// scroll to their top anchor when their tab's token changes.
-    @State private var scrollTop: [Int] = Array(repeating: 0, count: 5)
+    @State private var scrollTop: [Int] = Array(repeating: 0, count: 6)
     /// The More index's filter text. Deliberately NOT persisted: a search is a momentary question,
     /// and coming back to the tab to find it still filtered would read as the app having lost rows.
     @State private var moreQuery = ""
@@ -134,7 +134,10 @@ struct RootTabView: View {
         let args = CommandLine.arguments
         ForgeTodayWidgetStore.shared.seedDemoIfRequested()
         if let i = args.firstIndex(of: "--demo-tab"), i + 1 < args.count {
-            let demoTabs = ["today": 0, "trends": 1, "health": 1, "training": 2, "sleep": 3, "more": 4, "coach": Self.forgeCoachTag]
+            let demoTabs = ["today": 0, "trends": 1, "health": 1, "training": 2, "sleep": 3, "more": 4,
+                            "nutrition": Self.forgeNutritionTag]
+            // The coach has no tab any more: "coach" opens its sheet over Today.
+            if args[i + 1].lowercased() == "coach" { _showCoach = State(initialValue: true) }
             if let tab = demoTabs[args[i + 1].lowercased()] {
                 _selectedTab = State(initialValue: tab)
             }
@@ -223,7 +226,6 @@ struct RootTabView: View {
     /// pop is skipped, so scroll position survives and the refresh doesn't double with a re-run of the
     /// root's `.task` (#198).
     private func reselectTab(_ tag: Int) {
-        // The Coach tab has no stack of its own here; its chat keeps its place on a re-tap.
         guard tabPaths.indices.contains(tag) else { return }
         Task { await repo.refresh() }
         if !tabPaths[tag].isEmpty {
@@ -261,7 +263,7 @@ struct RootTabView: View {
 
     /// The tab tags in the order the bar shows them. The redesign keeps the tags (so every stack and
     /// route keeps its index) and only changes what tag 1 shows (Health instead of Trends) and its place.
-    private var tabOrder: [Int] { forgeDesign ? [0, 2, 3, 1] : [0, 1, 2, 3, 4] }
+    private var tabOrder: [Int] { forgeDesign ? [0, 2, Self.forgeNutritionTag, 3, 1] : [0, 1, 2, 3, 4] }
 
     var body: some View {
         // The platform tab bar drives navigation. NOOP drew its own floating bar for one reason — a
@@ -328,12 +330,14 @@ struct RootTabView: View {
             .activeSessionMiniBar()
 
             // Draggable floating Coach button — an alternative entry to the Today banner, honouring the
-            // user's Coach-entry preference. Floats over every tab; a tap opens the chat.
-            if coachFeatureEnabled, coachUIEnabled, coachFloatingButtonEnabled, !forgeTabBarHostsCoach {
+            // user's Coach-entry preference. Floats over every tab; a tap opens the chat. The redesign has
+            // the coach in every main page's header instead (`ForgeCoachButton`), so it is not shown there.
+            if coachFeatureEnabled, coachUIEnabled, coachFloatingButtonEnabled, !forgeDesign {
                 CoachFloatingButton(isPresented: $showCoach)
             }
         }
-        .coachCover(isPresented: $showCoach, coach: coach)
+        .coachCover(isPresented: $showCoach, coach: coach, halfSheet: forgeDesign)
+        .environment(\.forgeOpenCoach, pageCoachOpener)
         .confirmationDialog("Let the coach use your data for this?",
                             isPresented: Binding(get: { pendingAsk != nil }, set: { if !$0 { pendingAsk = nil } }),
                             titleVisibility: .visible) {
@@ -546,10 +550,7 @@ struct RootTabView: View {
         .onChange(of: coachFeatureEnabled) { _, enabled in
             // A cover can remain on screen while the switch is changed from a second window or a
             // Settings deep link. Close it immediately so "off" really means no visible Coach UI.
-            if !enabled {
-                showCoach = false
-                if selectedTab == Self.forgeCoachTag { selectedTab = 0 }
-            }
+            if !enabled { showCoach = false }
         }
         // A screen's top-bar "+" routes here: open the quick-action sheet, then clear the flag.
         .onChange(of: router.quickActionsRequested) { _, req in
@@ -790,25 +791,29 @@ struct RootTabView: View {
 
     // MARK: - Redesign (New design preview)
 
-    /// From iOS 18 the redesign's tab bar carries the coach as its own round button (iOS 26 draws a
-    /// `.search`-role tab apart from the others), so the floating button is not shown twice.
-    private var forgeTabBarHostsCoach: Bool {
-        guard forgeDesign else { return false }
-        if #available(iOS 18.0, *) { return true }
-        return false
-    }
+    /// The Nutrition tab (owner, 2026-11-21): the food log one tap away. Its own stack is `tabPaths[5]`; 4 stays the
+    /// More/All features stack.
+    private static let forgeNutritionTag = 5
 
-    /// Tag of the coach tab in the redesign's bar (iOS 18 on): the chat lives in the tab itself.
-    private static let forgeCoachTag = 9
-
-    /// Opens the chat: the Coach tab where the redesign's bar has one, the full-screen cover everywhere else.
+    /// Opens the chat: a half sheet in the redesign, the full-screen cover in the shipped design. The redesign's
+    /// bar has no coach tab since Nutrition took the fifth place (owner, 2026-11-21): an iPhone shows five.
     private func presentCoach() {
         guard coachFeatureEnabled else { return }
-        if forgeTabBarHostsCoach {
-            withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = Self.forgeCoachTag }
-        } else {
-            showCoach = true
-        }
+        showCoach = true
+    }
+
+    /// The header buttons' action, nil while the coach is off (which hides them). Its own property: inline, the
+    /// ternary pushed the shell's body past what the type checker solves in time.
+    private var pageCoachOpener: ((CoachEntryPage) -> Void)? {
+        guard coachFeatureEnabled, coachUIEnabled else { return nil }
+        return { openCoach(from: $0) }
+    }
+
+    /// A main page's header button: the coach learns the page and its day, then the same chat opens.
+    private func openCoach(from page: CoachEntryPage) {
+        guard coachFeatureEnabled else { return }
+        coach.openedFromPage(page)
+        presentCoach()
     }
 
     private var forgeSelection: Binding<Int> {
@@ -853,6 +858,10 @@ struct RootTabView: View {
         ForgeSleepView(onProfile: { showAllFeatures = true }, onAsk: askCoach)
     }
 
+    private var forgeNutritionRoot: some View {
+        ForgeFoodView(onAsk: askCoach, onProfile: { showAllFeatures = true })
+    }
+
     private var forgeHealthRoot: some View {
         ForgeHealthView(onProfile: { showAllFeatures = true }, onAsk: askCoach)
     }
@@ -880,6 +889,14 @@ struct RootTabView: View {
                 } label: {
                     forgeTabLabel("Training", symbol: "figure.run", selected: selectedTab == 2)
                 }
+                Tab(value: Self.forgeNutritionTag) {
+                    tabStack(forgeNutritionRoot, path: $tabPaths[Self.forgeNutritionTag],
+                             scrollSignal: scrollTop[Self.forgeNutritionTag], registersMore: true)
+                        .environment(\.forgeTab, .nutrition)
+                        .environment(\.dashboardIsActive, selectedTab == Self.forgeNutritionTag)
+                } label: {
+                    forgeTabLabel("Nutrition", symbol: "fork.knife", selected: selectedTab == Self.forgeNutritionTag)
+                }
                 Tab(value: 3) {
                     tabStack(forgeSleepRoot, path: $tabPaths[3], scrollSignal: scrollTop[3], registersMore: true)
                         .environment(\.forgeTab, .sleep)
@@ -894,24 +911,12 @@ struct RootTabView: View {
                 } label: {
                     forgeTabLabel("Health", symbol: "heart", selected: selectedTab == 1)
                 }
-                if coachFeatureEnabled {
-                    Tab(value: Self.forgeCoachTag, role: .search) {
-                        NavigationStack {
-                            CoachView()
-                                .environmentObject(coach)
-                                // Opening the chat is having seen it, as in the cover.
-                                .onAppear { coach.markCoachMessagesSeen() }
-                        }
-                    } label: {
-                        forgeTabLabel("Coach", symbol: "bubble.left.and.text.bubble.right",
-                                      selected: selectedTab == Self.forgeCoachTag)
-                    }
-                }
             }
         } else {
             TabView(selection: nativeTabSelection) {
                 tab(forgeTodayRoot, "Today", "sun.max.fill", path: $tabPaths[0], scrollSignal: scrollTop[0], registersMore: true).environment(\.dashboardIsActive, forgeTodayInView).tag(0)
                 tab(forgeTrainingRoot, "Training", "figure.run", path: $tabPaths[2], scrollSignal: scrollTop[2], registersMore: true).environment(\.dashboardIsActive, selectedTab == 2).tag(2)
+                tab(forgeNutritionRoot, "Nutrition", "fork.knife", path: $tabPaths[Self.forgeNutritionTag], scrollSignal: scrollTop[Self.forgeNutritionTag], registersMore: true).environment(\.dashboardIsActive, selectedTab == Self.forgeNutritionTag).tag(Self.forgeNutritionTag)
                 tab(forgeSleepRoot, "Sleep", "moon.fill", path: $tabPaths[3], scrollSignal: scrollTop[3], registersMore: true).environment(\.dashboardIsActive, selectedTab == 3).tag(3)
                 tab(forgeHealthRoot, "Health", "heart.fill", path: $tabPaths[1], scrollSignal: scrollTop[1], registersMore: true).environment(\.dashboardIsActive, selectedTab == 1).tag(1)
             }
@@ -941,9 +946,7 @@ struct RootTabView: View {
             let wasShowingSheet = showAllFeatures || quickAction != nil
             showAllFeatures = false
             quickAction = nil
-            if forgeTabBarHostsCoach {
-                presentCoach()
-            } else if wasShowingSheet {
+            if wasShowingSheet {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { showCoach = true }
             } else {
                 showCoach = true

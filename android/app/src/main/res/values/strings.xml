@@ -7462,4 +7462,15 @@ Plotting each series as change from its own first reading puts them on one scale
     </plurals>
     <string name="food_quality_title">Nutrition quality</string>
     <string name="food_quality_about">How healthy you are eating, out of 10</string>
+    <string name="coach_page_today_1">How is my day looking?</string>
+    <string name="coach_page_today_2">Should I train hard today?</string>
+    <string name="coach_page_training_1">How was my training load this week?</string>
+    <string name="coach_page_training_2">What should I train next?</string>
+    <string name="coach_page_nutrition_1">What am I still missing today?</string>
+    <string name="coach_page_nutrition_2">How was my nutrition this week?</string>
+    <string name="coach_page_sleep_1">Why was my night like this?</string>
+    <string name="coach_page_sleep_2">When should I go to bed tonight?</string>
+    <string name="coach_page_health_1">Is anything unusual?</string>
+    <string name="coach_page_health_2">How are my values developing?</string>
+    <string name="forge_workout_actions">Workout actions</string>
 </resources>

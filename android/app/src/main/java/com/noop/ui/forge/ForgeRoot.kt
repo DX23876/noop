@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.noop.ui.AppViewModel
+import kotlinx.coroutines.launch
 
 /**
  * Fork (DX23876), Android plan E-3: the Forge app, shown by `NoopRoot` after the terms and onboarding gates with
@@ -56,10 +57,22 @@ fun ForgeRoot(viewModel: AppViewModel) {
     // Settings and pairing open over the tabs in the same window (`ForgeOverlayHost`).
     var moreOpen by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     var settingsOpen by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    // The coach sheet (owner, 2026-11-21): the new design's coach lives in each page's header, not in a tab.
+    var coachOpen by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
+    val coachScope = androidx.compose.runtime.rememberCoroutineScope()
+    val openCoach: ((CoachPage?) -> Unit)? =
+        if (ForgeDesign.preview && com.noop.ui.BottomBarStyleStore.coachEnabled) { page ->
+            if (page != null) {
+                val suggestions = coachPageSuggestions(context, page.kind)
+                coachScope.launch(kotlinx.coroutines.Dispatchers.IO) { com.noop.core.CoreCoach.page(page.kind, page.day, suggestions) }
+            }
+            coachOpen = true
+        } else null
     ForgeOverlayHost {
         androidx.compose.runtime.CompositionLocalProvider(
             LocalForgeOpenMore provides (if (ForgeDesign.preview) ({ moreOpen = true }) else null),
             LocalForgeOpenSettings provides (if (ForgeDesign.preview) ({ settingsOpen = true }) else null),
+            LocalForgeOpenCoach provides openCoach,
             // The tabs lie under the More page while it is open.
             LocalForgeCovered provides (LocalForgeCovered.current || (moreOpen && ForgeDesign.preview))) {
         ForgeShell { tab, padding, width ->
@@ -74,17 +87,16 @@ fun ForgeRoot(viewModel: AppViewModel) {
                 ForgeTab.Training -> ForgeTrainingScreen(padding, viewModel)
                 ForgeTab.Sleep -> ForgeSleepScreen(padding, width, viewModel)
                 ForgeTab.More -> ForgeMoreScreen(padding, viewModel)
-                // The chat in its tab, as iOS (2026-11); leaving it returns to Today.
-                ForgeTab.Coach -> {
+                // The food log in its own tab (owner, 2026-11-21); leaving it returns to Today, as the coach's tab.
+                ForgeTab.Nutrition -> {
                     val select = LocalForgeTabSelect.current
-                    // The system Back does what the page's own arrow does, back to Today, instead of closing the app;
-                    // the chat's inner pages register later and keep their own Back first.
                     androidx.activity.compose.BackHandler { select(ForgeTab.Today) }
                     androidx.compose.foundation.layout.Box(androidx.compose.ui.Modifier.padding(padding)) {
-                        ForgeCoachChatPages(viewModel, androidx.compose.ui.res.stringResource(com.noop.R.string.nav_coach),
-                                            onBack = { select(ForgeTab.Today) })
+                        ForgeFoodPage(onBack = { select(ForgeTab.Today) }, asTab = true)
                     }
                 }
+                // No bar shows the coach as a tab any more (owner, 2026-11-21); selecting it opens the coach sheet.
+                ForgeTab.Coach -> Unit
             }
         }
         }
@@ -100,8 +112,9 @@ fun ForgeRoot(viewModel: AppViewModel) {
                               onSearch = { settingsOpen = false; ForgeDesign.focusSearch = true; moreOpen = true })
             }
         }
-        // In the new design the coach has its own place while it is on (`ForgeTab.Coach`: a button beside the bar, a
-        // rail entry on wide windows), as on iOS; the floating button is for the shipped tabs and a coach that is off.
-        if (!(ForgeDesign.preview && com.noop.ui.BottomBarStyleStore.coachEnabled)) ForgeCoachButton(viewModel)
+        // In the new design the coach sits in each main page's header and opens as a sheet, as on iOS; the floating
+        // button is for the shipped tabs.
+        if (coachOpen && openCoach != null) ForgeCoachSheet(viewModel, onDismiss = { coachOpen = false })
+        if (!ForgeDesign.preview) ForgeCoachButton(viewModel)
     }
 }

@@ -75,10 +75,10 @@ object CoreFood {
         return (0 until array.length()).mapNotNull { array.optJSONObject(it)?.let(::entry) }
     }
 
-    /** Builds the BLS search file on first use. */
     /** The entries a core reply carries, for the kept meals' log (`CoreFoodNotes.log`). */
     fun entriesOf(json: JSONObject): List<Entry> = entries(json)
 
+    /** Builds the BLS search file on first use. */
     fun prepare(): Boolean = call("food.prepare")?.optBoolean("ok") == true
 
     fun search(query: String, limit: Int = 40): List<Item> = items(call("food.search", JSONObject().put("query", query).put("limit", limit)))
