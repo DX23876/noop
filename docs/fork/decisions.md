@@ -2029,3 +2029,36 @@ same one the energy model prices a day from (`EnergyModelRefresh.workoutInterval
 held both rows was priced from whichever sport came first. The other four are UI readouts and health
 exports and derive nothing stored; AI-36 shipped in the testing build of 2026-11-20 (`048b50a38`), so
 this is its own number rather than a rider.
+
+## 2026-11-21 — The English proposal is written by the runner's own token, not a bought key
+
+The entry above left three values unset, and one of them was the only one that cost money:
+`secrets.NOOP_MODERATION_KEY`, an OpenAI key for the single call that drafts an English title and
+summary for a reported problem. A subscription cannot stand in for it. A ChatGPT or a Claude plan is
+sold for use by hand, the interface behind it is billed apart, and a GitHub runner has nobody to sign
+in as.
+
+So `app-feed.yml` now asks GitHub Models instead. It answers the same request shape the scripts
+already send, the workflow's own `GITHUB_TOKEN` is the credential once the job is granted
+`models: read`, and nothing has to be bought, stored or rotated. Two further properties decided it
+rather than cost alone: the report's text already sits in a private repository on GitHub, so asking a
+model there moves it nowhere new, and the address and the model name stay repository values, so a
+later move to another provider is a pair of values rather than an edit here. Set both, never one: a
+key without its address would be sent to the wrong house.
+
+What this does NOT change is where the model may act. It drafts, it never publishes. A report becomes
+a public issue on the owner's `publish` label and on nothing else, and `publish_reports.py` reads that
+proposal back out of the comment rather than asking again, so a report can still be published with a
+proposal written by hand and no model in the loop at all.
+
+One gate was loosened on purpose and one sentence corrected with it. The filter step used to hold back
+when `NOOP_MODERATION_KEY` was empty; that value now always carries the runner's token, so the step is
+gated on the suggestions repository alone, and its message says that instead of claiming a filter was
+not configured.
+
+Unverified: nothing here has run. The two steps that reach a model are still gated behind
+`secrets.SUGGESTIONS_TOKEN` and `vars.SUGGESTIONS_REPO`, both unset, so the first real proof is the
+first run after those exist. A probe from the development machine proved nothing either: its sandbox
+answers `models.github.ai` with a bare `OK`, which is the proxy talking, not GitHub.
+
+Analysis migration required: no
