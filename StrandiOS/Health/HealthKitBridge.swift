@@ -2445,7 +2445,7 @@ final class HealthKitBridge: ObservableObject {
             // one: a hand-logged treadmill run carried no location at all and read as outdoors (#2928).
             // `either` is resolved by whether a route was actually captured.
             let location = WorkoutCatalog.healthLocation(sportNamed: recording?.row.sport ?? row.sport,
-                                                         hasRoute: !(route?.points.isEmpty ?? true))
+                                                         hasRoute: !(route?.points?.isEmpty ?? true))
             let encoder = JSONEncoder(); encoder.outputFormatting = [.sortedKeys]
             var payload = try encoder.encode(row)
             payload.append(try encoder.encode(recording))
