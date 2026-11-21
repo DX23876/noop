@@ -44,6 +44,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableIntStateOf
 import com.noop.R
 import com.noop.core.CoreFood
 import java.text.NumberFormat
@@ -202,33 +206,84 @@ private fun scoreWord(score: Double): String = stringResource(when {
     else -> R.string.food_score_word_very_good
 })
 
-/** What the score is made of, in everyday words, as iOS `FoodScoreView`. */
+/** A note out of ten with one decimal ("7,8"), in the app language. */
+internal fun noteText(score: Double): String =
+    NumberFormat.getNumberInstance(Locale.getDefault()).apply { minimumFractionDigits = 1; maximumFractionDigits = 1 }.format(score)
+
+/**
+ * What a food note is made of (owner, 2026-11-21), as iOS `FoodScoreView`: the day's, the week's or the month's, ten
+ * parts in everyday words, and the last eight weeks on a labelled 0 to 10 axis.
+ */
 @Composable
-internal fun ForgeFoodScorePage(score: CoreFood.Score, male: Boolean, onBack: () -> Unit) {
+internal fun ForgeFoodNotePage(quality: com.noop.core.CoreFoodNotes.Quality, male: Boolean, onBack: () -> Unit) {
     val colors = Forge.colors
+    var span by remember { mutableIntStateOf(if (quality.day != null) 0 else if (quality.week != null) 1 else 2) }
+    val note = when (span) { 0 -> quality.day; 1 -> quality.week; else -> quality.month }
     SettingsColumn {
-        PageTitle(stringResource(R.string.food_score_title), onBack)
-        // A still life of a balanced week behind the number, as iOS `FoodScoreView`; the photo has a light and a night version.
+        PageTitle(stringResource(R.string.food_note_title), onBack)
+        Row(Modifier.fillMaxWidth().background(colors.inset, RoundedCornerShape(50)).padding(4.dp)) {
+            listOf(R.string.food_span_day, R.string.food_span_week, R.string.food_span_month).forEachIndexed { index, label ->
+                Text(stringResource(label), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold),
+                     color = if (span == index) colors.text else colors.textSecondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                     modifier = Modifier.weight(1f).background(if (span == index) colors.surface else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(50))
+                         .clickable(role = Role.Tab) { span = index }.padding(vertical = 8.dp))
+            }
+        }
         Box(Modifier.fillMaxWidth().height(200.dp).clip(RoundedCornerShape(ForgeMetrics.space4)), contentAlignment = Alignment.CenterStart) {
             Image(painterResource(R.drawable.food_score_hero), contentDescription = null, contentScale = ContentScale.Crop,
                   alignment = Alignment.CenterEnd, modifier = Modifier.matchParentSize())
             Column(Modifier.padding(start = ForgeMetrics.space5)) {
-                Text(score.score.roundToInt().toString(), style = Forge.type.heroNumber, color = colors.text)
-                Text(scoreWord(score.score), style = Forge.type.headline, color = colors.text)
-                Text(stringResource(R.string.food_score_from_days, score.loggedDays), style = Forge.type.footnote, color = colors.textSecondary)
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(note?.let { noteText(it.score) } ?: "–", style = Forge.type.heroNumber, color = colors.text)
+                    Text(" / 10", style = Forge.type.headline, color = colors.textSecondary)
+                }
+                note?.let { Text(scoreWord(it.score * 10), style = Forge.type.headline, color = colors.text) }
+                Text(when {
+                    note == null && span == 0 -> stringResource(R.string.food_note_none_day)
+                    note == null -> stringResource(R.string.food_note_too_few)
+                    span == 0 -> stringResource(if (note.provisional) R.string.food_note_today_so_far else R.string.food_note_this_day)
+                    span == 1 -> stringResource(R.string.food_score_from_days, note.loggedDays)
+                    else -> stringResource(R.string.food_note_from_days_28, note.loggedDays)
+                }, style = Forge.type.footnote, color = colors.textSecondary)
             }
         }
-        Text(stringResource(R.string.food_score_about), style = Forge.type.footnote, color = Forge.sceneInk.secondary)
-        // Like a ledger, as iOS: what adds to the score grows right of the middle line, what costs points grows left.
-        val (limits, adds) = score.parts.partition { it.component in LIMIT_PARTS }
-        FoodSectionHeader(stringResource(R.string.food_score_adds))
-        ForgeCard(Modifier.fillMaxWidth()) { adds.sortedByDescending { it.points }.forEach { ScorePartRow(it, male) } }
-        FoodSectionHeader(stringResource(R.string.food_score_costs))
-        ForgeCard(Modifier.fillMaxWidth()) { limits.sortedBy { it.points }.forEach { ScorePartRow(it, male) } }
-        Text(stringResource(R.string.food_score_costs_note), style = Forge.type.footnote, color = Forge.sceneInk.secondary)
-        score.processedShare?.let { share ->
-            SettingsCard(stringResource(R.string.food_score_processed), stringResource(R.string.food_score_processed_note)) {
-                Text(stringResource(R.string.food_score_processed_value, (share * 100).roundToInt()), style = Forge.type.body, color = colors.text)
+        Text(stringResource(if (span == 0) R.string.food_note_about_day else R.string.food_note_about_span), style = Forge.type.footnote,
+             color = Forge.sceneInk.secondary)
+        if (quality.trend.size >= 2) {
+            FoodSectionHeader(stringResource(R.string.food_note_last_weeks))
+            ForgeCard(Modifier.fillMaxWidth()) { FoodNoteTrend(quality.trend) }
+        }
+        note?.let { n ->
+            val parts = n.parts.map { CoreFood.ScorePart(it.component, it.points, it.amountPerDay) }
+            val (limits, adds) = parts.partition { it.component in LIMIT_PARTS }
+            FoodSectionHeader(stringResource(R.string.food_score_adds))
+            ForgeCard(Modifier.fillMaxWidth()) { adds.sortedByDescending { it.points }.forEach { ScorePartRow(it, male) } }
+            FoodSectionHeader(stringResource(R.string.food_score_costs))
+            ForgeCard(Modifier.fillMaxWidth()) { limits.sortedBy { it.points }.forEach { ScorePartRow(it, male) } }
+            Text(stringResource(R.string.food_score_costs_note), style = Forge.type.footnote, color = Forge.sceneInk.secondary)
+            n.processedShare?.let { share ->
+                SettingsCard(stringResource(R.string.food_score_processed), stringResource(R.string.food_score_processed_note)) {
+                    Text(stringResource(R.string.food_score_processed_value, (share * 100).roundToInt()), style = Forge.type.body, color = colors.text)
+                }
+            }
+        }
+    }
+}
+
+/** The last weeks' notes as bars on a 0 to 10 axis, each bar the seven days ending on its date. */
+@Composable
+private fun FoodNoteTrend(notes: List<com.noop.core.CoreFoodNotes.Note>) {
+    val colors = Forge.colors
+    val leaf = nutrientTint("fiber_g", colors.dark)
+    Row(Modifier.fillMaxWidth().height(170.dp), horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2),
+        verticalAlignment = Alignment.Bottom) {
+        notes.forEach { note ->
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(noteText(note.score), style = Forge.type.footnote, color = colors.textSecondary)
+                Box(Modifier.fillMaxWidth().height((120 * note.score / 10).dp.coerceAtLeast(2.dp)).background(leaf, RoundedCornerShape(4.dp)))
+                val date = java.time.LocalDate.parse(note.day)
+                Text(date.format(java.time.format.DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())), style = Forge.type.footnote,
+                     color = colors.textSecondary, maxLines = 1)
             }
         }
     }
@@ -251,7 +306,7 @@ private fun ScorePartRow(part: CoreFood.ScorePart, male: Boolean) {
         Spacer(Modifier.width(ForgeMetrics.space3))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row {
-                Text(componentName(part.component), style = Forge.type.body, color = colors.text, modifier = Modifier.weight(1f))
+                Text(foodComponentName(part.component), style = Forge.type.body, color = colors.text, modifier = Modifier.weight(1f))
                 Text(signed, style = Forge.type.bodyNumber,
                      color = if (signed == "0") colors.textSecondary else if (effect > 0) green else red)
             }
@@ -281,11 +336,12 @@ private fun partPicture(c: String): Int = when (c) {
     "fishOmega3" -> R.drawable.food_motif_fish
     "polyFats" -> R.drawable.food_motif_fats
     "sodium" -> R.drawable.food_motif_salt
+    "fiber" -> R.drawable.food_motif_vegetables
     else -> R.drawable.food_motif_alcohol
 }
 
 @Composable
-private fun componentName(c: String): String = stringResource(when (c) {
+internal fun foodComponentName(c: String): String = stringResource(when (c) {
     "vegetables" -> R.string.food_part_vegetables
     "fruit" -> R.string.food_part_fruit
     "wholeGrains" -> R.string.food_part_whole_grains
@@ -295,6 +351,7 @@ private fun componentName(c: String): String = stringResource(when (c) {
     "fishOmega3" -> R.string.food_part_fish
     "polyFats" -> R.string.food_part_fats
     "sodium" -> R.string.food_part_salt
+    "fiber" -> R.string.food_part_fibre
     else -> R.string.food_part_alcohol
 })
 
@@ -307,6 +364,8 @@ private fun componentGoal(c: String, male: Boolean): String = stringResource(whe
     "fishOmega3" -> R.string.food_full_fish
     "polyFats" -> R.string.food_full_fats
     "sodium" -> R.string.food_full_salt
+    "fiber" -> R.string.food_full_fibre
+    "redMeat" -> R.string.food_full_red_meat
     else -> R.string.food_full_none
 })
 
@@ -315,7 +374,7 @@ private fun componentAmount(p: CoreFood.ScorePart): String {
     val one = NumberFormat.getNumberInstance(Locale.getDefault()).apply { maximumFractionDigits = 1 }
     val a = p.amountPerDay
     return when (p.component) {
-        "wholeGrains" -> stringResource(R.string.food_amount_grams, gramsText(a))
+        "wholeGrains", "fiber" -> stringResource(R.string.food_amount_grams, gramsText(a))
         "fishOmega3" -> stringResource(R.string.food_amount_mg, kcalText(a))
         "polyFats" -> stringResource(R.string.food_amount_share, one.format(a))
         "sodium" -> stringResource(R.string.food_amount_salt, one.format(a * 2.5 / 1000))

@@ -49,6 +49,7 @@ enum CoreFood {
         }
         func entries(_ list: [FoodLogEntry]) -> String { CoreRead.json(["entries": list.map(EntryWire.init)]) }
         let catalog = FoodCatalog.shared
+        if let handled = await CoreFoodNotes.run(op, args: args, store: store) { return handled }
 
         switch op {
         case "food.prepare":

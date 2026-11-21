@@ -34,6 +34,7 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Numbers
 import androidx.compose.material.icons.rounded.QrCodeScanner
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material.icons.rounded.TextSnippet
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -144,6 +145,18 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}) {
     var habit by remember { mutableStateOf<CoreFood.Habit?>(null) }
     var sentence by remember { mutableStateOf<List<CoreFood.SentencePoint>>(emptyList()) }
     var showScore by remember { mutableStateOf(false) }
+    // Notes, goal state, badges, favourites and kept meals (owner, 2026-11-21), all from the core.
+    var quality by remember { mutableStateOf<com.noop.core.CoreFoodNotes.Quality?>(null) }
+    var showBadges by remember { mutableStateOf(false) }
+    var celebrating by remember { mutableStateOf<String?>(null) }
+    var keptMeals by remember { mutableStateOf<List<com.noop.core.CoreFoodNotes.Meal>>(emptyList()) }
+    var favouriteFoods by remember { mutableStateOf<List<CoreFood.Item>>(emptyList()) }
+    var favouriteMotifs by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var lastGrams by remember { mutableStateOf<Map<String, Double?>>(emptyMap()) }
+    var favouritePick by remember { mutableStateOf<CoreFood.Item?>(null) }
+    var buildingMeal by remember { mutableStateOf<com.noop.core.CoreFoodNotes.Meal?>(null) }
+    var keepingIds by remember { mutableStateOf<List<String>?>(null) }
+    var invited by remember { mutableStateOf(FoodReminders.invited(context) || FoodReminders.on(context, FoodReminders.MORNING)) }
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
 
     LaunchedEffect(Unit) {
@@ -211,7 +224,14 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}) {
         withContext(Dispatchers.IO) {
             val profile = com.noop.ui.ProfileStore.from(context)
             val today = LocalDate.now()
-            week = CoreFood.week(day.toString(), today.toString(), foodScoreEnabled(context), profile.sex)
+            week = CoreFood.week(day.toString(), today.toString(), false, profile.sex)
+            quality = com.noop.core.CoreFoodNotes.quality(day.toString(), today.toString(), profile.sex, profile.age, profile.weightKg,
+                                                          profile.heightCm, dietPlan?.form, goals?.kcal, goals?.proteinG)
+            keptMeals = com.noop.core.CoreFoodNotes.meals()
+            favouriteFoods = CoreFood.favourites()
+            favouriteMotifs = com.noop.core.CoreFoodNotes.motifs(favouriteFoods)
+            lastGrams = CoreFood.recents().associate { it.first.id to it.second }
+            FoodReminders.schedule(context)
             habit = if (day == today && !foodHabitDismissed(context, today.toString())) CoreFood.habit(today.toString(), System.currentTimeMillis() / 1000) else null
             // The evening sentence from 18:00 on today, any time for a past day (iOS `FoodDaySentence.fromHour`).
             sentence = if (day != today || java.time.LocalTime.now().hour >= 18)
@@ -227,11 +247,57 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}) {
     }
     fun reload() { revision++ }
 
-    val score = week?.score
-    if (showScore && score != null) {
+    // A badge earned since the page last celebrated one; a log from before badges existed is taken as seen.
+    LaunchedEffect(quality?.earned) {
+        val earned = quality?.earned ?: return@LaunchedEffect
+        val seen = FoodReminders.seenBadges(context)
+        if (seen == null) { FoodReminders.markSeen(context, earned.map { it.key }); return@LaunchedEffect }
+        celebrating = earned.lastOrNull { it.key !in seen }?.key
+    }
+    celebrating?.let { key ->
+        FoodBadgeCelebration(key) { celebrating = null; FoodReminders.markSeen(context, quality?.earned?.map { it.key } ?: emptyList()) }
+    }
+    val q = quality
+    if (showScore && q != null) {
         BackHandler { showScore = false }
-        ForgeFoodScorePage(score, male = com.noop.ui.ProfileStore.from(context).sex.lowercase() == "male", onBack = { showScore = false })
+        ForgeFoodNotePage(q, male = com.noop.ui.ProfileStore.from(context).sex.lowercase() == "male", onBack = { showScore = false })
         return
+    }
+    if (showBadges && q != null) {
+        BackHandler { showBadges = false }
+        ForgeFoodBadgesPage(q, onBack = { showBadges = false })
+        return
+    }
+    buildingMeal?.let { meal ->
+        val close: () -> Unit = { buildingMeal = null; revision++ }
+        BackHandler(onBack = close)
+        ForgeMealBuilderPage(meal, meal.name, onBack = close, onSaved = close)
+        return
+    }
+    favouritePick?.let { item ->
+        FoodPortionDialog(item, lastGrams[item.id], onDismiss = { favouritePick = null }) { line ->
+            favouritePick = null
+            scope.launch {
+                val at = if (day == LocalDate.now()) Instant.now().epochSecond
+                         else day.atTime(LocalTime.NOON).atZone(ZoneId.systemDefault()).toEpochSecond()
+                withContext(Dispatchers.IO) { FoodHealthConnect.wrote(context, CoreFood.logCart(listOf(line), at, null)) }
+                reload()
+            }
+        }
+    }
+    keepingIds?.let { ids ->
+        var name by remember(ids) { mutableStateOf(mealNameText(context, summary?.meals?.firstOrNull { m -> m.entries.any { it.id in ids } }?.kind ?: "snack")) }
+        AlertDialog(onDismissRequest = { keepingIds = null }, title = { Text(stringResource(R.string.food_keep_as_favourite)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.food_keep_message), style = Forge.type.footnote, color = Forge.colors.textSecondary)
+                    OutlinedTextField(name, { name = it }, singleLine = true, label = { Text(stringResource(R.string.food_name)) })
+                }
+            },
+            confirmButton = { TextButton(onClick = {
+                scope.launch { withContext(Dispatchers.IO) { com.noop.core.CoreFoodNotes.saveFromEntries(name, ids) }; keepingIds = null; reload() }
+            }) { Text(stringResource(R.string.food_keep)) } },
+            dismissButton = { TextButton(onClick = { keepingIds = null }) { Text(stringResource(R.string.food_cancel)) } })
     }
     if (planning) {
         BackHandler { planning = false }
@@ -303,7 +369,8 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}) {
     }
     if (adding) {
         BackHandler { adding = false }
-        ForgeFoodAddPage(day = day, onBack = { adding = false; reload() })
+        ForgeFoodAddPage(day = day, onBack = { adding = false; reload() }, goalKcal = goal,
+                         dayKcal = summary?.totals?.get("energy_kcal") ?: 0.0, losing = dietPlan?.goal == "lose")
         return
     }
     editing?.let { entry ->
@@ -354,14 +421,35 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}) {
             planDay?.let { FoodPlanDayLines(it) }
             if (sentence.isNotEmpty()) FoodSentence(sentence)
             summary?.otherKcal?.let { kcal -> FoodOtherIntakeNote(kcal, summary?.otherSource ?: "") }
+            q?.let { FoodNoteCard(it, isToday = day == LocalDate.now()) { showScore = true } }
             week?.let { w ->
                 FoodSectionHeader(stringResource(R.string.food_week))
                 FoodWeekStrip(w.days, day.toString(), goals) { day = LocalDate.parse(it) }
-                if (foodScoreEnabled(context)) FoodScoreRow(w.score, w.loggedDays) { if (w.score != null) showScore = true }
+                q?.let { FoodBadgesStrip(it) { showBadges = true } }
+                if (!invited && q?.day != null) {
+                    FoodReminderInvite(onAccept = {
+                        FoodReminders.markInvited(context); invited = true
+                        FoodReminders.set(context, FoodReminders.MORNING, true); FoodReminders.set(context, FoodReminders.EVENING, true)
+                    }, onDecline = { FoodReminders.markInvited(context); invited = true })
+                }
             }
             val s = summary
             FoodSectionHeader(stringResource(R.string.food_nutrients)) { showNutrients = true }
             FoodNutrientCard(dayNutrients, pinned) { showNutrients = true }
+            if (keptMeals.isNotEmpty() || favouriteFoods.isNotEmpty()) {
+                FoodSectionHeader(stringResource(R.string.food_favourites))
+                FoodFavouritesBar(keptMeals, favouriteFoods, favouriteMotifs, onLogMeal = { kept ->
+                    scope.launch {
+                        val at = if (day == LocalDate.now()) Instant.now().epochSecond
+                                 else day.atTime(LocalTime.NOON).atZone(ZoneId.systemDefault()).toEpochSecond()
+                        withContext(Dispatchers.IO) { FoodHealthConnect.wrote(context, com.noop.core.CoreFoodNotes.log(kept.id, at)) }
+                        haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                        reload()
+                    }
+                }, onPickFood = { favouritePick = it }, onEditMeal = { buildingMeal = it }, onRemoveMeal = { kept ->
+                    scope.launch { withContext(Dispatchers.IO) { com.noop.core.CoreFoodNotes.delete(kept.id) }; reload() }
+                })
+            }
             FoodSectionHeader(stringResource(R.string.food_meals))
             habit?.let { h ->
                 FoodHabitCard(h, onAdd = {
@@ -374,7 +462,7 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}) {
             }
             if (s != null && s.meals.isNotEmpty()) {
                 s.meals.forEach { meal ->
-                    MealCard(meal, onEdit = { editing = it }, onCopyTomorrow = {
+                    MealCard(meal, onEdit = { editing = it }, onKeep = { keepingIds = meal.entries.filter { it.grams != null }.map { it.id } }, onCopyTomorrow = {
                         scope.launch {
                             withContext(Dispatchers.IO) {
                                 val copies = CoreFood.copy(meal.entries.map { it.id }, listOf(day.plusDays(1).toString()))
@@ -591,7 +679,7 @@ internal fun FoodSectionHeader(title: String, onOpen: (() -> Unit)? = null) {
 }
 
 @Composable
-private fun MealCard(meal: CoreFood.Meal, onEdit: (CoreFood.Entry) -> Unit, onCopyTomorrow: () -> Unit, onDelete: () -> Unit) {
+private fun MealCard(meal: CoreFood.Meal, onEdit: (CoreFood.Entry) -> Unit, onKeep: () -> Unit = {}, onCopyTomorrow: () -> Unit, onDelete: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
     val time = Instant.ofEpochSecond(meal.start).atZone(ZoneId.systemDefault()).toLocalTime()
         .format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(Locale.getDefault()))
@@ -608,6 +696,9 @@ private fun MealCard(meal: CoreFood.Meal, onEdit: (CoreFood.Entry) -> Unit, onCo
             Box {
                 TextButton(onClick = { menu = true }) { Text("···", color = Forge.colors.textSecondary) }
                 DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    if (meal.entries.any { it.grams != null }) {
+                        DropdownMenuItem(text = { Text(stringResource(R.string.food_keep_as_favourite)) }, onClick = { menu = false; onKeep() })
+                    }
                     DropdownMenuItem(text = { Text(stringResource(R.string.food_copy_tomorrow)) }, onClick = { menu = false; onCopyTomorrow() })
                     DropdownMenuItem(text = { Text(stringResource(R.string.food_delete_meal)) }, onClick = { menu = false; onDelete() })
                 }
@@ -684,12 +775,20 @@ internal fun MealChooser(meal: String?, onChange: (String?) -> Unit) {
 
 /** The add page: search, the three lists, scanner, quick entry, the coach, and a cart checked before saving. */
 @Composable
-private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit) {
+private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit, goalKcal: Double? = null, dayKcal: Double = 0.0,
+                             losing: Boolean = false) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val prefs = remember { FoodDataPrefs(context) }
     var query by remember { mutableStateOf("") }
-    var tab by remember { mutableIntStateOf(0) }
+    // Kept meals and the pictures of the listed foods (owner, 2026-11-21).
+    var meals by remember { mutableStateOf<List<com.noop.core.CoreFoodNotes.Meal>>(emptyList()) }
+    var motifs by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var building by remember { mutableStateOf<com.noop.core.CoreFoodNotes.Meal?>(null) }
+    var buildingNew by remember { mutableStateOf(false) }
+    var naming by remember { mutableStateOf(false) }
+    // The meal of the hour, from the core's one rule (`FoodLog.MealKind.around`), for a new meal's name.
+    var hourKind by remember { mutableStateOf("snack") }
     var results by remember { mutableStateOf<List<CoreFood.Item>>(emptyList()) }
     var online by remember { mutableStateOf<List<CoreFood.Item>>(emptyList()) }
     var onlineFailed by remember { mutableStateOf(false) }
@@ -708,12 +807,16 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit) {
     LaunchedEffect(listRevision) {
         withContext(Dispatchers.IO) {
             recents = CoreFood.recents(); favourites = CoreFood.favourites(); mine = CoreFood.own()
+            meals = com.noop.core.CoreFoodNotes.meals()
+            hourKind = com.noop.core.CoreFoodNotes.mealAround(System.currentTimeMillis() / 1000)
+            motifs = com.noop.core.CoreFoodNotes.motifs(recents.map { it.first } + favourites + mine)
             coachReads = CoreFood.coachReadsPhotos()
         }
     }
     LaunchedEffect(query) {
         delay(250)
         results = withContext(Dispatchers.IO) { if (query.isBlank()) emptyList() else CoreFood.search(query) }
+        motifs = motifs + withContext(Dispatchers.IO) { com.noop.core.CoreFoodNotes.motifs(results) }
         online = emptyList(); onlineFailed = false
         if (prefs.mode == FoodDataPrefs.ONLINE && query.trim().length >= 3) {
             delay(650)   // Open Food Facts allows about ten searches a minute: wait for a pause in typing.
@@ -726,6 +829,27 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit) {
         else day.atTime(LocalTime.NOON).atZone(ZoneId.systemDefault()).toEpochSecond()
     }
 
+    if (building != null || buildingNew) {
+        val close: () -> Unit = { building = null; buildingNew = false; listRevision++ }
+        BackHandler(onBack = close)
+        ForgeMealBuilderPage(building, mealName(hourKind), onBack = close, onSaved = close)
+        return
+    }
+    if (naming) {
+        var name by remember { mutableStateOf(mealNameText(context, meal ?: hourKind)) }
+        AlertDialog(onDismissRequest = { naming = false }, title = { Text(stringResource(R.string.food_save_as_meal)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.food_keep_cart_message), style = Forge.type.footnote, color = Forge.colors.textSecondary)
+                    OutlinedTextField(name, { name = it }, singleLine = true, label = { Text(stringResource(R.string.food_name)) })
+                }
+            },
+            confirmButton = { TextButton(onClick = {
+                val lines = cart.toList()
+                scope.launch { withContext(Dispatchers.IO) { com.noop.core.CoreFoodNotes.saveFromCart(name, lines) }; naming = false; listRevision++ }
+            }) { Text(stringResource(R.string.food_save)) } },
+            dismissButton = { TextButton(onClick = { naming = false }) { Text(stringResource(R.string.food_cancel)) } })
+    }
     if (scanning) {
         BackHandler { scanning = false }
         ForgeFoodScanPage(onBack = { scanning = false }) { found -> scanning = false; portionFor = found; listRevision++ }
@@ -759,30 +883,69 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit) {
                 AddAction(stringResource(R.string.food_describe), Icons.Rounded.TextSnippet, Modifier.weight(1f)) { describing = true }
             }
         }
-        if (prefs.mode == FoodDataPrefs.NONE && query.isEmpty()) {
-            Text(stringResource(R.string.food_branded_hint), style = Forge.type.footnote, color = Forge.sceneInk.secondary)
+        ForgeCard(Modifier.fillMaxWidth()) {
+            if (query.isBlank()) {
+                // Favourites first: kept meals, then starred foods, then building a new meal (owner, 2026-11-21).
+                Text(stringResource(R.string.food_favourites), style = Forge.type.overline, color = Forge.colors.textSecondary)
+                if (meals.isEmpty() && favourites.isEmpty()) {
+                    Text(stringResource(R.string.food_favourites_hint), style = Forge.type.footnote, color = Forge.colors.textSecondary)
+                }
+                meals.forEach { kept ->
+                    SavedMealRow(kept, onLog = {
+                        scope.launch {
+                            withContext(Dispatchers.IO) { FoodHealthConnect.wrote(context, com.noop.core.CoreFoodNotes.log(kept.id, atEpoch)) }
+                            if (cart.isEmpty()) onBack() else listRevision++
+                        }
+                    }, onEdit = { building = kept }, onRemove = {
+                        scope.launch { withContext(Dispatchers.IO) { com.noop.core.CoreFoodNotes.delete(kept.id) }; listRevision++ }
+                    })
+                }
+                val last = recents.associate { it.first.id to it.second }
+                favourites.forEach { item ->
+                    FoodPickRow(item, motifs[item.id], last[item.id], true, onPick = { portionFor = item }, onFavourite = { on ->
+                        scope.launch { withContext(Dispatchers.IO) { CoreFood.setFavourite(item, on) }; listRevision++ }
+                    }, onQuickAdd = { grams -> cart.add(CoreFood.CartLine(item, grams)) })
+                }
+                TextButton(onClick = { buildingNew = true }) {
+                    Icon(Icons.Rounded.Add, null, tint = Forge.colors.food)
+                    Text(stringResource(R.string.food_build_meal), color = Forge.colors.food, style = Forge.type.headline)
+                }
+            }
+        }
+        if (query.isBlank()) {
+            ForgeCard(Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.food_recent), style = Forge.type.overline, color = Forge.colors.textSecondary)
+                val favouriteIds = favourites.map { it.id }.toSet()
+                val list = recents.filter { it.first.id !in favouriteIds }
+                if (list.isEmpty()) Text(stringResource(R.string.food_recent_empty), style = Forge.type.footnote, color = Forge.colors.textSecondary)
+                list.forEach { (item, grams) ->
+                    FoodPickRow(item, motifs[item.id], grams, false, onPick = { portionFor = item }, onFavourite = { on ->
+                        scope.launch { withContext(Dispatchers.IO) { CoreFood.setFavourite(item, on) }; listRevision++ }
+                    }, onQuickAdd = { g -> cart.add(CoreFood.CartLine(item, g)) })
+                }
+            }
+            if (mine.isNotEmpty()) {
+                ForgeCard(Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.food_mine), style = Forge.type.overline, color = Forge.colors.textSecondary)
+                    mine.forEach { item ->
+                        FoodPickRow(item, motifs[item.id], null, favourites.any { it.id == item.id }, onPick = { portionFor = item },
+                            onFavourite = { on -> scope.launch { withContext(Dispatchers.IO) { CoreFood.setFavourite(item, on) }; listRevision++ } },
+                            onQuickAdd = null)
+                    }
+                }
+            }
         }
         ForgeCard(Modifier.fillMaxWidth()) {
             if (query.isBlank()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
-                    listOf(R.string.food_recent, R.string.food_favourites, R.string.food_mine).forEachIndexed { index, label ->
-                        Text(stringResource(label), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold),
-                             color = if (tab == index) Forge.colors.text else Forge.colors.textSecondary,
-                             modifier = Modifier.background(if (tab == index) Forge.colors.inset else Forge.colors.surface, RoundedCornerShape(50))
-                                 .clickable(role = Role.Tab) { tab = index }.padding(horizontal = 12.dp, vertical = 7.dp))
-                    }
-                }
-                val list = when (tab) { 0 -> recents.map { it.first }; 1 -> favourites; else -> mine }
-                if (list.isEmpty()) Text(stringResource(when (tab) { 0 -> R.string.food_recent_empty; 1 -> R.string.food_favourites_empty; else -> R.string.food_mine_empty }),
-                                         style = Forge.type.footnote, color = Forge.colors.textSecondary)
-                list.forEach { item -> ItemRow(item, onAdd = { portionFor = item }, onFavourite = { on ->
-                    scope.launch { withContext(Dispatchers.IO) { CoreFood.setFavourite(item, on) }; listRevision++ }
-                }) }
+                Text(stringResource(R.string.food_branded_hint), style = Forge.type.footnote, color = Forge.colors.textSecondary)
             } else {
                 if (results.isEmpty() && online.isEmpty()) Text(stringResource(R.string.food_nothing_found), style = Forge.type.footnote, color = Forge.colors.textSecondary)
-                results.forEach { item -> ItemRow(item, onAdd = { portionFor = item }, onFavourite = { on ->
-                    scope.launch { withContext(Dispatchers.IO) { CoreFood.setFavourite(item, on) } }
-                }) }
+                val last = recents.associate { it.first.id to it.second }
+                results.forEach { item ->
+                    FoodPickRow(item, motifs[item.id], last[item.id], favourites.any { it.id == item.id }, onPick = { portionFor = item },
+                        onFavourite = { on -> scope.launch { withContext(Dispatchers.IO) { CoreFood.setFavourite(item, on) }; listRevision++ } },
+                        onQuickAdd = { g -> cart.add(CoreFood.CartLine(item, g)) })
+                }
                 if (prefs.mode == FoodDataPrefs.ONLINE) {
                     Text(stringResource(R.string.food_off_name), style = Forge.type.overline, color = Forge.colors.textSecondary)
                     if (onlineFailed) Text(stringResource(R.string.food_online_failed), style = Forge.type.footnote, color = Forge.colors.textSecondary)
@@ -798,8 +961,25 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit) {
                         IconButton(onClick = { cart.remove(line) }) { Icon(Icons.Rounded.Close, stringResource(R.string.food_remove)) }
                     }
                 }
-                MealChooser(meal) { meal = it }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.weight(1f)) { MealChooser(meal) { meal = it } }
+                    TextButton(onClick = { naming = true }) {
+                        Icon(Icons.Rounded.StarBorder, null, tint = Forge.colors.food)
+                        Text(stringResource(R.string.food_keep), color = Forge.colors.food)
+                    }
+                }
                 val kcal = cart.sumOf { it.item.scaled(it.grams)["energy_kcal"] ?: 0.0 }
+                // The warning while logging (owner, 2026-11-21): only while losing weight, with the switch on.
+                var warning by remember { mutableStateOf<Double?>(null) }
+                LaunchedEffect(kcal, goalKcal, losing) {
+                    warning = if (goalKcal != null && foodWarnOn(context)) withContext(Dispatchers.IO) {
+                        com.noop.core.CoreFoodNotes.overWarning(dayKcal, kcal, goalKcal, losing)
+                    } else null
+                }
+                warning?.let { total ->
+                    Text(stringResource(R.string.food_over_warning, kcalText(total), kcalText(goalKcal)), style = Forge.type.footnote,
+                         color = Forge.colors.effort)
+                }
                 TextButton(onClick = {
                     scope.launch {
                         withContext(Dispatchers.IO) {
@@ -854,7 +1034,7 @@ private fun ItemRow(item: CoreFood.Item, onAdd: () -> Unit, onFavourite: (Boolea
 }
 
 @Composable
-private fun FoodPortionDialog(item: CoreFood.Item, lastGrams: Double?, onDismiss: () -> Unit, onAdd: (CoreFood.CartLine) -> Unit) {
+internal fun FoodPortionDialog(item: CoreFood.Item, lastGrams: Double?, onDismiss: () -> Unit, onAdd: (CoreFood.CartLine) -> Unit) {
     var text by remember { mutableStateOf(gramsText(lastGrams ?: item.servingG ?: 100.0)) }
     val grams = text.replace(',', '.').toDoubleOrNull() ?: 0.0
     AlertDialog(onDismissRequest = onDismiss, title = { Text(item.name) }, text = {
@@ -1151,11 +1331,28 @@ internal fun FoodExtrasCards() {
         }
         LinkRow(stringResource(R.string.food_allow_health), null) { permissions.launch(FoodHealthConnect.READ + FoodHealthConnect.WRITE) }
     }
-    var showScore by remember { mutableStateOf(foodScoreEnabled(context)) }
-    SettingsCard(stringResource(R.string.food_lab), stringResource(R.string.food_score_note)) {
+    // The food reminders and the logging warning (owner, 2026-11-21), the same keys as iOS; the score itself is for
+    // everyone now, so its Lab switch is gone.
+    var morningOn by remember { mutableStateOf(FoodReminders.on(context, FoodReminders.MORNING)) }
+    var eveningOn by remember { mutableStateOf(FoodReminders.on(context, FoodReminders.EVENING)) }
+    var warnOn by remember { mutableStateOf(foodWarnOn(context)) }
+    val notifyPermission = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { }
+    fun askNotifications() {
+        if (android.os.Build.VERSION.SDK_INT >= 33) notifyPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+    }
+    SettingsCard(stringResource(R.string.food_reminders), stringResource(R.string.food_reminders_note)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(R.string.food_score_title), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
-            Switch(showScore, { showScore = it; com.noop.ui.NoopPrefs.of(context).edit().putBoolean(FOOD_SCORE_KEY, it).apply() })
+            Text(stringResource(R.string.food_reminder_morning), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
+            Switch(morningOn, { morningOn = it; if (it) askNotifications(); FoodReminders.set(context, FoodReminders.MORNING, it) })
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.food_reminder_evening), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
+            Switch(eveningOn, { eveningOn = it; if (it) askNotifications(); FoodReminders.set(context, FoodReminders.EVENING, it) })
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.food_warn_logging), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
+            Switch(warnOn, { warnOn = it; com.noop.ui.NoopPrefs.of(context).edit().putBoolean("food.warn.enabled", it).apply() })
         }
     }
 }
