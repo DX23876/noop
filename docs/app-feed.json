@@ -1,11 +1,17 @@
 {
   "counts": {
     "fixed": 5,
-    "reported": 2,
+    "reported": 1,
     "working": 0
   },
   "decided": [],
   "fixed": [
+    {
+      "closed": "2026-11-21",
+      "n": 42,
+      "status": "fixed",
+      "title": "Sync, sleep and visual issue"
+    },
     {
       "closed": "2026-11-20",
       "n": 53,
@@ -29,27 +35,15 @@
       "n": 48,
       "status": "fixed",
       "title": "UI: Syncing bar stops working if I switch to other views"
-    },
-    {
-      "closed": "2026-11-20",
-      "n": 47,
-      "status": "fixed",
-      "title": "Still some problem in workouts"
     }
   ],
-  "generated": "2026-11-20T12:45:55Z",
+  "generated": "2026-11-21T10:42:55Z",
   "issues": [
     {
       "n": 49,
       "opened": "2026-11-14",
       "status": "reported",
       "title": "Nap algorithm"
-    },
-    {
-      "n": 42,
-      "opened": "2026-11-04",
-      "status": "reported",
-      "title": "Sync, sleep and visual issue"
     }
   ],
   "schema": 1,
