@@ -18,11 +18,30 @@ import FoundationNetworking
 // 4. **What was voted is remembered here, not asked for.** The screen must know its own thumbs offline,
 //    so they live in preferences; the service is only asked for totals.
 
+/// Why a write did not go out. ONE vocabulary, resolved in ONE place (`ProjectService.failure`),
+/// because the screens used to answer every cause with the same sentence: "that did not go out, try
+/// again later". A reporter who reads that cannot tell a switch they threw themselves from a service
+/// that said no from a dead connection, and neither can anybody trying to help them.
+public enum ProjectWriteFailure: String, Equatable, Sendable, CaseIterable {
+    /// Nothing left the device. Sending is switched off, or the feed carries no address at all.
+    case notSending
+    /// The service answered, and asked for less: this device has written too often in the last hour.
+    case tooMany
+    /// The service answered, and did not take it.
+    case refused
+    /// Nothing answered.
+    case unreachable
+}
+
 /// One write to the project's service. Pure value, so the call sites and the tests see the same thing.
 public enum ProjectServiceResult: Equatable, Sendable {
     case sent(count: Int?)
-    case refused
-    case unreachable
+    case failed(ProjectWriteFailure)
+
+    /// The two spellings the call sites were written with. The same VALUE, not a second answer: they
+    /// exist so a `return .refused` in a validation guard still reads as a sentence.
+    public static let refused = ProjectServiceResult.failed(.refused)
+    public static let unreachable = ProjectServiceResult.failed(.unreachable)
 }
 
 /// Votes and suggestions. `service` is the base URL from the feed; nil disables everything.
@@ -58,19 +77,42 @@ public actor ProjectService {
     /// The device key, for the routes that are rate limited. Never stored beside a report code.
     func deviceKey() -> String { keyStore.key() }
 
-    /// A POST whose answer is wanted, not just its success. Nil means the service could not be reached.
-    func ask(_ url: URL, body: [String: Any]) async -> [String: Any]? {
-        guard let payload = try? JSONSerialization.data(withJSONObject: body) else { return nil }
+    /// What a POST came back with: the body when it was taken, or the one reason it was not. It used
+    /// to answer nil for all of them, which is how a rate limit and a dead connection reached the
+    /// screen as the same sentence.
+    enum Answer {
+        case taken([String: Any])
+        case not(ProjectWriteFailure)
+    }
+
+    /// A POST whose answer is wanted, not just its success.
+    func ask(_ url: URL, body: [String: Any]) async -> Answer {
+        guard let payload = try? JSONSerialization.data(withJSONObject: body) else {
+            return .not(.refused)
+        }
         var request = URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 20)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = payload
         guard let (data, response) = try? await perform(request),
-              let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            return nil
+              let http = response as? HTTPURLResponse else { return .not(.unreachable) }
+        guard (200...299).contains(http.statusCode) else {
+            return .not(ProjectService.failure(status: http.statusCode))
         }
-        return (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        return .taken(((try? JSONSerialization.jsonObject(with: data)) as? [String: Any]) ?? [:])
+    }
+
+    /// The ONE resolver from what the service answered to why the write did not go out. Called only
+    /// for an answer that was not a success, and never guessed at a second call site.
+    ///
+    /// Two groups, by what can be said honestly. 429 is the one answer that names itself and is worth
+    /// its own sentence, because waiting actually fixes it. Everything else that ARRIVED is "the
+    /// service did not take it", whether it was a 400 we should never have sent, a 410 for a code
+    /// that is gone or a 502 from the far side; the one thing it is not is a connection problem, and
+    /// saying so sent people to their network settings. No answer at all is the only `unreachable`.
+    static func failure(status: Int) -> ProjectWriteFailure {
+        status == 429 ? .tooMany : .refused
     }
 
     /// The one place a request actually goes out, so a test can stand in for all of them.
@@ -82,7 +124,8 @@ public actor ProjectService {
 
     /// Set or withdraw this device's thumb. Returns the new total when the service reports one.
     public func vote(id: String, on: Bool) async -> ProjectServiceResult {
-        guard let service = endpoint, ProjectService.isVotableID(id) else { return .refused }
+        guard let service = endpoint else { return .failed(.notSending) }
+        guard ProjectService.isVotableID(id) else { return .refused }
         let body: [String: Any] = ["id": id, "on": on, "key": keyStore.key()]
         let result = await post(service.appendingPathComponent("v1/vote"), body: body)
         if case .sent = result { keyStore.remember(id: id, voted: on) }
@@ -92,7 +135,7 @@ public actor ProjectService {
     /// Send a suggestion. It becomes an issue in the owner's private repository; nothing is public until
     /// the owner releases it, and the app never reads it back.
     public func suggest(text: String) async -> ProjectServiceResult {
-        guard let service = endpoint else { return .refused }
+        guard let service = endpoint else { return .failed(.notSending) }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed.count <= ProjectService.maximumSuggestion else { return .refused }
         return await post(service.appendingPathComponent("v1/suggestion"),
@@ -121,10 +164,9 @@ public actor ProjectService {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.httpBody = payload
         guard let (data, response) = try? await perform(request),
-              let http = response as? HTTPURLResponse else { return .unreachable }
-        // 410 is the retired service: the app treats it exactly like no address at all.
+              let http = response as? HTTPURLResponse else { return .failed(.unreachable) }
         guard (200...299).contains(http.statusCode) else {
-            return http.statusCode == 429 || http.statusCode == 400 ? .refused : .unreachable
+            return .failed(ProjectService.failure(status: http.statusCode))
         }
         let root = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         return .sent(count: (root?["count"] as? NSNumber)?.intValue)

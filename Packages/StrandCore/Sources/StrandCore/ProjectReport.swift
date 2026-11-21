@@ -157,12 +157,12 @@ public struct ProjectSharing: Sendable {
     public func set(_ on: Bool) { defaults.set(on, forKey: Self.enabledDefault) }
 }
 
-/// What came back from sending a report.
+/// What came back from sending a report. The failure carries its reason, because the screen has to
+/// say which of them it was: see `ProjectWriteFailure`.
 public enum ProjectReportResult: Equatable, Sendable {
     /// Sent, with the code when one was asked for. No code means it went without a thread.
     case sent(code: String?)
-    case refused
-    case unreachable
+    case failed(ProjectWriteFailure)
 }
 
 extension ProjectService {
@@ -176,16 +176,22 @@ extension ProjectService {
     /// gets no way back, which is the point of asking for it.
     public func report(text: String, wantsThread: Bool = true,
                        language: String = ProjectService.currentLanguage) async -> ProjectReportResult {
-        guard let service = endpoint else { return .refused }
+        guard let service = endpoint else { return .failed(.notSending) }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty, trimmed.count <= ProjectService.maximumReport else { return .refused }
+        guard !trimmed.isEmpty, trimmed.count <= ProjectService.maximumReport else {
+            return .failed(.refused)
+        }
         let body: [String: Any] = ["text": trimmed, "key": deviceKey(), "lang": language,
                                    "thread": wantsThread]
-        guard let root = await ask(service.appendingPathComponent("v1/report"), body: body) else {
-            return .unreachable
+        // One call, switched over: an early draft asked twice to get at the reason, which would have
+        // filed the report twice whenever the first one worked.
+        switch await ask(service.appendingPathComponent("v1/report"), body: body) {
+        case .not(let why):
+            return .failed(why)
+        case .taken(let root):
+            guard root["ok"] as? Bool == true else { return .failed(.refused) }
+            return .sent(code: root["code"] as? String)
         }
-        guard root["ok"] as? Bool == true else { return .refused }
-        return .sent(code: root["code"] as? String)
     }
 
     /// The thread behind a code. A wrong or withdrawn code answers the same way, so this cannot be
@@ -221,7 +227,8 @@ extension ProjectService {
 
     /// The reporter answering a question.
     public func reply(code: String, text: String) async -> ProjectServiceResult {
-        guard let service = endpoint, ProjectService.isReportCode(code) else { return .refused }
+        guard let service = endpoint else { return .failed(.notSending) }
+        guard ProjectService.isReportCode(code) else { return .refused }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed.count <= ProjectService.maximumReply else { return .refused }
         return await post(service.appendingPathComponent("v1/report/reply"),
@@ -230,24 +237,31 @@ extension ProjectService {
 
     /// Taking it back: the log is deleted, the thread closed, the code stops working.
     public func withdraw(code: String) async -> ProjectServiceResult {
-        guard let service = endpoint, ProjectService.isReportCode(code) else { return .refused }
+        guard let service = endpoint else { return .failed(.notSending) }
+        guard ProjectService.isReportCode(code) else { return .refused }
         return await post(service.appendingPathComponent("v1/report/withdraw"), body: ["code": code])
     }
 
     /// The redacted bundle, by the same two steps the donation uses: ask where, then put it there.
     public func sendLog(code: String, data: Data) async -> ProjectServiceResult {
-        guard let service = endpoint, ProjectService.isReportCode(code) else { return .refused }
+        guard let service = endpoint else { return .failed(.notSending) }
+        guard ProjectService.isReportCode(code) else { return .refused }
         guard !data.isEmpty, data.count <= ProjectService.maximumLogBytes else { return .refused }
-        guard let root = await ask(service.appendingPathComponent("v1/report-log-url"),
-                                   body: ["code": code, "bytes": data.count]),
-              let target = ProjectFeedParser.service(from: root["url"]) else { return .unreachable }
+        let asked = await ask(service.appendingPathComponent("v1/report-log-url"),
+                              body: ["code": code, "bytes": data.count])
+        guard case .taken(let root) = asked else {
+            guard case .not(let why) = asked else { return .failed(.unreachable) }
+            return .failed(why)
+        }
+        guard let target = ProjectFeedParser.service(from: root["url"]) else { return .refused }
         var request = URLRequest(url: target, cachePolicy: .reloadIgnoringLocalCacheData,
                                  timeoutInterval: 120)
         request.httpMethod = "PUT"
         request.setValue("application/zip", forHTTPHeaderField: "Content-Type")
         guard let (_, response) = try? await perform(request, body: data),
-              let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            return .unreachable
+              let http = response as? HTTPURLResponse else { return .failed(.unreachable) }
+        guard (200...299).contains(http.statusCode) else {
+            return .failed(ProjectService.failure(status: http.statusCode))
         }
         return .sent(count: nil)
     }

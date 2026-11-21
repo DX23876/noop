@@ -679788,6 +679788,390 @@
           }
         }
       }
+    },
+    "Nothing answered. Your text is still here; try again when you are back online." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing answered. Your text is still here; try again when you are back online."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es kam keine Antwort. Dein Text steht noch da, versuch es wieder, sobald du online bist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No respondió nada. Tu texto sigue aquí; inténtalo cuando vuelvas a tener conexión."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien n'a répondu. Votre texte est toujours là ; réessayez une fois reconnecté."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nada respondeu. O seu texto continua aqui; tente quando voltar a ter ligação."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nic nie odpowiedziało. Twój tekst nadal tu jest, spróbuj, gdy znów będziesz online."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non ha risposto nulla. Il tuo testo è ancora qui, riprova quando sei di nuovo online."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ответа не было. Ваш текст остался здесь, попробуйте, когда снова будете онлайн."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有任何回应。你的文字还在，等恢复联网后再试。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有任何回應。你的文字還在，等恢復連線後再試。"
+          }
+        }
+      }
+    },
+    "Nothing leaves this device while that is off, so a report cannot go out either. The switch is on the Project page, under Taking part." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing leaves this device while that is off, so a report cannot go out either. The switch is on the Project page, under Taking part."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solange das aus ist, verlässt nichts dieses Gerät, also auch kein Bericht. Der Schalter steht auf der Projektseite unter Mitmachen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mientras esté desactivado no sale nada de este dispositivo, tampoco un informe. El interruptor está en la página Proyecto, en Participar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tant que c'est désactivé, rien ne quitte cet appareil, pas même un signalement. Le réglage se trouve sur la page Projet, sous Participer."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enquanto estiver desligado, nada sai deste dispositivo, nem um relato. O interruptor está na página Projeto, em Participar."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dopóki jest wyłączone, nic nie opuszcza tego urządzenia, także zgłoszenie. Przełącznik jest na stronie Projekt, w sekcji Udział."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finché è disattivato non esce nulla da questo dispositivo, nemmeno una segnalazione. L'interruttore è nella pagina Progetto, sotto Partecipare."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пока она выключена, с этого устройства ничего не уходит, в том числе и сообщение о проблеме. Переключатель на странице проекта, в разделе участия."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭期间没有任何内容离开这台设备，报告也不例外。开关在项目页面的参与一节。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉期間沒有任何內容離開這台裝置，回報也不例外。開關在專案頁面的參與一節。"
+          }
+        }
+      }
+    },
+    "Sending from this device is switched off, so nothing left it. Your text is still here." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sending from this device is switched off, so nothing left it. Your text is still here."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Senden ist auf diesem Gerät ausgeschaltet, es hat nichts verlassen. Dein Text steht noch da."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El envío desde este dispositivo está desactivado, así que no ha salido nada. Tu texto sigue aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'envoi depuis cet appareil est désactivé, rien n'est donc parti. Votre texte est toujours là."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O envio a partir deste dispositivo está desligado, por isso não saiu nada. O seu texto continua aqui."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wysyłanie z tego urządzenia jest wyłączone, więc nic nie wyszło. Twój tekst nadal tu jest."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'invio da questo dispositivo è disattivato, quindi non è partito nulla. Il tuo testo è ancora qui."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отправка с этого устройства выключена, поэтому ничего не ушло. Ваш текст остался здесь."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这台设备的发送已关闭，所以什么都没有发出去。你的文字还在。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這台裝置的傳送已關閉，所以沒有任何東西送出。你的文字還在。"
+          }
+        }
+      }
+    },
+    "Sending is switched off" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sending is switched off"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Senden ist ausgeschaltet"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El envío está desactivado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'envoi est désactivé"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O envio está desligado"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wysyłanie jest wyłączone"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'invio è disattivato"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отправка выключена"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发送已关闭"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "傳送已關閉"
+          }
+        }
+      }
+    },
+    "The service did not take it. Your text is still here." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The service did not take it. Your text is still here."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Dienst hat es nicht angenommen. Dein Text steht noch da."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El servicio no lo ha aceptado. Tu texto sigue aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le service ne l'a pas accepté. Votre texte est toujours là."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O serviço não o aceitou. O seu texto continua aqui."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Usługa tego nie przyjęła. Twój tekst nadal tu jest."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il servizio non lo ha accettato. Il tuo testo è ancora qui."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Служба это не приняла. Ваш текст остался здесь."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服务没有接受。你的文字还在。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "服務沒有接受。你的文字還在。"
+          }
+        }
+      }
+    },
+    "This device has sent a lot in the last hour. Your text is still here; try again in a while." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device has sent a lot in the last hour. Your text is still here; try again in a while."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dieses Gerät hat in der letzten Stunde viel gesendet. Dein Text steht noch da, versuch es gleich nochmal."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este dispositivo ha enviado mucho en la última hora. Tu texto sigue aquí; inténtalo dentro de un rato."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cet appareil a beaucoup envoyé dans la dernière heure. Votre texte est toujours là ; réessayez dans un moment."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este dispositivo enviou muito na última hora. O seu texto continua aqui; tente daqui a pouco."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To urządzenie wysłało dużo w ciągu ostatniej godziny. Twój tekst nadal tu jest, spróbuj za chwilę."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questo dispositivo ha inviato molto nell'ultima ora. Il tuo testo è ancora qui, riprova tra poco."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это устройство много отправляло за последний час. Ваш текст остался здесь, попробуйте немного позже."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这台设备在过去一小时里发送了很多。你的文字还在，过一会儿再试。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這台裝置在過去一小時內傳送了很多。你的文字還在，過一會兒再試。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

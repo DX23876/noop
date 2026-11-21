@@ -4788,5 +4788,11 @@
   "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "你已经有一段 %@ 的睡眠。同一段时间记录两次会被重复计算。",
   "All out": "全力",
   "%lld of 10": "10 中的 %lld",
-  "Adding this sleep failed. Nothing was changed; try again.": "这段睡眠没有添加成功。没有任何改动，请再试一次。"
+  "Adding this sleep failed. Nothing was changed; try again.": "这段睡眠没有添加成功。没有任何改动，请再试一次。",
+  "Sending from this device is switched off, so nothing left it. Your text is still here.": "这台设备的发送已关闭，所以什么都没有发出去。你的文字还在。",
+  "This device has sent a lot in the last hour. Your text is still here; try again in a while.": "这台设备在过去一小时里发送了很多。你的文字还在，过一会儿再试。",
+  "The service did not take it. Your text is still here.": "服务没有接受。你的文字还在。",
+  "Nothing answered. Your text is still here; try again when you are back online.": "没有任何回应。你的文字还在，等恢复联网后再试。",
+  "Sending is switched off": "发送已关闭",
+  "Nothing leaves this device while that is off, so a report cannot go out either. The switch is on the Project page, under Taking part.": "关闭期间没有任何内容离开这台设备，报告也不例外。开关在项目页面的参与一节。"
 }

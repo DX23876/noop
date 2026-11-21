@@ -4687,5 +4687,11 @@
   "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "Ya tienes un sueño de %@. Dos sueños sobre las mismas horas las contarían dos veces.",
   "All out": "A tope",
   "%lld of 10": "%lld de 10",
-  "Adding this sleep failed. Nothing was changed; try again.": "No se pudo añadir este sueño. No se cambió nada, inténtalo de nuevo."
+  "Adding this sleep failed. Nothing was changed; try again.": "No se pudo añadir este sueño. No se cambió nada, inténtalo de nuevo.",
+  "Sending from this device is switched off, so nothing left it. Your text is still here.": "El envío desde este dispositivo está desactivado, así que no ha salido nada. Tu texto sigue aquí.",
+  "This device has sent a lot in the last hour. Your text is still here; try again in a while.": "Este dispositivo ha enviado mucho en la última hora. Tu texto sigue aquí; inténtalo dentro de un rato.",
+  "The service did not take it. Your text is still here.": "El servicio no lo ha aceptado. Tu texto sigue aquí.",
+  "Nothing answered. Your text is still here; try again when you are back online.": "No respondió nada. Tu texto sigue aquí; inténtalo cuando vuelvas a tener conexión.",
+  "Sending is switched off": "El envío está desactivado",
+  "Nothing leaves this device while that is off, so a report cannot go out either. The switch is on the Project page, under Taking part.": "Mientras esté desactivado no sale nada de este dispositivo, tampoco un informe. El interruptor está en la página Proyecto, en Participar."
 }

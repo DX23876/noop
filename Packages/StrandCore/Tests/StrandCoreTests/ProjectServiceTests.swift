@@ -34,8 +34,8 @@ final class ProjectServiceTests: XCTestCase {
         let vote = await service.vote(id: "s-12", on: true)
         let suggestion = await service.suggest(text: "please")
         let counts = await service.counts()
-        XCTAssertEqual(vote, .refused)
-        XCTAssertEqual(suggestion, .refused)
+        XCTAssertEqual(vote, .failed(.notSending))
+        XCTAssertEqual(suggestion, .failed(.notSending))
         XCTAssertTrue(counts.isEmpty)
         XCTAssertEqual(calls.value, 0, "a page without a service address must make no request at all")
     }
@@ -98,15 +98,20 @@ final class ProjectServiceTests: XCTestCase {
 
     // MARK: What the answers mean
 
-    func testRefusedAndUnreachableAreToldApart() async {
+    /// The four reasons are told apart, and every write resolves them through the one function that
+    /// decides. They used to collapse into "that did not go out, try again later", which is the same
+    /// sentence for a wait that helps, a service that said no and a connection that is not there.
+    func testTheFourReasonsAreToldApart() async {
         let keys = store()
-        for (status, expected) in [(429, ProjectServiceResult.refused), (400, .refused),
-                                   (410, .unreachable), (500, .unreachable)] {
+        for (status, expected) in [(429, ProjectWriteFailure.tooMany), (400, .refused),
+                                   (410, .refused), (500, .refused), (502, .refused)] {
             let service = ProjectService(service: base, keyStore: keys, send: transport(status: status))
-            let result = await service.vote(id: "s-12", on: true)
-            XCTAssertEqual(result, expected, "status \(status)")
+            let vote = await service.vote(id: "s-12", on: true)
+            XCTAssertEqual(vote, .failed(expected), "status \(status)")
+            XCTAssertEqual(ProjectService.failure(status: status), expected, "the resolver itself")
         }
     }
+
 
     func testARefusedVoteIsNotRememberedAsCast() async {
         let keys = store()
@@ -190,10 +195,10 @@ final class ProjectReportTests: XCTestCase {
         let wish = await service.suggest(text: "please")
         let report = await service.report(text: "it broke")
         let reply = await service.reply(code: "ABCD-EFGH-JKLM-NPQR", text: "still broken")
-        XCTAssertEqual(vote, .refused)
-        XCTAssertEqual(wish, .refused)
-        XCTAssertEqual(report, .refused)
-        XCTAssertEqual(reply, .refused)
+        XCTAssertEqual(vote, .failed(.notSending))
+        XCTAssertEqual(wish, .failed(.notSending))
+        XCTAssertEqual(report, .failed(.notSending), "switched off is not the service saying no")
+        XCTAssertEqual(reply, .failed(.notSending))
         XCTAssertEqual(calls.value, 0, "off means nothing leaves the device, not even a thumb")
     }
 
@@ -229,14 +234,50 @@ final class ProjectReportTests: XCTestCase {
         XCTAssertTrue(seen.value.contains("\"thread\":false"))
     }
 
+    /// The reporter is told WHICH of the four it was. One sentence for all of them is what left a
+    /// tester, and the owner, with nothing to go on when a report would not leave the phone.
+    func testTheReportSaysWhyItDidNotGoOut() async {
+        for (status, expected) in [(429, ProjectWriteFailure.tooMany), (400, .refused),
+                                   (502, .refused)] {
+            let service = ProjectService(service: base, keyStore: keys(), sharing: sharing(true),
+                                         send: transport(status: status))
+            let result = await service.report(text: "it broke")
+            XCTAssertEqual(result, .failed(expected), "status \(status)")
+        }
+    }
+
+    /// Nothing answering is the ONLY unreachable. A service that answered, however badly, is not a
+    /// connection problem, and saying so sent people to their network settings.
+    func testOnlySilenceIsUnreachable() async {
+        struct Dead: Error {}
+        let service = ProjectService(service: base, keyStore: keys(), sharing: sharing(true),
+                                     send: { _ in throw Dead() })
+        let result = await service.report(text: "it broke")
+        XCTAssertEqual(result, .failed(.unreachable))
+    }
+
+    /// A report is sent ONCE. An early draft of the reason-carrying path asked twice to get at the
+    /// status, which would have filed the report twice on every run that worked.
+    func testAReportIsSentExactlyOnce() async {
+        let calls = Locked(0)
+        let service = ProjectService(service: base, keyStore: keys(), sharing: sharing(true),
+                                     send: transport(status: 200,
+                                                     body: #"{"ok":true,"code":"ABCD-EFGH-JKLM-NPQR"}"#) { _ in
+            calls.increment()
+        })
+        let result = await service.report(text: "it broke")
+        XCTAssertEqual(result, .sent(code: "ABCD-EFGH-JKLM-NPQR"))
+        XCTAssertEqual(calls.value, 1)
+    }
+
     func testAnEmptyOrOversizedReportNeverLeaves() async {
         let calls = Locked(0)
         let service = ProjectService(service: base, keyStore: keys(), sharing: sharing(true),
                                      send: transport(status: 200) { _ in calls.increment() })
         let empty = await service.report(text: "   ")
         let huge = await service.report(text: String(repeating: "x", count: ProjectService.maximumReport + 1))
-        XCTAssertEqual(empty, .refused)
-        XCTAssertEqual(huge, .refused)
+        XCTAssertEqual(empty, .failed(.refused))
+        XCTAssertEqual(huge, .failed(.refused))
         XCTAssertEqual(calls.value, 0)
     }
 

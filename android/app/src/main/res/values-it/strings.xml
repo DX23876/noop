@@ -7160,7 +7160,12 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="project_report_send">Invia</string>
     <string name="project_report_sending">Invio…</string>
     <string name="project_report_preparing">Preparazione…</string>
-    <string name="project_report_failed">Non è stato inviato. Riprova più tardi.</string>
+    <string name="project_report_switched_off_title">L\'invio è disattivato</string>
+    <string name="project_report_switched_off_body">Finché è disattivato non esce nulla da questo dispositivo, nemmeno una segnalazione. L\'interruttore è nella pagina Progetto, sotto Partecipare.</string>
+    <string name="project_report_failed_not_sending">L\'invio da questo dispositivo è disattivato, quindi non è partito nulla. Il tuo testo è ancora qui.</string>
+    <string name="project_report_failed_too_many">Questo dispositivo ha inviato molto nell\'ultima ora. Il tuo testo è ancora qui, riprova tra poco.</string>
+    <string name="project_report_failed_refused">Il servizio non lo ha accettato. Il tuo testo è ancora qui.</string>
+    <string name="project_report_failed_unreachable">Non ha risposto nulla. Il tuo testo è ancora qui, riprova quando sei di nuovo online.</string>
     <string name="project_report_sent">Inviato</string>
     <string name="project_report_keep_code">Conserva questo codice. È l\'unico modo per tornare a questa segnalazione e funziona su qualsiasi dispositivo.</string>
     <string name="project_report_no_thread_sent">Grazie. Non hai voluto una via di ritorno, quindi finisce qui: non c\'è codice, non è stato memorizzato nulla e nessuno può farti domande.</string>
@@ -7187,7 +7192,6 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="project_report_checking">Controllo…</string>
     <string name="project_report_unchecked">Non è stato possibile controllare adesso. È l\'ultimo stato noto.</string>
     <string name="project_report_sharing_off">L\'invio da questo dispositivo è spento, quindi non si può controllare. È l\'ultimo stato noto.</string>
-    <string name="project_report_reply_failed">Non è partito. Il tuo testo è ancora qui, riprova più tardi.</string>
     <string name="project_report_withdraw_failed">Non è partito. La segnalazione è ancora lì, e anche il suo registro.</string>
     <string name="project_report_no_thread_note">Senza domande di ritorno non viene memorizzato nulla su questa segnalazione, quindi non possono accompagnarla né un registro né un\'immagine, e nessuno può chiederti il dettaglio che l\'avrebbe resa risolvibile. Scrivi tutto quello che puoi.</string>
     <string name="project_report_withdraw_note">Il registro viene eliminato e il codice smette di funzionare. Ciò che è già risolto resta risolto.</string>

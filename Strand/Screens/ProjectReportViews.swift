@@ -17,6 +17,25 @@ import PhotosUI
 // since the beginning: the exact bundle, shown, then an explicit press. A log carries device details
 // and sometimes more, so the only honest way to send one is to show it first.
 
+/// The ONE sentence for each reason a write did not go out, so the report form and the thread cannot
+/// word the same cause differently, and so a fifth reader cannot invent a sixth sentence. The reason
+/// itself is resolved once, in `StrandCore.ProjectService.failure`; this is only its wording.
+enum ProjectReportWording {
+    static func sentence(_ why: ProjectWriteFailure) -> String {
+        switch why {
+        case .notSending:
+            // Not the network's fault, and not phrased as one: this is a switch the wearer threw.
+            return String(localized: "Sending from this device is switched off, so nothing left it. Your text is still here.")
+        case .tooMany:
+            return String(localized: "This device has sent a lot in the last hour. Your text is still here; try again in a while.")
+        case .refused:
+            return String(localized: "The service did not take it. Your text is still here.")
+        case .unreachable:
+            return String(localized: "Nothing answered. Your text is still here; try again when you are back online.")
+        }
+    }
+}
+
 /// The state behind reporting: the draft, what this device has reported, and one thread at a time.
 @MainActor
 final class ProjectReportModel: ObservableObject {
@@ -27,7 +46,9 @@ final class ProjectReportModel: ObservableObject {
     @Published var isSending = false
     @Published var sentCode: String?
     @Published var sentWithoutThread = false
-    @Published var failed = false
+    /// Why the last send did not go out, or nil. Not a Bool: one sentence for four causes is what
+    /// left a tester with nothing to act on and the owner with nothing to diagnose.
+    @Published var failure: ProjectWriteFailure?
     /// The report went, the log did not. Said out loud rather than left to be noticed: the wearer saw
     /// the whole bundle and pressed send with it, so silence here would be the screen quietly dropping
     /// the half they looked hardest at.
@@ -48,6 +69,15 @@ final class ProjectReportModel: ObservableObject {
     /// True once the feed carries an address and the wearer has not switched sending off.
     @Published var canWrite = false
 
+    /// Whether this device may write, read AGAIN rather than trusted from whenever the page last
+    /// loaded. The switch that decides it sits on the same screen as the way in here, so it can be
+    /// thrown after the row was drawn; before this, the form stayed open and the send failed with a
+    /// sentence that blamed the network for the wearer's own decision.
+    func refreshCanWrite() async {
+        guard let service else { return await load() }
+        canWrite = await service.isAvailable
+    }
+
     func load() async {
         let page = await ProjectPageStore(directory: RoadmapModel.cacheDirectory).cached()
         let service = ProjectService(service: page.service)
@@ -67,7 +97,7 @@ final class ProjectReportModel: ObservableObject {
     func send(log: Data?) async {
         guard let service else { return }
         isSending = true
-        failed = false
+        failure = nil
         logFailed = false
         let result = await service.report(text: draft, wantsThread: wantsThread,
                                           language: ProjectReportModel.language())
@@ -86,8 +116,8 @@ final class ProjectReportModel: ObservableObject {
             }
             draft = ""
             mine = store.all()
-        case .refused, .unreachable:
-            failed = true
+        case .failed(let why):
+            failure = why
         }
         isSending = false
     }
@@ -99,7 +129,7 @@ final class ProjectReportModel: ObservableObject {
     func startFresh() {
         sentCode = nil
         sentWithoutThread = false
-        failed = false
+        failure = nil
         logFailed = false
         picture = nil
         staged = nil
@@ -135,10 +165,11 @@ final class ProjectReportModel: ObservableObject {
         return thread
     }
 
-    func reply(code: String, text: String) async -> Bool {
-        guard let service else { return false }
-        if case .sent = await service.reply(code: code, text: text) { return true }
-        return false
+    /// Nil means it went. Otherwise the reason, in the same words the report form uses.
+    func reply(code: String, text: String) async -> ProjectWriteFailure? {
+        guard let service else { return .notSending }
+        if case .failed(let why) = await service.reply(code: code, text: text) { return why }
+        return nil
     }
 
     /// A code typed back in after a new install. Nothing is verified here: the thread screen asks the
@@ -196,6 +227,8 @@ struct ReportProblemView: View {
                             .foregroundStyle(StrandPalette.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
+                } else if !model.canWrite {
+                    switchedOffCard
                 } else {
                     form
                 }
@@ -203,6 +236,7 @@ struct ReportProblemView: View {
         }
         // Driven off the model, so the sheet cannot be lost when this screen is rebuilt.
         .task {
+            await model.refreshCanWrite()
             guard !opened else { return }
             opened = true
             model.startFresh()
@@ -225,6 +259,17 @@ struct ReportProblemView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// Shown instead of the form when sending is off. Named as the switch it is, and pointing at
+    /// where that switch lives, rather than offering a Send that cannot send.
+    private var switchedOffCard: some View {
+        ForgeListGroup("Sending is switched off") {
+            Text("Nothing leaves this device while that is off, so a report cannot go out either. The switch is on the Project page, under Taking part.")
+                .font(StrandFont.subhead)
+                .foregroundStyle(StrandPalette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -269,10 +314,11 @@ struct ReportProblemView: View {
             ForgeListGroup {
                 ForgeActionRow(title: sendTitle) { startSending() }
                     .disabled(!model.canSend || model.isPreparing)
-                if model.failed {
-                    Text("That did not go out. Try again later.")
+                if let why = model.failure {
+                    Text(ProjectReportWording.sentence(why))
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
@@ -626,7 +672,7 @@ struct ProjectThreadView: View {
     @State private var reached = true
     @State private var draft = ""
     @State private var sending = false
-    @State private var replyFailed = false
+    @State private var replyFailure: ProjectWriteFailure?
     @State private var withdrawFailed = false
     @State private var showingWithdraw = false
     @Environment(\.dismiss) private var dismiss
@@ -737,20 +783,20 @@ struct ProjectThreadView: View {
             ForgeActionRow(title: sending ? "Sending…" : "Send") {
                 Task {
                     sending = true
-                    replyFailed = false
-                    if await model.reply(code: entry.code, text: draft) {
+                    replyFailure = nil
+                    if let why = await model.reply(code: entry.code, text: draft) {
+                        // The text stays in the field: it is the only copy of it.
+                        replyFailure = why
+                    } else {
                         draft = ""
                         await reload()
-                    } else {
-                        // The text stays in the field: it is the only copy of it.
-                        replyFailed = true
                     }
                     sending = false
                 }
             }
             .disabled(sending || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            if replyFailed {
-                Text("That did not go out. Your text is still here; try again later.")
+            if let why = replyFailure {
+                Text(ProjectReportWording.sentence(why))
                     .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)

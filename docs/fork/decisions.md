@@ -2059,3 +2059,41 @@ would have been the label, not the suggestion. The four labels now exist. The fr
 NOT fixed: one deleted label still fails the job for every issue in that run, not just its own.
 
 Analysis migration required: no
+
+## 2026-11-21 — A send that did not go out says which of four reasons it was
+
+A tester reported that sending a problem from inside the app failed, and the screen answered "That did
+not go out. Try again later." Everything after that was guesswork, including ours: the service was up,
+its database answered, its token could read AND write the private repository, and the route validated
+a deliberately bad request correctly. Four causes reach that one sentence, and three of them are not
+the same advice at all.
+
+So the reason is now a value, `ProjectWriteFailure`, resolved in ONE place
+(`ProjectService.failure(status:)`) and carried by both result types:
+
+- **notSending** — nothing left the device. Sending is switched off, or the feed carries no address.
+  This used to return `.refused`, which is the app telling somebody the SERVICE said no about a switch
+  they threw themselves.
+- **tooMany** — 429. The one answer worth its own sentence, because waiting actually fixes it. The
+  service allows thirty calls an hour per device and every thumb on the Roadmap page is one of them, so
+  a tester who browses and votes before reporting can genuinely hit it.
+- **refused** — the service answered and did not take it, whether 400, 410 or 502. What it is NOT is a
+  connection problem; the old mapping called 410 and 500 "unreachable" and sent people to their network
+  settings.
+- **unreachable** — nothing answered. The only one.
+
+Two readouts show it, the report form and the thread's reply box, and both take their words from one
+funnel (`ProjectReportWording`, with its Kotlin twin) so the same cause cannot be worded two ways. The
+switch has a second defence as well: the report screen reads it again when it opens, on both platforms,
+and shows what it is instead of a Send that cannot send. It was gated on whatever the page last
+loaded, and the switch sits on that same page.
+
+One fault was found in the writing of it rather than in review: an early draft of the reason-carrying
+path called the service twice to get at the status, which would have filed every working report twice.
+`testAReportIsSentExactlyOnce` is there because of that, not as decoration.
+
+Not fixed, and not the tester's cause either: which of the four actually hit them cannot be recovered.
+The service records nothing about who called, by design, so the first real evidence is the next send
+from a build that carries this.
+
+Analysis migration required: no

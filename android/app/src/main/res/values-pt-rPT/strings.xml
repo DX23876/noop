@@ -7185,7 +7185,12 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="project_report_send">Enviar</string>
     <string name="project_report_sending">A enviar…</string>
     <string name="project_report_preparing">A preparar…</string>
-    <string name="project_report_failed">Isto não foi enviado. Tente mais tarde.</string>
+    <string name="project_report_switched_off_title">O envio está desligado</string>
+    <string name="project_report_switched_off_body">Enquanto estiver desligado, nada sai deste dispositivo, nem um relato. O interruptor está na página Projeto, em Participar.</string>
+    <string name="project_report_failed_not_sending">O envio a partir deste dispositivo está desligado, por isso não saiu nada. O seu texto continua aqui.</string>
+    <string name="project_report_failed_too_many">Este dispositivo enviou muito na última hora. O seu texto continua aqui; tente daqui a pouco.</string>
+    <string name="project_report_failed_refused">O serviço não o aceitou. O seu texto continua aqui.</string>
+    <string name="project_report_failed_unreachable">Nada respondeu. O seu texto continua aqui; tente quando voltar a ter ligação.</string>
     <string name="project_report_sent">Enviado</string>
     <string name="project_report_keep_code">Guarde este código. É a única forma de voltar a esta comunicação e funciona em qualquer dispositivo.</string>
     <string name="project_report_no_thread_sent">Obrigado. Não quis um caminho de volta, por isso termina aqui: não há código, nada foi guardado e ninguém lhe pode perguntar nada.</string>
@@ -7212,7 +7217,6 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="project_report_checking">A verificar…</string>
     <string name="project_report_unchecked">Isto não pôde ser verificado agora. É o último estado conhecido.</string>
     <string name="project_report_sharing_off">O envio deste dispositivo está desligado, por isso isto não pode ser verificado. É o último estado conhecido.</string>
-    <string name="project_report_reply_failed">Isso não seguiu. O seu texto continua aqui; tente mais tarde.</string>
     <string name="project_report_withdraw_failed">Isso não seguiu. A comunicação continua lá, e o registo dela também.</string>
     <string name="project_report_no_thread_note">Sem perguntas de volta nada é guardado sobre esta comunicação, por isso não pode seguir com ela nenhum registo nem nenhuma imagem, e ninguém lhe pode pedir o detalhe que a tornaria resolúvel. Diga o máximo que puder no texto.</string>
     <string name="project_report_withdraw_note">O registo é eliminado e o código deixa de funcionar. O que já foi corrigido continua corrigido.</string>

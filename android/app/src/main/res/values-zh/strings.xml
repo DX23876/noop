@@ -7140,7 +7140,12 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="project_report_send">发送</string>
     <string name="project_report_sending">正在发送…</string>
     <string name="project_report_preparing">正在准备…</string>
-    <string name="project_report_failed">没有发送成功。请稍后再试。</string>
+    <string name="project_report_switched_off_title">发送已关闭</string>
+    <string name="project_report_switched_off_body">关闭期间没有任何内容离开这台设备，报告也不例外。开关在项目页面的参与一节。</string>
+    <string name="project_report_failed_not_sending">这台设备的发送已关闭，所以什么都没有发出去。你的文字还在。</string>
+    <string name="project_report_failed_too_many">这台设备在过去一小时里发送了很多。你的文字还在，过一会儿再试。</string>
+    <string name="project_report_failed_refused">服务没有接受。你的文字还在。</string>
+    <string name="project_report_failed_unreachable">没有任何回应。你的文字还在，等恢复联网后再试。</string>
     <string name="project_report_sent">已发送</string>
     <string name="project_report_keep_code">请保存这个代码。它是回到这条报告的唯一途径，在任何设备上都有效。</string>
     <string name="project_report_no_thread_sent">谢谢。你选择了不留回路，所以到此为止：没有代码，没有保存任何内容，也没有人能就此询问你。</string>
@@ -7167,7 +7172,6 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="project_report_checking">正在查询…</string>
     <string name="project_report_unchecked">现在查不到。这是最后一次知道的状态。</string>
     <string name="project_report_sharing_off">这台设备的发送已关闭，所以查不到。这是最后一次知道的状态。</string>
-    <string name="project_report_reply_failed">没有发出去。你的文字还在，稍后再试。</string>
     <string name="project_report_withdraw_failed">没有发出去。报告还在，它的日志也还在。</string>
     <string name="project_report_no_thread_note">不允许回问时，这条报告不会保存任何信息，所以日志和图片都无法随它一起发出，也没有人能向你索取那个关键细节。请在正文里尽量写清楚。</string>
     <string name="project_report_withdraw_note">日志会被删除，代码也会失效。已经修复的仍然是修复的。</string>

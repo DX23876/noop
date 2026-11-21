@@ -4664,5 +4664,11 @@
   "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "У вас уже есть сон %@. Два сна на одни и те же часы учтут их дважды.",
   "All out": "На максимум",
   "%lld of 10": "%lld из 10",
-  "Adding this sleep failed. Nothing was changed; try again.": "Не удалось добавить этот сон. Ничего не изменено, попробуйте ещё раз."
+  "Adding this sleep failed. Nothing was changed; try again.": "Не удалось добавить этот сон. Ничего не изменено, попробуйте ещё раз.",
+  "Sending from this device is switched off, so nothing left it. Your text is still here.": "Отправка с этого устройства выключена, поэтому ничего не ушло. Ваш текст остался здесь.",
+  "This device has sent a lot in the last hour. Your text is still here; try again in a while.": "Это устройство много отправляло за последний час. Ваш текст остался здесь, попробуйте немного позже.",
+  "The service did not take it. Your text is still here.": "Служба это не приняла. Ваш текст остался здесь.",
+  "Nothing answered. Your text is still here; try again when you are back online.": "Ответа не было. Ваш текст остался здесь, попробуйте, когда снова будете онлайн.",
+  "Sending is switched off": "Отправка выключена",
+  "Nothing leaves this device while that is off, so a report cannot go out either. The switch is on the Project page, under Taking part.": "Пока она выключена, с этого устройства ничего не уходит, в том числе и сообщение о проблеме. Переключатель на странице проекта, в разделе участия."
 }

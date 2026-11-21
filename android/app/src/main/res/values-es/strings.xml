@@ -7193,7 +7193,12 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="project_report_send">Enviar</string>
     <string name="project_report_sending">Enviando…</string>
     <string name="project_report_preparing">Preparando…</string>
-    <string name="project_report_failed">No se pudo enviar. Inténtalo más tarde.</string>
+    <string name="project_report_switched_off_title">El envío está desactivado</string>
+    <string name="project_report_switched_off_body">Mientras esté desactivado no sale nada de este dispositivo, tampoco un informe. El interruptor está en la página Proyecto, en Participar.</string>
+    <string name="project_report_failed_not_sending">El envío desde este dispositivo está desactivado, así que no ha salido nada. Tu texto sigue aquí.</string>
+    <string name="project_report_failed_too_many">Este dispositivo ha enviado mucho en la última hora. Tu texto sigue aquí; inténtalo dentro de un rato.</string>
+    <string name="project_report_failed_refused">El servicio no lo ha aceptado. Tu texto sigue aquí.</string>
+    <string name="project_report_failed_unreachable">No respondió nada. Tu texto sigue aquí; inténtalo cuando vuelvas a tener conexión.</string>
     <string name="project_report_sent">Enviado</string>
     <string name="project_report_keep_code">Guarda este código. Es la única forma de volver a este informe y funciona en cualquier dispositivo.</string>
     <string name="project_report_no_thread_sent">Gracias. Pediste que no hubiera vuelta atrás, así que aquí termina: no hay código, no se guardó nada y nadie puede preguntarte nada al respecto.</string>
@@ -7220,7 +7225,6 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="project_report_checking">Comprobando…</string>
     <string name="project_report_unchecked">Esto no se ha podido comprobar ahora mismo. Es el último estado conocido.</string>
     <string name="project_report_sharing_off">El envío desde este dispositivo está desactivado, así que esto no se puede comprobar. Es el último estado conocido.</string>
-    <string name="project_report_reply_failed">Eso no ha salido. Tu texto sigue aquí; inténtalo más tarde.</string>
     <string name="project_report_withdraw_failed">Eso no ha salido. El informe sigue ahí, y su registro también.</string>
     <string name="project_report_no_thread_note">Sin preguntas de vuelta no se guarda nada sobre este informe, así que no puede acompañarlo ningún registro ni ninguna imagen, y nadie puede pedirte el detalle que lo habría hecho solucionable. Cuenta todo lo que puedas en el texto.</string>
     <string name="project_report_withdraw_note">El registro se borra y el código deja de funcionar. Lo que ya se corrigió sigue corregido.</string>

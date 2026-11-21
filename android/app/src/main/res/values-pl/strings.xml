@@ -7236,7 +7236,12 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="project_report_send">Wyślij</string>
     <string name="project_report_sending">Wysyłanie…</string>
     <string name="project_report_preparing">Przygotowywanie…</string>
-    <string name="project_report_failed">To nie zostało wysłane. Spróbuj później.</string>
+    <string name="project_report_switched_off_title">Wysyłanie jest wyłączone</string>
+    <string name="project_report_switched_off_body">Dopóki jest wyłączone, nic nie opuszcza tego urządzenia, także zgłoszenie. Przełącznik jest na stronie Projekt, w sekcji Udział.</string>
+    <string name="project_report_failed_not_sending">Wysyłanie z tego urządzenia jest wyłączone, więc nic nie wyszło. Twój tekst nadal tu jest.</string>
+    <string name="project_report_failed_too_many">To urządzenie wysłało dużo w ciągu ostatniej godziny. Twój tekst nadal tu jest, spróbuj za chwilę.</string>
+    <string name="project_report_failed_refused">Usługa tego nie przyjęła. Twój tekst nadal tu jest.</string>
+    <string name="project_report_failed_unreachable">Nic nie odpowiedziało. Twój tekst nadal tu jest, spróbuj, gdy znów będziesz online.</string>
     <string name="project_report_sent">Wysłano</string>
     <string name="project_report_keep_code">Zachowaj ten kod. To jedyna droga powrotna do tego zgłoszenia i działa na każdym urządzeniu.</string>
     <string name="project_report_no_thread_sent">Dziękuję. Nie chciałeś drogi powrotnej, więc na tym koniec: nie ma kodu, nic nie zapisano i nikt nie może cię o to zapytać.</string>
@@ -7263,7 +7268,6 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="project_report_checking">Sprawdzanie…</string>
     <string name="project_report_unchecked">Nie udało się tego teraz sprawdzić. To ostatni znany stan.</string>
     <string name="project_report_sharing_off">Wysyłanie z tego urządzenia jest wyłączone, więc nie można tego sprawdzić. To ostatni znany stan.</string>
-    <string name="project_report_reply_failed">To nie wyszło. Twój tekst nadal tu jest, spróbuj później.</string>
     <string name="project_report_withdraw_failed">To nie wyszło. Zgłoszenie nadal istnieje, a jego dziennik też.</string>
     <string name="project_report_no_thread_note">Bez pytań zwrotnych nic o tym zgłoszeniu nie jest zapisywane, więc nie może do niego dołączyć ani dziennik, ani obraz, i nikt nie może zapytać o szczegół, który pozwoliłby to naprawić. Napisz w tekście tyle, ile możesz.</string>
     <string name="project_report_withdraw_note">Dziennik zostaje usunięty, a kod przestaje działać. To, co już naprawiono, zostaje naprawione.</string>

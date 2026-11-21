@@ -7209,7 +7209,12 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="project_report_send">Senden</string>
     <string name="project_report_sending">Wird gesendet…</string>
     <string name="project_report_preparing">Wird vorbereitet …</string>
-    <string name="project_report_failed">Das ist nicht rausgegangen. Versuch es später nochmal.</string>
+    <string name="project_report_switched_off_title">Senden ist ausgeschaltet</string>
+    <string name="project_report_switched_off_body">Solange das aus ist, verlässt nichts dieses Gerät, also auch kein Bericht. Der Schalter steht auf der Projektseite unter Mitmachen.</string>
+    <string name="project_report_failed_not_sending">Senden ist auf diesem Gerät ausgeschaltet, es hat nichts verlassen. Dein Text steht noch da.</string>
+    <string name="project_report_failed_too_many">Dieses Gerät hat in der letzten Stunde viel gesendet. Dein Text steht noch da, versuch es gleich nochmal.</string>
+    <string name="project_report_failed_refused">Der Dienst hat es nicht angenommen. Dein Text steht noch da.</string>
+    <string name="project_report_failed_unreachable">Es kam keine Antwort. Dein Text steht noch da, versuch es wieder, sobald du online bist.</string>
     <string name="project_report_sent">Gesendet</string>
     <string name="project_report_keep_code">Bewahre diesen Code auf. Er ist der einzige Weg zurück zu dieser Meldung, und er funktioniert auf jedem Gerät.</string>
     <string name="project_report_no_thread_sent">Danke. Du wolltest keinen Rückweg, also endet es hier: es gibt keinen Code, nichts wurde gespeichert, und niemand kann dich dazu etwas fragen.</string>
@@ -7236,7 +7241,6 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="project_report_checking">Wird geprüft …</string>
     <string name="project_report_unchecked">Das konnte gerade nicht geprüft werden. Es ist der letzte bekannte Stand.</string>
     <string name="project_report_sharing_off">Das Senden von diesem Gerät ist aus, also kann das nicht geprüft werden. Es ist der letzte bekannte Stand.</string>
-    <string name="project_report_reply_failed">Das ging nicht raus. Dein Text steht noch da, versuch es später nochmal.</string>
     <string name="project_report_withdraw_failed">Das ging nicht raus. Die Meldung ist noch da und ihr Log auch.</string>
     <string name="project_report_no_thread_note">Ohne Rückfragen wird zu dieser Meldung nichts gespeichert. Es kann also auch kein Log und kein Bild mitgehen und niemand kann nach dem Detail fragen, das sie behebbar gemacht hätte. Schreib also so viel du kannst.</string>
     <string name="project_report_withdraw_note">Das Protokoll wird gelöscht und der Code funktioniert nicht mehr. Was schon behoben ist, bleibt behoben.</string>

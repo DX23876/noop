@@ -7254,7 +7254,12 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="project_report_send">Send</string>
     <string name="project_report_sending">Sending…</string>
     <string name="project_report_preparing">Preparing…</string>
-    <string name="project_report_failed">That did not go out. Try again later.</string>
+    <string name="project_report_switched_off_title">Sending is switched off</string>
+    <string name="project_report_switched_off_body">Nothing leaves this device while that is off, so a report cannot go out either. The switch is on the Project page, under Taking part.</string>
+    <string name="project_report_failed_not_sending">Sending from this device is switched off, so nothing left it. Your text is still here.</string>
+    <string name="project_report_failed_too_many">This device has sent a lot in the last hour. Your text is still here; try again in a while.</string>
+    <string name="project_report_failed_refused">The service did not take it. Your text is still here.</string>
+    <string name="project_report_failed_unreachable">Nothing answered. Your text is still here; try again when you are back online.</string>
     <string name="project_report_sent">Sent</string>
     <string name="project_report_keep_code">Keep this code. It is the only way back to this report, and it works on any device.</string>
     <string name="project_report_no_thread_sent">Thank you. You asked for no way back, so this is the end of it: there is no code, nothing was stored, and nobody can ask you anything about it.</string>
@@ -7281,7 +7286,6 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="project_report_checking">Checking…</string>
     <string name="project_report_unchecked">This could not be checked just now. It is what was last known.</string>
     <string name="project_report_sharing_off">Sending from this device is switched off, so this cannot be checked. It is what was last known.</string>
-    <string name="project_report_reply_failed">That did not go out. Your text is still here; try again later.</string>
     <string name="project_report_withdraw_failed">That did not go out. The report is still there, and so is its log.</string>
     <string name="project_report_no_thread_note">Without questions back nothing is stored about this report, so no log and no picture can travel with it, and nobody can ask you for the detail that would have made it fixable. Say as much as you can in the text.</string>
     <string name="project_report_withdraw_note">The log is deleted and the code stops working. What was already fixed stays fixed.</string>

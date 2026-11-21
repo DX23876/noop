@@ -4688,5 +4688,11 @@
   "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "Tu as déjà un sommeil de %@. Deux sommeils sur les mêmes heures les compteraient deux fois.",
   "All out": "À fond",
   "%lld of 10": "%lld sur 10",
-  "Adding this sleep failed. Nothing was changed; try again.": "L'ajout de ce sommeil a échoué. Rien n'a été modifié, réessaie."
+  "Adding this sleep failed. Nothing was changed; try again.": "L'ajout de ce sommeil a échoué. Rien n'a été modifié, réessaie.",
+  "Sending from this device is switched off, so nothing left it. Your text is still here.": "L'envoi depuis cet appareil est désactivé, rien n'est donc parti. Votre texte est toujours là.",
+  "This device has sent a lot in the last hour. Your text is still here; try again in a while.": "Cet appareil a beaucoup envoyé dans la dernière heure. Votre texte est toujours là ; réessayez dans un moment.",
+  "The service did not take it. Your text is still here.": "Le service ne l'a pas accepté. Votre texte est toujours là.",
+  "Nothing answered. Your text is still here; try again when you are back online.": "Rien n'a répondu. Votre texte est toujours là ; réessayez une fois reconnecté.",
+  "Sending is switched off": "L'envoi est désactivé",
+  "Nothing leaves this device while that is off, so a report cannot go out either. The switch is on the Project page, under Taking part.": "Tant que c'est désactivé, rien ne quitte cet appareil, pas même un signalement. Le réglage se trouve sur la page Projet, sous Participer."
 }

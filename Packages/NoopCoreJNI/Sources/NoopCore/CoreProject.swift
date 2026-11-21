@@ -15,6 +15,18 @@ enum CoreProject {
     ///
     /// The service address always comes from the page that was read, never from an argument: a screen
     /// cannot talk the core into posting somewhere else.
+    /// A write that did not go out, with its reason, in the one shape the Android screens read. The
+    /// bridge used to answer `{"ok":false}` for every cause, so Kotlin could only say "try again
+    /// later" however much the core knew.
+    private static func no(_ why: ProjectWriteFailure) -> String {
+        #"{"ok":false,"why":"\#(why.rawValue)"}"#
+    }
+
+    private static func no(_ result: ProjectServiceResult) -> String {
+        guard case .failed(let why) = result else { return #"{"ok":false}"# }
+        return no(why)
+    }
+
     static func run(_ op: String, _ args: [String: Any]) async -> String? {
         let store = ProjectPageStore(directory: cacheDirectory)
         switch op {
@@ -30,13 +42,13 @@ enum CoreProject {
                 return CoreRead.json(Answer(ok: true, count: count,
                                             voted: ProjectDeviceKeyStore.standard.hasVoted(id)))
             }
-            return #"{"ok":false}"#
+            return no(result)
         case "project.suggest":
             let page = await store.cached()
             let service = ProjectService(service: page.service)
             let result = await service.suggest(text: args["text"] as? String ?? "")
             if case .sent = result { return #"{"ok":true}"# }
-            return #"{"ok":false}"#
+            return no(result)
         case "project.report":
             let page = await store.cached()
             let service = ProjectService(service: page.service)
@@ -53,7 +65,8 @@ enum CoreProject {
                 struct Answer: Encodable { let ok: Bool; let code: String? }
                 return CoreRead.json(Answer(ok: true, code: code))
             }
-            return #"{"ok":false}"#
+            guard case .failed(let why) = result else { return #"{"ok":false}"# }
+            return no(why)
         case "project.reports":
             struct Row: Encodable {
                 let code: String, title: String, sent: String, seenStatus: String, seenMessages: Int
@@ -90,13 +103,13 @@ enum CoreProject {
             let result = await ProjectService(service: page.service)
                 .sendLog(code: args["code"] as? String ?? "", data: data)
             if case .sent = result { return #"{"ok":true}"# }
-            return #"{"ok":false}"#
+            return no(result)
         case "project.reply":
             let page = await store.cached()
             let result = await ProjectService(service: page.service)
                 .reply(code: args["code"] as? String ?? "", text: args["text"] as? String ?? "")
             if case .sent = result { return #"{"ok":true}"# }
-            return #"{"ok":false}"#
+            return no(result)
         case "project.withdraw":
             let page = await store.cached()
             let code = args["code"] as? String ?? ""

@@ -5884,5 +5884,11 @@
   "You already have a sleep from %@. Two sleeps over the same hours would count those hours twice.": "Masz już sen od %@. Dwa sny w tych samych godzinach policzyłyby je dwa razy.",
   "All out": "Na maksa",
   "%lld of 10": "%lld z 10",
-  "Adding this sleep failed. Nothing was changed; try again.": "Nie udało się dodać tego snu. Nic nie zostało zmienione, spróbuj ponownie."
+  "Adding this sleep failed. Nothing was changed; try again.": "Nie udało się dodać tego snu. Nic nie zostało zmienione, spróbuj ponownie.",
+  "Sending from this device is switched off, so nothing left it. Your text is still here.": "Wysyłanie z tego urządzenia jest wyłączone, więc nic nie wyszło. Twój tekst nadal tu jest.",
+  "This device has sent a lot in the last hour. Your text is still here; try again in a while.": "To urządzenie wysłało dużo w ciągu ostatniej godziny. Twój tekst nadal tu jest, spróbuj za chwilę.",
+  "The service did not take it. Your text is still here.": "Usługa tego nie przyjęła. Twój tekst nadal tu jest.",
+  "Nothing answered. Your text is still here; try again when you are back online.": "Nic nie odpowiedziało. Twój tekst nadal tu jest, spróbuj, gdy znów będziesz online.",
+  "Sending is switched off": "Wysyłanie jest wyłączone",
+  "Nothing leaves this device while that is off, so a report cannot go out either. The switch is on the Project page, under Taking part.": "Dopóki jest wyłączone, nic nie opuszcza tego urządzenia, także zgłoszenie. Przełącznik jest na stronie Projekt, w sekcji Udział."
 }

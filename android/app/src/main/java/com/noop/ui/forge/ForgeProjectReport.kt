@@ -193,6 +193,23 @@ internal fun ProjectReportSection(canWrite: Boolean, viewModel: AppViewModel) {
     }
 }
 
+/**
+ * The ONE sentence for each reason a write did not go out, the twin of `ProjectReportWording` on
+ * Apple. The reason itself is decided once, in the shared core (`ProjectService.failure`); this maps
+ * it to words, so the form and the thread cannot word the same cause differently.
+ *
+ * An unknown name answers like silence rather than inventing a fifth meaning: a core that learns a
+ * new reason before this screen does must not print something that did not happen.
+ */
+internal object ProjectReportWording {
+    fun sentence(why: String): Int = when (why) {
+        "notSending" -> R.string.project_report_failed_not_sending
+        "tooMany" -> R.string.project_report_failed_too_many
+        "refused" -> R.string.project_report_failed_refused
+        else -> R.string.project_report_failed_unreachable
+    }
+}
+
 /** What happened, whether questions may come back, and whether the log rides along. */
 @Composable
 private fun ReportForm(viewModel: AppViewModel, onDone: () -> Unit) {
@@ -205,12 +222,23 @@ private fun ReportForm(viewModel: AppViewModel, onDone: () -> Unit) {
     // state of its own the button said "Send" throughout, so a second tap built a second bundle and
     // opened a second sheet over the first. The Apple twin calls this `isPreparing`.
     var preparing by remember { mutableStateOf(false) }
-    var failed by remember { mutableStateOf(false) }
+    // Not a Bool: the core names WHICH of the four reasons it was, and one sentence for all of them
+    // is what left a tester with nothing to act on. The Apple twin calls this `failure`.
+    var failure by remember { mutableStateOf<String?>(null) }
     var code by remember { mutableStateOf<String?>(null) }
     var sentWithoutThread by remember { mutableStateOf(false) }
     var staged by remember { mutableStateOf<com.noop.ui.PendingReport?>(null) }
     var picture by remember { mutableStateOf<ByteArray?>(null) }
+    // Read here, not trusted from the page: the switch that decides it sits on the same screen as
+    // the way in, so it can be thrown after this row was drawn. The Apple twin calls this `canWrite`.
+    var sharingOn by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) {
+        sharingOn = runCatching {
+            JSONObject(withContext(Dispatchers.IO) { SwiftCore.call("project.sharing", "{}") } ?: "")
+                .optBoolean("on", true)
+        }.getOrDefault(true)
+    }
     val pick = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
@@ -222,7 +250,7 @@ private fun ReportForm(viewModel: AppViewModel, onDone: () -> Unit) {
 
     suspend fun send(log: ByteArray?) {
         sending = true
-        failed = false
+        failure = null
         val answer = withContext(Dispatchers.IO) {
             SwiftCore.call("project.report", JSONObject().put("text", draft)
                 .put("thread", wantsThread).toString())
@@ -244,7 +272,7 @@ private fun ReportForm(viewModel: AppViewModel, onDone: () -> Unit) {
                 sentWithoutThread = true
             }
         } else {
-            failed = true
+            failure = root?.optString("why")?.takeIf { it.isNotEmpty() } ?: "unreachable"
         }
         sending = false
     }
@@ -269,6 +297,17 @@ private fun ReportForm(viewModel: AppViewModel, onDone: () -> Unit) {
         SectionHeader(stringResource(R.string.project_report_sent))
         ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
             Text(stringResource(R.string.project_report_no_thread_sent), style = Forge.type.body,
+                 color = Forge.colors.textSecondary)
+        }
+        return
+    }
+
+    if (!sharingOn) {
+        // Named as the switch it is, and pointing at where that switch lives, rather than offering a
+        // Send that cannot send.
+        SectionHeader(stringResource(R.string.project_report_switched_off_title))
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+            Text(stringResource(R.string.project_report_switched_off_body), style = Forge.type.body,
                  color = Forge.colors.textSecondary)
         }
         return
@@ -387,8 +426,9 @@ private fun ReportForm(viewModel: AppViewModel, onDone: () -> Unit) {
                  color = if (draft.isNotBlank() && !sending && !preparing) Forge.colors.accent
                          else Forge.colors.textTertiary)
         }
-        if (failed) {
-            Text(stringResource(R.string.project_report_failed), style = Forge.type.caption,
+        val why = failure
+        if (why != null) {
+            Text(stringResource(ProjectReportWording.sentence(why)), style = Forge.type.caption,
                  color = Forge.colors.textSecondary)
         }
     }
@@ -440,7 +480,7 @@ private fun ThreadScreen(code: String, seen: String?, onBack: () -> Unit, onGone
     var sharingOn by remember { mutableStateOf(true) }
     var draft by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
-    var replyFailed by remember { mutableStateOf(false) }
+    var replyFailure by remember { mutableStateOf<String?>(null) }
     var withdrawFailed by remember { mutableStateOf(false) }
     var confirming by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -539,14 +579,15 @@ private fun ThreadScreen(code: String, seen: String?, onBack: () -> Unit, onGone
                                 SwiftCore.call("project.reply", JSONObject().put("code", code)
                                     .put("text", draft).toString())
                             }
-                            if (runCatching { JSONObject(answer ?: "") }.getOrNull()
-                                    ?.optBoolean("ok") == true) {
+                            val root = runCatching { JSONObject(answer ?: "") }.getOrNull()
+                            if (root?.optBoolean("ok") == true) {
                                 draft = ""
-                                replyFailed = false
+                                replyFailure = null
                                 reload()
                             } else {
                                 // The text stays in the field: it is the only copy of it.
-                                replyFailed = true
+                                replyFailure = root?.optString("why")?.takeIf { it.isNotEmpty() }
+                                    ?: "unreachable"
                             }
                             sending = false
                         }
@@ -559,9 +600,10 @@ private fun ThreadScreen(code: String, seen: String?, onBack: () -> Unit, onGone
                      color = if (draft.isNotBlank() && !sending) Forge.colors.accent
                              else Forge.colors.textTertiary)
             }
-            if (replyFailed) {
-                Text(stringResource(R.string.project_report_reply_failed), style = Forge.type.caption,
-                     color = Forge.colors.textSecondary)
+            val replyWhy = replyFailure
+            if (replyWhy != null) {
+                Text(stringResource(ProjectReportWording.sentence(replyWhy)),
+                     style = Forge.type.caption, color = Forge.colors.textSecondary)
             }
     }
     }

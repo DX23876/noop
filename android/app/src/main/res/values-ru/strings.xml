@@ -7192,7 +7192,12 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="project_report_send">Отправить</string>
     <string name="project_report_sending">Отправка…</string>
     <string name="project_report_preparing">Подготовка…</string>
-    <string name="project_report_failed">Это не ушло. Попробуйте позже.</string>
+    <string name="project_report_switched_off_title">Отправка выключена</string>
+    <string name="project_report_switched_off_body">Пока она выключена, с этого устройства ничего не уходит, в том числе и сообщение о проблеме. Переключатель на странице проекта, в разделе участия.</string>
+    <string name="project_report_failed_not_sending">Отправка с этого устройства выключена, поэтому ничего не ушло. Ваш текст остался здесь.</string>
+    <string name="project_report_failed_too_many">Это устройство много отправляло за последний час. Ваш текст остался здесь, попробуйте немного позже.</string>
+    <string name="project_report_failed_refused">Служба это не приняла. Ваш текст остался здесь.</string>
+    <string name="project_report_failed_unreachable">Ответа не было. Ваш текст остался здесь, попробуйте, когда снова будете онлайн.</string>
     <string name="project_report_sent">Отправлено</string>
     <string name="project_report_keep_code">Сохраните этот код. Это единственный путь обратно к сообщению, и он работает на любом устройстве.</string>
     <string name="project_report_no_thread_sent">Спасибо. Вы не захотели обратной связи, поэтому на этом всё: кода нет, ничего не сохранено, и никто не сможет ничего у вас спросить.</string>
@@ -7219,7 +7224,6 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="project_report_checking">Проверка…</string>
     <string name="project_report_unchecked">Сейчас это не удалось проверить. Это последнее известное состояние.</string>
     <string name="project_report_sharing_off">Отправка с этого устройства выключена, поэтому проверить это нельзя. Это последнее известное состояние.</string>
-    <string name="project_report_reply_failed">Это не ушло. Ваш текст остался здесь, попробуйте позже.</string>
     <string name="project_report_withdraw_failed">Это не ушло. Сообщение на месте, и его журнал тоже.</string>
     <string name="project_report_no_thread_note">Без обратных вопросов об этом сообщении ничего не сохраняется, поэтому ни журнал, ни изображение не могут отправиться вместе с ним, и никто не сможет спросить деталь, которая помогла бы это исправить. Опишите как можно подробнее.</string>
     <string name="project_report_withdraw_note">Журнал удаляется, а код перестаёт работать. Что уже исправлено, остаётся исправленным.</string>
