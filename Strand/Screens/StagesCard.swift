@@ -413,15 +413,7 @@ struct StageDetailView: View {
     /// card's breakdown rows, timeline rows and stage-bar read-out print ONE apportionment — and it matches
     /// the SleepView detail for the same night. Bar fills still track the raw `minutes / total` fraction.
     /// Falls back to 0 for a night with no minutes. Same helper as SleepView.stageSharePercent. (tanarchytan)
-    private func stageSharePercent(_ stage: SleepStage, _ s: Stages) -> Int {
-        guard let p = StagePercentages.wholePercentages([s.awake, s.light, s.deep, s.rem]) else { return 0 }
-        switch stage {
-        case .awake: return p[0]
-        case .light: return p[1]
-        case .deep:  return p[2]
-        case .rem:   return p[3]
-        }
-    }
+    private func stageSharePercent(_ stage: SleepStage, _ s: Stages) -> Int { s.sharePercent(stage) }
 
     /// One WHOOP-style stage row. `fraction = minutes / total` sets the bar fill; `percent` is the night's
     /// apportioned share (so the four rows sum to 100). Tappable (WHOOP, ryanAtriumAi #988): selecting a

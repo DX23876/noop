@@ -24,11 +24,11 @@ struct StagesVsTypicalCard: View {
             SectionHeader("Stages vs typical", overline: "Last night")
             NoopCard(tint: StrandPalette.restColor) {
                 VStack(alignment: .leading, spacing: NoopMetrics.space4) {
-                    stageRow(stage: String(localized: "Deep"),  last: s.deep,  typical: model.typicalDeepMin,  nightTotal: s.total, color: StrandPalette.sleepDeep)
+                    stageRow(stage: String(localized: "Deep"),  last: s.deep,  typical: model.typicalDeepMin,  sharePct: s.sharePercent(.deep),  color: StrandPalette.sleepDeep)
                     Divider().overlay(StrandPalette.hairline)
-                    stageRow(stage: String(localized: "REM"),   last: s.rem,   typical: model.typicalRemMin,   nightTotal: s.total, color: StrandPalette.sleepREM)
+                    stageRow(stage: String(localized: "REM"),   last: s.rem,   typical: model.typicalRemMin,   sharePct: s.sharePercent(.rem),   color: StrandPalette.sleepREM)
                     Divider().overlay(StrandPalette.hairline)
-                    stageRow(stage: String(localized: "Light"), last: s.light, typical: model.typicalLightMin, nightTotal: s.total, color: StrandPalette.sleepLight)
+                    stageRow(stage: String(localized: "Light"), last: s.light, typical: model.typicalLightMin, sharePct: s.sharePercent(.light), color: StrandPalette.sleepLight)
                 }
             }
         }
@@ -41,13 +41,13 @@ struct StagesVsTypicalCard: View {
     /// Same data as before (`last` minutes, `typical` personal mean) — the hatch just renders the typical
     /// context the prior vertical-only marker implied.
     @ViewBuilder
-    private func stageRow(stage label: String, last: Double, typical: Double?, nightTotal: Double, color: Color) -> some View {
+    private func stageRow(stage label: String, last: Double, typical: Double?, sharePct: Int, color: Color) -> some View {
         // Scale both values against a shared per-row max so the typical hatch + marker are meaningful.
         let scaleMax = max(last, typical ?? 0) * 1.18
         let max = scaleMax > 0 ? scaleMax : 1
-        // Share of the night this stage took (drives the WHOOP coloured %); over time-in-bed, matching the
-        // stage-breakdown rows above.
-        let sharePct = nightTotal > 0 ? Int((last / nightTotal * 100).rounded()) : 0
+        // The share comes in from `Stages.sharePercent`, the ONE apportionment the breakdown above reads
+        // too. Rounding it here let the same stage of the same night read 54 % in one card and 53 % in the
+        // next. (Refs ryanbr/noop#2927)
         let deltaText: String = {
             guard let typical, typical > 0 else { return "" }
             let diff = last - typical

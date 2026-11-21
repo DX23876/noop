@@ -1,6 +1,7 @@
 package com.noop.ui.forge
 
 import com.noop.analytics.ClockFormat
+import com.noop.analytics.StagePercentages
 import com.noop.ui.ClockPrefs
 import android.text.format.DateFormat
 import androidx.compose.foundation.Canvas
@@ -597,8 +598,18 @@ private fun Breakdown(night: CoreRead.Night, zone: ZoneId, days: List<com.noop.d
         if (night.stages.isNotEmpty()) {
             Spacer(Modifier.height(ForgeMetrics.space4))
             Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.rowSpacing)) {
+                // ONE apportionment over the four stages, in the input order every surface uses
+                // (`Charts.kt`'s `apportion`, mirrored by iOS `Stages.sharePercent`), so the lanes sum to
+                // 100 and read the same number as the breakdown. Rounding each lane on its own let the
+                // same stage read a point apart from the figure beside it. (Refs ryanbr/noop#2927)
+                val shares = StagePercentages.wholePercentages(
+                    SleepSummary.stages.map { (summary.minutesByStage[it] ?: 0).toDouble() },
+                )
                 SleepSummary.laneOrder.forEach { stage ->
-                    StageLane(night, stage, summary.minutesByStage[stage] ?: 0, summary.inBedMin)
+                    StageLane(
+                        night, stage, summary.minutesByStage[stage] ?: 0,
+                        shares?.getOrNull(SleepSummary.stages.indexOf(stage)) ?: 0,
+                    )
                 }
                 Row(Modifier.fillMaxWidth()) {
                     val mid = (night.startTs + night.endTs) / 2
@@ -614,7 +625,7 @@ private fun Breakdown(night: CoreRead.Night, zone: ZoneId, days: List<com.noop.d
 }
 
 @Composable
-private fun StageLane(night: CoreRead.Night, stage: String, minutes: Int, inBed: Int) {
+private fun StageLane(night: CoreRead.Night, stage: String, minutes: Int, pct: Int) {
     val colors = Forge.colors
     val (label, color) = when (stage) {
         "wake" -> stringResource(R.string.forge_stage_awake) to colors.sleepAwake
@@ -622,7 +633,6 @@ private fun StageLane(night: CoreRead.Night, stage: String, minutes: Int, inBed:
         "deep" -> stringResource(R.string.forge_stage_deep) to colors.sleepDeep
         else -> stringResource(R.string.forge_stage_rem) to colors.sleepRem
     }
-    val pct = if (inBed > 0) (minutes * 100f / inBed).roundToInt() else 0
     Column(Modifier.fillMaxWidth().background(colors.inset.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                .padding(horizontal = 12.dp, vertical = 8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {

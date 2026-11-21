@@ -28,6 +28,22 @@ struct Stages: Sendable {
 extension Stages {
     /// The core's stage minutes (`SleepNight.Minutes`) as the Sleep tab's value type.
     init(_ m: SleepNight.Minutes) { self.init(awake: m.awake, light: m.light, deep: m.deep, rem: m.rem) }
+
+    /// One stage's share of the night in whole percent, through the ONE apportionment every stage readout
+    /// reads (`StagePercentages.wholePercentages`, largest remainder, so the four shares sum to 100).
+    ///
+    /// Rounding each share on its own instead let two cards on one screen state different numbers for the
+    /// same stage of the same night — Light 54 % in the breakdown and 53 % in "Stages vs typical".
+    /// (Refs ryanbr/noop#2927)
+    func sharePercent(_ stage: SleepStage) -> Int {
+        guard let p = StagePercentages.wholePercentages([awake, light, deep, rem]) else { return 0 }
+        switch stage {
+        case .awake: return p[0]
+        case .light: return p[1]
+        case .deep:  return p[2]
+        case .rem:   return p[3]
+        }
+    }
 }
 
 extension SleepInterval {
