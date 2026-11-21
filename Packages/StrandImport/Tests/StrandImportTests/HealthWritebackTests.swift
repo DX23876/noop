@@ -251,6 +251,46 @@ final class HealthWritebackTests: XCTestCase {
             .joined(separator: ",") + "]"
     }
 
+    // MARK: - which nights a pass owns (#54)
+
+    /// The window's lower bound moves with the clock, so sixteen days later it can fall BETWEEN two
+    /// fragments of one night. Reading a day wider plans that night whole; the entry is then skipped
+    /// because its key belongs to an earlier pass, which is what stops a second copy of the night's
+    /// second half being written beside the whole night already in Health. The night's keys stay
+    /// claimed, so nothing of it is swept away.
+    func testANightWhoseKeyPredatesTheWindowIsClaimedButNotWritten() {
+        let t = 1_767_312_000                                   // 23:00, say
+        let a = frag(t, t + 7_200, stages: stagesJSON([(t, t + 7_200, "light")]))
+        let b = frag(t + 14_400, t + 21_600, stages: stagesJSON([(t + 14_400, t + 21_600, "deep")]))
+        let plan = HealthWriteback.mergedSleepPlan(groups: [[a, b]])
+        XCTAssertEqual(plan[0].keyStartTs, t, "the night is keyed by its first fragment")
+
+        // A pass whose window starts between the two fragments.
+        let owned = HealthWriteback.sleepEntriesOwned(plan, fromTs: t + 10_000, toTs: t + 90_000)
+        XCTAssertTrue(owned.write.isEmpty, "the night belongs to an earlier window")
+        XCTAssertEqual(owned.claimedKeys, [HealthWriteback.appleHealthSleepKey(startTs: t),
+                                           HealthWriteback.appleHealthSleepKey(startTs: t + 14_400)],
+                       "both fragment keys stay claimed, so the sweep removes neither half")
+
+        // The pass that does own it writes it, once, under the one key.
+        let mine = HealthWriteback.sleepEntriesOwned(plan, fromTs: t - 86_400, toTs: t + 90_000)
+        XCTAssertEqual(mine.write.map(\.keyStartTs), [t])
+        XCTAssertEqual(mine.claimedKeys.count, 2)
+    }
+
+    /// The upper bound behaves the same way: a night that starts after the window ends is not written
+    /// here either, so the historical rewrite cannot plan a night from its first fragment alone and let
+    /// the sweep take the rest of it.
+    func testANightStartingAfterTheWindowIsNotWrittenEither() {
+        let t = 1_767_312_000
+        let a = frag(t, t + 3_600, stages: stagesJSON([(t, t + 3_600, "light")]))
+        let plan = HealthWriteback.mergedSleepPlan(groups: [[a]])
+        let owned = HealthWriteback.sleepEntriesOwned(plan, fromTs: t - 86_400, toTs: t - 60)
+        XCTAssertTrue(owned.write.isEmpty)
+        XCTAssertEqual(owned.claimedKeys, [HealthWriteback.appleHealthSleepKey(startTs: t)])
+        XCTAssertEqual(HealthWriteback.sleepReadLeadSeconds, 86_400, "a night's own length of lead")
+    }
+
     func testMergedPlanFoldsTwoFragmentsWithWakeSeam() {
         let t = 1_767_312_000
         let a = frag(t, t + 7_200, stages: stagesJSON([(t, t + 7_200, "light")]))

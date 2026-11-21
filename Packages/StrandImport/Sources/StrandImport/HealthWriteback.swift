@@ -267,6 +267,34 @@ public enum HealthWriteback {
         }
     }
 
+    // MARK: - Which nights a pass owns (#54)
+
+    /// How much further back than its own window a pass reads sleep sessions: a night's own length, so a
+    /// night split on a mid-night wake is always planned WHOLE even when the window's lower bound falls
+    /// between two of its fragments.
+    public static let sleepReadLeadSeconds = 86_400
+
+    /// Split a plan into the nights this window OWNS and the keys it merely CLAIMS.
+    ///
+    /// The write-back reads a day wider than its window (`sleepReadLeadSeconds`), so every night is
+    /// planned whole. A night whose key lies outside the window belongs to another pass and must not be
+    /// written here: with a moving lower bound, a pass that read only the tail of a bridged night planned
+    /// that tail as a night of its own, under its own key, and wrote a second copy of it into Health
+    /// beside the whole night already there. Its keys are still CLAIMED, so the stale sweep cannot remove
+    /// a legacy per-fragment sample of a night that is now exported as one; a copy the old bug wrote
+    /// carries a sync identifier no plan expects, which is what retires it.
+    public static func sleepEntriesOwned(_ plan: [MergedSleepEntry],
+                                         fromTs: Int, toTs: Int)
+        -> (write: [MergedSleepEntry], claimedKeys: [String]) {
+        var write: [MergedSleepEntry] = []
+        var claimed: [String] = []
+        for entry in plan {
+            claimed.append(contentsOf: entry.allKeyStartTs.map { appleHealthSleepKey(startTs: $0) })
+            if entry.keyStartTs >= fromTs, entry.keyStartTs <= toTs { write.append(entry) }
+        }
+        return (write, claimed)
+    }
+
     /// Fold bridged night groups (#364) into write-back entries — one `.inBed` span per night with
     /// the mid-night wake seams as explicit `.awake` intervals, matching what the daily totals
     /// already score (#561/#777) and what Oura / Apple Watch write into Health. `groups` comes from

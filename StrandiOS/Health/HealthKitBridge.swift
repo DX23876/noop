@@ -1322,7 +1322,16 @@ final class HealthKitBridge: ObservableObject {
         // Sleep sessions drive both the sleep write and the vitals' wake-time stamps: computed
         // sessions (deviceId + "-noop") first, imported rows override on startTs collision — the
         // same source precedence as the dailies union below and IntelligenceEngine's sleep reads.
-        let allSleeps = try await repo.healthExportSleeps(from: sleepFrom, to: nowTs)
+        //
+        // Read a day WIDER than the window this pass owns (#54). A night the detector split on a
+        // mid-night wake is exported as ONE entry keyed by its FIRST fragment's start, and the lower
+        // bound moves with the clock: a pass that ran while it sat between two fragments of one night
+        // read the second half alone, planned it as a night of its own under its own key, and wrote a
+        // second copy of that half into Health beside the whole night already there — permanently, since
+        // the next pass had both starts below the bound. Reading the night whole is what stops the
+        // second copy being written; `writeSleep` then writes only the entries this window owns.
+        let allSleeps = try await repo.healthExportSleeps(
+            from: max(0, sleepFrom - HealthWriteback.sleepReadLeadSeconds), to: nowTs)
         let sleepsByStart = Dictionary(uniqueKeysWithValues: allSleeps.map { ($0.startTs, $0) })
         let selectedComputedStarts = Set(allSleeps.filter { $0.deviceId?.hasSuffix("-noop") == true }.map(\.startTs))
         // A night the strap may still be recording is held back, with its day's vitals, until it closes
@@ -1398,7 +1407,12 @@ final class HealthKitBridge: ObservableObject {
             let lo = max(0, change.fromTs - 2 * 86_400), hi = min(nowTs, change.toTs + 2 * 86_400)
             var historical = 0
             if lo < sleepFrom {
-                let history = try await repo.healthExportSleeps(from: lo, to: hi)
+                // A day wider on BOTH sides, for the reason above (#54): at the upper bound a night whose
+                // first fragment fell inside the window and whose second did not was planned from the
+                // first alone, and the sweep then removed the second half's stages from Health.
+                let history = try await repo.healthExportSleeps(
+                    from: max(0, lo - HealthWriteback.sleepReadLeadSeconds),
+                    to: hi + HealthWriteback.sleepReadLeadSeconds)
                 historical = try await writeSleep(sessions: history.filter { !openStarts.contains($0.startTs) },
                     whoopStore: whoopStore, fromTs: lo, toTs: hi, holdingStarts: openStarts)
             }
@@ -1731,10 +1745,14 @@ final class HealthKitBridge: ObservableObject {
     private func writeSleep(sessions: [CachedSleepSession], whoopStore: WhoopStore, fromTs: Int, toTs: Int, holdingStarts: Set<Int> = []) async throws -> Int {
         guard let type = HKObjectType.categoryType(forIdentifier: .sleepAnalysis),
               store.authorizationStatus(for: type) == .sharingAuthorized else { return 0 }
+        // Only the nights this window OWNS are written (#54); every night's keys are claimed either way,
+        // so the sweep below cannot orphan a legacy per-fragment sample. The sessions were read a day
+        // wider (`sleepReadLeadSeconds`) so a bridged night is never planned from half of itself.
+        let owned = HealthWriteback.sleepEntriesOwned(Self.sleepPlan(sessions: sessions),
+                                                      fromTs: fromTs, toTs: toTs)
+        let keys = owned.claimedKeys
         var samples: [HKCategorySample] = []
-        var keys: [String] = []
-        for entry in Self.sleepPlan(sessions: sessions) {
-            keys.append(contentsOf: entry.allKeyStartTs.map { HealthWriteback.appleHealthSleepKey(startTs: $0) })
+        for entry in owned.write {
             samples.append(contentsOf: Self.sleepSamples(for: entry))
         }
         let count = try await HealthSampleWriter.save(samples, store: store, db: whoopStore)
