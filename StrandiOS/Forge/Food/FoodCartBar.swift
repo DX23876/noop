@@ -9,6 +9,8 @@ struct FoodCartBar: View {
     @Binding var time: Date
     let saving: Bool
     let add: () -> Void
+    /// Keeps what is in the cart as a meal to log again later; nil hides it.
+    var saveAsMeal: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 8) {
@@ -28,23 +30,41 @@ struct FoodCartBar: View {
             }
             .scrollIndicators(.hidden)
             .animation(.smooth, value: cart.map(\.id))
-            HStack {
-                FoodMealPicker(meal: $meal).labelsHidden()
+            // Meal, time and keeping the cart as a meal on one line; the add button has a line of its own, so its
+            // figure never wraps.
+            HStack(spacing: 8) {
+                FoodMealPicker(meal: $meal).labelsHidden().fixedSize()
                 DatePicker("Time", selection: $time, displayedComponents: [.hourAndMinute]).labelsHidden()
-                Spacer()
-                Button(action: add) {
-                    Group {
-                        if saving { ProgressView() } else { Text("Add \(cart.count) · \(FoodText.kcal(total)) kcal") }
+                Spacer(minLength: 8)
+                if let saveAsMeal {
+                    Button(action: saveAsMeal) {
+                        Label("Keep", systemImage: "star")
+                            .font(ForgeFont.caption.weight(.semibold))
+                            .foregroundStyle(ForgeColor.food)
+                            .lineLimit(1)
+                            .padding(.horizontal, 12)
+                            .frame(minHeight: 32)
+                            .background(ForgeColor.fill, in: .capsule)
+                            .frame(minHeight: 44)
                     }
-                    .font(.headline).foregroundStyle(ForgeColor.onAccent)
-                    .padding(.horizontal, 20).frame(minHeight: 44)
-                    .background(ForgeColor.accent, in: .capsule)
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text("Save as meal"))
                 }
-                .buttonStyle(.plain)
-                .disabled(saving)
             }
+            Button(action: add) {
+                Group {
+                    if saving { ProgressView() } else { Text("Add \(cart.count) · \(FoodText.kcal(total)) kcal").lineLimit(1) }
+                }
+                .font(.headline).foregroundStyle(ForgeColor.onAccent)
+                .frame(maxWidth: .infinity, minHeight: 48)
+                .background(ForgeColor.accent, in: .capsule)
+            }
+            .buttonStyle(.plain)
+            .disabled(saving)
         }
         .padding(12)
+        // The whole bar takes touches: a tap between its controls must not reach the list behind it.
+        .contentShape(.rect)
         .background(.regularMaterial)
     }
 

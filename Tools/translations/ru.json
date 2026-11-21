@@ -4676,5 +4676,12 @@
   "Keep as favourite": "Сохранить в избранное",
   "Log %@ again": "Снова записать %@",
   "Log the whole meal again with one tap from your favourites.": "Записывай весь приём пищи снова одним касанием из избранного.",
-  "Star a food, or keep a whole meal from its menu on the Food page, to find it here.": "Отметь продукт звёздочкой или сохрани весь приём пищи через его меню на странице питания, чтобы найти его здесь."
+  "Save as meal": "Сохранить как приём пищи",
+  "Build a meal": "Собрать приём пищи",
+  "Star a food, build a meal, or keep one from its menu on the Food page, to find it here.": "Отметь продукт звёздочкой, собери приём пищи или сохрани его через меню на странице питания, чтобы найти здесь.",
+  "Each food keeps its own values. The cart stays, so you can still add it now.": "Каждый продукт сохраняет свои значения. Корзина остаётся, так что её можно сразу добавить.",
+  "Edit meal": "Изменить приём пищи",
+  "New meal": "Новый приём пищи",
+  "Add a food": "Добавить продукт",
+  "Together %@ kcal · %@ g protein": "Вместе %@ ккал · %@ г белка"
 }

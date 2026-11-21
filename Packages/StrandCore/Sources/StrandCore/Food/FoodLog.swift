@@ -237,14 +237,31 @@ public enum FoodLog {
     /// without an amount cannot be logged again by the gram and are left out; nil when nothing is left.
     public static func savedMeal(name: String, from entries: [FoodLogEntry], id: String = UUID().uuidString,
                                  now: Date = Date()) -> FoodSavedMeal? {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         let items = entries.compactMap { entry -> FoodRecipe.Item? in
             guard let grams = entry.grams, grams > 0, let per100g = entry.per100g else { return nil }
             return .init(foodId: entry.foodId, name: entry.name, grams: grams, per100g: per100g)
         }
-        guard !trimmed.isEmpty, !items.isEmpty else { return nil }
+        return savedMeal(name: name, items: items, id: id, now: now)
+    }
+
+    /// A meal put together from foods and amounts (the cart, or the meal builder). Each food keeps its own id and
+    /// values, so the meal is never turned into one food. Amounts that are not positive are dropped; nil without a
+    /// name or without any food left. `createdAt` keeps the first save's stamp when an existing meal is changed.
+    public static func savedMeal(name: String, foods: [(item: FoodItem, grams: Double)], id: String = UUID().uuidString,
+                                 createdAt: Int? = nil, now: Date = Date()) -> FoodSavedMeal? {
+        let items = foods.map { FoodRecipe.Item(foodId: $0.item.id, name: $0.item.name, grams: $0.grams,
+                                                per100g: $0.item.per100g.stored) }
+        return savedMeal(name: name, items: items, id: id, createdAt: createdAt, now: now)
+    }
+
+    /// The meal builder's save: the items as edited, under the meal's own id.
+    public static func savedMeal(name: String, items: [FoodRecipe.Item], id: String = UUID().uuidString,
+                                 createdAt: Int? = nil, now: Date = Date()) -> FoodSavedMeal? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let kept = items.filter { $0.grams.isFinite && $0.grams > 0 }
+        guard !trimmed.isEmpty, !kept.isEmpty else { return nil }
         let stamp = Int(now.timeIntervalSince1970)
-        return FoodSavedMeal(id: id, name: trimmed, items: items, createdAt: stamp, updatedAt: stamp)
+        return FoodSavedMeal(id: id, name: trimmed, items: kept, createdAt: createdAt ?? stamp, updatedAt: stamp)
     }
 
     /// A saved meal logged again at `at`: one entry per food with the amount it was saved with, all under one meal

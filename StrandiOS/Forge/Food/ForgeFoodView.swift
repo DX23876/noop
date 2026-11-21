@@ -37,6 +37,7 @@ struct ForgeFoodView: View {
     @State private var keepName = ""
     /// A starred food tapped in the favourites bar: its amount sheet, logged straight from there.
     @State private var favouritePick: FoodItem?
+    @State private var mealEditor: FoodMealEditor.Target?
 
     var body: some View {
         ScrollView {
@@ -66,7 +67,8 @@ struct ForgeFoodView: View {
                     FoodSectionHeader(title: String(localized: "Favourites"))
                         .padding(.top, 16)
                     FoodFavouritesBar(meals: model.savedMeals, foods: model.favouriteFoods,
-                                      logMeal: logSavedMeal, pickFood: pickFavourite)
+                                      logMeal: logSavedMeal, pickFood: pickFavourite,
+                                      editMeal: { mealEditor = .edit($0) }, removeMeal: removeSavedMeal)
                 }
                 FoodSectionHeader(title: String(localized: "Meals"))
                     .padding(.top, 16)
@@ -135,6 +137,7 @@ struct ForgeFoodView: View {
         .sheet(item: $editing) { FoodEntrySheet(entry: $0, model: model).environmentObject(repo) }
         .sheet(item: $copying) { FoodCopySheet(batch: $0, model: model).environmentObject(repo) }
         .sheet(item: $recipeFrom) { FoodRecipeSheet(batch: $0, model: model).environmentObject(repo) }
+        .sheet(item: $mealEditor) { FoodMealEditor(model: model, target: $0).environmentObject(repo) }
         .sheet(item: $favouritePick) { item in
             FoodPortionSheet(item: item, model: model, lastGrams: model.lastGrams[item.id], add: logFavourite)
         }
@@ -265,6 +268,7 @@ struct ForgeFoodView: View {
     }
     private func logSavedMeal(_ meal: FoodSavedMeal) { Task { await model.logSavedMeal(meal, repo: repo) } }
     private func pickFavourite(_ item: FoodItem) { favouritePick = item }
+    private func removeSavedMeal(_ meal: FoodSavedMeal) { Task { await model.deleteMeal(meal, repo: repo) } }
     private func logFavourite(_ line: FoodCartLine) {
         Task { _ = await model.log([line], at: model.defaultTime(), meal: nil, repo: repo, coach: nil) }
     }

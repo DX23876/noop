@@ -4,10 +4,11 @@ import StrandCore
 import WhoopStore
 
 /// A meal kept as a favourite, in the add sheet: its picture, name, foods and energy, and one button that logs it
-/// again. Holding it offers removal.
+/// again. Tapping the meal itself opens it in the builder; holding it offers editing and removal.
 struct FoodSavedMealRow: View {
     let meal: FoodSavedMeal
     let log: (FoodSavedMeal) -> Void
+    let edit: (FoodSavedMeal) -> Void
     let remove: (FoodSavedMeal) -> Void
 
     var body: some View {
@@ -34,7 +35,10 @@ struct FoodSavedMealRow: View {
             .buttonStyle(.plain)
             .accessibilityLabel(Text("Log \(meal.name) again"))
         }
+        .contentShape(.rect)
+        .onTapGesture { edit(meal) }
         .contextMenu {
+            Button("Edit meal", systemImage: "pencil") { edit(meal) }
             Button("Remove from favourites", systemImage: "star.slash", role: .destructive) { remove(meal) }
         }
     }

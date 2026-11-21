@@ -5896,5 +5896,12 @@
   "Keep as favourite": "Zapisz jako ulubione",
   "Log %@ again": "Zapisz ponownie %@",
   "Log the whole meal again with one tap from your favourites.": "Zapisz cały posiłek ponownie jednym dotknięciem z ulubionych.",
-  "Star a food, or keep a whole meal from its menu on the Food page, to find it here.": "Oznacz produkt gwiazdką albo zapisz cały posiłek z jego menu na stronie Odżywianie, aby znaleźć go tutaj."
+  "Save as meal": "Zapisz jako posiłek",
+  "Build a meal": "Skomponuj posiłek",
+  "Star a food, build a meal, or keep one from its menu on the Food page, to find it here.": "Oznacz produkt gwiazdką, skomponuj posiłek albo zapisz go z menu na stronie Odżywianie, aby znaleźć go tutaj.",
+  "Each food keeps its own values. The cart stays, so you can still add it now.": "Każdy produkt zachowuje własne wartości. Koszyk zostaje, więc nadal możesz go teraz dodać.",
+  "Edit meal": "Edytuj posiłek",
+  "New meal": "Nowy posiłek",
+  "Add a food": "Dodaj produkt",
+  "Together %@ kcal · %@ g protein": "Razem %@ kcal · %@ g białka"
 }

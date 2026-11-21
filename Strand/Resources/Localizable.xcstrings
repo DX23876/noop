@@ -680463,60 +680463,466 @@
         }
       }
     },
-    "Star a food, or keep a whole meal from its menu on the Food page, to find it here." : {
+    "Save as meal" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Markiere ein Lebensmittel mit dem Stern oder merke dir eine ganze Mahlzeit über ihr Menü auf der Ernährungsseite. Dann findest du sie hier."
+            "value" : "Als Mahlzeit speichern"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Marca un alimento con la estrella o guarda una comida entera desde su menú en la página de Nutrición para encontrarla aquí."
+            "value" : "Guardar como comida"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Mets une étoile à un aliment ou garde un repas entier depuis son menu sur la page Nutrition pour le retrouver ici."
+            "value" : "Enregistrer comme repas"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Aggiungi una stella a un alimento o salva un pasto intero dal suo menu nella pagina Nutrizione per trovarlo qui."
+            "value" : "Salva come pasto"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Oznacz produkt gwiazdką albo zapisz cały posiłek z jego menu na stronie Odżywianie, aby znaleźć go tutaj."
+            "value" : "Zapisz jako posiłek"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Marca um alimento com a estrela ou guarda uma refeição inteira no seu menu na página Nutrição para a encontrares aqui."
+            "value" : "Guardar como refeição"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Отметь продукт звёздочкой или сохрани весь приём пищи через его меню на странице питания, чтобы найти его здесь."
+            "value" : "Сохранить как приём пищи"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "给食物加星标，或在饮食页面通过餐食菜单保存整餐，就能在这里找到。"
+            "value" : "保存为餐食"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "為食物加上星號，或在飲食頁面透過餐點選單儲存整餐，就能在這裡找到。"
+            "value" : "儲存為餐點"
+          }
+        }
+      }
+    },
+    "Build a meal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mahlzeit zusammenstellen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Crear una comida"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Composer un repas"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Componi un pasto"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skomponuj posiłek"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Montar uma refeição"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Собрать приём пищи"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搭配一餐"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搭配一餐"
+          }
+        }
+      }
+    },
+    "Star a food, build a meal, or keep one from its menu on the Food page, to find it here." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Markiere ein Lebensmittel mit dem Stern, stell eine Mahlzeit zusammen oder merke dir eine über ihr Menü auf der Ernährungsseite. Dann findest du sie hier."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marca un alimento con la estrella, crea una comida o guarda una desde su menú en la página de Nutrición para encontrarla aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mets une étoile à un aliment, compose un repas ou garde-en un depuis son menu sur la page Nutrition pour le retrouver ici."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggiungi una stella a un alimento, componi un pasto o salvane uno dal suo menu nella pagina Nutrizione per trovarlo qui."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Oznacz produkt gwiazdką, skomponuj posiłek albo zapisz go z menu na stronie Odżywianie, aby znaleźć go tutaj."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marca um alimento com a estrela, monta uma refeição ou guarda uma no seu menu na página Nutrição para a encontrares aqui."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отметь продукт звёздочкой, собери приём пищи или сохрани его через меню на странице питания, чтобы найти здесь."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "给食物加星标、搭配一餐，或在饮食页面通过餐食菜单保存，就能在这里找到。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "為食物加上星號、搭配一餐，或在飲食頁面透過餐點選單儲存，就能在這裡找到。"
+          }
+        }
+      }
+    },
+    "Each food keeps its own values. The cart stays, so you can still add it now." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jedes Lebensmittel behält seine eigenen Werte. Der Warenkorb bleibt, du kannst ihn also gleich noch hinzufügen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada alimento conserva sus propios valores. La cesta se mantiene, así que aún puedes añadirla ahora."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chaque aliment garde ses propres valeurs. Le panier reste, tu peux donc encore l’ajouter maintenant."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ogni alimento mantiene i propri valori. Il carrello resta, quindi puoi ancora aggiungerlo ora."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Każdy produkt zachowuje własne wartości. Koszyk zostaje, więc nadal możesz go teraz dodać."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cada alimento mantém os seus próprios valores. O cesto fica, por isso ainda o podes adicionar agora."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Каждый продукт сохраняет свои значения. Корзина остаётся, так что её можно сразу добавить."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每种食物都保留自己的数值。购物篮会保留，你现在仍可添加。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每種食物都保留自己的數值。購物籃會保留，你現在仍可加入。"
+          }
+        }
+      }
+    },
+    "Edit meal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mahlzeit bearbeiten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Editar comida"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modifier le repas"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modifica pasto"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edytuj posiłek"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Editar refeição"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Изменить приём пищи"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "编辑餐食"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "編輯餐點"
+          }
+        }
+      }
+    },
+    "New meal" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neue Mahlzeit"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueva comida"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nouveau repas"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nuovo pasto"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nowy posiłek"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nova refeição"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Новый приём пищи"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新餐食"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新餐點"
+          }
+        }
+      }
+    },
+    "Add a food" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lebensmittel hinzufügen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir un alimento"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter un aliment"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggiungi un alimento"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dodaj produkt"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adicionar um alimento"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добавить продукт"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加食物"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加入食物"
+          }
+        }
+      }
+    },
+    "Together %@ kcal · %@ g protein" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zusammen %@ kcal · %@ g Protein"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En total %@ kcal · %@ g de proteína"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Au total %@ kcal · %@ g de protéines"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In totale %@ kcal · %@ g di proteine"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Razem %@ kcal · %@ g białka"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No total %@ kcal · %@ g de proteína"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вместе %@ ккал · %@ г белка"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合计 %@ 千卡 · %@ 克蛋白质"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合計 %@ 大卡 · %@ 克蛋白質"
           }
         }
       }

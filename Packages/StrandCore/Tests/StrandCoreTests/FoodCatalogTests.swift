@@ -236,6 +236,25 @@ final class FoodLogTests: XCTestCase {
         XCTAssertNil(FoodLog.savedMeal(name: " ", from: entries))
     }
 
+    func testAMealBuiltFromChosenFoodsKeepsEachFoodAndItsFirstSave() throws {
+        let milk = FoodItem(id: "bls:M111000", source: .bls, name: "Milch", per100g: NutrientAmounts([.energyKcal: 64]))
+        let built = try XCTUnwrap(FoodLog.savedMeal(name: "Overnight oats", foods: [(oats, 75), (milk, 300), (milk, 0)],
+                                                    id: "m", now: Date(timeIntervalSince1970: 100)))
+        XCTAssertEqual(built.items.map(\.foodId), ["bls:C133000", "bls:M111000"], "an amount of zero is left out")
+        XCTAssertEqual(built.items.map(\.grams), [75, 300])
+        XCTAssertEqual(built.items[0].per100g["protein_g"], 13.22, "each food keeps its own values")
+
+        var items = built.items
+        items[1].grams = 250
+        let edited = try XCTUnwrap(FoodLog.savedMeal(name: built.name, items: items, id: built.id,
+                                                     createdAt: built.createdAt, now: Date(timeIntervalSince1970: 200)))
+        XCTAssertEqual(edited.id, "m")
+        XCTAssertEqual(edited.createdAt, 100)
+        XCTAssertEqual(edited.updatedAt, 200)
+        XCTAssertEqual(FoodLog.kcal(of: edited), 75 * 3.48 + 250 * 0.64, accuracy: 1e-9)
+        XCTAssertNil(FoodLog.savedMeal(name: "Leer", foods: [(milk, 0)]))
+    }
+
     func testFoodLogDaysFeedNutritionReadsAboveHealthAndBelowAManualDay() async throws {
         let store = try await WhoopStore.inMemory()
         try await store.upsertMetricSeries([MetricPoint(day: "2026-11-08", key: NutritionReads.caloriesKey, value: 2_500),

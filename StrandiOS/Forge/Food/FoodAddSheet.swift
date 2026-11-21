@@ -24,6 +24,10 @@ struct FoodAddSheet: View {
     @State private var time = Date.now
     @State private var saving = false
     @State private var quickAdded = 0
+    @State private var mealEditor: FoodMealEditor.Target?
+    @State private var namingCart = false
+    @State private var cartName = ""
+    @State private var keptCart = 0
 
     private var mode: FoodProductDataMode { FoodProductDataMode(rawValue: modeRaw) ?? .none }
 
@@ -90,12 +94,21 @@ struct FoodAddSheet: View {
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close", action: close) } }
             .safeAreaInset(edge: .bottom) {
                 if !cart.isEmpty {
-                    FoodCartBar(cart: $cart, meal: $meal, time: $time, saving: saving, add: addCart)
+                    FoodCartBar(cart: $cart, meal: $meal, time: $time, saving: saving, add: addCart, saveAsMeal: nameCart)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
             .animation(.smooth, value: cart.isEmpty)
             .sensoryFeedback(.increase, trigger: quickAdded)
+            .sensoryFeedback(.success, trigger: keptCart)
+            .sheet(item: $mealEditor) { FoodMealEditor(model: model, target: $0).environmentObject(repo) }
+            .alert("Save as meal", isPresented: $namingCart) {
+                TextField("Name", text: $cartName)
+                Button("Cancel", role: .cancel) {}
+                Button("Save", action: keepCart)
+            } message: {
+                Text("Each food keeps its own values. The cart stays, so you can still add it now.")
+            }
             .task(id: search.query) { await search.run(repo: repo, online: mode == .online) }
             .task { await search.loadLists(repo: repo); time = model.defaultTime() }
             .sheet(item: $portionFor) { item in
@@ -120,16 +133,19 @@ struct FoodAddSheet: View {
     @ViewBuilder private var favouritesSection: some View {
         Section {
             if model.savedMeals.isEmpty && model.favouriteFoods.isEmpty {
-                Text("Star a food, or keep a whole meal from its menu on the Food page, to find it here.")
+                Text("Star a food, build a meal, or keep one from its menu on the Food page, to find it here.")
                     .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
             }
             ForEach(model.savedMeals) { meal in
-                FoodSavedMealRow(meal: meal, log: logMeal, remove: removeMeal)
+                FoodSavedMealRow(meal: meal, log: logMeal, edit: editMeal, remove: removeMeal)
             }
             ForEach(model.favouriteFoods) { item in
                 FoodItemRow(item: item, lastGrams: search.lastGrams[item.id] ?? model.lastGrams[item.id], isFavourite: true,
                             onPick: pick, onFavourite: favourite, onQuickAdd: quickAdd)
             }
+            Button("Build a meal", systemImage: "plus.square.on.square", action: buildMeal)
+                .font(ForgeFont.cardTitle)
+                .foregroundStyle(ForgeColor.food)
         } header: {
             Text("Favourites")
         }
@@ -168,6 +184,17 @@ struct FoodAddSheet: View {
     }
 
     private func removeMeal(_ meal: FoodSavedMeal) { Task { await model.deleteMeal(meal, repo: repo) } }
+    private func editMeal(_ meal: FoodSavedMeal) { mealEditor = .edit(meal) }
+    private func buildMeal() { mealEditor = .new }
+    private func nameCart() {
+        cartName = FoodText.meal(meal ?? FoodLog.MealKind.around(time))
+        namingCart = true
+    }
+    private func keepCart() {
+        let name = cartName
+        let lines = cart
+        Task { if await model.saveMeal(name: name, cart: lines, repo: repo) { keptCart += 1 } }
+    }
 
     private func scanned(_ item: FoodItem) {
         showScan = false

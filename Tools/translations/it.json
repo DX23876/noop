@@ -4793,5 +4793,12 @@
   "Keep as favourite": "Salva come preferito",
   "Log %@ again": "Registra di nuovo %@",
   "Log the whole meal again with one tap from your favourites.": "Registra di nuovo l’intero pasto con un tocco dai tuoi preferiti.",
-  "Star a food, or keep a whole meal from its menu on the Food page, to find it here.": "Aggiungi una stella a un alimento o salva un pasto intero dal suo menu nella pagina Nutrizione per trovarlo qui."
+  "Save as meal": "Salva come pasto",
+  "Build a meal": "Componi un pasto",
+  "Star a food, build a meal, or keep one from its menu on the Food page, to find it here.": "Aggiungi una stella a un alimento, componi un pasto o salvane uno dal suo menu nella pagina Nutrizione per trovarlo qui.",
+  "Each food keeps its own values. The cart stays, so you can still add it now.": "Ogni alimento mantiene i propri valori. Il carrello resta, quindi puoi ancora aggiungerlo ora.",
+  "Edit meal": "Modifica pasto",
+  "New meal": "Nuovo pasto",
+  "Add a food": "Aggiungi un alimento",
+  "Together %@ kcal · %@ g protein": "In totale %@ kcal · %@ g di proteine"
 }

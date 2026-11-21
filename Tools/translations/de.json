@@ -4700,5 +4700,12 @@
   "Keep as favourite": "Als Favorit merken",
   "Log %@ again": "%@ erneut eintragen",
   "Log the whole meal again with one tap from your favourites.": "Trag die ganze Mahlzeit mit einem Tipp aus deinen Favoriten wieder ein.",
-  "Star a food, or keep a whole meal from its menu on the Food page, to find it here.": "Markiere ein Lebensmittel mit dem Stern oder merke dir eine ganze Mahlzeit über ihr Menü auf der Ernährungsseite. Dann findest du sie hier."
+  "Save as meal": "Als Mahlzeit speichern",
+  "Build a meal": "Mahlzeit zusammenstellen",
+  "Star a food, build a meal, or keep one from its menu on the Food page, to find it here.": "Markiere ein Lebensmittel mit dem Stern, stell eine Mahlzeit zusammen oder merke dir eine über ihr Menü auf der Ernährungsseite. Dann findest du sie hier.",
+  "Each food keeps its own values. The cart stays, so you can still add it now.": "Jedes Lebensmittel behält seine eigenen Werte. Der Warenkorb bleibt, du kannst ihn also gleich noch hinzufügen.",
+  "Edit meal": "Mahlzeit bearbeiten",
+  "New meal": "Neue Mahlzeit",
+  "Add a food": "Lebensmittel hinzufügen",
+  "Together %@ kcal · %@ g protein": "Zusammen %@ kcal · %@ g Protein"
 }

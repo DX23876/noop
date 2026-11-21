@@ -10,6 +10,8 @@ struct FoodFavouritesBar: View {
     let foods: [FoodItem]
     let logMeal: (FoodSavedMeal) -> Void
     let pickFood: (FoodItem) -> Void
+    var editMeal: (FoodSavedMeal) -> Void = { _ in }
+    var removeMeal: (FoodSavedMeal) -> Void = { _ in }
 
     var body: some View {
         ScrollView(.horizontal) {
@@ -18,6 +20,10 @@ struct FoodFavouritesBar: View {
                     tile(motif: FoodSavedMealRow.motif(meal), title: meal.name,
                          detail: "\(FoodText.kcal(FoodLog.kcal(of: meal))) kcal") { logMeal(meal) }
                         .accessibilityLabel(Text("Log \(meal.name) again"))
+                        .contextMenu {
+                            Button("Edit meal", systemImage: "pencil") { editMeal(meal) }
+                            Button("Remove from favourites", systemImage: "star.slash", role: .destructive) { removeMeal(meal) }
+                        }
                 }
                 ForEach(foods) { food in
                     tile(motif: FoodGroupMotif.forFoodId(food.id) ?? FoodGroupMotif.forGroup(food.group), title: food.name,

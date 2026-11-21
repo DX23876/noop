@@ -4854,5 +4854,12 @@
   "Keep as favourite": "儲存為收藏",
   "Log %@ again": "再次記錄 %@",
   "Log the whole meal again with one tap from your favourites.": "在收藏中輕點一下，即可再次記錄整餐。",
-  "Star a food, or keep a whole meal from its menu on the Food page, to find it here.": "為食物加上星號，或在飲食頁面透過餐點選單儲存整餐，就能在這裡找到。"
+  "Save as meal": "儲存為餐點",
+  "Build a meal": "搭配一餐",
+  "Star a food, build a meal, or keep one from its menu on the Food page, to find it here.": "為食物加上星號、搭配一餐，或在飲食頁面透過餐點選單儲存，就能在這裡找到。",
+  "Each food keeps its own values. The cart stays, so you can still add it now.": "每種食物都保留自己的數值。購物籃會保留，你現在仍可加入。",
+  "Edit meal": "編輯餐點",
+  "New meal": "新餐點",
+  "Add a food": "加入食物",
+  "Together %@ kcal · %@ g protein": "合計 %@ 大卡 · %@ 克蛋白質"
 }

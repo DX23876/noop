@@ -723,8 +723,27 @@ final class ForgeFoodModel {
     }
 
     func saveMeal(name: String, from entries: [FoodLogEntry], repo: Repository) async -> Bool {
-        guard let store = await repo.storeHandle(), let meal = FoodLog.savedMeal(name: name, from: entries),
-              (try? await store.saveFoodMeal(meal)) == true else { return false }
+        guard let meal = FoodLog.savedMeal(name: name, from: entries) else { return false }
+        return await saveMeal(meal, repo: repo)
+    }
+
+    /// Keeps the cart as a meal. A food found online is kept as the wearer's own first, as logging does, so the
+    /// meal still works offline.
+    func saveMeal(name: String, cart lines: [FoodCartLine], repo: Repository) async -> Bool {
+        guard let store = await repo.storeHandle() else { return false }
+        var foods: [(item: FoodItem, grams: Double)] = []
+        for line in lines {
+            var item = line.item
+            if item.source == .online, let saved = await FoodLibrary.saveOwn(store: store, item, origin: .online) { item = saved }
+            foods.append((item, line.grams))
+        }
+        guard let meal = FoodLog.savedMeal(name: name, foods: foods) else { return false }
+        return await saveMeal(meal, repo: repo)
+    }
+
+    /// Stores a new or changed meal (the builder's save) and refreshes the favourites.
+    func saveMeal(_ meal: FoodSavedMeal, repo: Repository) async -> Bool {
+        guard let store = await repo.storeHandle(), (try? await store.saveFoodMeal(meal)) == true else { return false }
         await loadFavourites(store: store)
         return true
     }
