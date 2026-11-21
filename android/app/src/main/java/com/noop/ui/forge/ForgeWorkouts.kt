@@ -123,7 +123,11 @@ internal fun ForgeWorkoutsPage(viewModel: AppViewModel, onBack: () -> Unit) {
                  modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
         }
     }
-    detail?.let { row -> com.noop.ui.WorkoutDetailSheet(vm = viewModel, row = row, onDismiss = { detail = null }) }
+    detail?.let { row ->
+        com.noop.ui.WorkoutDetailSheet(vm = viewModel, row = row, onDismiss = { detail = null }, actions = {
+            ForgeWorkoutActions(viewModel, row, onEdit = { r, copy -> detail = null; editing = r to copy }, onRemoved = { detail = null })
+        })
+    }
     editing?.let { (row, copy) ->
         com.noop.ui.ManualWorkoutDialog(editing = row, isCopy = copy, onDismiss = { editing = null }, onSave = { saved, replacing ->
             viewModel.saveManualWorkout(saved, if (copy) null else replacing)
@@ -259,6 +263,17 @@ private fun SessionRow(viewModel: AppViewModel, row: WorkoutRow, onOpen: () -> U
     }
 }
 
+/** The "•••" with its menu in one, for a workout's own page; [onRemoved] closes that page after a delete. */
+@Composable
+internal fun ForgeWorkoutActions(viewModel: AppViewModel, row: WorkoutRow, onEdit: (WorkoutRow, Boolean) -> Unit,
+                                 onRemoved: () -> Unit) {
+    var menu by remember { mutableStateOf(false) }
+    Box {
+        ForgeWorkoutMoreButton { menu = true }
+        ForgeWorkoutMenu(viewModel, row, expanded = menu, onDismiss = { menu = false }, onEdit = onEdit, onRemoved = onRemoved)
+    }
+}
+
 /** The "•••" at a workout row's end, as iOS's `ForgeWorkoutActionsButton`. */
 @Composable
 internal fun ForgeWorkoutMoreButton(onClick: () -> Unit) {
@@ -274,7 +289,7 @@ internal fun ForgeWorkoutMoreButton(onClick: () -> Unit) {
  */
 @Composable
 internal fun ForgeWorkoutMenu(viewModel: AppViewModel, row: WorkoutRow, expanded: Boolean, onDismiss: () -> Unit,
-                              onEdit: (WorkoutRow, Boolean) -> Unit) {
+                              onEdit: (WorkoutRow, Boolean) -> Unit, onRemoved: () -> Unit = {}) {
     val colors = Forge.colors
     var relabel by remember { mutableStateOf(false) }
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
@@ -285,13 +300,13 @@ internal fun ForgeWorkoutMenu(viewModel: AppViewModel, row: WorkoutRow, expanded
                 DropdownMenuItem(text = { Text(stringResource(R.string.l10n_workouts_screen_edit_details_9e62bb59)) },
                                  onClick = { onDismiss(); onEdit(row, false) })
                 DropdownMenuItem(text = { Text(stringResource(R.string.l10n_workouts_screen_dismiss_not_a_workout_560c7bb5), color = colors.effort) },
-                                 onClick = { onDismiss(); viewModel.dismissDetected(row) })
+                                 onClick = { onDismiss(); viewModel.dismissDetected(row); onRemoved() })
             }
             WorkoutSource.MANUAL -> {
                 DropdownMenuItem(text = { Text(stringResource(R.string.l10n_workouts_screen_edit_b454359e)) },
                                  onClick = { onDismiss(); onEdit(row, false) })
                 DropdownMenuItem(text = { Text(stringResource(R.string.l10n_workouts_screen_delete_f6fdbe48), color = colors.effort) },
-                                 onClick = { onDismiss(); viewModel.deleteWorkout(row) })
+                                 onClick = { onDismiss(); viewModel.deleteWorkout(row); onRemoved() })
             }
             else -> DropdownMenuItem(text = { Text(stringResource(R.string.l10n_workouts_screen_duplicate_as_manual_2d580d46)) },
                                      onClick = { onDismiss(); onEdit(WorkoutEditing.asManualCopy(row), true) })

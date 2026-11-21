@@ -45,9 +45,18 @@ object WorkoutEditing {
      * `replacing` key pointing INTO the source being copied from, and the save would retire the very row
      * the menu promises not to touch — a strap session lives under the active strap id, which the delete
      * path can reach. Re-seeding keeps every delete that save can issue inside "my-whoop". (#1488)
+     *
+     * It also starts one second after the original. An import stored under "my-whoop" itself (a WHOOP export,
+     * the demo) has the same deviceId, start and sport as the copy, so saving the copy unchanged REPLACED the
+     * import, and deleting the copy then lost the session (found 2026-11-22). The form shows minutes, so the
+     * second is invisible there.
      */
     fun asManualCopy(row: WorkoutRow): WorkoutRow =
-        row.copy(source = "manual", deviceId = "my-whoop", sport = displaySport(row.sport))
+        row.copy(source = "manual", deviceId = "my-whoop", sport = displaySport(row.sport),
+                 startTs = row.startTs + COPY_OFFSET_S, endTs = row.endTs + COPY_OFFSET_S)
+
+    /** How far a "Duplicate as manual" copy starts after its original, so the two never share a key. */
+    const val COPY_OFFSET_S = 1L
 
     /**
      * Sport-cell text. "detected" reads as a neutral "Activity". WHOOP sport names arrive as

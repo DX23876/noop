@@ -494,6 +494,9 @@ struct StrandiOSApp: App {
                 // the check-in is on and set to .afterWake; keeps the repeating trigger in step with the
                 // user's actual wake time rather than a clock time that drifts out of sync.
                 Task { await CoachCheckIn.refreshDynamicScheduleIfNeeded(repo: model.repo) }
+                // The food reminders are single notifications planned with their words; plan them again from
+                // the log as it now stands, so they keep coming without the Nutrition tab being opened.
+                Task { await FoodReminders.replan(repo: model.repo, profile: Repository.analyticsProfile(model.profile)) }
                 if CoachSemanticMemory.shared.foregroundCatchUpIsDue() {
                     CoachSemanticMemory.shared.markForegroundCatchUp()
                     Task { await model.coach.performSemanticMemoryMaintenance(limit: 64) }

@@ -3553,6 +3553,12 @@ final class AICoachEngine: ObservableObject {
         if !sending { cardSuggestions = page.suggestions }
     }
 
+    /// The chat was closed: the page it was opened from no longer frames the next question, which may come from
+    /// anywhere (a card's ask button, a notification, the floating button).
+    func clearEntryPage() {
+        entryPage = nil
+    }
+
     /// The context with the entry page's note in front, or the context alone when the chat was not opened
     /// from a page. Pure, so the joining is testable without an engine.
     nonisolated static func context(_ context: String, entryPage: CoachEntryPage?) -> String {

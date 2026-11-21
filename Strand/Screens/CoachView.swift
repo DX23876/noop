@@ -1653,16 +1653,18 @@ extension View {
                     }
                 }
         }
+        // A header's page frames only the questions asked while the chat it opened is up.
+        let closed = { coach.clearEntryPage() }
         #if os(iOS)
         if halfSheet {
-            self.sheet(isPresented: isPresented) {
+            self.sheet(isPresented: isPresented, onDismiss: closed) {
                 content.presentationDetents([.medium, .large]).presentationDragIndicator(.visible)
             }
         } else {
-            self.fullScreenCover(isPresented: isPresented) { content }
+            self.fullScreenCover(isPresented: isPresented, onDismiss: closed) { content }
         }
         #else
-        self.sheet(isPresented: isPresented) { content }
+        self.sheet(isPresented: isPresented, onDismiss: closed) { content }
         #endif
     }
 }

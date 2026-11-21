@@ -231,7 +231,11 @@ enum CoreCoach {
         case "coach.page":
             // A main page's header button (`CoachEntryPage`, owner 2026-11-21): the page and its day ride the coming
             // questions, its suggestions show as chips. Kotlin hands in the suggestions in the app's language.
-            guard let kind = CoachEntryPage.Kind(rawValue: args["kind"] as? String ?? "") else { return #"{"ok":false}"# }
+            // Without a kind the sheet closed: the page no longer frames the next question.
+            guard let kind = CoachEntryPage.Kind(rawValue: args["kind"] as? String ?? "") else {
+                coach.clearEntryPage()
+                return #"{"ok":true}"#
+            }
             coach.openedFromPage(CoachEntryPage(kind: kind, day: args["day"] as? String,
                                                 suggestions: args["suggestions"] as? [String] ?? []))
             return #"{"ok":true}"#

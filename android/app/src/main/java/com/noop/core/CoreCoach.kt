@@ -235,6 +235,9 @@ object CoreCoach {
         return call("coach.page", args.toString())?.optBoolean("ok") ?: false
     }
 
+    /** The coach sheet closed: the page no longer frames the next question. Blocking. */
+    fun clearPage() { call("coach.page", "{}") }
+
     /** Whether a metric may offer "Ask coach": the Data access purposes a card read draws on are on. Blocking. */
     fun cardAllowed(): Boolean = call("coach.card.allowed", "{}")?.optBoolean("allowed") ?: false
 

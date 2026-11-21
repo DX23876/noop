@@ -190,9 +190,14 @@ private val STRENGTH_SPORTS = setOf("strength", "strength training", "bodybuildi
 fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
     // A recent session opened from the list, as iOS opens `ForgeRoute.workout`.
     var recentOpen by remember { mutableStateOf<com.noop.data.WorkoutRow?>(null) }
-    recentOpen?.let { row -> com.noop.ui.WorkoutDetailSheet(vm = viewModel, row = row, onDismiss = { recentOpen = null }) }
     // A recent session edited or copied from its "•••", as on the Workouts page.
     var recentEditing by remember { mutableStateOf<Pair<com.noop.data.WorkoutRow, Boolean>?>(null) }
+    recentOpen?.let { row ->
+        com.noop.ui.WorkoutDetailSheet(vm = viewModel, row = row, onDismiss = { recentOpen = null }, actions = {
+            ForgeWorkoutActions(viewModel, row, onEdit = { r, copy -> recentOpen = null; recentEditing = r to copy },
+                                onRemoved = { recentOpen = null })
+        })
+    }
     recentEditing?.let { (row, copy) ->
         com.noop.ui.ManualWorkoutDialog(editing = row, isCopy = copy, onDismiss = { recentEditing = null }, onSave = { saved, replacing ->
             viewModel.saveManualWorkout(saved, if (copy) null else replacing)

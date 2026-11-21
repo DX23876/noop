@@ -30,6 +30,7 @@ import com.noop.core.CoreCoach
 import com.noop.ui.AppViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
@@ -96,6 +97,10 @@ internal fun ForgeCoachSheet(viewModel: AppViewModel, onDismiss: () -> Unit) {
     val state = rememberModalBottomSheetState(skipPartiallyExpanded = false)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = state, containerColor = Forge.colors.canvas) {
         LaunchedSeen()
+        // A header's page frames only the questions asked while this sheet is up, as on iOS.
+        androidx.compose.runtime.DisposableEffect(Unit) {
+            onDispose { kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch { CoreCoach.clearPage() } }
+        }
         Box(Modifier.fillMaxWidth().fillMaxHeight(0.94f)) {
             ForgeCoachChatPages(viewModel, stringResource(R.string.nav_coach), onBack = onDismiss)
         }

@@ -94,12 +94,23 @@ class WorkoutEditDeviceIdTest {
         val strapSession = row("whoop-ABC123", 60, sport = "Run").copy(source = "whoop")
         val copy = WorkoutEditing.asManualCopy(strapSession)
         assertEquals("my-whoop", copy.deviceId)          // re-seeded out of the strap namespace
-        assertEquals(strapSession.startTs, copy.startTs) // ...while still pre-filling from the original
+        // ...while still pre-filling from the original, one second later so it never shares the original's key.
+        assertEquals(strapSession.startTs + WorkoutEditing.COPY_OFFSET_S, copy.startTs)
         // Whatever the user then edits, the key the save could delete stays inside "my-whoop".
         val edited = row("my-whoop", 75, sport = "Ride")
         assertTrue(WhoopRepository.supersedesStoredRow(copy, edited))
         assertEquals("my-whoop", copy.deviceId)
         // The strap's own row is a different key entirely, so no delete this save issues can name it.
         assertTrue(copy.deviceId != strapSession.deviceId)
+    }
+
+    /** An import under "my-whoop" itself: the copy must not take its key, or saving it replaces the import. */
+    @Test fun aDuplicateNeverSharesTheOriginalsKey() {
+        val imported = row("my-whoop", 60, sport = "Rowing").copy(source = "whoop")
+        val copy = WorkoutEditing.asManualCopy(imported)
+        assertEquals(imported.deviceId, copy.deviceId)
+        assertEquals(imported.sport, copy.sport)
+        assertTrue(copy.startTs != imported.startTs)
+        assertEquals(imported.endTs - imported.startTs, copy.endTs - copy.startTs)
     }
 }

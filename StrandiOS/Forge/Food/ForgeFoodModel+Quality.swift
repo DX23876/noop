@@ -116,6 +116,8 @@ extension ForgeFoodModel {
     func markBadgesSeen() {
         let keys = (badges?.earned ?? []).map { FoodText.badgeKey($0.badge) }
         UserDefaults.standard.set(keys, forKey: Self.seenBadgesKey)
+        // Tomorrow's look back was planned with these badges as new; plan it again without them.
+        FoodReminders.refresh(model: self)
     }
 }
 #endif

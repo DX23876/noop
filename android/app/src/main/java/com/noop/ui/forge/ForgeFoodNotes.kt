@@ -1,5 +1,6 @@
 package com.noop.ui.forge
 
+import kotlinx.coroutines.launch
 import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -337,7 +338,12 @@ object FoodReminders {
 
     private fun prefs(c: Context) = com.noop.ui.NoopPrefs.of(c)
     fun on(c: Context, key: String) = prefs(c).getBoolean(key, false)
-    fun set(c: Context, key: String, value: Boolean) { prefs(c).edit().putBoolean(key, value).apply(); schedule(c) }
+    /** Turns a reminder on or off. The planning reads the core (blocking), so it runs off the main thread. */
+    fun set(c: Context, key: String, value: Boolean) {
+        prefs(c).edit().putBoolean(key, value).apply()
+        val app = c.applicationContext
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch { schedule(app) }
+    }
     fun invited(c: Context) = prefs(c).getBoolean(INVITED, false)
     fun markInvited(c: Context) = prefs(c).edit().putBoolean(INVITED, true).apply()
 

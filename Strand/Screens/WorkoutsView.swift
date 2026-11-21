@@ -1904,8 +1904,13 @@ struct WorkoutsView: View {
     /// without ever mutating the imported original (the sheet saves under the strap source).
     private func asManualCopy(_ row: WorkoutRow) -> WorkoutRow { Self.manualCopy(of: row) }
 
+    /// The copy starts one second after the original: an import stored under the strap's id has the same key
+    /// (device, start, sport) as the copy, so saving it unchanged replaced the import, and deleting the copy then
+    /// lost the session (found 2026-11-22). The form shows minutes, so the second is invisible there.
+    static let copyOffsetS = 1
+
     static func manualCopy(of row: WorkoutRow) -> WorkoutRow {
-        WorkoutRow(startTs: row.startTs, endTs: row.endTs, sport: WorkoutSource.displaySport(row.sport),
+        WorkoutRow(startTs: row.startTs + copyOffsetS, endTs: row.endTs + copyOffsetS, sport: WorkoutSource.displaySport(row.sport),
                    source: "manual", durationS: row.durationS, energyKcal: row.energyKcal,
                    avgHr: row.avgHr, maxHr: row.maxHr, strain: row.strain, distanceM: row.distanceM,
                    zonesJSON: row.zonesJSON, notes: row.notes, steps: row.steps)

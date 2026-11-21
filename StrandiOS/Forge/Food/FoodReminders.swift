@@ -2,6 +2,7 @@
 import Foundation
 @preconcurrency import UserNotifications
 import StrandCore
+import StrandAnalytics
 
 /// The food notifications (owner, 2026-11-21): a look back each morning and, only when one meal can still close a
 /// gap, a reminder in the evening. The content comes from the core (`FoodNotice`); this file words and delivers it.
@@ -39,6 +40,14 @@ enum FoodReminders {
         let allowed = granted || settings.authorizationStatus == .authorized || settings.authorizationStatus == .provisional
         UserDefaults.standard.set(allowed, forKey: key)
         return allowed
+    }
+
+    /// Plans them again from the store, for the app becoming active: a reminder is a single notification, and the
+    /// Food page (which also plans them when it loads) may not be opened for days. Nothing is read while both are off.
+    static func replan(repo: Repository, profile: UserProfile) async {
+        guard morningOn || eveningOn else { return }
+        // Loading the page's model plans them (`loadQuality` ends in `refresh`).
+        await ForgeFoodModel().load(repo: repo, profile: profile)
     }
 
     /// Plans tomorrow morning's look back and tonight's reminder from the model's current log.
