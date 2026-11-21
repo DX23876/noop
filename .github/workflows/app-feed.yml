@@ -22,9 +22,6 @@ permissions:
   contents: write
   # write, not read: the publishing step opens the public issue a report becomes, in THIS repository.
   issues: write
-  # The two steps below ask a model to write an English proposal. With this, the runner's OWN token is
-  # the credential for GitHub Models, so the feature needs no bought key and no secret of its own.
-  models: read
 
 concurrency:
   group: app-feed
@@ -67,15 +64,17 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.SUGGESTIONS_TOKEN }}
           REPO: ${{ vars.SUGGESTIONS_REPO }}
-          # No key of its own: the runner's token reaches GitHub Models, which speaks the same
-          # request shape as OpenAI, so the text stays inside the company that already holds the
-          # issue. Another provider is a pair of repository values: set both, never one.
-          NOOP_MODERATION_KEY: ${{ secrets.NOOP_MODERATION_KEY || secrets.GITHUB_TOKEN }}
-          NOOP_MODERATION_URL: ${{ vars.NOOP_MODERATION_URL || 'https://models.github.ai/inference/chat/completions' }}
-          NOOP_MODERATION_MODEL: ${{ vars.NOOP_MODERATION_MODEL || 'openai/gpt-4.1-mini' }}
+          # The runner's own token is NOT a way in here: GitHub Models, which would have been one,
+          # was retired on 2026-07-30 and its host now answers any request with a bare `OK`, which
+          # reaches the script as "the model could not be reached". So this stays a key the owner
+          # supplies, and the address beside it, because a key without its address goes to the
+          # wrong house. Unset means no proposal is drafted, which the step says and nothing else.
+          NOOP_MODERATION_KEY: ${{ secrets.NOOP_MODERATION_KEY }}
+          NOOP_MODERATION_URL: ${{ vars.NOOP_MODERATION_URL || 'https://api.openai.com/v1/chat/completions' }}
+          NOOP_MODERATION_MODEL: ${{ vars.NOOP_MODERATION_MODEL || 'gpt-5-mini' }}
         run: |
-          if [ -z "${GH_TOKEN}" ] || [ -z "${REPO}" ]; then
-            echo "no suggestions repository configured, nothing released automatically"
+          if [ -z "${GH_TOKEN}" ] || [ -z "${REPO}" ] || [ -z "${NOOP_MODERATION_KEY}" ]; then
+            echo "filter not configured, nothing released automatically"
             exit 0
           fi
           gh issue list -R "${REPO}" --state open --limit 100 \
@@ -94,12 +93,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.SUGGESTIONS_TOKEN }}
           REPO: ${{ vars.SUGGESTIONS_REPO }}
-          # No key of its own: the runner's token reaches GitHub Models, which speaks the same
-          # request shape as OpenAI, so the text stays inside the company that already holds the
-          # issue. Another provider is a pair of repository values: set both, never one.
-          NOOP_MODERATION_KEY: ${{ secrets.NOOP_MODERATION_KEY || secrets.GITHUB_TOKEN }}
-          NOOP_MODERATION_URL: ${{ vars.NOOP_MODERATION_URL || 'https://models.github.ai/inference/chat/completions' }}
-          NOOP_MODERATION_MODEL: ${{ vars.NOOP_MODERATION_MODEL || 'openai/gpt-4.1-mini' }}
+          # The runner's own token is NOT a way in here: GitHub Models, which would have been one,
+          # was retired on 2026-07-30 and its host now answers any request with a bare `OK`, which
+          # reaches the script as "the model could not be reached". So this stays a key the owner
+          # supplies, and the address beside it, because a key without its address goes to the
+          # wrong house. Unset means no proposal is drafted, which the step says and nothing else.
+          NOOP_MODERATION_KEY: ${{ secrets.NOOP_MODERATION_KEY }}
+          NOOP_MODERATION_URL: ${{ vars.NOOP_MODERATION_URL || 'https://api.openai.com/v1/chat/completions' }}
+          NOOP_MODERATION_MODEL: ${{ vars.NOOP_MODERATION_MODEL || 'gpt-5-mini' }}
           PUBLIC_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -z "${GH_TOKEN}" ] || [ -z "${REPO}" ]; then

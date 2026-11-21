@@ -2030,35 +2030,32 @@ held both rows was priced from whichever sport came first. The other four are UI
 exports and derive nothing stored; AI-36 shipped in the testing build of 2026-11-20 (`048b50a38`), so
 this is its own number rather than a rider.
 
-## 2026-11-21 — The English proposal is written by the runner's own token, not a bought key
+## 2026-11-21 — The proposal lane has no free model, and the labels it writes now exist
 
-The entry above left three values unset, and one of them was the only one that cost money:
-`secrets.NOOP_MODERATION_KEY`, an OpenAI key for the single call that drafts an English title and
-summary for a reported problem. A subscription cannot stand in for it. A ChatGPT or a Claude plan is
-sold for use by hand, the interface behind it is billed apart, and a GitHub runner has nobody to sign
-in as.
+Two things were tried here and one of them was wrong, which is the part worth writing down.
 
-So `app-feed.yml` now asks GitHub Models instead. It answers the same request shape the scripts
-already send, the workflow's own `GITHUB_TOKEN` is the credential once the job is granted
-`models: read`, and nothing has to be bought, stored or rotated. Two further properties decided it
-rather than cost alone: the report's text already sits in a private repository on GitHub, so asking a
-model there moves it nowhere new, and the address and the model name stay repository values, so a
-later move to another provider is a pair of values rather than an edit here. Set both, never one: a
-key without its address would be sent to the wrong house.
+The lane that drafts an English title and summary for a reported problem wants a model key, and that
+was the only value in this project that costs money. A ChatGPT or a Claude plan cannot stand in: both
+are sold for use by hand, the interface behind them is billed apart, and a runner has nobody to sign
+in as. GitHub Models looked like the way out, because it answered the same request shape and a
+workflow could have used its own token. It is retired. GitHub switched it off on 2026-07-30, and its
+host still answers a POST with HTTP 200 and the body `OK`, which the script reads as JSON and reports
+as "the model could not be reached". A development machine behind a sandbox showed exactly the same
+answer, so the local probe looked like interception rather than the finding it was. The run on
+GitHub is what settled it. Searching named the endpoint confidently from pages that had not been
+read since; the endpoint answering is the only evidence that counts.
 
-What this does NOT change is where the model may act. It drafts, it never publishes. A report becomes
-a public issue on the owner's `publish` label and on nothing else, and `publish_reports.py` reads that
-proposal back out of the comment rather than asking again, so a report can still be published with a
-proposal written by hand and no model in the loop at all.
+So the key stays something the owner supplies, and unset is a first-class state: no proposal is
+drafted and the step says so. What was kept from the attempt is the pair beside it, the address and
+the model name as repository values, both defaulted to what the script already assumed. That is what
+makes a local model on the owner's own machine possible later, and it is why they must be set
+together: a key without its address is sent to the wrong house.
 
-One gate was loosened on purpose and one sentence corrected with it. The filter step used to hold back
-when `NOOP_MODERATION_KEY` was empty; that value now always carries the runner's token, so the step is
-gated on the suggestions repository alone, and its message says that instead of claiming a filter was
-not configured.
-
-Unverified: nothing here has run. The two steps that reach a model are still gated behind
-`secrets.SUGGESTIONS_TOKEN` and `vars.SUGGESTIONS_REPO`, both unset, so the first real proof is the
-first run after those exist. A probe from the development machine proved nothing either: its sandbox
-answers `models.github.ai` with a bare `OK`, which is the proxy talking, not GitHub.
+The second thing is a fault this uncovered. `moderate_suggestions.py` labels an issue through
+`gh issue edit --add-label`, which fails outright when the label does not exist in the repository,
+and `needs-you`, `publish`, `published` and `in-progress` had never been created there. The first
+real suggestion would have taken the whole feed job down with a traceback, and the reason printed
+would have been the label, not the suggestion. The four labels now exist. The fragility behind it is
+NOT fixed: one deleted label still fails the job for every issue in that run, not just its own.
 
 Analysis migration required: no
