@@ -68,7 +68,8 @@ final class FoodScoreTests: XCTestCase {
         ] }
         let result = try XCTUnwrap(FoodScore.week(entries: entries, lastDay: "2026-11-08", male: true))
         XCTAssertEqual(part(result, .redMeat).amountPerDay, 1, accuracy: 0.001)
-        XCTAssertEqual(part(result, .redMeat).points, 10 * 0.5 / 1.5, accuracy: 0.001)
+        // Unprocessed: free up to 350 g a week (50 g a day), nothing left at 1,000 g a week (owner, 2026-11-21).
+        XCTAssertEqual(part(result, .redMeat).points, 10 * (1_000.0 / 7 - 85) / (1_000.0 / 7 - 50), accuracy: 0.001)
     }
 
     func testNutrientsAlcoholAndSodiumOnFixedLimits() throws {
@@ -105,7 +106,8 @@ final class FoodScoreTests: XCTestCase {
         let result = try XCTUnwrap(FoodScore.week(entries: entries, lastDay: "2026-11-08", facts: facts, male: nil))
         XCTAssertEqual(part(result, .vegetables).amountPerDay, 2, accuracy: 0.001)
         XCTAssertEqual(try XCTUnwrap(result.processedShare), 0.75, accuracy: 0.001)
-        XCTAssertEqual(result.parts.count, FoodScore.Component.allCases.count)
+        // Ten parts: whole grains or, for keto and low carb, fibre in their place.
+        XCTAssertEqual(result.parts.count, FoodScore.Component.allCases.count - 1)
     }
 
     func testABetterWeekScoresHigher() throws {

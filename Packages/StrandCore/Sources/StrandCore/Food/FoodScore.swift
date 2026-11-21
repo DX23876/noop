@@ -11,6 +11,13 @@ import WhoopStore
 public enum FoodScore {
     public enum Component: String, CaseIterable, Sendable, Codable {
         case vegetables, fruit, wholeGrains, sugaryDrinks, nutsLegumes, redMeat, fishOmega3, polyFats, sodium, alcohol
+        /// Fibre in place of whole grains for the forms that leave grains out (keto, low carb; owner, 2026-11-21):
+        /// whole grains count for their fibre, and fibre also comes from vegetables, nuts and seeds.
+        case fiber
+
+        /// Foods eaten a few times a week rather than daily. A day's note reads them over the last seven days,
+        /// so a day without fish is not a bad day and a steak weighs on the week (owner, 2026-11-21).
+        public var isWeekly: Bool { [.nutsLegumes, .redMeat, .fishOmega3].contains(self) }
 
         /// A part where less is better: it starts full and loses points as the amount rises, so a screen shows what
         /// it costs rather than what it adds.
@@ -46,6 +53,16 @@ public enum FoodScore {
     /// The Lab switch: the score shows only after the wearer turns it on (decision 2026-11-08).
     public static let enabledKey = "food.score.enabled"
 
+    /// The meat and fibre limits of the owner's choices of 2026-11-21.
+    public enum Meat {
+        /// Unprocessed red meat costs nothing up to this much a week (WCRF: limit to 350 to 500 g cooked a week).
+        public static let redFreeWeekG = 350.0
+        /// And nothing is left of the part at twice the WCRF's upper end.
+        public static let redZeroWeekG = 1_000.0
+        /// Fibre for full points, the DGE's 30 g a day.
+        public static let fiberFullG = 30.0
+    }
+
     /// Portion sizes in grams (or millilitres for drinks).
     public enum Portion {
         public static let vegetables = 80.0, fruit = 80.0, nuts = 28.0, legumes = 80.0, meat = 85.0, drink = 250.0
@@ -54,19 +71,54 @@ public enum FoodScore {
     /// Nil when fewer than `minimumDays` of the `window` days ending on `lastDay` carry a log.
     /// `facts` maps a food id to what the entry itself does not say; BLS ids carry their group in the code.
     public static func week(entries: [FoodLogEntry], lastDay: String, facts: [String: FoodFacts] = [:],
-                            male: Bool?, calendar: Calendar = .current) -> Result? {
+                            male: Bool?, options: Options = .init(), calendar: Calendar = .current) -> Result? {
         guard let end = WeightSeries.date(forDay: lastDay),
               let start = calendar.date(byAdding: .day, value: -(window - 1), to: end) else { return nil }
         let first = StoreReader.localDayKey(start)
         let week = entries.filter { $0.day >= first && $0.day <= lastDay }
         let days = Set(week.map(\.day)).count
         guard days >= minimumDays else { return nil }
-        return score(week, days: Double(days), facts: facts, male: male)
+        return score(week, days: Double(days), facts: facts, male: male, options: options)
     }
 
-    static func score(_ entries: [FoodLogEntry], days: Double, facts: [String: FoodFacts], male: Bool?) -> Result {
+    /// How the parts are read beyond the AHEI itself (owner, 2026-11-21, `backlog/ideas/food-score-coach-2026-11-21.md`).
+    public struct Options: Equatable, Sendable {
+        /// Keto and low carb trade whole grains for fibre.
+        public var fiberForGrains: Bool
+        public init(fiberForGrains: Bool = false) { self.fiberForGrains = fiberForGrains }
+
+        public static func forDiet(_ form: DietForm?) -> Options {
+            Options(fiberForGrains: form == .keto || form == .lowCarb)
+        }
+    }
+
+    /// The weekly foods' amounts for a score whose other parts come from fewer days (the day's note).
+    struct WeeklyFoods {
+        var meatProcessedG = 0.0, meatRedG = 0.0, nutsG = 0.0, legumesG = 0.0, omega3Mg = 0.0
+        var days = 1.0
+    }
+
+    static func weeklyFoods(_ entries: [FoodLogEntry], days: Double, facts: [String: FoodFacts]) -> WeeklyFoods {
+        var out = WeeklyFoods(days: max(1, days))
+        for entry in entries {
+            let amounts = NutrientAmounts(stored: entry.totals)
+            out.omega3Mg += ((amounts[.epaG] ?? 0) + (amounts[.dhaG] ?? 0)) * 1_000
+            guard let g = entry.grams, g > 0 else { continue }
+            switch kind(of: entry, group: entry.foodId.flatMap { facts[$0] }?.group, name: entry.name.lowercased()) {
+            case .processedMeat: out.meatProcessedG += g
+            case .redMeat: out.meatRedG += g
+            case .nuts: out.nutsG += g
+            case .legumes: out.legumesG += g
+            default: break
+            }
+        }
+        return out
+    }
+
+    static func score(_ entries: [FoodLogEntry], days: Double, facts: [String: FoodFacts], male: Bool?,
+                      options: Options = .init(), weekly: WeeklyFoods? = nil) -> Result {
         var grams: [Component: Double] = [:]
-        var nuts = 0.0, legumes = 0.0, sugaryDrinks = 0.0
+        var nuts = 0.0, legumes = 0.0, sugaryDrinks = 0.0, processedMeat = 0.0
         var total = NutrientAmounts()
         var processedKcal = 0.0, novaKnownKcal = 0.0
         for entry in entries {
@@ -86,6 +138,7 @@ public enum FoodScore {
             case .nuts: nuts += g
             case .legumes: legumes += g
             case .redMeat: grams[.redMeat, default: 0] += g
+            case .processedMeat: processedMeat += g
             case .drink:
                 // A drink counts as sugary from 2.5 g sugar per 100 ml (sweetened drinks and juices, not water or tea).
                 if let per100 = entry.per100g?["sugar_g"], per100 >= 2.5 { sugaryDrinks += g }
@@ -95,19 +148,23 @@ public enum FoodScore {
         }
         let kcal = max(1, total[.energyKcal] ?? 0)
         let sodium = total[.sodiumMg] ?? (total[.saltG].map { $0 * 400 } ?? 0)
-        let omega3Mg = ((total[.epaG] ?? 0) + (total[.dhaG] ?? 0)) * 1_000
+        let own = WeeklyFoods(meatProcessedG: processedMeat, meatRedG: grams[.redMeat, default: 0], nutsG: nuts,
+                              legumesG: legumes, omega3Mg: ((total[.epaG] ?? 0) + (total[.dhaG] ?? 0)) * 1_000, days: days)
+        let w = weekly ?? own
         let polyShare = (total[.polyFatG] ?? 0) * 9 / kcal * 100
         let wholeGrainGoal = male == true ? 90.0 : 75.0
         let drinksUpper = male == true ? 3.5 : 2.5
 
+        let meatProcessedPerDay = w.meatProcessedG / w.days
+        let meatRedPerDay = w.meatRedG / w.days
         let perDay: [(Component, Double)] = [
             (.vegetables, grams[.vegetables, default: 0] / Portion.vegetables / days),
             (.fruit, grams[.fruit, default: 0] / Portion.fruit / days),
-            (.wholeGrains, grams[.wholeGrains, default: 0] / days),
+            options.fiberForGrains ? (.fiber, (total[.fiberG] ?? 0) / days) : (.wholeGrains, grams[.wholeGrains, default: 0] / days),
             (.sugaryDrinks, sugaryDrinks / Portion.drink / days),
-            (.nutsLegumes, (nuts / Portion.nuts + legumes / Portion.legumes) / days),
-            (.redMeat, grams[.redMeat, default: 0] / Portion.meat / days),
-            (.fishOmega3, omega3Mg / days),
+            (.nutsLegumes, (w.nutsG / Portion.nuts + w.legumesG / Portion.legumes) / w.days),
+            (.redMeat, (meatProcessedPerDay + meatRedPerDay) / Portion.meat),
+            (.fishOmega3, w.omega3Mg / w.days),
             (.polyFats, polyShare),
             (.sodium, sodium / days),
             (.alcohol, (total[.alcoholG] ?? 0) / 14 / days),
@@ -120,7 +177,14 @@ public enum FoodScore {
             case .wholeGrains: points = more(amount, full: wholeGrainGoal)
             case .sugaryDrinks: points = less(amount, best: 0, worst: 1)
             case .nutsLegumes: points = more(amount, full: 1)
-            case .redMeat: points = less(amount, best: 0, worst: 1.5)
+            case .redMeat:
+                // Processed meat keeps the AHEI's strict curve, where the evidence is strong; unprocessed red meat
+                // costs only above the WCRF's 350 g cooked a week, down to nothing at twice its 500 g upper end,
+                // since its evidence is weak (owner, 2026-11-21). The part takes the lower of the two.
+                let processed = less(meatProcessedPerDay / Portion.meat, best: 0, worst: 1.5)
+                let red = less(meatRedPerDay, best: Meat.redFreeWeekG / 7, worst: Meat.redZeroWeekG / 7)
+                points = min(processed, red)
+            case .fiber: points = more(amount, full: Meat.fiberFullG)
             case .fishOmega3: points = more(amount, full: 250)
             case .polyFats: points = between(amount, zeroAt: 2, fullAt: 10)
             case .sodium: points = less(amount, best: 1_500, worst: 4_000)
@@ -145,7 +209,11 @@ public enum FoodScore {
         min(10, max(0, (value - zeroAt) / (fullAt - zeroAt) * 10))
     }
 
-    enum Kind { case vegetables, fruit, nuts, legumes, redMeat, drink }
+    enum Kind { case vegetables, fruit, nuts, legumes, redMeat, processedMeat, drink }
+
+    /// Sausage, ham, bacon and other cured or smoked meat, by name, for foods whose source does not say it.
+    static let processedMeatWords = ["wurst", "salami", "schinken", "speck", "bacon", "sausage", "chorizo",
+                                     "leberkäse", "pastrami", "mortadella", "kassler", "frankfurter", "wiener"]
 
     static let wholeGrainWords = ["vollkorn", "whole grain", "wholegrain", "whole wheat", "wholemeal"]
     static let juiceWords = ["saft", "juice", "nektar", "nectar", "smoothie"]
@@ -159,7 +227,11 @@ public enum FoodScore {
             case "g": return .vegetables
             case "f": return juiceWords.contains(where: name.contains) ? .drink : .fruit
             case "h": return nutWords.contains(where: name.contains) ? .nuts : .legumes
-            case "u", "w": return poultryWords.contains(where: name.contains) ? nil : .redMeat
+            // BLS W is sausage and cured meat, processed whatever the animal; U is meat as such.
+            case "w": return .processedMeat
+            case "u":
+                if poultryWords.contains(where: name.contains) { return nil }
+                return processedMeatWords.contains(where: name.contains) ? .processedMeat : .redMeat
             case "n": return .drink
             default: return nil
             }
@@ -170,7 +242,10 @@ public enum FoodScore {
         if raw.contains("fruit") && !raw.contains("dried") { return .fruit }
         if raw.contains("nut") { return .nuts }
         if raw.contains("legume") { return .legumes }
-        if raw.contains("processed-meat") || (raw.contains("meat") && !poultryWords.contains(where: name.contains)) { return .redMeat }
+        if raw.contains("processed-meat") || raw.contains("sausages") { return .processedMeat }
+        if raw.contains("meat") && !poultryWords.contains(where: name.contains) {
+            return processedMeatWords.contains(where: name.contains) ? .processedMeat : .redMeat
+        }
         return nil
     }
 
