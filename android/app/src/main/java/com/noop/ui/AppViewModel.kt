@@ -2171,15 +2171,91 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         rescoreAfterEdit()
     }
 
-    /** Persist a bed/wake edit across a BRIDGED night's fragments (#1492), then re-score as
-     *  [updateSleepSessionTimes] does. The single-row call edits the winning fragment only, which on a
-     *  split night defines neither the displayed bedtime nor the displayed wake. */
-    suspend fun updateSleepGroupTimes(
-        group: List<com.noop.data.SleepSession>, newStartTs: Long, newEndTs: Long,
-    ) {
-        runCatching { repository.updateSleepGroupTimes(group, newStartTs, newEndTs) }
-        rescoreAfterEdit()
+    /**
+     * Correct the bed and wake times of the night on screen, through the shared core.
+     *
+     * [blocks] are the night's OWN rows, as the core named them when it built the night
+     * (`CoreRead.Night.blocks`). That is the whole point of this path: the previous version looked the
+     * group up a second time in the imported lane alone, so a night NOOP had computed itself could not be
+     * corrected at all, in silence. Every attempt now writes one line to the strap log and answers with a
+     * named outcome, so the screen can say what happened instead of closing as if it had worked.
+     */
+    suspend fun editSleepNight(blocks: List<com.noop.core.CoreRead.Night.Block>,
+                               newStartTs: Long, newEndTs: Long,
+                               method: String, motionAwareWake: Boolean): com.noop.core.CoreSleepEdit.Answer {
+        val answer = withContext(Dispatchers.IO) {
+            com.noop.core.CoreSleepEdit.editTimes(blocks, newStartTs, newEndTs, activeStrapId,
+                                                  method, motionAwareWake)
+        }
+        finishSleepChange("Sleep edit", blocks.size, "${clockForLog(newStartTs)} → ${clockForLog(newEndTs)}",
+                          answer)
+        return answer
     }
+
+    /** Take the night on screen out of the store, every block of it, through the same path as the edit. */
+    suspend fun deleteSleepNight(blocks: List<com.noop.core.CoreRead.Night.Block>): com.noop.core.CoreSleepEdit.Answer {
+        val answer = withContext(Dispatchers.IO) { com.noop.core.CoreSleepEdit.deleteNight(blocks) }
+        finishSleepChange("Sleep delete", blocks.size, "", answer)
+        return answer
+    }
+
+    /**
+     * Put back what the last retirement took out. The rows themselves are held by the core under [token];
+     * the deletion markers are lifted here, because this platform is where they are kept.
+     */
+    suspend fun undoSleepRetirement(token: String,
+                                    retired: List<com.noop.core.CoreSleepEdit.Retired>): Boolean {
+        val answer = withContext(Dispatchers.IO) { com.noop.core.CoreSleepEdit.undo(token) }
+        // The markers come off only once the rows are actually back. Lifting them first and then failing
+        // leaves the worst of both: the night still deleted, and nothing left to stop the next analysis
+        // pass re-detecting it with the detector's own bounds.
+        if (answer.ok) {
+            for (row in retired.filter { it.writesTombstone }) {
+                runCatching { repository.allowSleepReDetection(row.deviceId, row.startTs) }
+            }
+        }
+        ble.externalLog("Sleep undo: ${retired.size} block(s) — ${answer.outcome.raw}")
+        if (answer.ok) {
+            com.noop.core.CoreShadow.noteDataChanged()
+            rescoreAfterEdit()
+        }
+        return answer.ok
+    }
+
+    /**
+     * The half of a sleep change that is this platform's own: write the deletion markers the core asked
+     * for, say in the strap log what was attempted and what came of it, and score the day again.
+     *
+     * The log line is written for EVERY attempt, the refusals included. A correction is a handful of taps
+     * a week, so saying so costs nothing, and it is exactly what was missing when a tester reported that
+     * editing a night did nothing at all: his log held not one word about it.
+     */
+    private suspend fun finishSleepChange(what: String, blocks: Int, window: String,
+                                          answer: com.noop.core.CoreSleepEdit.Answer) {
+        for (row in answer.retired.filter { it.writesTombstone }) {
+            runCatching { repository.markSleepDismissed(row.deviceId, row.startTs, row.endTs) }
+        }
+        val detail = buildString {
+            append("$what: $blocks block(s)")
+            if (window.isNotEmpty()) append(", $window")
+            append(if (answer.ok) " — saved" else " — refused: ${answer.outcome.raw}")
+            if (answer.retired.isNotEmpty()) append(" (${answer.retired.size} retired)")
+        }
+        ble.externalLog(detail)
+        if (answer.ok) {
+            // The write happened inside the core, so nothing on this side has told the screens that the
+            // store moved. Without this the correction lands in the database and the Sleep tab keeps
+            // drawing the old night until something else happens to bump the revision — saved, and
+            // apparently not, which is the shape this whole change is about. Found in the emulator; no
+            // unit test reaches it.
+            com.noop.core.CoreShadow.noteDataChanged()
+            rescoreAfterEdit()
+        }
+    }
+
+    private fun clockForLog(ts: Long): String =
+        java.time.Instant.ofEpochSecond(ts).atZone(java.time.ZoneId.systemDefault())
+            .format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
 
     /** Delete one sleep session, then re-score the affected day immediately so the dashboard aggregates
      *  recompute as if the misread night were never recorded — matching Swift SleepView's analyzeRecent()

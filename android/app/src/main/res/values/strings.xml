@@ -4802,6 +4802,10 @@
     <string name="forge_sl_add_title">Add a sleep</string>
     <string name="forge_sl_add_blurb">For a night or a nap NOOP did not record. Stages are taken from your data for those hours, so the entry counts from now on.</string>
     <string name="forge_sl_add_invalid">Those times aren\'t a valid sleep window, so nothing was added.</string>
+    <string name="forge_sl_edit_failed_window">Those times aren\'t a valid sleep window, so nothing was changed.</string>
+    <string name="forge_sl_edit_failed_overlap">Those times don\'t overlap this night\'s recorded data, so nothing was changed.</string>
+    <string name="forge_sl_edit_failed_missing">This night\'s stored record couldn\'t be found, so nothing was changed.</string>
+    <string name="forge_sl_edit_failed_write">Saving the new sleep times failed. Nothing was changed.</string>
     <string name="forge_sl_add_no_raw">The strap has nothing recorded for those hours yet. The sleep will count its length, but it gets no stages and Charge for that day stays empty until the data arrives.</string>
     <string name="forge_sl_add_anyway">Add it anyway</string>
     <string name="forge_sl_add_blocked">You already have a sleep from %1$s to %2$s. Two sleeps over the same hours would count those hours twice.</string>
@@ -5810,6 +5814,10 @@
     <string name="forge_se_cancel">Cancel</string>
     <string name="forge_se_save">Save</string>
     <string name="forge_se_deleted">Sleep deleted.</string>
+    <string name="forge_se_removed_outside">Sleep outside the new times was removed.</string>
+    <string name="forge_se_deleted_suppressed">Sleep deleted. NOOP won\'t look for sleep between %1$s and %2$s again.</string>
+    <string name="forge_sl_edit_partial">Only part of this night could be removed. The rest is still there.</string>
+    <string name="forge_sl_undo_failed">This night couldn\'t be brought back.</string>
     <string name="forge_se_undo">Undo</string>
     <string name="forge_se_windows">Deleted sleep windows</string>
     <string name="forge_se_windows_sub">Recompute clears the deletion marker and scans the most recent 21 days.</string>

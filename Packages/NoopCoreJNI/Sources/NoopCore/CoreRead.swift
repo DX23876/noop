@@ -44,14 +44,42 @@ public enum CoreRead {
         public struct Minutes: Codable, Equatable, Sendable {
             public var wake: Double, light: Double, deep: Double, rem: Double
         }
+        /// One stored block this night was built from, by the key that identifies its row.
+        ///
+        /// A night is assembled here from BOTH sleep lanes, the imported and the computed one
+        /// (`StoreReader.allSleepSessions`). A caller that wants to correct or delete the night it is
+        /// looking at must act on exactly these rows, and anything that derives the group a second time
+        /// from a time window can disagree with what was drawn: Android's edit re-derived it from the
+        /// imported lane alone, so a night NOOP had computed itself was silently unchangeable
+        /// (tester report 2026-11-21). The night therefore names its own blocks.
+        ///
+        /// `deviceId` is the namespace the row was read from, nil only when the read did not know it;
+        /// `startTs` is the immutable detected key the store writes under, `effectiveStartTs` the onset
+        /// as drawn (a hand-corrected night moves the latter, never the former).
+        public struct Block: Codable, Equatable, Sendable {
+            public var deviceId: String?
+            public var startTs: Int, endTs: Int, effectiveStartTs: Int
+            public init(deviceId: String?, startTs: Int, endTs: Int, effectiveStartTs: Int) {
+                self.deviceId = deviceId
+                self.startTs = startTs
+                self.endTs = endTs
+                self.effectiveStartTs = effectiveStartTs
+            }
+        }
         public var startTs: Int, endTs: Int, efficiency: Double?, restingHr: Int?, hrv: Double?, edited: Bool
         public var stages: [Stage]
         public var minutes: Minutes?
+        /// The stored rows behind this night, oldest first. Empty only when the night carries none.
+        public var blocks: [Block] = []
     }
 
     /// A sleep block off a day's main night (`SleepNight.naps`), with its asleep minutes.
     public struct Nap: Codable, Equatable, Sendable {
         public var startTs: Int, endTs: Int, asleepMinutes: Double
+        /// The stored row this nap IS, by the key that identifies it, for the same reason a night names
+        /// its blocks (see `Night.Block`): deleting a nap must act on the row that was drawn, not on
+        /// whatever a second search through one lane happens to return.
+        public var block: Night.Block?
     }
 
     /// One value of a metric on one day.
@@ -128,7 +156,13 @@ public enum CoreRead {
                          restingHr: longest?.restingHr, hrv: longest?.avgHrv,
                          edited: main.group.contains { $0.userEdited }, stages: stages,
                          minutes: Night.Minutes(wake: main.minutes.awake, light: main.minutes.light,
-                                                deep: main.minutes.deep, rem: main.minutes.rem))
+                                                deep: main.minutes.deep, rem: main.minutes.rem),
+                         // The group this night was drawn from, so a correction acts on these rows and
+                         // never on a second, differently derived set (see `Night.Block`).
+                         blocks: main.group
+                             .sorted { $0.effectiveStartTs < $1.effectiveStartTs }
+                             .map { Night.Block(deviceId: $0.deviceId, startTs: $0.startTs,
+                                                endTs: $0.endTs, effectiveStartTs: $0.effectiveStartTs) })
         }.sorted { $0.startTs < $1.startTs }
     }
 
@@ -144,7 +178,9 @@ public enum CoreRead {
             let group = SleepNight.mainGroup(day, offsetSec: offsetSec, habitualMidsleepSec: habitual)
             return SleepNight.naps(day, mainGroup: group).map {
                 Nap(startTs: $0.effectiveStartTs, endTs: $0.endTs,
-                    asleepMinutes: SleepNight.asleepMinutes($0.stagesJSON, effectiveStartTs: $0.effectiveStartTs))
+                    asleepMinutes: SleepNight.asleepMinutes($0.stagesJSON, effectiveStartTs: $0.effectiveStartTs),
+                    block: Night.Block(deviceId: $0.deviceId, startTs: $0.startTs, endTs: $0.endTs,
+                                       effectiveStartTs: $0.effectiveStartTs))
             }
         }.sorted { $0.startTs < $1.startTs }
     }

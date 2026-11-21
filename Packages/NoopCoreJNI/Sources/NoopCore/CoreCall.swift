@@ -352,6 +352,8 @@ public enum CoreCall {
         guard let (store, _) = ShadowSession.storeAndPath, let reader = ShadowSession.reader else {
             return #"{"error":"noStore"}"#
         }
+        // Correcting, retiring and restoring a night, on the rows the night itself names (`CoreSleepEdit`).
+        if let answer = await CoreSleepEdit.run(op, args, store: store, reader: reader) { return answer }
         if op == "demo.seed" {
             // The whole demo account, written once and only into a store that has no days of its own, so it
             // can never overwrite a real one. The caller gates it to a debug build.

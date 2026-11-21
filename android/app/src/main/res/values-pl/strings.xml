@@ -5770,6 +5770,10 @@
     <string name="forge_se_cancel">Anuluj</string>
     <string name="forge_se_save">Zapisz</string>
     <string name="forge_se_deleted">Usunięto sen.</string>
+    <string name="forge_se_removed_outside">Sen poza nowymi godzinami został usunięty.</string>
+    <string name="forge_se_deleted_suppressed">Sen usunięty. NOOP nie będzie już szukać snu między %1$s a %2$s.</string>
+    <string name="forge_sl_edit_partial">Udało się usunąć tylko część tej nocy. Reszta nadal tu jest.</string>
+    <string name="forge_sl_undo_failed">Nie udało się przywrócić tej nocy.</string>
     <string name="forge_se_undo">Anulować</string>
     <string name="forge_se_windows">Usunięte okna snu</string>
     <string name="forge_se_windows_sub">Ponowne obliczenie usuwa znacznik usunięcia i analizuje ostatnie 21 dni.</string>
@@ -7355,6 +7359,10 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_sl_add_title">Dodaj sen</string>
     <string name="forge_sl_add_blurb">Dla nocy lub drzemki, której NOOP nie zarejestrował. Fazy pochodzą z twoich danych z tych godzin, więc wpis liczy się od teraz.</string>
     <string name="forge_sl_add_invalid">Te godziny nie tworzą poprawnego okna snu, nic nie zostało dodane.</string>
+    <string name="forge_sl_edit_failed_window">Te godziny nie tworzą poprawnego okna snu, nic nie zostało zmienione.</string>
+    <string name="forge_sl_edit_failed_overlap">Te godziny nie pokrywają się z zapisanymi danymi tej nocy, nic nie zostało zmienione.</string>
+    <string name="forge_sl_edit_failed_missing">Nie znaleziono zapisanego wpisu tej nocy, nic nie zostało zmienione.</string>
+    <string name="forge_sl_edit_failed_write">Zapisanie nowych godzin snu nie powiodło się. Nic nie zostało zmienione.</string>
     <string name="forge_sl_add_no_raw">Opaska nie ma jeszcze nic zapisanego z tych godzin. Sen policzy swoją długość, ale bez faz, a Charge tego dnia pozostanie pusty, dopóki dane nie dotrą.</string>
     <string name="forge_sl_add_anyway">Dodaj mimo to</string>
     <string name="forge_sl_add_blocked">Masz już sen od %1$s do %2$s. Dwa sny w tych samych godzinach policzyłyby je dwa razy.</string>

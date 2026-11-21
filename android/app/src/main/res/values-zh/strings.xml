@@ -5710,6 +5710,10 @@
     <string name="forge_se_cancel">取消</string>
     <string name="forge_se_save">保存</string>
     <string name="forge_se_deleted">睡眠删除了。</string>
+    <string name="forge_se_removed_outside">新时间之外的睡眠已移除。</string>
+    <string name="forge_se_deleted_suppressed">睡眠已删除。NOOP 不会再在 %1$s 到 %2$s 之间寻找睡眠。</string>
+    <string name="forge_sl_edit_partial">这一晚只移除了一部分，其余仍在。</string>
+    <string name="forge_sl_undo_failed">无法恢复这一晚。</string>
     <string name="forge_se_undo">撤销</string>
     <string name="forge_se_windows">已删除的睡眠时间段</string>
     <string name="forge_se_windows_sub">重新计算会清除删除标记，并分析最近 21 天的数据。</string>
@@ -7250,6 +7254,10 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_sl_add_title">补记睡眠</string>
     <string name="forge_sl_add_blurb">用于 NOOP 未记录的一夜或小睡。睡眠阶段取自你在那段时间的数据，记录即刻生效。</string>
     <string name="forge_sl_add_invalid">这些时间不是有效的睡眠区间，没有添加任何内容。</string>
+    <string name="forge_sl_edit_failed_window">这些时间不是有效的睡眠区间，没有更改任何内容。</string>
+    <string name="forge_sl_edit_failed_overlap">这些时间与当晚记录的数据没有重叠，没有更改任何内容。</string>
+    <string name="forge_sl_edit_failed_missing">找不到当晚的保存记录，没有更改任何内容。</string>
+    <string name="forge_sl_edit_failed_write">新的睡眠时间保存失败，没有更改任何内容。</string>
     <string name="forge_sl_add_no_raw">手环在那段时间还没有任何记录。睡眠会计入时长，但没有阶段，当天的 Charge 也会一直为空，直到数据到达。</string>
     <string name="forge_sl_add_anyway">仍然添加</string>
     <string name="forge_sl_add_blocked">你已经有一段 %1$s 到 %2$s 的睡眠。同一段时间记录两次会被重复计算。</string>

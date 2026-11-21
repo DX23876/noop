@@ -94,6 +94,16 @@ struct SleepDeletionSnapshot: Equatable {
     var suppressedWakeDay: String? = nil
 }
 
+extension SleepDeletionSnapshot {
+    /// The shared core's retired row as this layer's snapshot (`SleepNightEdit.Retired`), so the two
+    /// cannot drift apart field by field. `suppressedWakeDay` stays this layer's: only an explicit
+    /// deletion hides a whole wake day, and the core is not told which call was that.
+    init(retired: SleepNightEdit.Retired) {
+        self.init(session: retired.session, ownerDeviceId: retired.ownerDeviceId, endTs: retired.endTs,
+                  motion: retired.motion, sleepState: retired.sleepState)
+    }
+}
+
 /// Result of applying one correction to a displayed, potentially fragmented night. Only fragments
 /// retired because they fell outside the new window are returned; the UI offers those as one Undo.
 struct SleepGroupEditResult {
@@ -1857,103 +1867,44 @@ final class Repository: ObservableObject {
     func editSleepGroupTimes(_ group: [CachedSleepSession], newStartTs: Int, newEndTs: Int,
                              allowRelocation: Bool = false) async -> Result<SleepGroupEditResult, SleepEditFailure> {
         guard let store = await ensureStore() else { return .failure(.storeUnavailable) }
-        guard let window = SleepEditGuard.clampedEditWindow(
-            start: newStartTs, end: newEndTs, now: Int(Date().timeIntervalSince1970))
-        else { return .failure(.invalidWindow) }
-        var plan = SleepGroupEdit.plan(group, newStartTs: window.start, newEndTs: window.end)
-        if plan.clipped.isEmpty, allowRelocation {
-            plan = SleepGroupEdit.relocationPlan(group, newStartTs: window.start, newEndTs: window.end)
-        }
-        guard !plan.clipped.isEmpty else { return .failure(.noOverlap) }
-
-        // Resolve every immutable key to the namespace that owns it before mutating anything. Dropped
-        // rows retain the full snapshot (including motion/band-state sidecars) for the grouped Undo.
-        var clippedOwners: [Int: String] = [:]
-        for fragment in plan.clipped {
-            guard let snapshot = await ownedSleepRowSnapshot(store: store,
-                                                              detectedStartTs: fragment.startTs)
-            else { return .failure(.ownerUnresolved) }
-            clippedOwners[fragment.startTs] = snapshot.ownerDeviceId
-        }
-        var retired: [SleepDeletionSnapshot] = []
-        for fragment in plan.dropped {
-            guard let snapshot = await ownedSleepRowSnapshot(store: store,
-                                                              detectedStartTs: fragment.startTs)
-            else { return .failure(.ownerUnresolved) }
-            retired.append(snapshot)
-        }
-
-        // A fragment whose window GREW is re-staged from the raw streams. The pure planner can only
-        // RESHAPE stages that already exist, so for time the old window never covered `SleepWindowReclip`
-        // fills in a fabricated trailing "wake" block. That block then becomes the night's stored truth —
-        // the daily rollup and the Sleep tab both read the stored `stagesJSON` — so extending a night the
-        // detector truncated added hours of "awake", left total sleep exactly where it was, and DROPPED
-        // the Rest score (in-bed grew, asleep did not) instead of correcting it. Re-deriving here is what
-        // the single-session path always did; the group rewrite dropped it.
-        //
-        // Scoped to fragments that grew: a window that only NARROWS has no uncovered time to stage, so it
-        // keeps the cheap re-clip and is byte-identical to before. A night with no dense raw (for example
-        // a genuine import) also keeps the re-clip fallback. This also delivers what
-        // `SleepGroupEdit.relocationPlan` already promises — a moved night prefers a real re-stage when
-        // the target window has the data.
-        let priorBounds = Dictionary(
-            group.map { ($0.startTs, (start: $0.effectiveStartTs, end: $0.endTs)) },
-            uniquingKeysWith: { first, _ in first })
-        var edits: [SleepSessionEditMutation] = []
-        edits.reserveCapacity(plan.clipped.count)
-        for fragment in plan.clipped {
-            guard let owner = clippedOwners[fragment.startTs] else { return .failure(.ownerUnresolved) }
-            let prior = priorBounds[fragment.startTs]
-            let grew = prior.map { fragment.effectiveStartTs < $0.start || fragment.endTs > $0.end } ?? true
-            let stages = grew
-                ? (await restageFromRaw(start: fragment.effectiveStartTs, end: fragment.endTs)
-                    ?? fragment.stagesJSON)
-                : fragment.stagesJSON
-            edits.append(SleepSessionEditMutation(
-                deviceId: owner,
-                detectedStartTs: fragment.startTs,
-                newStartTs: fragment.effectiveStartTs,
-                newEndTs: fragment.endTs,
-                stagesJSON: stages
-            ))
-        }
-        let drops = retired.map {
-            SleepSessionDeleteMutation(deviceId: $0.ownerDeviceId,
-                                       detectedStartTs: $0.session.startTs)
-        }
-
-        // Arm suppression before yielding to the transaction so no concurrent analysis can re-create a
-        // retired detected edge. Restore the old token set if the transaction rolls back.
+        // The planning, the owner resolution, the re-stage of a window that grew and the transaction are
+        // the shared `SleepNightEdit`, so the iPhone and Android cannot differ about what a correction
+        // does. What stays here is the one thing that is this platform's own: WHERE the "the wearer
+        // deleted this" markers live, which on Apple is UserDefaults and on Android the store's own table.
         let priorTombstones = dismissedSleepSpans
-        var nextTombstones = priorTombstones
-        for snapshot in retired
-        where DismissedSleepSpans.writesTombstoneOnDelete(userEdited: snapshot.session.userEdited) {
-            nextTombstones = DismissedSleepSpans.adding(startTs: snapshot.session.startTs,
-                                                       endTs: snapshot.endTs,
-                                                       to: nextTombstones)
+        let result = await SleepNightEdit.editTimes(
+            store: store, ownerIds: sleepOwnerIds, group: group,
+            newStartTs: newStartTs, newEndTs: newEndTs, allowRelocation: allowRelocation,
+            now: Int(Date().timeIntervalSince1970),
+            restage: { start, end in await self.restageFromRaw(start: start, end: end) },
+            // Armed before the transaction, so no concurrent analysis can re-create a retired detected
+            // edge in between; put back below when the write then fails.
+            willRetire: { rows in
+                await MainActor.run {
+                    var next = self.dismissedSleepSpans
+                    for row in rows where row.writesTombstone {
+                        next = DismissedSleepSpans.adding(startTs: row.session.startTs, endTs: row.endTs,
+                                                          to: next)
+                    }
+                    self.dismissedSleepSpans = next
+                }
+            },
+            rollback: { await MainActor.run { self.dismissedSleepSpans = priorTombstones } })
+        switch result {
+        case .failure(let why):
+            // `noBlocks` cannot reach a caller that passes the displayed night's own blocks, and reads to
+            // the wearer as the same thing as a row that could not be found.
+            return .failure(why == .invalidWindow ? .invalidWindow
+                            : why == .noOverlap ? .noOverlap
+                            : why == .writeFailed ? .writeFailed : .ownerUnresolved)
+        case .success(let done):
+            sleepPresentationRevision &+= 1
+            await refresh()
+            return .success(SleepGroupEditResult(
+                retired: done.retired.map(SleepDeletionSnapshot.init(retired:)),
+                affectedWakeDays: done.affectedWakeDays,
+                requiresLocalRescore: done.requiresLocalRescore))
         }
-        dismissedSleepSpans = nextTombstones
-        do {
-            let changed = try await store.applySleepGroupEdit(edits: edits, drops: drops)
-            guard changed.edited == edits.count, changed.deleted == drops.count else {
-                dismissedSleepSpans = priorTombstones
-                return .failure(.writeFailed)
-            }
-        } catch {
-            dismissedSleepSpans = priorTombstones
-            return .failure(.writeFailed)
-        }
-        sleepPresentationRevision &+= 1
-        await refresh()
-        let affectedWakeDays = Set(group.map { Self.sleepEndDayKey($0.endTs) }
-            + plan.clipped.map { Self.sleepEndDayKey($0.endTs) })
-        let requiresLocalRescore = (edits.map(\.deviceId) + drops.map(\.deviceId))
-            .contains(where: { $0.hasSuffix("-noop") })
-        return .success(SleepGroupEditResult(
-            retired: retired,
-            affectedWakeDays: affectedWakeDays,
-            requiresLocalRescore: requiresLocalRescore
-        ))
     }
 
     /// Delete ONE sleep session: the `editSleepGroupTimes` path minus the re-stage/re-insert, so the user can
@@ -1983,33 +1934,33 @@ final class Repository: ObservableObject {
     func deleteSleepSession(detectedStartTs: Int, endTs: Int,
                             suppressesWakeDay: Bool = true) async -> SleepDeletionSnapshot? {
         guard let store = await ensureStore() else { return nil }
-        // Snapshot the owning row BEFORE deleting, resolving the owner exactly as the delete does below:
-        // computed source first, imported deviceId as the fallback. A one-second-wide window around the
-        // immutable detected key uniquely identifies the row (the key never moves).
-        guard var snapshot = await ownedSleepRowSnapshot(store: store,
-                                                         detectedStartTs: detectedStartTs) else { return nil }
-        // Record the durable tombstone ONLY for a DETECTED night. A `userEdited` row (a hand-corrected
-        // night or a manually-added nap) is never re-detected, so suppressing its window would needlessly
-        // block a real future night that happens to overlap it.
+        // Finding the owning row, keeping its sidecar series and taking it out of the store are the shared
+        // `SleepNightEdit`; what stays here is where the markers live.
         let priorTombstones = dismissedSleepSpans
-        if DismissedSleepSpans.writesTombstoneOnDelete(userEdited: snapshot.session.userEdited) {
-            dismissedSleepSpans = DismissedSleepSpans.adding(startTs: detectedStartTs, endTs: endTs,
-                                                             to: dismissedSleepSpans)
-            // A fresh delete must offer its row again, even if a hidden token outlived a cap-evicted marker.
-            hiddenDismissedSleepSpans = DeletedSleepList.unhiding(startTs: detectedStartTs, endTs: endTs,
-                                                                  hidden: hiddenDismissedSleepSpans)
-        }
-        // Delete from the same union of possible owners that the Sleep tab reads from.
-        var didDelete = false
-        for ownerDeviceId in sleepOwnerIds {
-            let deleted = (try? await store.deleteSleepSession(
-                deviceId: ownerDeviceId, startTs: detectedStartTs)) ?? 0
-            if deleted > 0 { didDelete = true; break }
-        }
-        guard didDelete else {
-            dismissedSleepSpans = priorTombstones
-            return nil
-        }
+        let priorHidden = hiddenDismissedSleepSpans
+        let removed = await SleepNightEdit.deleteNight(
+            store: store, ownerIds: sleepOwnerIds, detectedStartTs: detectedStartTs,
+            // Recorded ONLY for a detected night, and before the row goes: a hand-corrected night or a
+            // hand-added nap is never re-detected, so a marker would only block a real future night that
+            // happens to overlap its window.
+            willRetire: { row in
+                guard row.writesTombstone else { return }
+                await MainActor.run {
+                    self.dismissedSleepSpans = DismissedSleepSpans.adding(
+                        startTs: detectedStartTs, endTs: endTs, to: self.dismissedSleepSpans)
+                    // A fresh delete must offer its row again, even if a hidden token outlived a
+                    // cap-evicted marker.
+                    self.hiddenDismissedSleepSpans = DeletedSleepList.unhiding(
+                        startTs: detectedStartTs, endTs: endTs, hidden: self.hiddenDismissedSleepSpans)
+                }
+            },
+            rollback: {
+                await MainActor.run {
+                    self.dismissedSleepSpans = priorTombstones
+                    self.hiddenDismissedSleepSpans = priorHidden
+                }
+            })
+        guard var snapshot = removed.map(SleepDeletionSnapshot.init(retired:)) else { return nil }
         if suppressesWakeDay {
             let wakeDay = Self.sleepEndDayKey(endTs)
             suppressedSleepWakeDays.insert(wakeDay)
@@ -2051,18 +2002,14 @@ final class Repository: ObservableObject {
             if let day = snapshot.suppressedWakeDay { suppressedDays.remove(day) }
         }
         suppressedSleepWakeDays = suppressedDays
-        for (owner, owned) in Dictionary(grouping: snapshots, by: \.ownerDeviceId) {
-            _ = try? await store.upsertSleepSessions(owned.map(\.session), deviceId: owner)
-        }
-        for snapshot in snapshots {
-            // Sidecars are not carried by CachedSleepSession, so restore them after the row upsert.
-            _ = try? await store.persistSessionMotion(deviceId: snapshot.ownerDeviceId,
-                                                      sessionStart: snapshot.session.startTs,
-                                                      motionEpochs: snapshot.motion ?? [])
-            _ = try? await store.persistSessionSleepState(deviceId: snapshot.ownerDeviceId,
-                                                         sessionStart: snapshot.session.startTs,
-                                                         states: snapshot.sleepState ?? [])
-        }
+        // Rows and sidecars go back through the shared `SleepNightEdit.restore`; the markers above are
+        // this platform's own.
+        await SleepNightEdit.restore(store: store, rows: snapshots.map {
+            SleepNightEdit.Retired(session: $0.session, ownerDeviceId: $0.ownerDeviceId, endTs: $0.endTs,
+                                   motion: $0.motion, sleepState: $0.sleepState,
+                                   writesTombstone: DismissedSleepSpans.writesTombstoneOnDelete(
+                                       userEdited: $0.session.userEdited))
+        })
         sleepPresentationRevision &+= 1
         await refresh()
     }
@@ -2071,30 +2018,12 @@ final class Repository: ObservableObject {
     /// `deleteSleepSession` does (computed first, imported fallback). Returns the row plus the owning
     /// deviceId so undo can restore it into that same namespace.
     private func ownedSleepRowSnapshot(store: WhoopStore, detectedStartTs: Int) async -> SleepDeletionSnapshot? {
-        func row(_ deviceId: String) async -> CachedSleepSession? {
-            let rows = (try? await store.sleepSessions(deviceId: deviceId,
-                                                       from: detectedStartTs, to: detectedStartTs,
-                                                       limit: 4)) ?? []
-            return rows.first { $0.startTs == detectedStartTs }
-        }
-        // Capture the per-epoch motion + band-state series alongside the row (they live in the same
-        // sleepSession row but NOT on CachedSleepSession), so undo can re-persist them after the upsert.
-        // Deleting the row drops those columns, so without this a userEdited night's Deep Timeline motion
-        // + Band Sleep State tracks vanish on undo (Android preserves them). (#65 parity.)
-        func snapshot(_ session: CachedSleepSession, owner: String) async -> SleepDeletionSnapshot {
-            let motion = try? await store.sessionMotion(deviceId: owner, sessionStart: detectedStartTs)
-            let sleepState = try? await store.sessionSleepState(deviceId: owner, sessionStart: detectedStartTs)
-            return SleepDeletionSnapshot(session: session, ownerDeviceId: owner, endTs: session.endTs,
-                                         motion: motion ?? nil, sleepState: sleepState ?? nil)
-        }
-        // Same owner union as the edit/delete paths, so the undo snapshot records the row's REAL owner
-        // (including the canonical source) instead of guessing computed-or-active.
-        for ownerDeviceId in sleepOwnerIds {
-            if let session = await row(ownerDeviceId) {
-                return await snapshot(session, owner: ownerDeviceId)
-            }
-        }
-        return nil
+        // The resolution itself is shared (`SleepNightEdit.snapshot`): the same owner order the reads use,
+        // plus the per-epoch motion and band-state series, which the session type does not carry and a
+        // delete would otherwise drop for good.
+        await SleepNightEdit.snapshot(store: store, ownerIds: sleepOwnerIds,
+                                      detectedStartTs: detectedStartTs)
+            .map(SleepDeletionSnapshot.init(retired:))
     }
 
     /// Durable "user deleted this night" tombstones as "startTs:endTs" strings, persisted in UserDefaults

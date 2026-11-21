@@ -2,6 +2,7 @@ package com.noop.core
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CoreReadTest {
@@ -17,6 +18,37 @@ class CoreReadTest {
         assertEquals(402.0, day.sleepMinutes!!, 0.0)
         assertNull(day.spo2)
         assertNull(day.steps)
+    }
+
+    /**
+     * A night names the rows it was built from, with the lane each came from.
+     *
+     * This is the half of the repair that lives in the read: the edit acts on these keys instead of
+     * deriving the group a second time, which on Android searched the imported lane alone and so could
+     * never find a night NOOP had computed itself (2026-11-21).
+     */
+    @Test fun aNightNamesTheRowsItWasBuiltFrom() {
+        val nights = CoreRead.parseNights(
+            """[{"edited":false,"endTs":2000,"stages":[],"startTs":1000,
+                 "blocks":[{"deviceId":"my-whoop-noop","startTs":1000,"endTs":2000,"effectiveStartTs":1100}]}]""")
+        val block = nights.single().blocks.single()
+        assertEquals("my-whoop-noop", block.deviceId)
+        assertEquals(1000L, block.startTs)
+        assertEquals(1100L, block.effectiveStartTs)
+    }
+
+    /** An older core names none, which the edit reports rather than guessing a lane. */
+    @Test fun aNightFromAnOlderCoreNamesNoBlocks() {
+        val nights = CoreRead.parseNights(
+            """[{"edited":false,"endTs":2000,"stages":[],"startTs":1000}]""")
+        assertTrue(nights.single().blocks.isEmpty())
+    }
+
+    @Test fun aNapNamesItsOwnRow() {
+        val naps = CoreRead.parseNaps(
+            """[{"startTs":100,"endTs":200,"asleepMinutes":30,
+                 "block":{"deviceId":"my-whoop","startTs":100,"endTs":200,"effectiveStartTs":100}}]""")
+        assertEquals("my-whoop", naps.single().block!!.deviceId)
     }
 
     @Test fun noDayIsNull() {

@@ -20,6 +20,7 @@ import androidx.compose.material3.TimeInput
 import androidx.compose.material3.TimePickerDefaults
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -37,7 +38,6 @@ import androidx.compose.ui.window.Dialog
 import com.noop.R
 import com.noop.core.CoreRead
 import com.noop.data.DismissedSleep
-import com.noop.data.SleepSession
 import com.noop.ui.AppViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -48,18 +48,87 @@ import java.time.ZoneId
 /*
  * Fork (DX23876), Forge parity 2026-11: the new design's night editing on Android, as iOS's `SleepNightEditor` on its
  * Sleep tab: correct the bed and wake times of the night on screen or delete it, with an undo, and the deleted sleep
- * windows that can be recomputed or hidden (`DeletedSleepNightsSection`). The writes are the view model's existing
- * ones (`updateSleepGroupTimes`, `deleteSleepSession`, `recomputeDeletedSleep`), which re-score the day as iOS does.
+ * windows that can be recomputed or hidden (`DeletedSleepNightsSection`). Both writes go through the shared core
+ * (`CoreSleepEdit`), which plans the change, resolves which namespace owns each row, re-stages a night that grew and
+ * names why it refused; this file turns that name into one sentence and keeps the undo.
  */
 
-/** The stored blocks a core night is made of: the merged sessions overlapping its span, its naps left out. */
-internal suspend fun nightSessions(viewModel: AppViewModel, night: CoreRead.Night): List<SleepSession> =
-    withContext(Dispatchers.IO) {
-        runCatching {
-            viewModel.repo.sleepSessionsUnion(viewModel.activeStrapId, night.startTs - 12 * 3600, night.endTs + 12 * 3600)
-                .filter { s -> (s.startTsAdjusted ?: s.startTs) < night.endTs && s.endTs > night.startTs }
-        }.getOrDefault(emptyList())
+/**
+ * One correction or deletion, and what the screen should say about it.
+ *
+ * [message] is null when it worked. [undo] names the rows the core is holding, for the strip that offers to put them
+ * back. Both layouts of the Sleep tab go through here, so neither can grow its own idea of what a refusal means.
+ */
+internal data class SleepChange(
+    val message: String?,
+    val undo: SleepUndoOffer? = null,
+)
+
+/**
+ * What the undo strip is offering, and what it may say about it.
+ *
+ * [token] names the rows the core is holding, [retired] is what it took out, and [fromEdit] says which
+ * of the two things happened. The strip used to carry one sentence for both, so a corrected night was
+ * announced as a deleted one; iOS has branched this copy since the night editor shipped
+ * (`SleepNightEditing.strip`).
+ */
+internal data class SleepUndoOffer(
+    val token: String,
+    val retired: List<com.noop.core.CoreSleepEdit.Retired>,
+    val fromEdit: Boolean,
+    /** The bounds the deletion suppresses, for the promise the strip makes about re-detection. */
+    val startTs: Long,
+    val endTs: Long,
+)
+
+/** Correct the times of [night], on the blocks the night itself names. */
+internal suspend fun applySleepEdit(viewModel: AppViewModel, context: android.content.Context,
+                                    night: CoreRead.Night, newStartTs: Long, newEndTs: Long,
+                                    experiment: com.noop.ble.PuffinExperiment): SleepChange =
+    readChange(context, viewModel.editSleepNight(night.blocks, newStartTs, newEndTs,
+                                                 experiment.sleepStagerMethod, experiment.motionAwareWake),
+               fromEdit = true, startTs = newStartTs, endTs = newEndTs)
+
+/** Take [night] out, every block of it. */
+internal suspend fun applySleepDelete(viewModel: AppViewModel, context: android.content.Context,
+                                      night: CoreRead.Night): SleepChange =
+    readChange(context, viewModel.deleteSleepNight(night.blocks),
+               fromEdit = false, startTs = night.startTs, endTs = night.endTs)
+
+/** The same for one nap, which is one stored row rather than a night's group. */
+internal suspend fun applyNapDelete(viewModel: AppViewModel, context: android.content.Context,
+                                    nap: CoreRead.Nap, block: CoreRead.Night.Block): SleepChange =
+    readChange(context, viewModel.deleteSleepNight(listOf(block)),
+               fromEdit = false, startTs = nap.startTs, endTs = nap.endTs)
+
+private fun readChange(context: android.content.Context, answer: com.noop.core.CoreSleepEdit.Answer,
+                       fromEdit: Boolean, startTs: Long, endTs: Long): SleepChange {
+    val undo = answer.undoToken?.let { SleepUndoOffer(it, answer.retired, fromEdit, startTs, endTs) }
+    // A partial deletion is both at once: it happened, so the undo must be there, and it did not happen
+    // whole, so the sentence must be there too.
+    return when {
+        answer.outcome == com.noop.core.CoreSleepEdit.Outcome.PARTIAL ->
+            SleepChange(context.getString(R.string.forge_sl_edit_partial), undo)
+        answer.ok -> SleepChange(null, undo)
+        else -> SleepChange(context.getString(sleepChangeMessage(answer.outcome)))
     }
+}
+
+/**
+ * The one sentence a refused correction gets, by the core's own name for it.
+ *
+ * Every one of these used to be the same thing on Android: nothing happened, no dialog, no log line. The wearer whose
+ * nights NOOP computes itself hit `noBlocks`/`ownerUnresolved` on every single attempt and had no way to find out
+ * (2026-11-21). The wording follows the Apple twin (`SleepNightEditing.failureMessage`).
+ */
+internal fun sleepChangeMessage(outcome: com.noop.core.CoreSleepEdit.Outcome): Int = when (outcome) {
+    com.noop.core.CoreSleepEdit.Outcome.INVALID_WINDOW -> R.string.forge_sl_edit_failed_window
+    com.noop.core.CoreSleepEdit.Outcome.NO_OVERLAP -> R.string.forge_sl_edit_failed_overlap
+    com.noop.core.CoreSleepEdit.Outcome.WRITE_FAILED -> R.string.forge_sl_edit_failed_write
+    // noBlocks, ownerUnresolved, notFound and a missing core all mean the same thing to the wearer: the night's
+    // stored record was not there to change. Saying which of them it was belongs in the strap log, not on screen.
+    else -> R.string.forge_sl_edit_failed_missing
+}
 
 /** The bed and wake times of [night] to correct, or the night to delete, as iOS's "Edit sleep times" sheet. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -266,15 +335,36 @@ internal fun SleepAddDialog(seedStart: Long, seedEnd: Long, viewModel: AppViewMo
 
 /** "Sleep deleted." with Undo, as iOS's `SleepUndoStrip`, while a deletion can still be taken back. */
 @Composable
-internal fun SleepUndoStrip(onUndo: () -> Unit) {
+internal fun SleepUndoStrip(offer: SleepUndoOffer, onUndo: () -> Unit, onExpire: () -> Unit) {
     val colors = Forge.colors
+    val format = rememberClockFormatter()
+    val zone = ZoneId.systemDefault()
+    // Takes itself off screen, as iOS's banner does. The offer outlives nothing: the rows it would put
+    // back are held in memory by the core, so a strip that waits all evening promises what a restart
+    // takes away. Keyed on the token, so a newer offer cancels this wait rather than clearing itself.
+    LaunchedEffect(offer.token) {
+        kotlinx.coroutines.delay(UNDO_VISIBLE_MILLIS)
+        onExpire()
+    }
+    fun clock(ts: Long) = Instant.ofEpochSecond(ts).atZone(zone).format(format)
+    // The three cases iOS already tells apart. A correction did not delete the night; a hand-made or
+    // hand-corrected night carries no re-detection marker, so promising one would be a lie; only a
+    // detected night that was deleted gets the promise, with the window it covers.
+    val message = when {
+        offer.fromEdit -> stringResource(R.string.forge_se_removed_outside)
+        offer.retired.firstOrNull()?.writesTombstone != true -> stringResource(R.string.forge_se_deleted)
+        else -> stringResource(R.string.forge_se_deleted_suppressed, clock(offer.startTs), clock(offer.endTs))
+    }
     Row(Modifier.fillMaxWidth().background(colors.surface, RoundedCornerShape(12.dp)).padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(R.string.forge_se_deleted), style = Forge.type.subhead, color = colors.text, modifier = Modifier.weight(1f))
+        Text(message, style = Forge.type.subhead, color = colors.text, modifier = Modifier.weight(1f))
         Text(stringResource(R.string.forge_se_undo), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.accent,
              modifier = Modifier.clickable(role = Role.Button, onClick = onUndo).padding(4.dp))
     }
 }
+
+/** How long the undo strip stays, as iOS's banner (`SleepNightEditing.presentUndo`). */
+private const val UNDO_VISIBLE_MILLIS = 7_000L
 
 /** The deleted sleep windows with Recompute and Hide, as iOS's `DeletedSleepNightsSection`; nothing without one. */
 @Composable

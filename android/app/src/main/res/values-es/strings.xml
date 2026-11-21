@@ -5750,6 +5750,10 @@
     <string name="forge_se_cancel">Cancelar</string>
     <string name="forge_se_save">Guardar</string>
     <string name="forge_se_deleted">Sueño eliminado.</string>
+    <string name="forge_se_removed_outside">Se eliminó el sueño fuera de los nuevos horarios.</string>
+    <string name="forge_se_deleted_suppressed">Sueño eliminado. NOOP no volverá a buscar sueño entre las %1$s y las %2$s.</string>
+    <string name="forge_sl_edit_partial">Solo se pudo eliminar una parte de esta noche. El resto sigue ahí.</string>
+    <string name="forge_sl_undo_failed">No se pudo recuperar esta noche.</string>
     <string name="forge_se_undo">Undo</string>
     <string name="forge_se_windows">Periodos de sueño eliminados</string>
     <string name="forge_se_windows_sub">Recalcular elimina la marca de borrado y analiza los últimos 21 días.</string>
@@ -7306,6 +7310,10 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_sl_add_title">Añadir un sueño</string>
     <string name="forge_sl_add_blurb">Para una noche o una siesta que NOOP no registró. Las fases salen de tus datos de esas horas, así que la entrada cuenta desde ahora.</string>
     <string name="forge_sl_add_invalid">Esas horas no forman una ventana de sueño válida, no se añadió nada.</string>
+    <string name="forge_sl_edit_failed_window">Esas horas no forman una ventana de sueño válida, no se cambió nada.</string>
+    <string name="forge_sl_edit_failed_overlap">Esas horas no coinciden con los datos registrados de esta noche, no se cambió nada.</string>
+    <string name="forge_sl_edit_failed_missing">No se encontró el registro guardado de esta noche, no se cambió nada.</string>
+    <string name="forge_sl_edit_failed_write">No se pudieron guardar los nuevos horarios de sueño. No se cambió nada.</string>
     <string name="forge_sl_add_no_raw">La pulsera aún no tiene nada registrado en esas horas. El sueño contará su duración, pero no tendrá fases y Charge de ese día seguirá vacío hasta que lleguen los datos.</string>
     <string name="forge_sl_add_anyway">Añadirlo igualmente</string>
     <string name="forge_sl_add_blocked">Ya tienes un sueño de %1$s a %2$s. Dos sueños sobre las mismas horas las contarían dos veces.</string>

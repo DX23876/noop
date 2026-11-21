@@ -158,6 +158,11 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
     var alarms by remember { mutableStateOf(false) }
     // The night whose times the shipped page is correcting; the new design keeps its own.
     var shippedEditing by remember { mutableStateOf<CoreRead.Night?>(null) }
+    // The retired layout's own editing state. The scope is the SCREEN's, never the dialog's block: saving
+    // closes that block, and a scope that leaves the composition takes the unfinished write with it.
+    val shippedScope = androidx.compose.runtime.rememberCoroutineScope()
+    val shippedExperiment = remember(context) { com.noop.ble.PuffinExperiment.from(context) }
+    var shippedProblem by remember { mutableStateOf<String?>(null) }
     // The summary tiles open the Rest page and the night's sleep over time, as iOS's tiles push `rest` and the metric.
     var restPage by remember { mutableStateOf(false) }
     var restValue by remember { mutableStateOf<Double?>(null) }
@@ -308,17 +313,27 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
             return@Column
         }
         shippedEditing?.let { n ->
-            val scope = androidx.compose.runtime.rememberCoroutineScope()
+            // The same two writes as the live layout, through the same shared helpers. Its own copy used to
+            // hold its coroutine scope INSIDE this block, which saving closes, so the write could be
+            // cancelled before it began. The scope now comes from the screen, which outlives the dialog.
             SleepEditDialog(n, onSave = { start, end ->
                 shippedEditing = null
-                scope.launch {
-                    nightSessions(viewModel, n).takeIf { it.isNotEmpty() }
-                        ?.let { viewModel.updateSleepGroupTimes(it, start, end) }
-                }
+                shippedScope.launch { shippedProblem = applySleepEdit(viewModel, context, n, start, end,
+                                                                     shippedExperiment).message }
             }, onDelete = {
                 shippedEditing = null
-                scope.launch { nightSessions(viewModel, n).forEach { viewModel.deleteSleepSession(it) } }
+                shippedScope.launch { shippedProblem = applySleepDelete(viewModel, context, n).message }
             }, onDismiss = { shippedEditing = null })
+        }
+        shippedProblem?.let { text ->
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { shippedProblem = null },
+                text = { Text(text, style = Forge.type.body, color = Forge.colors.text) },
+                confirmButton = {
+                    androidx.compose.material3.TextButton(onClick = { shippedProblem = null }) {
+                        Text(stringResource(android.R.string.ok))
+                    }
+                })
         }
         // Correcting the night's own times, which only the new design had: this page is the one most
         // wearers see, and a detection that is an hour out had no way back on it (#43). The dialog and
@@ -794,28 +809,59 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
     var editing by remember { mutableStateOf<CoreRead.Night?>(null) }
     // Non-null while the "add a sleep" dialog is up, holding the window its pickers open with.
     var adding by remember { mutableStateOf<Pair<Long, Long>?>(null) }
-    var undo by remember { mutableStateOf<List<com.noop.data.SleepSession>>(emptyList()) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val experiment = remember(context) { com.noop.ble.PuffinExperiment.from(context) }
+    // What the undo strip is offering, or nothing. The rows themselves are held by the core under the
+    // token; the markers are lifted here, where they are kept.
+    var undo by remember { mutableStateOf<SleepUndoOffer?>(null) }
+    // Why the last correction or deletion did not happen, in the wearer's words; null while nothing has.
+    var problem by remember { mutableStateOf<String?>(null) }
     // "Add entry, Sleep" lands here and opens the dialog, instead of opening the tab and stopping.
     LaunchedEffect(Unit) {
         if (SleepArrival.consume()) adding = seedForAdd(night != null)
     }
     SleepTonightCard(viewModel, need, onAlarms)
-    if (undo.isNotEmpty()) SleepUndoStrip {
-        val restore = undo; undo = emptyList()
-        scope.launch { viewModel.undoDeleteSleepSessions(restore) }
+    undo?.let { held ->
+        SleepUndoStrip(held, onUndo = {
+            undo = null
+            scope.launch {
+                // A failed undo is not a quiet one: the rows the core was holding can be gone (it keeps
+                // one retirement, and only until the process does), and the night then stays deleted.
+                if (!viewModel.undoSleepRetirement(held.token, held.retired)) {
+                    problem = context.getString(R.string.forge_sl_undo_failed)
+                }
+            }
+        }, onExpire = { undo = null })
     }
     editing?.let { n ->
+        // Both writes go through the core on the night's OWN blocks, and both say what came of it. A
+        // correction that reaches no row used to close this dialog in silence, which is how a wearer whose
+        // nights NOOP computes itself lost every one he made (2026-11-21).
         SleepEditDialog(n, onSave = { start, end ->
             editing = null
-            scope.launch { nightSessions(viewModel, n).takeIf { it.isNotEmpty() }?.let { viewModel.updateSleepGroupTimes(it, start, end) } }
+            scope.launch {
+                val change = applySleepEdit(viewModel, context, n, start, end, experiment)
+                problem = change.message
+                change.undo?.let { undo = it }
+            }
         }, onDelete = {
             editing = null
             scope.launch {
-                val group = nightSessions(viewModel, n)
-                group.forEach { viewModel.deleteSleepSession(it) }
-                undo = group
+                val change = applySleepDelete(viewModel, context, n)
+                problem = change.message
+                change.undo?.let { undo = it }
             }
         }, onDismiss = { editing = null })
+    }
+    problem?.let { text ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { problem = null },
+            text = { Text(text, style = Forge.type.body, color = Forge.colors.text) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = { problem = null }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            })
     }
     // The onset of the sleep an add was refused for, held until the page is showing the night that holds
     // it. Opening `night` instead would correct whichever night happened to be on screen, which on another
@@ -840,13 +886,17 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
                        isOura = com.noop.data.DeviceBrandCatalog.isOura(viewModel.activeStrapId),
                        onEdit = { editing = night })
         DayNaps(night, wakeDay, zone, onDelete = { nap ->
+            // The nap's own row, as the core named it. Searching for it again by time window read one lane
+            // only, so a nap NOOP had computed itself could not be deleted and said nothing.
+            val block = nap.block
             scope.launch {
-                val group = withContext(Dispatchers.IO) {
-                    runCatching { viewModel.repo.sleepSessionsUnion(viewModel.activeStrapId, nap.startTs - 3600, nap.endTs + 3600) }
-                        .getOrDefault(emptyList()).filter { (it.startTsAdjusted ?: it.startTs) < nap.endTs && it.endTs > nap.startTs }
+                if (block == null) {
+                    problem = context.getString(R.string.forge_sl_edit_failed_missing)
+                    return@launch
                 }
-                group.forEach { viewModel.deleteSleepSession(it) }
-                undo = group
+                val change = applyNapDelete(viewModel, context, nap, block)
+                problem = change.message
+                change.undo?.let { undo = it }
             }
         })
         if (hasStageMinutes(night)) {

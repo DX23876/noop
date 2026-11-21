@@ -44,12 +44,31 @@ object CoreRead {
     data class Night(
         val startTs: Long, val endTs: Long, val efficiency: Double?, val restingHr: Int?, val hrv: Double?,
         val edited: Boolean, val stages: List<Stage>, val minutes: Map<String, Double>? = null,
+        val blocks: List<Block> = emptyList(),
     ) {
         data class Stage(val stage: String, val start: Long, val end: Long)
+
+        /**
+         * One stored row this night was built from (`CoreRead.Night.Block` in the core).
+         *
+         * The core assembles a night from both sleep lanes, the imported and the computed one. Correcting
+         * or deleting the night means acting on exactly these rows: deriving the group here a second time
+         * is what made a computed night silently unchangeable, because the screen drew both lanes while
+         * the edit searched only the imported one (tester report 2026-11-21).
+         *
+         * Empty from a core that predates the field, which is what [editableBlocks] reports on.
+         */
+        data class Block(val deviceId: String?, val startTs: Long, val endTs: Long, val effectiveStartTs: Long)
     }
 
-    /** A sleep block off a day's main night (Swift `SleepNight.naps`); times are epoch seconds. */
-    data class Nap(val startTs: Long, val endTs: Long, val asleepMinutes: Double)
+    /**
+     * A sleep block off a day's main night (Swift `SleepNight.naps`); times are epoch seconds.
+     *
+     * [block] is the stored row this nap is, so deleting it acts on that row rather than on whatever a
+     * second search through one lane returns. Null from a core that predates the field.
+     */
+    data class Nap(val startTs: Long, val endTs: Long, val asleepMinutes: Double,
+                   val block: Night.Block? = null)
 
     /** The mean heart rate of one five-minute stretch starting at [ts] (unix seconds). */
     data class HeartPoint(val ts: Long, val bpm: Double)
@@ -128,15 +147,36 @@ object CoreRead {
             val minutes = o.optJSONObject("minutes")?.let { m ->
                 listOf("wake", "light", "deep", "rem").associateWith { m.optDouble(it, 0.0) }
             }
+            // Absent from a core older than the field, which reads as "this night names no blocks" and
+            // is what the edit reports to the wearer rather than writing somewhere it guessed.
+            val blocks = o.optJSONArray("blocks")?.let { b ->
+                (0 until b.length()).map { j ->
+                    val k = b.getJSONObject(j)
+                    Night.Block(
+                        deviceId = if (k.has("deviceId") && !k.isNull("deviceId")) k.getString("deviceId") else null,
+                        startTs = k.getLong("startTs"), endTs = k.getLong("endTs"),
+                        effectiveStartTs = k.optLong("effectiveStartTs", k.getLong("startTs")),
+                    )
+                }
+            }.orEmpty()
             Night(o.getLong("startTs"), o.getLong("endTs"), o.double("efficiency"), o.int("restingHr"),
-                  o.double("hrv"), o.getBoolean("edited"), stages, minutes)
+                  o.double("hrv"), o.getBoolean("edited"), stages, minutes, blocks)
         }
     }
 
     internal fun parseNaps(json: String): List<Nap> {
         val a = JSONArray(json)
         return (0 until a.length()).map { i ->
-            a.getJSONObject(i).let { Nap(it.getLong("startTs"), it.getLong("endTs"), it.getDouble("asleepMinutes")) }
+            a.getJSONObject(i).let { o ->
+                val k = o.optJSONObject("block")
+                Nap(o.getLong("startTs"), o.getLong("endTs"), o.getDouble("asleepMinutes"),
+                    k?.let {
+                        Night.Block(
+                            deviceId = if (it.has("deviceId") && !it.isNull("deviceId")) it.getString("deviceId") else null,
+                            startTs = it.getLong("startTs"), endTs = it.getLong("endTs"),
+                            effectiveStartTs = it.optLong("effectiveStartTs", it.getLong("startTs")))
+                    })
+            }
         }
     }
 

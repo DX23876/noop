@@ -5766,6 +5766,10 @@
     <string name="forge_se_cancel">Abbrechen</string>
     <string name="forge_se_save">Sichern</string>
     <string name="forge_se_deleted">Schlaf gelöscht.</string>
+    <string name="forge_se_removed_outside">Schlaf außerhalb der neuen Zeiten wurde entfernt.</string>
+    <string name="forge_se_deleted_suppressed">Schlaf gelöscht. NOOP sucht zwischen %1$s und %2$s nicht wieder nach Schlaf.</string>
+    <string name="forge_sl_edit_partial">Nur ein Teil dieser Nacht ließ sich entfernen. Der Rest steht noch.</string>
+    <string name="forge_sl_undo_failed">Diese Nacht ließ sich nicht zurückholen.</string>
     <string name="forge_se_undo">Undo</string>
     <string name="forge_se_windows">Gelöschte Schlafzeiträume</string>
     <string name="forge_se_windows_sub">Neu berechnen entfernt die Löschmarkierung und prüft die letzten 21 Tage.</string>
@@ -7322,6 +7326,10 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_sl_add_title">Schlaf nachtragen</string>
     <string name="forge_sl_add_blurb">Für eine Nacht oder ein Nickerchen, das NOOP nicht aufgezeichnet hat. Die Stadien kommen aus deinen Daten für diese Stunden, der Eintrag zählt ab sofort.</string>
     <string name="forge_sl_add_invalid">Diese Zeiten ergeben kein gültiges Schlaffenster, es wurde nichts eingetragen.</string>
+    <string name="forge_sl_edit_failed_window">Diese Zeiten ergeben kein gültiges Schlaffenster, es wurde nichts geändert.</string>
+    <string name="forge_sl_edit_failed_overlap">Diese Zeiten liegen außerhalb der aufgezeichneten Nacht, es wurde nichts geändert.</string>
+    <string name="forge_sl_edit_failed_missing">Der gespeicherte Eintrag dieser Nacht war nicht zu finden, es wurde nichts geändert.</string>
+    <string name="forge_sl_edit_failed_write">Das Speichern der neuen Schlafzeiten ist fehlgeschlagen. Es wurde nichts geändert.</string>
     <string name="forge_sl_add_no_raw">Der Strap hat für diese Stunden noch nichts aufgezeichnet. Die Länge zählt, Stadien gibt es keine, und Charge bleibt für diesen Tag leer, bis die Daten da sind.</string>
     <string name="forge_sl_add_anyway">Trotzdem eintragen</string>
     <string name="forge_sl_add_blocked">Du hast schon einen Schlaf von %1$s bis %2$s. Zwei Schläfe über denselben Stunden würden diese Stunden doppelt zählen.</string>
