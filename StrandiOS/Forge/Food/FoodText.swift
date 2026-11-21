@@ -181,6 +181,7 @@ enum FoodText {
         case .polyFats: String(localized: "Fats from plant oils and nuts")
         case .sodium: String(localized: "Salt")
         case .alcohol: String(localized: "Alcohol")
+        case .fiber: String(localized: "Fibre")
         }
     }
 
@@ -192,11 +193,12 @@ enum FoodText {
         case .wholeGrains: male ? String(localized: "Full points from 90 g a day") : String(localized: "Full points from 75 g a day")
         case .sugaryDrinks: String(localized: "Full points with none")
         case .nutsLegumes: String(localized: "Full points from 1 portion a day")
-        case .redMeat: String(localized: "Full points with none")
+        case .redMeat: String(localized: "Full points without sausage and with up to 350 g red meat a week")
         case .fishOmega3: String(localized: "Full points from about two fish meals a week")
         case .polyFats: String(localized: "Full points from a tenth of your calories")
         case .sodium: String(localized: "Full points up to about 4 g salt a day")
         case .alcohol: String(localized: "Full points with none")
+        case .fiber: String(localized: "Full points from 30 g a day")
         }
     }
 
@@ -207,12 +209,70 @@ enum FoodText {
         switch part.component {
         case .vegetables, .fruit, .sugaryDrinks, .nutsLegumes, .redMeat:
             return String(localized: "\(one(a)) portions a day")
-        case .wholeGrains: return String(localized: "\(grams(a)) g a day")
+        case .wholeGrains, .fiber: return String(localized: "\(grams(a)) g a day")
         case .fishOmega3: return String(localized: "\(kcal(a)) mg a day")
         case .polyFats: return String(localized: "\(one(a)) % of calories")
         case .sodium: return String(localized: "\(one(a * 2.5 / 1_000)) g salt a day")
         case .alcohol: return String(localized: "\(one(a)) drinks a day")
         }
+    }
+
+    /// A note from 0 to 10 with one decimal ("7.8"), in the app language.
+    static func note(_ score: Double) -> String {
+        score.formatted(.number.precision(.fractionLength(1)).locale(AppLanguage.activeLocale))
+    }
+
+    /// A note in words, on the 0 to 10 scale.
+    static func noteWord(_ score: Double) -> String { scoreWord(score * 10) }
+
+    /// A stable key for a badge, for "already celebrated".
+    static func badgeKey(_ badge: FoodBadges.Badge) -> String {
+        switch badge {
+        case .firstFullWeek: "firstFullWeek"
+        case .days30: "days30"
+        case .days100: "days100"
+        case .goodWeek: "goodWeek"
+        case .goodMonth: "goodMonth"
+        case .habit(let c): "habit." + c.rawValue
+        }
+    }
+
+    static func badgeTitle(_ badge: FoodBadges.Badge) -> String {
+        switch badge {
+        case .firstFullWeek: String(localized: "A full week")
+        case .days30: String(localized: "30 days logged")
+        case .days100: String(localized: "100 days logged")
+        case .goodWeek: String(localized: "A week of 8")
+        case .goodMonth: String(localized: "A month of 8")
+        case .habit(let c): String(localized: "Habit: \(component(c))")
+        }
+    }
+
+    static func badgeDetail(_ badge: FoodBadges.Badge) -> String {
+        switch badge {
+        case .firstFullWeek: String(localized: "Every day of a week logged.")
+        case .days30, .days100: String(localized: "Days that count, logged with at least half your usual food.")
+        case .goodWeek: String(localized: "Your first week with a note of 8 or more.")
+        case .goodMonth: String(localized: "Your first four weeks with a note of 8 or more.")
+        case .habit: String(localized: "Eight points or more in this part, four weeks in a row.")
+        }
+    }
+
+    static func badgeSymbol(_ badge: FoodBadges.Badge) -> String {
+        switch badge {
+        case .firstFullWeek: "calendar.badge.checkmark"
+        case .days30: "30.circle.fill"
+        case .days100: "rosette"
+        case .goodWeek: "star.circle.fill"
+        case .goodMonth: "star.square.on.square.fill"
+        case .habit: "leaf.circle.fill"
+        }
+    }
+
+    /// Every badge there is, in the order the collection shows them.
+    static var allBadges: [FoodBadges.Badge] {
+        [.firstFullWeek, .days30, .days100, .goodWeek, .goodMonth]
+            + FoodScore.Component.allCases.filter { $0 != .fiber }.map { .habit($0) }
     }
 
     /// The score in words, so the number is never the only reading.

@@ -86,7 +86,6 @@ private struct FoodSetupExtras: View {
     let done: () -> Void
     @AppStorage(FoodHealthSync.enabledKey) private var writeHealth = true
     @AppStorage(FoodEstimate.enabledKey) private var estimateMissing = false
-    @AppStorage(FoodScore.enabledKey) private var showScore = false
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
 
     var body: some View {
@@ -107,13 +106,6 @@ private struct FoodSetupExtras: View {
                 } footer: {
                     Text("When a product leaves out vitamins and minerals, your coach finds the most similar food in the German Nutrient Database and Forge takes the missing values from it. If none is close enough, your coach estimates them. Label values always stay, and every estimate is marked. The product's name and stated values go to your coach's provider, once per product.")
                 }
-            }
-            Section {
-                Toggle("Nutrition score", isOn: $showScore)
-            } header: {
-                Text("Lab")
-            } footer: {
-                Text("A score for the last seven days from a widely used healthy eating index: vegetables, fruit, whole grains, nuts and pulses, fish, fats, salt, sweet drinks, red meat and alcohol. It needs five logged days of seven. It describes habits, not a single day.")
             }
         }
         .navigationTitle("Set up Nutrition")

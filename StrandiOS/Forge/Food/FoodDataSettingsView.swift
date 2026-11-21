@@ -14,7 +14,10 @@ struct FoodDataSettingsView: View {
     @AppStorage(FoodProductDataPrefs.unknownBarcodesOnlineKey) private var unknownBarcodesOnline = false
     @AppStorage(FoodHealthSync.enabledKey) private var writeHealth = true
     @AppStorage(FoodEstimate.enabledKey) private var estimateMissing = false
-    @AppStorage(FoodScore.enabledKey) private var showScore = false
+    @State private var morningOn = FoodReminders.morningOn
+    @State private var eveningOn = FoodReminders.eveningOn
+    @AppStorage(FoodReminders.warnKey) private var warnOn = true
+    @State private var remindersDenied = false
     /// With a diet plan the goals live in the plan, one place for them (decision 2026-11-09).
     @AppStorage(DietPlan.storageKey) private var planRaw = ""
     @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
@@ -77,11 +80,13 @@ struct FoodDataSettingsView: View {
                     Text("Each meal goes to Apple Health with its nutrients. Forge does not read its own meals back, so nothing is counted twice.")
                 }
                 Section {
-                    Toggle("Nutrition score", isOn: $showScore)
+                    Toggle("Morning look back", isOn: reminder(FoodReminders.morningKey, $morningOn))
+                    Toggle("Evening reminder", isOn: reminder(FoodReminders.eveningKey, $eveningOn))
+                    Toggle("Warn while logging", isOn: $warnOn)
                 } header: {
-                    Text("Lab")
+                    Text("Reminders")
                 } footer: {
-                    Text("A score for the last seven days from a widely used healthy eating index: vegetables, fruit, whole grains, nuts and pulses, fish, fats, salt, sweet drinks, red meat and alcohol. It needs five logged days of seven. It describes habits, not a single day.")
+                    Text("Each morning a look back on yesterday's note and goal, on Mondays on the week. In the evening only when one meal can still close a gap. The warning appears while you log, only when you are losing weight and an entry takes the day more than a fifth over your goal.")
                 }
                 if let openSetup {
                     Section {
@@ -93,6 +98,11 @@ struct FoodDataSettingsView: View {
                     Text("Open Food Facts, openfoodfacts.org, ODbL 1.0. Product values are entered by volunteers.")
                 }
                 .font(.footnote)
+            }
+            .alert("Notifications are off", isPresented: $remindersDenied) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Allow notifications for Forge in the iPhone's Settings to get the reminders.")
             }
             .navigationTitle("Food data")
             .navigationBarTitleDisplayMode(.inline)
@@ -110,5 +120,16 @@ struct FoodDataSettingsView: View {
     }
 
     private func close() { dismiss() }
+
+    /// A reminder switch that asks for permission when turned on and falls back when it is refused.
+    private func reminder(_ key: String, _ state: Binding<Bool>) -> Binding<Bool> {
+        Binding(get: { state.wrappedValue }, set: { on in
+            state.wrappedValue = on
+            Task { @MainActor in
+                let ok = await FoodReminders.set(key, on: on)
+                if !ok { state.wrappedValue = false; remindersDenied = true }
+            }
+        })
+    }
 }
 #endif

@@ -132,7 +132,7 @@ public enum FoodQuality {
         public var reason: Missing
     }
 
-    static func shifted(_ day: String, by days: Int, calendar: Calendar) -> String? {
+    public static func shifted(_ day: String, by days: Int, calendar: Calendar) -> String? {
         guard let date = WeightSeries.date(forDay: day),
               let moved = calendar.date(byAdding: .day, value: days, to: date) else { return nil }
         return StoreReader.localDayKey(moved)

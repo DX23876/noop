@@ -11,6 +11,8 @@ struct FoodCartBar: View {
     let add: () -> Void
     /// Keeps what is in the cart as a meal to log again later; nil hides it.
     var saveAsMeal: (() -> Void)? = nil
+    /// The day's energy with this cart, when it takes a losing day clearly over the goal (`FoodGoalState.overWarning`).
+    var overGoal: (dayKcal: Double, goalKcal: Double)? = nil
 
     var body: some View {
         VStack(spacing: 8) {
@@ -50,6 +52,13 @@ struct FoodCartBar: View {
                     .buttonStyle(.plain)
                     .accessibilityLabel(Text("Save as meal"))
                 }
+            }
+            if let overGoal {
+                Label(String(localized: "With this, today comes to \(FoodText.kcal(overGoal.dayKcal)) of \(FoodText.kcal(overGoal.goalKcal)) kcal."),
+                      systemImage: "exclamationmark.circle")
+                    .font(ForgeFont.caption).foregroundStyle(ForgeColor.effortInk)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .transition(.opacity)
             }
             Button(action: add) {
                 Group {

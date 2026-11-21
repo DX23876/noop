@@ -2,17 +2,47 @@
 import SwiftUI
 import StrandCore
 
-/// What the week's nutrition score is made of: ten parts, each up to ten points, in everyday words. Highly
-/// processed food is shown below on its own, since the index does not count it.
+/// What a food note is made of (owner, 2026-11-21): the day's, the week's or the month's, ten parts each up to ten
+/// points in everyday words, and the last eight weeks as a trend. Highly processed food is shown below on its own,
+/// since the index does not count it.
 struct FoodScoreView: View {
-    let score: FoodScore.Result
+    enum Span: String, CaseIterable, Identifiable { case day, week, month; var id: String { rawValue } }
+
+    let day: FoodQuality.Note?
+    let week: FoodQuality.Note?
+    let month: FoodQuality.Note?
+    let trend: [FoodQuality.Note]
     let male: Bool
+    @State private var span: Span = .day
+
+    init(day: FoodQuality.Note?, week: FoodQuality.Note?, month: FoodQuality.Note?, trend: [FoodQuality.Note], male: Bool) {
+        self.day = day; self.week = week; self.month = month; self.trend = trend; self.male = male
+        _span = State(initialValue: day != nil ? .day : week != nil ? .week : .month)
+    }
+
+    private var note: FoodQuality.Note? {
+        switch span {
+        case .day: day
+        case .week: week
+        case .month: month
+        }
+    }
 
     var body: some View {
         List {
             Section {
-                // A still life of a balanced week behind the number, light or dark with the appearance; the food sits right, the
-                // number on the calm left in the page's own text colours.
+                Picker("Span", selection: $span) {
+                    Text("Day").tag(Span.day)
+                    Text("Week").tag(Span.week)
+                    Text("Month").tag(Span.month)
+                }
+                .pickerStyle(.segmented)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+            }
+            Section {
+                // A still life of a balanced week behind the number, light or dark with the appearance; the food sits right,
+                // the number on the calm left in the page's own text colours.
                 ZStack(alignment: .leading) {
                     Image("foodScoreHero").resizable().scaledToFill()
                         .frame(maxWidth: .infinity, alignment: .trailing)
@@ -20,47 +50,82 @@ struct FoodScoreView: View {
                         .clipped()
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(FoodText.kcal(score.score)).font(ForgeFont.rounded(56, .bold)).foregroundStyle(ForgeColor.text)
-                            .monospacedDigit()
-                        Text(FoodText.scoreWord(score.score)).font(.headline).foregroundStyle(ForgeColor.text)
-                        Text("From \(score.loggedDays) logged days of the last 7").font(.footnote).foregroundStyle(ForgeColor.secondary)
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text(note.map { FoodText.note($0.score) } ?? "–").font(ForgeFont.rounded(56, .bold))
+                                .foregroundStyle(ForgeColor.text).monospacedDigit().contentTransition(.numericText())
+                            Text(verbatim: "/ 10").font(.headline).foregroundStyle(ForgeColor.secondary)
+                        }
+                        if let note {
+                            Text(FoodText.noteWord(note.score)).font(.headline).foregroundStyle(ForgeColor.text)
+                        }
+                        Text(caption).font(.footnote).foregroundStyle(ForgeColor.secondary)
                     }
                     // The calm left part of the photo only, so the words never run over the food.
-                    .frame(maxWidth: 150, alignment: .leading)
+                    .frame(maxWidth: 170, alignment: .leading)
                     .padding(.leading, 20)
                     .accessibilityElement(children: .combine)
                 }
                 .listRowInsets(EdgeInsets())
             } footer: {
-                Text("The score follows a healthy eating index from long studies of large groups. It reads what you usually eat, so it looks at a week, not a day.")
+                Text(footer)
             }
-            // Like a ledger: what adds to the score grows right of the middle line, what costs points grows left.
-            Section {
-                ForEach(score.parts.filter { !$0.component.isLimit }.sorted { $0.points > $1.points }, id: \.component) { part in
-                    row(part)
-                }
-            } header: {
-                Text("Adds points")
-            }
-            Section {
-                ForEach(score.parts.filter(\.component.isLimit).sorted { $0.points < $1.points }, id: \.component) { part in
-                    row(part)
-                }
-            } header: {
-                Text("Costs points")
-            } footer: {
-                Text("These start at full points and lose them as the amount rises.")
-            }
-            if let share = score.processedShare {
+            if trend.count >= 2 {
                 Section {
-                    LabeledContent("Highly processed food", value: String(localized: "\(FoodText.percent(share)) of calories"))
+                    FoodNoteTrend(notes: trend)
+                } header: {
+                    Text("Last 8 weeks")
+                }
+            }
+            if let note {
+                // Like a ledger: what adds to the note grows right of the middle line, what costs points grows left.
+                Section {
+                    ForEach(note.parts.filter { !$0.component.isLimit }.sorted { $0.points > $1.points }, id: \.component) { part in
+                        row(part)
+                    }
+                } header: {
+                    Text("Adds points")
+                }
+                Section {
+                    ForEach(note.parts.filter(\.component.isLimit).sorted { $0.points < $1.points }, id: \.component) { part in
+                        row(part)
+                    }
+                } header: {
+                    Text("Costs points")
                 } footer: {
-                    Text("Counted on its own, not inside the score. Known only for products that carry a processing class.")
+                    Text("These start at full points and lose them as the amount rises.")
+                }
+                if let share = note.processedShare {
+                    Section {
+                        LabeledContent("Highly processed food", value: String(localized: "\(FoodText.percent(share)) of calories"))
+                    } footer: {
+                        Text("Counted on its own, not inside the note. Known only for products that carry a processing class.")
+                    }
                 }
             }
         }
-        .navigationTitle("Nutrition score")
+        .animation(.smooth, value: span)
+        .navigationTitle("Food note")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var caption: String {
+        guard let note else {
+            return span == .day ? String(localized: "No note for this day yet") : String(localized: "Too few logged days yet")
+        }
+        switch span {
+        case .day: return note.provisional ? String(localized: "Today so far") : String(localized: "This day")
+        case .week: return String(localized: "From \(note.loggedDays) logged days of the last 7")
+        case .month: return String(localized: "From \(note.loggedDays) logged days of the last 28")
+        }
+    }
+
+    private var footer: String {
+        switch span {
+        case .day:
+            String(localized: "The day's own food, with fish, nuts and pulses and meat read over the last seven days, since nobody eats them every day.")
+        case .week, .month:
+            String(localized: "The amounts of all the days added up, then scored once, as nutrition research does for more than one day. It describes your habit, so it can differ from the day notes.")
+        }
     }
 
     private func row(_ part: FoodScore.Part) -> some View {
@@ -88,6 +153,7 @@ struct FoodScoreView: View {
         case .polyFats: "foodMotif_fats"
         case .sodium: "foodMotif_salt"
         case .alcohol: "foodMotif_alcohol"
+        case .fiber: "foodMotif_vegetables"
         }
     }
 

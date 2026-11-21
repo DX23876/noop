@@ -90,6 +90,25 @@ final class ForgeFoodModel {
     private(set) var groupsById: [String: String] = [:]
     /// A meal eaten on several of the last days, offered again at its time of day (today only).
     private(set) var habit: FoodRepeat.Suggestion?
+    // MARK: Notes, goal state and badges (2026-11-21), all from FoodQuality / FoodGoalState / FoodBadges
+
+    /// The shown day's note, or why it has none.
+    var dayNote: Result<FoodQuality.Note, FoodQuality.MissingError>?
+    /// The 7 and 28 days ending on the shown day.
+    var weekNote: FoodQuality.Note?
+    var monthNote: FoodQuality.Note?
+    /// The last eight weeks' notes, oldest first, for the trend.
+    var weekTrend: [FoodQuality.Note] = []
+    var goalDay: FoodGoalState.Day?
+    var goalWeek: FoodGoalState.Energy?
+    var badges: FoodBadges.Summary?
+    /// Group and processing class of foods whose id does not carry them, looked up once.
+    @ObservationIgnored var factsById: [String: FoodScore.FoodFacts] = [:]
+    /// The basal rate behind the goal's floor.
+    @ObservationIgnored var basalKcal: Double?
+    /// The whole log as last loaded, for the notifications' content.
+    @ObservationIgnored var allEntries: [FoodLogEntry] = []
+
     /// Whole meals kept as favourites, most recently used first (2026-11-21).
     private(set) var savedMeals: [FoodSavedMeal] = []
     /// Starred foods, for the favourites bar and the stars in the add sheet.
@@ -99,11 +118,6 @@ final class ForgeFoodModel {
     private(set) var lastGrams: [String: Double] = [:]
     /// Seven days for the week strip, oldest first, each with its totals (empty for a day without a log).
     private(set) var week: [WeekDay] = []
-    /// The week's nutrition score; nil while the Lab switch is off or fewer than five days carry a log.
-    private(set) var score: FoodScore.Result?
-    /// Logged days in the score's window, for "after five logged days" while there is no score yet.
-    private(set) var scoreLoggedDays = 0
-    var scoreEnabled: Bool { UserDefaults.standard.bool(forKey: FoodScore.enabledKey) }
 
     struct WeekDay: Equatable, Identifiable {
         let day: String
@@ -293,6 +307,7 @@ final class ForgeFoodModel {
         await loadAdvice(store: store)
         burnRevision += 1
         male = profile.sex.lowercased() == "male" ? true : profile.sex.lowercased() == "female" ? false : nil
+        basalKcal = Calories.bmrKcalPerDay(profile: profile)
         references = FoodReference.values(profileSex: profile.sex, age: Int(profile.age), weightKg: profile.weightKg,
                                           heightCm: profile.heightCm, energyKcal: calories?.kcal)
         await reload(store: store)
@@ -506,6 +521,7 @@ final class ForgeFoodModel {
         await findHabit(store: store)
         await loadFavourites(store: store)
         await loadWeek(store: store)
+        await loadQuality(store: store)
         otherIntake = await FoodLog.otherIntake(store: store, day)
         if !references.isEmpty {
             nutrients = await FoodNutrientReport.report(store: store, to: day, references: references)
@@ -530,13 +546,6 @@ final class ForgeFoodModel {
         let entries = (try? await store.foodLogEntries(from: first, to: last)) ?? []
         let byDay = Dictionary(grouping: entries, by: \.day)
         week = days.map { WeekDay(day: $0, totals: .sum((byDay[$0] ?? []).map { NutrientAmounts(stored: $0.totals) })) }
-        scoreLoggedDays = byDay.count
-        guard scoreEnabled else { score = nil; return }
-        var facts: [String: FoodScore.FoodFacts] = [:]
-        for id in Set(entries.compactMap(\.foodId)) where !id.hasPrefix("bls:") {
-            if let item = await FoodLibrary.item(store: store, id: id) { facts[id] = .init(group: item.group, nova: item.nova) }
-        }
-        score = FoodScore.week(entries: entries, lastDay: last, facts: facts, male: male)
     }
 
     /// From the profile; nil when it names neither, which takes the lower whole-grain and alcohol limits.

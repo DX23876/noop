@@ -17,7 +17,8 @@ public enum FoodBadges {
         case habit(FoodScore.Component)
     }
 
-    public struct Earned: Equatable, Sendable {
+    public struct Earned: Equatable, Sendable, Identifiable {
+        public var id: String { String(describing: badge) }
         public var badge: Badge
         /// The day it was earned on.
         public var day: String

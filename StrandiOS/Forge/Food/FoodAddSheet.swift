@@ -94,7 +94,8 @@ struct FoodAddSheet: View {
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close", action: close) } }
             .safeAreaInset(edge: .bottom) {
                 if !cart.isEmpty {
-                    FoodCartBar(cart: $cart, meal: $meal, time: $time, saving: saving, add: addCart, saveAsMeal: nameCart)
+                    FoodCartBar(cart: $cart, meal: $meal, time: $time, saving: saving, add: addCart, saveAsMeal: nameCart,
+                                overGoal: overGoal)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
@@ -181,6 +182,17 @@ struct FoodAddSheet: View {
             guard await model.logSavedMeal(meal, repo: repo) else { return }
             if cart.isEmpty { dismiss() }
         }
+    }
+
+    /// The warning while logging: only while losing weight, with the switch on, when the cart takes the day more than
+    /// 20 % over its goal.
+    private var overGoal: (dayKcal: Double, goalKcal: Double)? {
+        let cartDay = Repository.localDayKey(time)
+        guard FoodReminders.warnOn, let goal = model.calories(for: cartDay)?.kcal else { return nil }
+        let adding = NutrientAmounts.sum(cart.map(\.totals))[.energyKcal] ?? 0
+        let before = cartDay == model.day ? model.eatenKcal : 0
+        return FoodGoalState.overWarning(dayKcal: before, adding: adding, goalKcal: goal, losing: model.losingWeight)
+            .map { ($0, goal) }
     }
 
     private func removeMeal(_ meal: FoodSavedMeal) { Task { await model.deleteMeal(meal, repo: repo) } }

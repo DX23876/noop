@@ -27,7 +27,10 @@ struct ForgeFoodView: View {
     /// SwiftUI open the wrong page (a tap on the score opened the nutrients).
     @State private var subpage: Subpage?
 
-    enum Subpage: Hashable { case nutrients, score, plan }
+    enum Subpage: Hashable { case nutrients, score, plan, badges }
+    /// A badge earned since the page last celebrated one.
+    @State private var celebrating: FoodBadges.Earned?
+    @AppStorage(FoodReminders.invitedKey) private var reminderInvited = false
     @State private var planning = false
     @State private var editing: FoodLogEntry?
     @State private var copying: FoodEntryBatch?
@@ -49,14 +52,21 @@ struct ForgeFoodView: View {
                 if let other = model.otherIntake {
                     FoodOtherIntakeNote(kcal: other.kcal, source: other.source)
                 }
+                if model.dayNote != nil {
+                    FoodNoteCard(day: model.dayNote, week: model.weekNote, month: model.monthNote, goal: model.goalDay,
+                                 isToday: model.isToday, streakDays: model.badges?.streakDays ?? 0, open: openScore)
+                }
                 if !model.week.isEmpty {
                     FoodSectionHeader(title: String(localized: "Week"))
                         .padding(.top, 16)
                     FoodWeekStrip(week: model.week, shownDay: model.day, calorieGoal: { model.calories(for: $0)?.kcal },
                                   macroGoals: { model.macroGoals(for: $0) }, select: showDay)
-                    if model.scoreEnabled {
-                        FoodScoreRow(score: model.score, loggedDays: model.scoreLoggedDays, open: openScore)
-                            .disabled(model.score == nil)
+                    if let badges = model.badges {
+                        FoodBadgesStrip(summary: badges, open: openBadges)
+                    }
+                    if !reminderInvited && !FoodReminders.morningOn && model.dayNote != nil {
+                        FoodReminderInvite(accept: acceptReminders, decline: declineReminders)
+                            .transition(.opacity)
                     }
                 }
                 FoodSectionHeader(title: String(localized: "Nutrients"), action: openNutrients)
@@ -138,6 +148,10 @@ struct ForgeFoodView: View {
         .sheet(item: $copying) { FoodCopySheet(batch: $0, model: model).environmentObject(repo) }
         .sheet(item: $recipeFrom) { FoodRecipeSheet(batch: $0, model: model).environmentObject(repo) }
         .sheet(item: $mealEditor) { FoodMealEditor(model: model, target: $0).environmentObject(repo) }
+        .sheet(item: $celebrating, onDismiss: model.markBadgesSeen) { earned in
+            FoodBadgeCelebration(earned: earned) { celebrating = nil }
+        }
+        .onChange(of: model.badges) { celebrateNewBadge() }
         .sheet(item: $favouritePick) { item in
             FoodPortionSheet(item: item, model: model, lastGrams: model.lastGrams[item.id], add: logFavourite)
         }
@@ -151,7 +165,10 @@ struct ForgeFoodView: View {
         .navigationDestination(item: $subpage) { page in
             switch page {
             case .score:
-                if let score = model.score { FoodScoreView(score: score, male: model.male == true) }
+                FoodScoreView(day: try? model.dayNote?.get(), week: model.weekNote, month: model.monthNote,
+                              trend: model.weekTrend, male: model.male == true)
+            case .badges:
+                if let badges = model.badges { FoodBadgesView(summary: badges) }
             case .plan:
                 DietPlanView(model: model, onAsk: onAsk)
             case .nutrients:
@@ -248,6 +265,26 @@ struct ForgeFoodView: View {
     private func openSettings() { showSettings = true }
     private func openNutrients() { subpage = .nutrients }
     private func openScore() { subpage = .score }
+    private func openBadges() { subpage = .badges }
+    private func acceptReminders() {
+        reminderInvited = true
+        Task {
+            _ = await FoodReminders.set(FoodReminders.morningKey, on: true)
+            _ = await FoodReminders.set(FoodReminders.eveningKey, on: true)
+            FoodReminders.refresh(model: model)
+        }
+    }
+    private func declineReminders() { reminderInvited = true }
+    /// The newest badge not celebrated yet. The first time the page sees badges at all (a long log from before
+    /// badges existed), they are taken as seen without a celebration, so nobody gets a pile of them at once.
+    private func celebrateNewBadge() {
+        guard celebrating == nil, let newest = model.unseenBadges.last else { return }
+        if UserDefaults.standard.object(forKey: ForgeFoodModel.seenBadgesKey) == nil {
+            model.markBadgesSeen()
+            return
+        }
+        celebrating = newest
+    }
     /// The plan page when there is a plan, else straight into the planner.
     private func openPlan() { if model.plan == nil { planning = true } else { subpage = .plan } }
     private func showDay(_ day: String) { model.day = day }
