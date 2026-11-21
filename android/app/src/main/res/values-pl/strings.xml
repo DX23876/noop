@@ -5788,6 +5788,9 @@
     <string name="forge_se_delete_confirm">Usuń</string>
     <string name="forge_se_delete_nap_q">Usunąć tę drzemkę?</string>
     <string name="forge_se_delete_nap_msg">Nie liczy się już do snu tego dnia, a kolejna analiza ją pomija.</string>
+    <string name="forge_se_move_q">Przenieść ten sen?</string>
+    <string name="forge_se_move_msg">To przeniesie noc w przedział bez zapisanych danych. Faz nie da się tam wyznaczyć, więc może pozostać pusta, dopóki dane jej nie obejmą.</string>
+    <string name="forge_se_move_confirm">Przenieś mimo to</string>
     <string name="forge_hv_edit">Redagować</string>
     <string name="forge_hv_edit_vitals">Edytuj parametry życiowe</string>
     <string name="forge_hv_done">Gotowe</string>

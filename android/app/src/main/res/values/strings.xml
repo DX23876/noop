@@ -5832,6 +5832,9 @@
     <string name="forge_se_delete_confirm">Delete</string>
     <string name="forge_se_delete_nap_q">Delete this nap?</string>
     <string name="forge_se_delete_nap_msg">It no longer counts toward the day\'s sleep, and the next analysis leaves it out.</string>
+    <string name="forge_se_move_q">Move this sleep?</string>
+    <string name="forge_se_move_msg">This moves the night to a time with no recorded data. Stages can\'t be derived there, so it may show as empty until data covers it.</string>
+    <string name="forge_se_move_confirm">Move anyway</string>
     <string name="forge_hv_edit">Edit</string>
     <string name="forge_hv_edit_vitals">Edit Vitals</string>
     <string name="forge_hv_done">Done</string>

@@ -5735,6 +5735,9 @@
     <string name="forge_se_delete_confirm">Elimina</string>
     <string name="forge_se_delete_nap_q">Eliminare questo pisolino?</string>
     <string name="forge_se_delete_nap_msg">Non conta più nel sonno della giornata e la prossima analisi lo esclude.</string>
+    <string name="forge_se_move_q">Spostare questo sonno?</string>
+    <string name="forge_se_move_msg">Sposta la notte in un intervallo senza dati registrati. Lì le fasi non possono essere derivate, quindi può restare vuota finché i dati non la coprono.</string>
+    <string name="forge_se_move_confirm">Sposta comunque</string>
     <string name="forge_hv_edit">Modifica</string>
     <string name="forge_hv_edit_vitals">Modifica parametri vitali</string>
     <string name="forge_hv_done">Fatto</string>

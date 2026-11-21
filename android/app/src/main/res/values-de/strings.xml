@@ -5784,6 +5784,9 @@
     <string name="forge_se_delete_confirm">Löschen</string>
     <string name="forge_se_delete_nap_q">Dieses Nickerchen löschen?</string>
     <string name="forge_se_delete_nap_msg">Es zählt nicht mehr zum Schlaf des Tages, und die nächste Auswertung lässt es aus.</string>
+    <string name="forge_se_move_q">Diesen Schlaf verschieben?</string>
+    <string name="forge_se_move_msg">Das verschiebt die Nacht in einen Zeitraum ohne aufgezeichnete Daten. Phasen lassen sich dort nicht ableiten, sie kann also leer bleiben, bis Daten sie abdecken.</string>
+    <string name="forge_se_move_confirm">Trotzdem verschieben</string>
     <string name="forge_hv_edit">Bearbeiten</string>
     <string name="forge_hv_edit_vitals">Vitalwerte bearbeiten</string>
     <string name="forge_hv_done">Fertig</string>

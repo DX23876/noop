@@ -2182,10 +2182,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      */
     suspend fun editSleepNight(blocks: List<com.noop.core.CoreRead.Night.Block>,
                                newStartTs: Long, newEndTs: Long,
-                               method: String, motionAwareWake: Boolean): com.noop.core.CoreSleepEdit.Answer {
+                               method: String, motionAwareWake: Boolean,
+                               relocating: Boolean = false): com.noop.core.CoreSleepEdit.Answer {
         val answer = withContext(Dispatchers.IO) {
             com.noop.core.CoreSleepEdit.editTimes(blocks, newStartTs, newEndTs, activeStrapId,
-                                                  method, motionAwareWake)
+                                                  method, motionAwareWake, allowRelocation = relocating)
         }
         finishSleepChange("Sleep edit", blocks.size, "${clockForLog(newStartTs)} → ${clockForLog(newEndTs)}",
                           answer)

@@ -5747,6 +5747,9 @@
     <string name="forge_se_delete_confirm">Удалить</string>
     <string name="forge_se_delete_nap_q">Удалить этот дневной сон?</string>
     <string name="forge_se_delete_nap_msg">Он больше не учитывается в сне за день, и следующий анализ его пропустит.</string>
+    <string name="forge_se_move_q">Перенести этот сон?</string>
+    <string name="forge_se_move_msg">Ночь переедет в промежуток без записанных данных. Фазы там вывести не из чего, поэтому она может остаться пустой, пока данные её не покроют.</string>
+    <string name="forge_se_move_confirm">Всё равно перенести</string>
     <string name="forge_hv_edit">Изменить</string>
     <string name="forge_hv_edit_vitals">Изменить показатели</string>
     <string name="forge_hv_done">Готово</string>

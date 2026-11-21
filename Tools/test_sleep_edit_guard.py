@@ -116,6 +116,29 @@ class SleepEditGuardTest(unittest.TestCase):
         self.assertIn("forge_se_delete_msg_suppress", editor)
         self.assertIn("forge_se_delete_nap_q", self.screen, "a nap is asked for too")
 
+    def test_both_ends_carry_their_day(self):
+        # Android could only nudge a night inside the day it was detected on, while the iPhone has
+        # always edited date AND time in both rows: the same editor over the same core, with half the
+        # feature missing on one side.
+        editor = self.editing.split("internal fun SleepEditDialog", 1)[1]
+        self.assertIn("var bedDay by remember", editor)
+        self.assertIn("var wakeDay by remember", editor)
+        self.assertIn("DayRow(stringResource(R.string.forge_se_asleep)", editor)
+        self.assertIn("DayRow(stringResource(R.string.forge_se_woke)", editor)
+        # And the save reads those days rather than deriving them from the night it started on.
+        self.assertIn("val newStart = at(bedDay, bed)", editor)
+        self.assertNotIn("newStart.minusDays(1)", editor,
+                         "the old day arithmetic is what made a move impossible")
+
+    def test_moving_a_night_off_its_data_is_asked_for(self):
+        editor = self.editing.split("internal fun SleepEditDialog", 1)[1]
+        # Both halves of the iPhone's #940 guard, from the shared rules rather than a local copy.
+        self.assertIn("SleepEditGuard.autoCorrectedBed", editor)
+        self.assertIn("SleepEditGuard.isDisjoint", editor)
+        self.assertIn("forge_se_move_q", editor)
+        self.assertIn("onSave(window.first, window.second, true)", editor,
+                      "a move only goes out with the wearer's consent behind it")
+
     def test_the_undo_offer_outlives_the_night_s_page(self):
         # Deleting a night takes its page out of the pager. While the offer lived on that page it was
         # shown to nobody, which made the question's "you can undo" a promise nothing kept.

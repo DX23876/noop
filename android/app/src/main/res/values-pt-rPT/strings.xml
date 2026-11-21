@@ -5760,6 +5760,9 @@
     <string name="forge_se_delete_confirm">Eliminar</string>
     <string name="forge_se_delete_nap_q">Eliminar esta sesta?</string>
     <string name="forge_se_delete_nap_msg">Deixa de contar para o sono do dia e a próxima análise ignora-a.</string>
+    <string name="forge_se_move_q">Mover este sono?</string>
+    <string name="forge_se_move_msg">Isto move a noite para um intervalo sem dados registados. Aí não é possível derivar as fases, por isso pode ficar vazia até haver dados.</string>
+    <string name="forge_se_move_confirm">Mover mesmo assim</string>
     <string name="forge_hv_edit">Editar</string>
     <string name="forge_hv_edit_vitals">Editar sinais vitais</string>
     <string name="forge_hv_done">Concluído</string>

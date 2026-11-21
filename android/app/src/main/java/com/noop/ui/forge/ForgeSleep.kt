@@ -321,10 +321,10 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
             // The same two writes as the live layout, through the same shared helpers. Its own copy used to
             // hold its coroutine scope INSIDE this block, which saving closes, so the write could be
             // cancelled before it began. The scope now comes from the screen, which outlives the dialog.
-            SleepEditDialog(n, onSave = { start, end ->
+            SleepEditDialog(n, onSave = { start, end, relocating ->
                 shippedEditing = null
                 shippedScope.launch { shippedProblem = applySleepEdit(viewModel, context, n, start, end,
-                                                                     shippedExperiment).message }
+                                                                     shippedExperiment, relocating).message }
             }, onDelete = {
                 shippedEditing = null
                 shippedScope.launch { shippedProblem = applySleepDelete(viewModel, context, n).message }
@@ -860,9 +860,11 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
         // Both writes go through the core on the night's OWN blocks, and both say what came of it. A
         // correction that reaches no row used to close this dialog in silence, which is how a wearer whose
         // nights NOOP computes itself lost every one he made (2026-11-21).
-        SleepEditDialog(n, onSave = { start, end ->
+        SleepEditDialog(n, onSave = { start, end, relocating ->
             editing = null
-            scope.launch { changes.accept(applySleepEdit(viewModel, context, n, start, end, experiment)) }
+            scope.launch {
+                changes.accept(applySleepEdit(viewModel, context, n, start, end, experiment, relocating))
+            }
         }, onDelete = {
             editing = null
             scope.launch { changes.accept(applySleepDelete(viewModel, context, n)) }

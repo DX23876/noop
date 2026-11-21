@@ -5768,6 +5768,9 @@
     <string name="forge_se_delete_confirm">Eliminar</string>
     <string name="forge_se_delete_nap_q">¿Eliminar esta siesta?</string>
     <string name="forge_se_delete_nap_msg">Deja de contar para el sueño del día y el próximo análisis la omite.</string>
+    <string name="forge_se_move_q">¿Mover este sueño?</string>
+    <string name="forge_se_move_msg">Esto mueve la noche a un intervalo sin datos registrados. Allí no se pueden derivar las fases, así que puede aparecer vacía hasta que haya datos.</string>
+    <string name="forge_se_move_confirm">Mover de todos modos</string>
     <string name="forge_hv_edit">Editar</string>
     <string name="forge_hv_edit_vitals">Editar constantes vitales</string>
     <string name="forge_hv_done">Listo</string>

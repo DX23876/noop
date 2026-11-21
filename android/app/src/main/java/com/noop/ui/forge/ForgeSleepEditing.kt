@@ -101,9 +101,11 @@ internal class SleepChangeHost {
 /** Correct the times of [night], on the blocks the night itself names. */
 internal suspend fun applySleepEdit(viewModel: AppViewModel, context: android.content.Context,
                                     night: CoreRead.Night, newStartTs: Long, newEndTs: Long,
-                                    experiment: com.noop.ble.PuffinExperiment): SleepChange =
+                                    experiment: com.noop.ble.PuffinExperiment,
+                                    relocating: Boolean = false): SleepChange =
     readChange(context, viewModel.editSleepNight(night.blocks, newStartTs, newEndTs,
-                                                 experiment.sleepStagerMethod, experiment.motionAwareWake),
+                                                 experiment.sleepStagerMethod, experiment.motionAwareWake,
+                                                 relocating),
                fromEdit = true, startTs = newStartTs, endTs = newEndTs)
 
 /** Take [night] out, every block of it. */
@@ -150,7 +152,8 @@ internal fun sleepChangeMessage(outcome: com.noop.core.CoreSleepEdit.Outcome): I
 /** The bed and wake times of [night] to correct, or the night to delete, as iOS's "Edit sleep times" sheet. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long) -> Unit, onDelete: () -> Unit, onDismiss: () -> Unit) {
+internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long, Boolean) -> Unit, onDelete: () -> Unit,
+                             onDismiss: () -> Unit) {
     val colors = Forge.colors
     val zone = ZoneId.systemDefault()
     val start = Instant.ofEpochSecond(night.startTs).atZone(zone)
@@ -188,14 +191,95 @@ internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long) -> Unit
         timeSelectorSelectedContainerColor = colors.rest.copy(alpha = 0.18f), timeSelectorSelectedContentColor = colors.rest,
         timeSelectorUnselectedContainerColor = colors.inset, timeSelectorUnselectedContentColor = colors.text,
         periodSelectorBorderColor = colors.divider)
+    // The DAY of each end, not just the hour. Without it a night could only be nudged inside the day it
+    // was detected on, while the iPhone has always been able to move one: same editor, same core, half
+    // the feature. (`SleepTimeEditor` edits date and time in both rows.)
+    var bedDay by remember { mutableStateOf(start.toLocalDate()) }
+    var wakeDay by remember { mutableStateOf(end.toLocalDate()) }
+    // Which end's date is being picked, or nothing.
+    var pickingBed by remember { mutableStateOf<Boolean?>(null) }
+    // A window that touches none of the night's recorded span, waiting for the wearer's consent.
+    var confirmingMove by remember { mutableStateOf<Pair<Long, Long>?>(null) }
+    val dateFormat = remember {
+        java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM)
+    }
+    fun at(day: java.time.LocalDate, state: androidx.compose.material3.TimePickerState): Long =
+        day.atTime(state.hour, state.minute).atZone(zone).toEpochSecond()
+
+    // The rule the iPhone applies while the picker turns (#940): a bed rolled past midnight, with the
+    // date left on the evening before, almost always means that evening, not tonight. Shared rule, so
+    // both phones correct it the same way; inert once the wearer picks a date themselves.
+    var previousBed by remember { mutableStateOf(night.startTs) }
+    LaunchedEffect(bed.hour, bed.minute, bedDay) {
+        val candidate = at(bedDay, bed)
+        val corrected = com.noop.analytics.SleepEditGuard.autoCorrectedBed(
+            previousBedTs = previousBed, candidateBedTs = candidate, originalWakeTs = night.endTs,
+            nowTs = System.currentTimeMillis() / 1000L, zone = zone)
+        previousBed = corrected
+        if (corrected != candidate) {
+            bedDay = Instant.ofEpochSecond(corrected).atZone(zone).toLocalDate()
+        }
+    }
+
+    pickingBed?.let { forBed ->
+        val day = if (forBed) bedDay else wakeDay
+        val state = androidx.compose.material3.rememberDatePickerState(
+            initialSelectedDateMillis = day.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
+            selectableDates = object : androidx.compose.material3.SelectableDates {
+                // A night cannot have happened tomorrow.
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                    utcTimeMillis <= java.time.LocalDate.now().atStartOfDay(java.time.ZoneOffset.UTC)
+                        .toInstant().toEpochMilli()
+            })
+        androidx.compose.material3.DatePickerDialog(
+            onDismissRequest = { pickingBed = null },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    state.selectedDateMillis?.let {
+                        val picked = Instant.ofEpochMilli(it).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                        if (forBed) bedDay = picked else wakeDay = picked
+                    }
+                    pickingBed = null
+                }) { Text(stringResource(R.string.forge_se_save)) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { pickingBed = null }) {
+                    Text(stringResource(R.string.forge_se_cancel))
+                }
+            }) { androidx.compose.material3.DatePicker(state) }
+    }
+
+    confirmingMove?.let { window ->
+        // The iPhone's second guard (#940): a corrected window that touches none of the night's recorded
+        // span has nothing to stage from, and accepting it silently produced a night of fabricated
+        // "awake". So it is asked for, and only then sent as a move.
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmingMove = null },
+            title = { Text(stringResource(R.string.forge_se_move_q), style = Forge.type.headline,
+                           color = colors.text) },
+            text = { Text(stringResource(R.string.forge_se_move_msg), style = Forge.type.body,
+                          color = colors.textSecondary) },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    confirmingMove = null
+                    onSave(window.first, window.second, true)
+                }) { Text(stringResource(R.string.forge_se_move_confirm), color = colors.rest) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { confirmingMove = null }) {
+                    Text(stringResource(R.string.forge_se_cancel))
+                }
+            })
+    }
+
     Dialog(onDismissRequest = onDismiss) {
         Column(Modifier.background(colors.surface, RoundedCornerShape(20.dp)).padding(20.dp).verticalScroll(rememberScrollState()),
                verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
             Text(stringResource(R.string.forge_sl_edit_times), style = Forge.type.headline, color = colors.text)
             Text(stringResource(R.string.forge_se_blurb), style = Forge.type.caption, color = colors.textSecondary)
-            Text(stringResource(R.string.forge_se_asleep), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+            DayRow(stringResource(R.string.forge_se_asleep), bedDay.format(dateFormat)) { pickingBed = true }
             TimeInput(bed, colors = pickerColors)
-            Text(stringResource(R.string.forge_se_woke), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+            DayRow(stringResource(R.string.forge_se_woke), wakeDay.format(dateFormat)) { pickingBed = false }
             TimeInput(wake, colors = pickerColors)
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text(stringResource(R.string.forge_se_delete), style = Forge.type.subhead, color = ForgeTokens.Color.systemRed.resolve(),
@@ -206,16 +290,31 @@ internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long) -> Unit
                 Spacer(Modifier.width(ForgeMetrics.space2))
                 Text(stringResource(R.string.forge_se_save), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.rest,
                      modifier = Modifier.clickable(role = Role.Button) {
-                         // The bed time on the night's first day (the day before when it would fall after waking), the wake
-                         // time on its last day (the day after when it would fall before bed).
-                         var newEnd = end.withHour(wake.hour).withMinute(wake.minute).withSecond(0)
-                         var newStart = start.withHour(bed.hour).withMinute(bed.minute).withSecond(0)
-                         if (newStart >= newEnd) newStart = newStart.minusDays(1)
-                         if (newEnd.toEpochSecond() - newStart.toEpochSecond() > 20 * 3600) newEnd = newEnd.minusDays(1)
-                         if (newEnd > newStart) onSave(newStart.toEpochSecond(), newEnd.toEpochSecond())
+                         // Both ends are what the two rows say; nothing is derived from the night's own
+                         // day any more, which is what made a move impossible. An impossible window is
+                         // the core's to refuse, and it now says which impossibility it was.
+                         val newStart = at(bedDay, bed)
+                         val newEnd = at(wakeDay, wake)
+                         if (com.noop.analytics.SleepEditGuard.isDisjoint(
+                                 newStart, newEnd, night.startTs, night.endTs)) {
+                             confirmingMove = newStart to newEnd
+                         } else {
+                             onSave(newStart, newEnd, false)
+                         }
                      }.padding(8.dp))
             }
         }
+    }
+}
+
+/** A section label with the day its times belong to, tappable to change that day. */
+@Composable
+private fun DayRow(label: String, day: String, onPick: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+             color = Forge.colors.text, modifier = Modifier.weight(1f))
+        Text(day, style = Forge.type.subhead, color = Forge.colors.rest,
+             modifier = Modifier.clickable(role = Role.Button, onClick = onPick).padding(8.dp))
     }
 }
 
