@@ -433,7 +433,9 @@ private fun pickDateTime(
             }.timeInMillis.coerceIn(minimumMs, maximumMs)
             onPicked(picked)
         }, initial.get(java.util.Calendar.HOUR_OF_DAY), initial.get(java.util.Calendar.MINUTE),
-            android.text.format.DateFormat.is24HourFormat(context)).show()
+            // The wearer's own setting, which defaults to the device's switch; the one resolver, as
+            // everywhere else that prints a time (`ClockPrefs`).
+            com.noop.ui.ClockPrefs.uses24Hour(context)).show()
     }, initial.get(java.util.Calendar.YEAR), initial.get(java.util.Calendar.MONTH),
         initial.get(java.util.Calendar.DAY_OF_MONTH))
     dateDialog.datePicker.minDate = minimumMs
