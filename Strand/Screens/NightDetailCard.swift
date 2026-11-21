@@ -53,7 +53,11 @@ struct NightDetailCard: View {
 
                 StatTile(
                     label: "Efficiency",
-                    value: pctValue(eff.latest),
+                    // The SHOWN night's own figure, through `Night.efficiencyPct` — the same resolver the
+                    // stage breakdown reads, so the two cannot print different efficiencies for one night
+                    // (#2930). The sparkline and the typical caption stay on the daily series, which is
+                    // what they describe. The daily value is the fallback for a night with none.
+                    value: pctValue(model.night.efficiencyPct ?? eff.latest),
                     caption: tileCaption(latestDay: eff.latestDay, latest: eff.latest,
                                          typical: eff.typical, suffix: "%"),
                     accent: StrandPalette.statusPositive,

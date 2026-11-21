@@ -189,13 +189,22 @@ public enum SleepNight {
     }
 
     /// One day's main night, merged from its group: onset to wake, the stage minutes summed over the shown
-    /// fragments, their timeline in seconds from the onset with the gaps between fragments as awake, and the
-    /// fragments themselves (`group` the whole bridged group, `shown` without a dropped lead stub).
+    /// fragments PLUS the wake gaps between them, their timeline in seconds from the onset with those gaps as
+    /// awake, and the fragments themselves (`group` the whole bridged group, `shown` without a dropped lead
+    /// stub).
     public struct Main: Sendable {
         public var onset: Int, wake: Int
         public var minutes: Minutes
         public var intervals: [Interval]
         public var group: [CachedSleepSession], shown: [CachedSleepSession]
+
+        /// The night's efficiency in [0,1], or nil when it has no time in bed: the ONE resolver every
+        /// readout of this night's efficiency goes through (the Sleep tab's stage breakdown and its
+        /// Night-detail tile, the Android Sleep screen through `CoreRead.nights`). Because `minutes`
+        /// counts the inter-fragment wake gap as awake, this reproduces the figure the daily rollup
+        /// stores for the same night (`AnalyticsEngine`, #777/#705), so the two can no longer disagree
+        /// on one screen (#2930).
+        public var efficiency: Double? { minutes.total > 0 ? minutes.asleep / minutes.total : nil }
     }
 
     /// The main night of one day's blocks, nil when its group decodes to no asleep minutes. (#170, #318, #555,
@@ -227,6 +236,13 @@ public enum SleepNight {
             intervals.append(Interval(stage: "awake", start: TimeInterval(gapStart - onset),
                                       end: TimeInterval(gapEnd - onset)))
         }
+        // The wake gap between two bridged fragments is time in bed, AWAKE: it is in no fragment's span, so
+        // the stage sums above miss it, and a night that reads 20 minutes of real awake as four was the
+        // #777/#705 report. The daily rollup already folds it into its in-bed denominator through
+        // `interFragmentAwakeSeconds`; this night reads the SAME function over the SAME fragments, so the
+        // efficiency the Sleep tab states equals the one the day row stores (#2930).
+        total.awake += SleepStageTotals.interFragmentAwakeSeconds(
+            shown.map { (start: $0.effectiveStartTs, end: $0.endTs) }) / 60.0
         guard total.asleep > 0 else { return nil }
         return Main(onset: onset, wake: wake, minutes: total, intervals: intervals.sorted { $0.start < $1.start },
                     group: group, shown: shown)

@@ -1794,16 +1794,13 @@ struct SleepView: View {
         return e.map { "\(Int($0.rounded()))%" } ?? "—"
     }
 
-    /// Efficiency in percent, through the one resolver every sleep screen reads
-    /// (`NightSummaryFacts.efficiencyPct`).
+    /// Efficiency in percent, through the one resolver every sleep screen reads (`Night.efficiencyPct`,
+    /// which funnels into `NightSummaryFacts.efficiencyPct`).
     ///
     /// It takes the SHOWN night's own stored value. It used to fall back to `repo.today`, which is the
     /// newest day whatever night is on screen, so paging back a week could put today's efficiency under
     /// a night from last Tuesday.
-    private func efficiencyPct(_ night: Night) -> Double? {
-        NightSummaryFacts.efficiencyPct(asleepMin: night.stages.asleep, inBedMin: night.timeInBed,
-                                        stored: night.session.efficiency)
-    }
+    private func efficiencyPct(_ night: Night) -> Double? { night.efficiencyPct }
 
     private func durationText(_ minutes: Double) -> String {
         let m = Swift.max(0, Int(minutes.rounded()))

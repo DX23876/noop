@@ -114,6 +114,15 @@ struct Night: Sendable {
     /// Total time in bed in minutes (from reconstructed stages).
     var timeInBed: Double { stages.total }
 
+    /// This night's efficiency in percent, or nil when it has none: the ONE place the Sleep screens
+    /// resolve the figure, so the stage breakdown, the hero line and the Night-detail tile cannot state
+    /// different numbers for the same night (#2930). The stage minutes already carry the wake gap between
+    /// bridged fragments (`SleepNight.main`), so this equals what the day row stores.
+    var efficiencyPct: Double? {
+        NightSummaryFacts.efficiencyPct(asleepMin: stages.asleep, inBedMin: timeInBed,
+                                        stored: session.efficiency)
+    }
+
     /// The wall-clock start of the night (for the Hypnogram's clock labels).
     var onsetDate: Date { Date(timeIntervalSince1970: TimeInterval(session.effectiveStartTs)) }
 
@@ -355,7 +364,9 @@ extension SleepModel {
             }
         }
         let stages = Stages(main.minutes)
-        let eff = stages.total > 0 ? stages.asleep / stages.total : nil
+        // The night's own efficiency, through the core's one resolver (#2930): the stage sums already carry
+        // the inter-fragment wake gap, so this is the figure the day row stores for the same night.
+        let eff = main.efficiency
         let synth = CachedSleepSession(startTs: main.onset, endTs: main.wake, efficiency: eff,
                                        restingHr: nil, avgHrv: nil, stagesJSON: nil)
         let segs = main.intervals.compactMap(SleepInterval.init)

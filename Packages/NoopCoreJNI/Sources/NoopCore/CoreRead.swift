@@ -124,7 +124,7 @@ public enum CoreRead {
                             start: main.onset + Int($0.start), end: main.onset + Int($0.end))
             }
             return Night(startTs: main.onset, endTs: main.wake,
-                         efficiency: main.minutes.total > 0 ? main.minutes.asleep / main.minutes.total : nil,
+                         efficiency: main.efficiency,
                          restingHr: longest?.restingHr, hrv: longest?.avgHrv,
                          edited: main.group.contains { $0.userEdited }, stages: stages,
                          minutes: Night.Minutes(wake: main.minutes.awake, light: main.minutes.light,
