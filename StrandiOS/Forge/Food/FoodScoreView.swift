@@ -104,7 +104,7 @@ struct FoodScoreView: View {
             }
         }
         .animation(.smooth, value: span)
-        .navigationTitle("Food note")
+        .navigationTitle("Nutrition quality")
         .navigationBarTitleDisplayMode(.inline)
     }
 

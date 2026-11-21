@@ -7410,4 +7410,6 @@ Traçar cada série como variação face à sua própria primeira medição colo
         <item quantity="one">%d dia seguido registado</item>
         <item quantity="other">%d dias seguidos registados</item>
     </plurals>
+    <string name="food_quality_title">Qualidade da alimentação</string>
+    <string name="food_quality_about">Quão saudável comes, de 0 a 10</string>
 </resources>

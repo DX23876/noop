@@ -38,6 +38,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -69,23 +70,40 @@ import kotlin.math.abs
  * (`CoreFoodNotes`); this file lays it out and delivers the reminders.
  */
 
-/** The day's note large, the week's and month's beside it, the streak, and for a past day where it stood. */
+/**
+ * The day's nutrition quality, said before the number: a title, one sentence and the still life the detail page opens
+ * on, then the note as a ring that fills to 10 in a colour that says how good it is, the word, and the week and month.
+ */
 @Composable
 internal fun FoodNoteCard(quality: CoreFoodNotes.Quality, isToday: Boolean, onOpen: () -> Unit) {
     val colors = Forge.colors
     ForgeCard(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpen)) {
-        Row(verticalAlignment = Alignment.Bottom) {
+        Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
-                Text(stringResource(if (quality.day?.provisional == true) R.string.food_note_today_so_far else R.string.food_span_day),
-                     style = Forge.type.footnote, color = colors.textSecondary)
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(quality.day?.let { noteText(it.score) } ?: "–", style = Forge.type.heroNumber, color = colors.text)
-                    Text(" / 10", style = Forge.type.body, color = colors.textSecondary)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Eco, null, tint = qualityLeaf(), modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(ForgeMetrics.space2))
+                    Text(stringResource(R.string.food_quality_title), style = Forge.type.headline, color = colors.text)
+                }
+                Text(stringResource(R.string.food_quality_about), style = Forge.type.footnote, color = colors.textSecondary)
+            }
+            androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.food_score_hero), contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop, alignment = Alignment.CenterEnd,
+                modifier = Modifier.size(64.dp).clip(RoundedCornerShape(10.dp)))
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space4)) {
+            QualityRing(quality.day?.score, 88)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+                Column {
+                    Text(stringResource(if (quality.day?.provisional == true) R.string.food_note_today_so_far else R.string.food_span_day),
+                         style = Forge.type.footnote, color = colors.textSecondary)
+                    Text(quality.day?.let { qualityWord(it.score) } ?: "–", style = Forge.type.headline, color = qualityTint(quality.day?.score))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space4)) {
+                    SmallNote(stringResource(R.string.food_span_week), quality.week)
+                    SmallNote(stringResource(R.string.food_span_month), quality.month)
                 }
             }
-            SmallNote(stringResource(R.string.food_span_week), quality.week)
-            Spacer(Modifier.width(ForgeMetrics.space3))
-            SmallNote(stringResource(R.string.food_span_month), quality.month)
             Icon(Icons.Rounded.ChevronRight, null, tint = colors.textSecondary)
         }
         val goal = quality.goal
@@ -104,7 +122,7 @@ internal fun FoodNoteCard(quality: CoreFoodNotes.Quality, isToday: Boolean, onOp
                 if (quality.streak >= 2) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Rounded.LocalFireDepartment, null, tint = colors.effort, modifier = Modifier.size(16.dp))
-                        Text("${quality.streak}", style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold), color = colors.effort)
+                        Text(java.text.NumberFormat.getIntegerInstance().format(quality.streak), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold), color = colors.effort)
                     }
                 }
             }
@@ -125,9 +143,51 @@ private fun percentText(share: Double): String = java.text.NumberFormat.getPerce
 
 @Composable
 private fun SmallNote(title: String, note: CoreFoodNotes.Note?) {
-    Column(horizontalAlignment = Alignment.End) {
+    Column {
         Text(title, style = Forge.type.footnote, color = Forge.colors.textSecondary)
-        Text(note?.let { noteText(it.score) } ?: "–", style = Forge.type.title2, color = Forge.colors.text)
+        Text(note?.let { noteText(it.score) } ?: "–", style = Forge.type.title2, color = qualityTint(note?.score))
+    }
+}
+
+@Composable
+private fun qualityLeaf(): Color = nutrientTint("fiber_g", Forge.colors.dark)
+
+/** Green from 7.5, yellow from 5.5, orange below, as iOS `FoodQualityRing.tint`. */
+@Composable
+internal fun qualityTint(score: Double?): Color = when {
+    score == null -> Forge.colors.textSecondary
+    score >= 7.5 -> qualityLeaf()
+    score >= 5.5 -> Forge.colors.fat
+    else -> Forge.colors.effort
+}
+
+@Composable
+private fun qualityWord(score: Double): String = stringResource(when {
+    score < 4 -> R.string.food_score_word_grow
+    score < 6 -> R.string.food_score_word_fair
+    score < 7.5 -> R.string.food_score_word_good
+    else -> R.string.food_score_word_very_good
+})
+
+/** The note as a ring that fills to 10 in its quality colour, the note inside. */
+@Composable
+internal fun QualityRing(score: Double?, size: Int) {
+    val track = Forge.colors.inset
+    val tint = qualityTint(score)
+    Box(Modifier.size(size.dp), contentAlignment = Alignment.Center) {
+        androidx.compose.foundation.Canvas(Modifier.size(size.dp)) {
+            val stroke = this.size.minDimension * 0.1f
+            val inset = stroke / 2
+            val arc = androidx.compose.ui.geometry.Size(this.size.width - stroke, this.size.height - stroke)
+            val topLeft = androidx.compose.ui.geometry.Offset(inset, inset)
+            drawArc(track, 0f, 360f, false, topLeft, arc, style = androidx.compose.ui.graphics.drawscope.Stroke(stroke))
+            drawArc(tint, -90f, 360f * ((score ?: 0.0) / 10).toFloat().coerceIn(0f, 1f), false, topLeft, arc,
+                    style = androidx.compose.ui.graphics.drawscope.Stroke(stroke, cap = androidx.compose.ui.graphics.StrokeCap.Round))
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(score?.let { noteText(it) } ?: "–", style = Forge.type.title1, color = Forge.colors.text)
+            Text("/ 10", style = Forge.type.footnote, color = Forge.colors.textSecondary)
+        }
     }
 }
 

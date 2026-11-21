@@ -220,7 +220,7 @@ internal fun ForgeFoodNotePage(quality: com.noop.core.CoreFoodNotes.Quality, mal
     var span by remember { mutableIntStateOf(if (quality.day != null) 0 else if (quality.week != null) 1 else 2) }
     val note = when (span) { 0 -> quality.day; 1 -> quality.week; else -> quality.month }
     SettingsColumn {
-        PageTitle(stringResource(R.string.food_note_title), onBack)
+        PageTitle(stringResource(R.string.food_quality_title), onBack)
         Row(Modifier.fillMaxWidth().background(colors.inset, RoundedCornerShape(50)).padding(4.dp)) {
             listOf(R.string.food_span_day, R.string.food_span_week, R.string.food_span_month).forEachIndexed { index, label ->
                 Text(stringResource(label), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold),
@@ -282,7 +282,9 @@ private fun FoodNoteTrend(notes: List<com.noop.core.CoreFoodNotes.Note>) {
                 Text(noteText(note.score), style = Forge.type.footnote, color = colors.textSecondary)
                 Box(Modifier.fillMaxWidth().height((120 * note.score / 10).dp.coerceAtLeast(2.dp)).background(leaf, RoundedCornerShape(4.dp)))
                 val date = java.time.LocalDate.parse(note.day)
-                Text(date.format(java.time.format.DateTimeFormatter.ofPattern("d MMM", Locale.getDefault())), style = Forge.type.footnote,
+                // Day and short month in the app language, without a fixed pattern.
+                Text(listOf(date.dayOfMonth.toString(), date.month.getDisplayName(java.time.format.TextStyle.SHORT, Locale.getDefault()))
+                         .joinToString(" "), style = Forge.type.footnote,
                      color = colors.textSecondary, maxLines = 1)
             }
         }

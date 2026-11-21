@@ -19,11 +19,38 @@ struct FoodNoteCard: View {
     var body: some View {
         Button(action: open) {
             VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .firstTextBaseline, spacing: 16) {
-                    dayFigure
+                // What the number is about, said before the number: a title, one sentence and the still life of good
+                // food the detail page opens on.
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label("Nutrition quality", systemImage: "leaf.fill")
+                            .font(ForgeFont.cardTitle).foregroundStyle(ForgeColor.text)
+                            .labelStyle(TintedIconLabel(tint: ForgeColor.nutrientLeaf))
+                        Text("How healthy you are eating, out of 10")
+                            .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    }
                     Spacer(minLength: 8)
-                    small(String(localized: "Week"), week)
-                    small(String(localized: "Month"), month)
+                    // The food sits on the right of the photo: the square shows that part.
+                    Image("foodScoreHero").resizable().scaledToFill()
+                        .frame(width: 64, height: 64, alignment: .trailing)
+                        .clipShape(.rect(cornerRadius: ForgeRadius.inner))
+                        .accessibilityHidden(true)
+                }
+                HStack(alignment: .center, spacing: 16) {
+                    FoodQualityRing(score: note?.score, size: 88)
+                    VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(note?.provisional == true ? String(localized: "Today so far") : String(localized: "Day"))
+                                .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                            Text(note.map { FoodText.noteWord($0.score) } ?? "–")
+                                .font(ForgeFont.cardTitle).foregroundStyle(FoodQualityRing.tint(note?.score))
+                        }
+                        HStack(spacing: 16) {
+                            small(String(localized: "Week"), week)
+                            small(String(localized: "Month"), month)
+                        }
+                    }
+                    Spacer(minLength: 0)
                     Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(ForgeColor.tertiary)
                 }
                 let showsGoal = goal.map { !isToday || $0.energy == .over } ?? false
@@ -60,28 +87,11 @@ struct FoodNoteCard: View {
 
     private var note: FoodQuality.Note? { if case .success(let n) = day { n } else { nil } }
 
-    @ViewBuilder private var dayFigure: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(note?.provisional == true ? String(localized: "Today so far") : String(localized: "Day"))
-                .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(note.map { FoodText.note($0.score) } ?? "–")
-                    .font(ForgeFont.rounded(40, .bold)).foregroundStyle(ForgeColor.text)
-                    .monospacedDigit().contentTransition(.numericText())
-                Text(verbatim: "/ 10").font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
-            }
-            if let note {
-                Text(FoodText.noteWord(note.score)).font(ForgeFont.caption.weight(.semibold)).foregroundStyle(ForgeColor.nutrientLeaf)
-            }
-        }
-        .accessibilityElement(children: .combine)
-    }
-
     private func small(_ title: String, _ note: FoodQuality.Note?) -> some View {
-        VStack(alignment: .trailing, spacing: 4) {
+        VStack(alignment: .leading, spacing: 2) {
             Text(title).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
             Text(note.map { FoodText.note($0.score) } ?? "–")
-                .font(ForgeFont.rounded(20, .semibold)).foregroundStyle(ForgeColor.text).monospacedDigit()
+                .font(ForgeFont.rounded(20, .semibold)).foregroundStyle(FoodQualityRing.tint(note?.score)).monospacedDigit()
         }
         .accessibilityElement(children: .combine)
     }
@@ -123,6 +133,50 @@ struct FoodNoteCard: View {
             return nil
         case nil:
             return nil
+        }
+    }
+}
+
+/// The note as a ring that fills to 10, in a colour that says how good it is, the note itself inside.
+struct FoodQualityRing: View {
+    let score: Double?
+    var size: CGFloat = 88
+
+    var body: some View {
+        ZStack {
+            Circle().stroke(ForgeColor.fill, lineWidth: size * 0.1)
+            Circle().trim(from: 0, to: min(1, (score ?? 0) / 10))
+                .stroke(Self.tint(score), style: StrokeStyle(lineWidth: size * 0.1, lineCap: .round))
+                .rotationEffect(.degrees(-90))
+            VStack(spacing: 0) {
+                Text(score.map(FoodText.note) ?? "–")
+                    .font(ForgeFont.rounded(size * 0.3, .bold)).foregroundStyle(ForgeColor.text)
+                    .monospacedDigit().contentTransition(.numericText())
+                Text(verbatim: "/ 10").font(.caption2).foregroundStyle(ForgeColor.secondary)
+            }
+        }
+        .frame(width: size, height: size)
+        .animation(.smooth, value: score)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(score.map { "\(FoodText.note($0)) / 10, \(FoodText.noteWord($0))" } ?? "–"))
+    }
+
+    /// Green from 7.5, yellow from 5.5, orange below: the colour says the word before it is read.
+    static func tint(_ score: Double?) -> Color {
+        guard let score else { return ForgeColor.secondary }
+        if score >= 7.5 { return ForgeColor.nutrientLeaf }
+        if score >= 5.5 { return ForgeColor.nutrientSun }
+        return ForgeColor.effort
+    }
+}
+
+/// A label whose icon takes its own colour while the title keeps the text's.
+private struct TintedIconLabel: LabelStyle {
+    let tint: Color
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 8) {
+            configuration.icon.foregroundStyle(tint)
+            configuration.title
         }
     }
 }

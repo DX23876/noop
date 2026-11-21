@@ -4763,5 +4763,7 @@
   "Your week of food: %@ of 10": "A tua semana de alimentação: %@ em 10",
   "Let the coach read your food log": "Deixar o coach ler o teu diário alimentar",
   "Reading your food log: what you ate, its notes, goals and nutrients.": "Ler o teu diário alimentar: o que comeste, notas, objetivos e nutrientes.",
-  "What you logged eating, its notes and goals": "O que registaste ter comido, com notas e objetivos"
+  "What you logged eating, its notes and goals": "O que registaste ter comido, com notas e objetivos",
+  "Nutrition quality": "Qualidade da alimentação",
+  "How healthy you are eating, out of 10": "Quão saudável comes, de 0 a 10"
 }

@@ -7361,4 +7361,6 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <plurals name="food_streak_days">
         <item quantity="other">连续记录 %d 天</item>
     </plurals>
+    <string name="food_quality_title">饮食质量</string>
+    <string name="food_quality_about">你吃得有多健康，0 到 10 分</string>
 </resources>

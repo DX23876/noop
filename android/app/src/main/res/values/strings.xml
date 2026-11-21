@@ -7460,4 +7460,6 @@ Plotting each series as change from its own first reading puts them on one scale
         <item quantity="one">%d day logged in a row</item>
         <item quantity="other">%d days logged in a row</item>
     </plurals>
+    <string name="food_quality_title">Nutrition quality</string>
+    <string name="food_quality_about">How healthy you are eating, out of 10</string>
 </resources>

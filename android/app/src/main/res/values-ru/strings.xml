@@ -7425,4 +7425,6 @@ NOOP не задаёт фиксированный порог, а берёт ег
         <item quantity="many">%d дней подряд с записями</item>
         <item quantity="other">%d дня подряд с записями</item>
     </plurals>
+    <string name="food_quality_title">Качество питания</string>
+    <string name="food_quality_about">Насколько здорово ты питаешься, от 0 до 10</string>
 </resources>

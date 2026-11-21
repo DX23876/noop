@@ -7418,4 +7418,6 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
         <item quantity="one">%d día seguido registrado</item>
         <item quantity="other">%d días seguidos registrados</item>
     </plurals>
+    <string name="food_quality_title">Calidad de la alimentación</string>
+    <string name="food_quality_about">Lo sano que comes, de 0 a 10</string>
 </resources>

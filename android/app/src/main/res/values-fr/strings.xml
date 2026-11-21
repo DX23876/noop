@@ -7415,4 +7415,6 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
         <item quantity="one">%d jour d’affilée enregistré</item>
         <item quantity="other">%d jours d’affilée enregistrés</item>
     </plurals>
+    <string name="food_quality_title">Qualité de l’alimentation</string>
+    <string name="food_quality_about">À quel point tu manges sainement, de 0 à 10</string>
 </resources>

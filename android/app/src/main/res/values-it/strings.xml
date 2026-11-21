@@ -7385,4 +7385,6 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
         <item quantity="one">%d giorno di fila registrato</item>
         <item quantity="other">%d giorni di fila registrati</item>
     </plurals>
+    <string name="food_quality_title">Qualità dell’alimentazione</string>
+    <string name="food_quality_about">Quanto mangi in modo sano, da 0 a 10</string>
 </resources>

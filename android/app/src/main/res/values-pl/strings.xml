@@ -7469,4 +7469,6 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
         <item quantity="many">%d dni z rzędu zapisanych</item>
         <item quantity="other">%d dnia z rzędu zapisanego</item>
     </plurals>
+    <string name="food_quality_title">Jakość odżywiania</string>
+    <string name="food_quality_about">Jak zdrowo jesz, w skali od 0 do 10</string>
 </resources>

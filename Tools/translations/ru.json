@@ -4741,5 +4741,7 @@
   "Your week of food: %@ of 10": "Твоя неделя питания: %@ из 10",
   "Let the coach read your food log": "Разрешить коучу читать дневник питания",
   "Reading your food log: what you ate, its notes, goals and nutrients.": "Чтение дневника питания: что ты ел, оценки, цели и нутриенты.",
-  "What you logged eating, its notes and goals": "Что ты записал из еды, с оценками и целями"
+  "What you logged eating, its notes and goals": "Что ты записал из еды, с оценками и целями",
+  "Nutrition quality": "Качество питания",
+  "How healthy you are eating, out of 10": "Насколько здорово ты питаешься, от 0 до 10"
 }

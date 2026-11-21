@@ -7434,4 +7434,6 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
         <item quantity="one">%d Tag in Folge geloggt</item>
         <item quantity="other">%d Tage in Folge geloggt</item>
     </plurals>
+    <string name="food_quality_title">Ernährungsqualität</string>
+    <string name="food_quality_about">Wie gesund du isst, von 0 bis 10</string>
 </resources>

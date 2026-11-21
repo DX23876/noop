@@ -4919,5 +4919,7 @@
   "Your week of food: %@ of 10": "本週飲食：%@ / 10",
   "Let the coach read your food log": "允許教練讀取你的飲食日誌",
   "Reading your food log: what you ate, its notes, goals and nutrients.": "讀取你的飲食日誌：吃了什麼、評分、目標和營養素。",
-  "What you logged eating, its notes and goals": "你記錄的飲食及其評分和目標"
+  "What you logged eating, its notes and goals": "你記錄的飲食及其評分和目標",
+  "Nutrition quality": "飲食品質",
+  "How healthy you are eating, out of 10": "你吃得有多健康，0 到 10 分"
 }
