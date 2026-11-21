@@ -184575,7 +184575,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Diese Schlafsitzung löschen?"
+            "value" : "Diesen Schlaf löschen?"
           }
         },
         "es" : {
@@ -338156,7 +338156,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bewege diesen Schlaf?"
+            "value" : "Diesen Schlaf verschieben?"
           }
         },
         "es" : {
@@ -429048,7 +429048,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Entfernt diesen aufgezeichneten Schlaf und berechnet den Tag ohne ihn neu. NOOP erkennt den Ruhezustand in diesem Fenster nicht erneut. Anschließend können Sie den Vorgang einige Sekunden lang rückgängig machen."
+            "value" : "Entfernt diesen aufgezeichneten Schlaf und rechnet den Tag ohne ihn neu. NOOP sucht in diesem Zeitraum nicht wieder nach Schlaf. Ein paar Sekunden lang lässt es sich zurücknehmen."
           }
         },
         "en" : {
@@ -429113,7 +429113,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Entfernt diesen aufgezeichneten Schlaf und berechnet den Tag ohne ihn neu. Das kann nicht rückgängig gemacht werden."
+            "value" : "Entfernt diesen aufgezeichneten Schlaf und rechnet den Tag ohne ihn neu. Das lässt sich nicht zurücknehmen."
           }
         },
         "es" : {
@@ -429171,7 +429171,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Entfernt diesen Schlaf und berechnet den Tag ohne ihn neu. Anschließend können Sie den Vorgang einige Sekunden lang rückgängig machen."
+            "value" : "Entfernt diesen Schlaf und rechnet den Tag ohne ihn neu. Ein paar Sekunden lang lässt es sich zurücknehmen."
           }
         },
         "en" : {
@@ -466023,7 +466023,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Schlaf gelöscht. NOOP erkennt den Schlaf zwischen %@ und %@ nicht mehr."
+            "value" : "Schlaf gelöscht. NOOP sucht zwischen %@ und %@ nicht wieder nach Schlaf."
           }
         },
         "en" : {
@@ -518921,7 +518921,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dies bewegt die Nacht zu einer Zeit ohne aufgezeichnete Daten. Stufen können dort nicht abgeleitet werden, so dass sie als leer angezeigt werden können, bis die Daten sie abdecken."
+            "value" : "Das verschiebt die Nacht in einen Zeitraum ohne aufgezeichnete Daten. Phasen lassen sich dort nicht ableiten, sie kann also leer bleiben, bis Daten sie abdecken."
           }
         },
         "es" : {

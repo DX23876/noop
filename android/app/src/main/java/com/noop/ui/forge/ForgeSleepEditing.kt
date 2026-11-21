@@ -171,6 +171,7 @@ internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long, Boolean
     if (confirmingDelete) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { confirmingDelete = false },
+            containerColor = colors.surface, tonalElevation = 0.dp,
             title = { Text(stringResource(R.string.forge_se_delete_q), style = Forge.type.headline,
                            color = colors.text) },
             // A DETECTED row is suppressed so the next pass cannot find it again; a hand-corrected or
@@ -188,7 +189,7 @@ internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long, Boolean
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = { confirmingDelete = false }) {
-                    Text(stringResource(R.string.forge_se_cancel))
+                    Text(stringResource(R.string.forge_se_cancel), color = colors.textSecondary)
                 }
             })
     }
@@ -266,6 +267,7 @@ internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long, Boolean
         // "awake". So it is asked for, and only then sent as a move.
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { confirmingMove = null },
+            containerColor = colors.surface, tonalElevation = 0.dp,
             title = { Text(stringResource(R.string.forge_se_move_q), style = Forge.type.headline,
                            color = colors.text) },
             text = { Text(stringResource(R.string.forge_se_move_msg), style = Forge.type.body,
@@ -278,7 +280,7 @@ internal fun SleepEditDialog(night: CoreRead.Night, onSave: (Long, Long, Boolean
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = { confirmingMove = null }) {
-                    Text(stringResource(R.string.forge_se_cancel))
+                    Text(stringResource(R.string.forge_se_cancel), color = colors.textSecondary)
                 }
             })
     }

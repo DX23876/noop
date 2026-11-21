@@ -333,10 +333,11 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
         shippedProblem?.let { text ->
             androidx.compose.material3.AlertDialog(
                 onDismissRequest = { shippedProblem = null },
+                containerColor = Forge.colors.surface, tonalElevation = 0.dp,
                 text = { Text(text, style = Forge.type.body, color = Forge.colors.text) },
                 confirmButton = {
                     androidx.compose.material3.TextButton(onClick = { shippedProblem = null }) {
-                        Text(stringResource(android.R.string.ok))
+                        Text(stringResource(android.R.string.ok), color = Forge.colors.rest)
                     }
                 })
         }
@@ -527,6 +528,7 @@ private fun DayNaps(night: CoreRead.Night, wakeDay: java.time.LocalDate, zone: Z
     confirming?.let { nap ->
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { confirming = null },
+            containerColor = Forge.colors.surface, tonalElevation = 0.dp,
             title = { Text(stringResource(R.string.forge_se_delete_nap_q), style = Forge.type.headline,
                            color = Forge.colors.text) },
             text = { Text(stringResource(R.string.forge_se_delete_nap_msg), style = Forge.type.body,
@@ -539,7 +541,7 @@ private fun DayNaps(night: CoreRead.Night, wakeDay: java.time.LocalDate, zone: Z
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = { confirming = null }) {
-                    Text(stringResource(R.string.forge_se_cancel))
+                    Text(stringResource(R.string.forge_se_cancel), color = Forge.colors.textSecondary)
                 }
             })
     }
@@ -873,10 +875,11 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
     changes.problem?.let { text ->
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { changes.problem = null },
+            containerColor = Forge.colors.surface, tonalElevation = 0.dp,
             text = { Text(text, style = Forge.type.body, color = Forge.colors.text) },
             confirmButton = {
                 androidx.compose.material3.TextButton(onClick = { changes.problem = null }) {
-                    Text(stringResource(android.R.string.ok))
+                    Text(stringResource(android.R.string.ok), color = Forge.colors.rest)
                 }
             })
     }

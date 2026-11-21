@@ -175,6 +175,19 @@ class SleepEditGuardTest(unittest.TestCase):
         self.assertIn("val changes = remember { SleepChangeHost() }", self.screen)
         self.assertIn("changes.undo?.let", self.screen)
 
+    def test_the_new_alerts_wear_the_app_s_colours(self):
+        # A Material alert left to its defaults is a blue-grey card with a blue button over a Forge
+        # surface: the editor behind it and the question on top read as two different apps. Only these
+        # alerts are pinned, the house-wide question is not this test's.
+        for source in (self.editing, self.screen):
+            for opened in source.split("androidx.compose.material3.AlertDialog(")[1:]:
+                head = opened[:400]
+                self.assertIn("containerColor", head,
+                              "an alert without it falls back to Material's own palette")
+                # And without this, Material tints that surface toward the theme's primary by its
+                # tonal elevation, which over a Forge surface reads as a blue-grey wash.
+                self.assertIn("tonalElevation = 0.dp", head)
+
     def test_a_refusal_reaches_the_wearer(self):
         # Every outcome maps to a sentence, and the mapping is exhaustive by its `else`.
         mapping = self.editing.split("fun sleepChangeMessage", 1)[1].split("\n}", 1)[0]
