@@ -1,4 +1,6 @@
 import XCTest
+import OuraProtocol
+import StrandAnalytics
 import WhoopStore
 @testable import Strand
 
@@ -120,5 +122,58 @@ final class LiveConsoleReadoutTests: XCTestCase {
         // Symmetry: a ring that reported earlier must not leak into a strap's readout either.
         XCTAssertNil(
             LiveConsoleReadout.batteryPercent(activeIsWhoop: true, whoopPct: nil, ringPct: 93))
+    }
+    // MARK: - rollingRMSSD
+
+    /// The console states this figure on the live page and the old console states it beside the R-R
+    /// trace. One resolver, or the two can drift apart without anyone noticing.
+    func testTheRollingRMSSDIsTheTaskForceFigureOverTheLastIntervals() {
+        // Successive differences of 20 ms throughout: RMSSD is 20 whatever the window holds.
+        let steady = (0..<20).map { 800 + ($0 % 2) * 20 }
+        XCTAssertEqual(LiveConsoleReadout.rollingRMSSD(steady) ?? 0, 20, accuracy: 1e-9)
+        // And it agrees with the package the whole app measures HRV with, over the same window.
+        let window = steady.suffix(LiveConsoleReadout.rmssdWindow).map(Double.init)
+        XCTAssertEqual(LiveConsoleReadout.rollingRMSSD(steady) ?? 0,
+                       HRVAnalyzer.rmssdRaw(Array(window)) ?? -1, accuracy: 1e-9)
+    }
+
+    func testTheRollingRMSSDOnlyReadsTheRecentWindowAndWaitsForEnoughIntervals() {
+        // Older intervals outside the window cannot move it: a wild prefix, a calm window.
+        let calmWindow = [200, 1400, 200] + Array(repeating: 800, count: LiveConsoleReadout.rmssdWindow)
+        XCTAssertEqual(LiveConsoleReadout.rollingRMSSD(calmWindow) ?? -1, 0, accuracy: 1e-9)
+        XCTAssertNil(LiveConsoleReadout.rollingRMSSD([]))
+        XCTAssertNil(LiveConsoleReadout.rollingRMSSD([800, 820]), "two intervals are one difference")
+        XCTAssertNotNil(LiveConsoleReadout.rollingRMSSD([800, 820, 800]))
+    }
+
+    // MARK: - isLiveLink / isWorn
+
+    /// #218: a ring streams live HR WITHOUT a WHOOP bond, so `activeConnection` is false for it by
+    /// construction and every surface that forgot the second half read "—" mid-stream.
+    func testARingStreamingWithoutABondIsStillALiveLink() {
+        XCTAssertTrue(LiveConsoleReadout.isLiveLink(activeConnection: false, connected: true,
+                                                    streamingLiveHR: true))
+        XCTAssertTrue(LiveConsoleReadout.isLiveLink(activeConnection: true, connected: false,
+                                                    streamingLiveHR: false), "a bonded strap is a link")
+        XCTAssertFalse(LiveConsoleReadout.isLiveLink(activeConnection: false, connected: false,
+                                                     streamingLiveHR: true),
+                       "a stream flag that outlived its connection is not a link")
+        XCTAssertFalse(LiveConsoleReadout.isLiveLink(activeConnection: false, connected: true,
+                                                     streamingLiveHR: false))
+    }
+
+    func testTheRingsOwnWearStateWinsAndAStaleWristOffDoesNotSurviveAStream() {
+        XCTAssertFalse(LiveConsoleReadout.isWorn(ouraWearState: .off, worn: true, connected: true,
+                                                 streamingLiveHR: true),
+                       "the ring says it is off the finger, and it knows better than a strap's flag")
+        XCTAssertTrue(LiveConsoleReadout.isWorn(ouraWearState: .worn, worn: false, connected: false,
+                                                streamingLiveHR: false))
+        XCTAssertTrue(LiveConsoleReadout.isWorn(ouraWearState: nil, worn: false, connected: true,
+                                                streamingLiveHR: true),
+                      "a live stream is itself the wear signal when nothing else reports it")
+        XCTAssertFalse(LiveConsoleReadout.isWorn(ouraWearState: nil, worn: false, connected: false,
+                                                 streamingLiveHR: true))
+        XCTAssertTrue(LiveConsoleReadout.isWorn(ouraWearState: nil, worn: true, connected: false,
+                                                streamingLiveHR: false))
     }
 }

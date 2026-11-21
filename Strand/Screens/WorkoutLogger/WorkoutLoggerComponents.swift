@@ -182,6 +182,9 @@ struct ForgeLoggerHeartCard: View {
 /// The session's heart rate as one thin line. A gap in the stored samples stays a gap.
 struct ForgeHeartTrace: View {
     let samples: [HRSample]
+    /// The stroke colour. Defaults to the effort world, which is what a workout's trace wants; the live
+    /// page passes the heart's own zone colour so the line and the figure above it agree.
+    var tint: Color = StrandPalette.effortColor
 
     var body: some View {
         Canvas { context, size in
@@ -197,7 +200,7 @@ struct ForgeHeartTrace: View {
                 if let previous, sample.ts - previous.ts <= 120 { path.addLine(to: point) } else { path.move(to: point) }
                 previous = sample
             }
-            context.stroke(path, with: .color(StrandPalette.effortColor),
+            context.stroke(path, with: .color(tint),
                            style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
         }
     }

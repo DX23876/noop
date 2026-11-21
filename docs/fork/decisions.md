@@ -2140,3 +2140,48 @@ camel-case key failed the Android hardcoded-literal gate. Renaming it keeps the 
 instead of adding a new finding to its baseline.
 
 Analysis migration required: no
+
+## 2026-11-21 — The live page is the old console rebuilt, and three of its faults are closed
+
+The owner asked for the new live page to be rebuilt FROM the old console rather than replaced by a
+lighter one, and for the result to be checked, not assumed. Comparing the two found three faults, two
+of them old.
+
+**Two connect affordances could never appear.** `offlineConnectCallout` and `ringConnectCallout` sat in
+the branch for a LIVE link, each gated on exactly the condition `needsConnection` had already excluded
+(`!live.connected` for a strap, the ring's phase for a ring). A comment claimed the opposite. Both now
+sit where there is no link, which is where someone needs them. The fault was in the old page too, so
+both skins are fixed.
+
+**RMSSD was computed in three places and shown twice on one screen.** `LiveConsoleReadout.rollingRMSSD`
+owns it now, over `HRVAnalyzer.rmssdRaw`, and the signal rail states currency rather than a second copy
+of a figure stated elsewhere. `isLiveLink` and `isWorn` moved there too, after a fourth reader of "is
+the link live" appeared in the new tiles. Five tests pin all three.
+
+**An empty trace drew nothing**, leaving a hole that reads as broken; it now shows the calm tube the R-R
+strip already used.
+
+What the page carries now, in reading order: the beat with its trace and the link, a running session if
+one is being recorded, the R-R thread with the rolling HRV and the raw readouts, the HRV reading that is
+taken FROM that stream, the signal rail, and Disconnect. Starting a workout left the page (it belongs
+with the workouts), as did buzzing the strap, refreshing its battery and opening Devices — device
+housekeeping that says nothing about the body and already has a home (owner, 2026-11-21).
+
+On design, four rounds with the owner, all of them things only a screenshot shows: the heart-rate ZONE
+was never on the old page and is not on this one; a figure in the vessel's own colour disappeared into
+the rising fill, so it sits beside the vessel now; the facts read as lines rather than columns, because
+a long German label wrapped in a column and pushed its own value out of the row; and the card lost its
+divider and its label-and-value rows, which is what made it look generated. The signal tiles went to two
+columns (150, not 168, is what fits a phone) with titles in sentence case, since uppercase plus tracking
+hyphenated "Herzfrequenz" mid-word and truncated "Verlaufssynchronisierung" anyway.
+
+One crash was introduced and caught in the simulator: a computed property on a view VALUE read
+`@EnvironmentObject` before SwiftUI had installed it, so opening the page died on
+`No ObservableObject of type LiveState found`. It is a flag read inside `body` now. It is also the
+reason the checking rule here is a screenshot of the WHOLE page after every build, not of its top.
+
+Still open, found by looking at the bottom of the page: `BLEManager` assigns six user-facing error
+messages as raw Swift strings, so a German phone reads "This device can't use Bluetooth Low Energy."
+in English. `Tools/i18n_audit.py` does not scan `Strand/BLE`, which is why no gate says so.
+
+Analysis migration required: no
