@@ -126,6 +126,21 @@ public struct FoodRecipe: Equatable, Sendable {
     }
 }
 
+/// A whole meal the wearer starred (2026-11-21): the foods with their amounts, logged again as separate entries in
+/// one tap. Unlike a recipe it is never one food: each item keeps its own entry, so the day's nutrients and score
+/// see the foods themselves.
+public struct FoodSavedMeal: Equatable, Sendable, Identifiable {
+    public var id: String
+    public var name: String
+    public var items: [FoodRecipe.Item]
+    public var createdAt: Int
+    public var updatedAt: Int
+
+    public init(id: String, name: String, items: [FoodRecipe.Item], createdAt: Int, updatedAt: Int) {
+        self.id = id; self.name = name; self.items = items; self.createdAt = createdAt; self.updatedAt = updatedAt
+    }
+}
+
 /// A food the wearer starred, by its catalogue or custom id.
 public struct FoodFavourite: Equatable, Sendable {
     public var foodId: String
@@ -515,6 +530,74 @@ extension WhoopStore {
         try syncRead { db in
             try Row.fetchAll(db, sql: "SELECT * FROM foodFavourite ORDER BY addedAt DESC, foodId").map {
                 FoodFavourite(foodId: $0["foodId"], name: $0["name"], addedAt: $0["addedAt"])
+            }
+        }
+    }
+
+    // MARK: - Saved meals
+
+    static func createFoodSavedMealTables(_ db: Database) throws {
+        try db.create(table: "foodMeal") { t in
+            t.column("id", .text).notNull().primaryKey()
+            t.column("name", .text).notNull()
+            t.column("createdAt", .integer).notNull()
+            t.column("updatedAt", .integer).notNull()
+        }
+        try db.create(table: "foodMealItem") { t in
+            t.column("mealId", .text).notNull()
+            t.column("position", .integer).notNull()
+            t.column("foodId", .text)
+            t.column("name", .text).notNull()
+            t.column("grams", .double).notNull()
+            t.column("per100g", .text).notNull()
+            t.primaryKey(["mealId", "position"])
+        }
+    }
+
+    /// False (and nothing written) for a meal without a name, without items or with an amount that is not positive.
+    @discardableResult
+    public func saveFoodMeal(_ meal: FoodSavedMeal) async throws -> Bool {
+        guard !meal.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !meal.items.isEmpty,
+              meal.items.allSatisfy({ $0.grams.isFinite && $0.grams > 0 && $0.per100g.values.allSatisfy(\.isFinite) })
+        else { return false }
+        try syncWrite { db in
+            try db.execute(sql: "INSERT OR REPLACE INTO foodMeal (id, name, createdAt, updatedAt) VALUES (?, ?, ?, ?)",
+                           arguments: [meal.id, meal.name, meal.createdAt, meal.updatedAt])
+            try db.execute(sql: "DELETE FROM foodMealItem WHERE mealId = ?", arguments: [meal.id])
+            for (position, item) in meal.items.enumerated() {
+                try db.execute(sql: """
+                    INSERT INTO foodMealItem (mealId, position, foodId, name, grams, per100g) VALUES (?, ?, ?, ?, ?, ?)
+                    """, arguments: [meal.id, position, item.foodId, item.name, item.grams,
+                                     Self.encodeNutrients(item.per100g)])
+            }
+        }
+        return true
+    }
+
+    @discardableResult
+    public func deleteFoodMeal(id: String) async throws -> Bool {
+        try syncWrite { db in
+            try db.execute(sql: "DELETE FROM foodMealItem WHERE mealId = ?", arguments: [id])
+            try db.execute(sql: "DELETE FROM foodMeal WHERE id = ?", arguments: [id])
+            return db.changesCount > 0
+        }
+    }
+
+    /// Newest first, the order the favourites bar shows them in.
+    public func foodMeals() async throws -> [FoodSavedMeal] {
+        try syncRead { db in
+            let items = try Row.fetchAll(db, sql: "SELECT * FROM foodMealItem ORDER BY mealId, position")
+            var byMeal: [String: [FoodRecipe.Item]] = [:]
+            for row in items {
+                guard let per100g = Self.decodeNutrients(row["per100g"]) else { continue }
+                byMeal[row["mealId"], default: []].append(
+                    .init(foodId: row["foodId"], name: row["name"], grams: row["grams"], per100g: per100g))
+            }
+            return try Row.fetchAll(db, sql: "SELECT * FROM foodMeal ORDER BY updatedAt DESC, id").compactMap { row in
+                let id: String = row["id"]
+                guard let items = byMeal[id], !items.isEmpty else { return nil }
+                return FoodSavedMeal(id: id, name: row["name"], items: items,
+                                     createdAt: row["createdAt"], updatedAt: row["updatedAt"])
             }
         }
     }

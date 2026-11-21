@@ -90,6 +90,13 @@ final class ForgeFoodModel {
     private(set) var groupsById: [String: String] = [:]
     /// A meal eaten on several of the last days, offered again at its time of day (today only).
     private(set) var habit: FoodRepeat.Suggestion?
+    /// Whole meals kept as favourites, most recently used first (2026-11-21).
+    private(set) var savedMeals: [FoodSavedMeal] = []
+    /// Starred foods, for the favourites bar and the stars in the add sheet.
+    private(set) var favouriteFoods: [FoodItem] = []
+    private(set) var favouriteIds: Set<String> = []
+    /// The amount each recently eaten food was logged with last time, so one tap can repeat it.
+    private(set) var lastGrams: [String: Double] = [:]
     /// Seven days for the week strip, oldest first, each with its totals (empty for a day without a log).
     private(set) var week: [WeekDay] = []
     /// The week's nutrition score; nil while the Lab switch is off or fewer than five days carry a log.
@@ -497,6 +504,7 @@ final class ForgeFoodModel {
         dayComplete = ((try? await store.foodCompleteDays(from: day, to: day)) ?? []).contains(day)
         await resolveGroups(store: store)
         await findHabit(store: store)
+        await loadFavourites(store: store)
         await loadWeek(store: store)
         otherIntake = await FoodLog.otherIntake(store: store, day)
         if !references.isEmpty {
@@ -692,6 +700,56 @@ final class ForgeFoodModel {
         guard let store = await repo.storeHandle() else { return }
         try? await store.setFoodFavourite(.init(foodId: item.id, name: item.name,
                                                 addedAt: Int(Date.now.timeIntervalSince1970)), on: on)
+        await loadFavourites(store: store)
+    }
+
+    // MARK: Favourite meals (2026-11-21)
+
+    private func loadFavourites(store: WhoopStore) async {
+        savedMeals = (try? await store.foodMeals()) ?? []
+        favouriteFoods = await FoodLibrary.favourites(store: store)
+        favouriteIds = Set(((try? await store.foodFavourites()) ?? []).map(\.foodId))
+        let recent = await FoodLibrary.recents(store: store, limit: 60)
+        lastGrams = Dictionary(recent.compactMap { pair in pair.lastGrams.map { (pair.item.id, $0) } },
+                               uniquingKeysWith: { first, _ in first })
+    }
+
+    /// The name a meal is offered under when it is kept: its kind ("Breakfast"). Short on purpose: the favourites
+    /// show the foods beside it, and the wearer renames it in the same step.
+    func suggestedName(for entries: [FoodLogEntry]) -> String {
+        let kind = entries.first.map { FoodLog.MealKind(rawValue: $0.meal ?? "") ?? FoodLog.MealKind.around(
+            Date(timeIntervalSince1970: TimeInterval($0.loggedAt))) } ?? .snack
+        return FoodText.meal(kind)
+    }
+
+    func saveMeal(name: String, from entries: [FoodLogEntry], repo: Repository) async -> Bool {
+        guard let store = await repo.storeHandle(), let meal = FoodLog.savedMeal(name: name, from: entries),
+              (try? await store.saveFoodMeal(meal)) == true else { return false }
+        await loadFavourites(store: store)
+        return true
+    }
+
+    func deleteMeal(_ meal: FoodSavedMeal, repo: Repository) async {
+        guard let store = await repo.storeHandle() else { return }
+        try? await store.deleteFoodMeal(id: meal.id)
+        await loadFavourites(store: store)
+    }
+
+    /// Logs a kept meal again on the shown day, now on today, under the meal of that time. The meal moves to the
+    /// front of the favourites, since it is the one most likely wanted next.
+    @discardableResult
+    func logSavedMeal(_ meal: FoodSavedMeal, repo: Repository) async -> Bool {
+        guard let store = await repo.storeHandle() else { return false }
+        let at = defaultTime()
+        let entries = FoodLog.entries(of: meal, at: at, kind: FoodLog.MealKind.around(at))
+        guard await FoodLog.save(store: store, entries) else { return false }
+        await FoodHealthSync.wrote(entries, store: store)
+        var used = meal
+        used.updatedAt = Int(Date.now.timeIntervalSince1970)
+        try? await store.saveFoodMeal(used)
+        await reload(store: store)
+        savedRevision += 1
+        return true
     }
 }
 #endif

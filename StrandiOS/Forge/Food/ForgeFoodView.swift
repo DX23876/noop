@@ -32,6 +32,11 @@ struct ForgeFoodView: View {
     @State private var editing: FoodLogEntry?
     @State private var copying: FoodEntryBatch?
     @State private var recipeFrom: FoodEntryBatch?
+    /// The meal being kept as a favourite, while its name is asked for.
+    @State private var keeping: FoodEntryBatch?
+    @State private var keepName = ""
+    /// A starred food tapped in the favourites bar: its amount sheet, logged straight from there.
+    @State private var favouritePick: FoodItem?
 
     var body: some View {
         ScrollView {
@@ -57,6 +62,12 @@ struct ForgeFoodView: View {
                     .padding(.top, 16)
                 FoodNutrientCard(day: model.dayNutrients, pinned: model.pinned, open: openNutrients)
                     .id(model.pinRevision)
+                if !model.savedMeals.isEmpty || !model.favouriteFoods.isEmpty {
+                    FoodSectionHeader(title: String(localized: "Favourites"))
+                        .padding(.top, 16)
+                    FoodFavouritesBar(meals: model.savedMeals, foods: model.favouriteFoods,
+                                      logMeal: logSavedMeal, pickFood: pickFavourite)
+                }
                 FoodSectionHeader(title: String(localized: "Meals"))
                     .padding(.top, 16)
                 if let habit = model.habit {
@@ -67,7 +78,7 @@ struct ForgeFoodView: View {
                 if let summary = model.summary, !summary.entries.isEmpty {
                     ForEach(summary.meals) { meal in
                         FoodMealCard(meal: meal, picture: model.picture(for: meal), onEdit: { editing = $0 }, onCopy: { copying = FoodEntryBatch(entries: $0) },
-                                     onRecipe: { recipeFrom = FoodEntryBatch(entries: $0) }, onDelete: delete)
+                                     onRecipe: { recipeFrom = FoodEntryBatch(entries: $0) }, onKeep: keep, onDelete: delete)
                             .transition(.opacity.combined(with: .move(edge: .top)))
                     }
                     FoodCompleteDayRow(complete: model.dayComplete, asks: asksComplete, toggle: toggleComplete)
@@ -124,6 +135,16 @@ struct ForgeFoodView: View {
         .sheet(item: $editing) { FoodEntrySheet(entry: $0, model: model).environmentObject(repo) }
         .sheet(item: $copying) { FoodCopySheet(batch: $0, model: model).environmentObject(repo) }
         .sheet(item: $recipeFrom) { FoodRecipeSheet(batch: $0, model: model).environmentObject(repo) }
+        .sheet(item: $favouritePick) { item in
+            FoodPortionSheet(item: item, model: model, lastGrams: model.lastGrams[item.id], add: logFavourite)
+        }
+        .alert("Keep as favourite", isPresented: keepingShown) {
+            TextField("Name", text: $keepName)
+            Button("Cancel", role: .cancel) { keeping = nil }
+            Button("Keep", action: saveKept)
+        } message: {
+            Text("Log the whole meal again with one tap from your favourites.")
+        }
         .navigationDestination(item: $subpage) { page in
             switch page {
             case .score:
@@ -228,5 +249,24 @@ struct ForgeFoodView: View {
     private func openPlan() { if model.plan == nil { planning = true } else { subpage = .plan } }
     private func showDay(_ day: String) { model.day = day }
     private func delete(_ entries: [FoodLogEntry]) { Task { await model.delete(entries, repo: repo) } }
+
+    private var keepingShown: Binding<Bool> {
+        Binding(get: { keeping != nil }, set: { if !$0 { keeping = nil } })
+    }
+    private func keep(_ entries: [FoodLogEntry]) {
+        keepName = model.suggestedName(for: entries)
+        keeping = FoodEntryBatch(entries: entries)
+    }
+    private func saveKept() {
+        guard let batch = keeping else { return }
+        keeping = nil
+        let name = keepName
+        Task { _ = await model.saveMeal(name: name, from: batch.entries, repo: repo) }
+    }
+    private func logSavedMeal(_ meal: FoodSavedMeal) { Task { await model.logSavedMeal(meal, repo: repo) } }
+    private func pickFavourite(_ item: FoodItem) { favouritePick = item }
+    private func logFavourite(_ line: FoodCartLine) {
+        Task { _ = await model.log([line], at: model.defaultTime(), meal: nil, repo: repo, coach: nil) }
+    }
 }
 #endif

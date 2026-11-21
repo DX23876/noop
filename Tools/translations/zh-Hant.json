@@ -4848,5 +4848,11 @@
   "The service did not take it. Your text is still here.": "服務沒有接受。你的文字還在。",
   "Nothing answered. Your text is still here; try again when you are back online.": "沒有任何回應。你的文字還在，等恢復連線後再試。",
   "Sending is switched off": "傳送已關閉",
-  "Nothing leaves this device while that is off, so a report cannot go out either. The switch is on the Project page, under Taking part.": "關閉期間沒有任何內容離開這台裝置，回報也不例外。開關在專案頁面的參與一節。"
+  "Nothing leaves this device while that is off, so a report cannot go out either. The switch is on the Project page, under Taking part.": "關閉期間沒有任何內容離開這台裝置，回報也不例外。開關在專案頁面的參與一節。",
+  "Add %@ g again": "再次加入 %@ 克",
+  "Keep": "儲存",
+  "Keep as favourite": "儲存為收藏",
+  "Log %@ again": "再次記錄 %@",
+  "Log the whole meal again with one tap from your favourites.": "在收藏中輕點一下，即可再次記錄整餐。",
+  "Star a food, or keep a whole meal from its menu on the Food page, to find it here.": "為食物加上星號，或在飲食頁面透過餐點選單儲存整餐，就能在這裡找到。"
 }

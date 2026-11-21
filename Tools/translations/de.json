@@ -4694,5 +4694,11 @@
   "The service did not take it. Your text is still here.": "Der Dienst hat es nicht angenommen. Dein Text steht noch da.",
   "Nothing answered. Your text is still here; try again when you are back online.": "Es kam keine Antwort. Dein Text steht noch da, versuch es wieder, sobald du online bist.",
   "Sending is switched off": "Senden ist ausgeschaltet",
-  "Nothing leaves this device while that is off, so a report cannot go out either. The switch is on the Project page, under Taking part.": "Solange das aus ist, verlässt nichts dieses Gerät, also auch kein Bericht. Der Schalter steht auf der Projektseite unter Mitmachen."
+  "Nothing leaves this device while that is off, so a report cannot go out either. The switch is on the Project page, under Taking part.": "Solange das aus ist, verlässt nichts dieses Gerät, also auch kein Bericht. Der Schalter steht auf der Projektseite unter Mitmachen.",
+  "Add %@ g again": "%@ g erneut hinzufügen",
+  "Keep": "Merken",
+  "Keep as favourite": "Als Favorit merken",
+  "Log %@ again": "%@ erneut eintragen",
+  "Log the whole meal again with one tap from your favourites.": "Trag die ganze Mahlzeit mit einem Tipp aus deinen Favoriten wieder ein.",
+  "Star a food, or keep a whole meal from its menu on the Food page, to find it here.": "Markiere ein Lebensmittel mit dem Stern oder merke dir eine ganze Mahlzeit über ihr Menü auf der Ernährungsseite. Dann findest du sie hier."
 }

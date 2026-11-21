@@ -12,8 +12,10 @@ struct FoodHabitCard: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            if let picture {
-                FoodMealPicture(source: picture, height: 56).frame(width: 56)
+            if case .motif(let motif) = picture {
+                FoodThumbnail(motif: motif, size: 56)
+            } else if let picture {
+                FoodMealPicture(source: picture, height: 56).frame(width: 56).clipped()
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text("As usual · \(FoodText.meal(habit.kind))").font(.footnote).foregroundStyle(ForgeColor.secondary)

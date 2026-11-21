@@ -4787,5 +4787,11 @@
   "The service did not take it. Your text is still here.": "Il servizio non lo ha accettato. Il tuo testo è ancora qui.",
   "Nothing answered. Your text is still here; try again when you are back online.": "Non ha risposto nulla. Il tuo testo è ancora qui, riprova quando sei di nuovo online.",
   "Sending is switched off": "L'invio è disattivato",
-  "Nothing leaves this device while that is off, so a report cannot go out either. The switch is on the Project page, under Taking part.": "Finché è disattivato non esce nulla da questo dispositivo, nemmeno una segnalazione. L'interruttore è nella pagina Progetto, sotto Partecipare."
+  "Nothing leaves this device while that is off, so a report cannot go out either. The switch is on the Project page, under Taking part.": "Finché è disattivato non esce nulla da questo dispositivo, nemmeno una segnalazione. L'interruttore è nella pagina Progetto, sotto Partecipare.",
+  "Add %@ g again": "Aggiungi di nuovo %@ g",
+  "Keep": "Salva",
+  "Keep as favourite": "Salva come preferito",
+  "Log %@ again": "Registra di nuovo %@",
+  "Log the whole meal again with one tap from your favourites.": "Registra di nuovo l’intero pasto con un tocco dai tuoi preferiti.",
+  "Star a food, or keep a whole meal from its menu on the Food page, to find it here.": "Aggiungi una stella a un alimento o salva un pasto intero dal suo menu nella pagina Nutrizione per trovarlo qui."
 }

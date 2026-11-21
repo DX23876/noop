@@ -114,6 +114,49 @@ final class FoodLogStoreTests: XCTestCase {
         XCTAssertTrue(none.isEmpty)
     }
 
+    func testSavedMealsKeepTheirFoodsInOrderNewestFirst() async throws {
+        let store = try await WhoopStore.inMemory()
+        let breakfast = FoodSavedMeal(id: "m1", name: "Frühstück", items: [
+            .init(foodId: "bls:C133000", name: "Haferflocken", grams: 80, per100g: ["energy_kcal": 348]),
+            .init(foodId: nil, name: "Milch", grams: 300, per100g: ["energy_kcal": 64]),
+        ], createdAt: 1, updatedAt: 1)
+        let lunch = FoodSavedMeal(id: "m2", name: "Mittag", items: [
+            .init(foodId: "bls:G000000", name: "Brokkoli", grams: 200, per100g: ["energy_kcal": 35]),
+        ], createdAt: 2, updatedAt: 2)
+        let savedBreakfast = try await store.saveFoodMeal(breakfast)
+        let savedLunch = try await store.saveFoodMeal(lunch)
+        XCTAssertTrue(savedBreakfast && savedLunch)
+        let meals = try await store.foodMeals()
+        XCTAssertEqual(meals, [lunch, breakfast])
+
+        // Saving again under the same id replaces the items instead of adding to them.
+        var renamed = breakfast
+        renamed.name = "Porridge"
+        renamed.items = [breakfast.items[0]]
+        renamed.updatedAt = 3
+        try await store.saveFoodMeal(renamed)
+        let afterRename = try await store.foodMeals()
+        XCTAssertEqual(afterRename, [renamed, lunch])
+
+        let deleted = try await store.deleteFoodMeal(id: "m2")
+        XCTAssertTrue(deleted)
+        let left = try await store.foodMeals()
+        XCTAssertEqual(left.map(\.id), ["m1"])
+    }
+
+    func testASavedMealWithoutNameOrAmountIsRefused() async throws {
+        let store = try await WhoopStore.inMemory()
+        let item = FoodRecipe.Item(foodId: nil, name: "Apfel", grams: 150, per100g: ["energy_kcal": 52])
+        let noName = try await store.saveFoodMeal(.init(id: "a", name: "  ", items: [item], createdAt: 1, updatedAt: 1))
+        let noItems = try await store.saveFoodMeal(.init(id: "b", name: "Snack", items: [], createdAt: 1, updatedAt: 1))
+        var zero = item
+        zero.grams = 0
+        let noAmount = try await store.saveFoodMeal(.init(id: "c", name: "Snack", items: [zero], createdAt: 1, updatedAt: 1))
+        XCTAssertFalse(noName || noItems || noAmount)
+        let meals = try await store.foodMeals()
+        XCTAssertTrue(meals.isEmpty)
+    }
+
     func testCompletelyLoggedDaysAreMarkedAndUnmarked() async throws {
         let store = try await WhoopStore.inMemory()
         try await store.setFoodDayComplete("2026-11-08", true, at: 10)

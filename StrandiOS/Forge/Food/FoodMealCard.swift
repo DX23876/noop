@@ -10,6 +10,8 @@ struct FoodMealCard: View {
     let onEdit: (FoodLogEntry) -> Void
     let onCopy: ([FoodLogEntry]) -> Void
     let onRecipe: ([FoodLogEntry]) -> Void
+    /// Keeps the meal as a favourite, to log it again in one tap.
+    var onKeep: (([FoodLogEntry]) -> Void)? = nil
     let onDelete: ([FoodLogEntry]) -> Void
 
     var body: some View {
@@ -23,6 +25,9 @@ struct FoodMealCard: View {
                 Spacer()
                 Text("\(FoodText.kcal(meal.totals[.energyKcal])) kcal").font(.subheadline).foregroundStyle(ForgeColor.secondary)
                 Menu("Meal actions", systemImage: "ellipsis.circle") {
+                    if onKeep != nil, meal.entries.contains(where: { $0.grams != nil }) {
+                        Button("Keep as favourite", systemImage: "star", action: keepMeal)
+                    }
                     Button("Copy to other days", systemImage: "doc.on.doc", action: copyMeal)
                     if meal.entries.contains(where: { $0.grams != nil }) {
                         Button("Save as recipe", systemImage: "book.closed", action: recipeMeal)
@@ -43,6 +48,7 @@ struct FoodMealCard: View {
 
     private func copyMeal() { onCopy(meal.entries) }
     private func recipeMeal() { onRecipe(meal.entries) }
+    private func keepMeal() { onKeep?(meal.entries) }
     private func deleteMeal() { onDelete(meal.entries) }
 }
 #endif

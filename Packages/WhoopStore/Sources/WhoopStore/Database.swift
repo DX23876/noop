@@ -2183,6 +2183,11 @@ extension WhoopStore {
             try db.execute(sql: "DROP TABLE trainingSchedule")
             try db.execute(sql: "ALTER TABLE trainingSchedule_new RENAME TO trainingSchedule")
         }
+        // Whole meals kept as favourites (owner, 2026-11-21), logged again as separate entries in one tap. Wearer
+        // input, two new tables, nothing existing touched. Analysis migration required: no.
+        migrator.registerMigration("v91-food-saved-meal") { db in
+            try WhoopStore.createFoodSavedMealTables(db)
+        }
         return migrator
     }
 }

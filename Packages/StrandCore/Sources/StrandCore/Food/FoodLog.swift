@@ -233,6 +233,39 @@ public enum FoodLog {
         return FoodRecipe(id: id, name: name, servings: servings, items: items, createdAt: stamp, updatedAt: stamp)
     }
 
+    /// A meal kept as a favourite from the entries it was logged as: each food with its amount. Quick entries
+    /// without an amount cannot be logged again by the gram and are left out; nil when nothing is left.
+    public static func savedMeal(name: String, from entries: [FoodLogEntry], id: String = UUID().uuidString,
+                                 now: Date = Date()) -> FoodSavedMeal? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let items = entries.compactMap { entry -> FoodRecipe.Item? in
+            guard let grams = entry.grams, grams > 0, let per100g = entry.per100g else { return nil }
+            return .init(foodId: entry.foodId, name: entry.name, grams: grams, per100g: per100g)
+        }
+        guard !trimmed.isEmpty, !items.isEmpty else { return nil }
+        let stamp = Int(now.timeIntervalSince1970)
+        return FoodSavedMeal(id: id, name: trimmed, items: items, createdAt: stamp, updatedAt: stamp)
+    }
+
+    /// A saved meal logged again at `at`: one entry per food with the amount it was saved with, all under one meal
+    /// so the day shows them together. A food saved without an id stays without one.
+    public static func entries(of meal: FoodSavedMeal, at: Date, kind: MealKind?, now: Date = Date()) -> [FoodLogEntry] {
+        meal.items.map { saved in
+            let id = saved.foodId ?? ""
+            let source: FoodItem.Source = id.hasPrefix("bls:") ? .bls : id.hasPrefix("off:") ? .off
+                : id.hasPrefix("recipe:") ? .recipe : .own
+            let item = FoodItem(id: id, source: source, name: saved.name, per100g: NutrientAmounts(stored: saved.per100g))
+            var entry = entry(for: item, grams: saved.grams, at: at, origin: .copy, meal: kind, now: now)
+            if saved.foodId == nil { entry.foodId = nil }
+            return entry
+        }
+    }
+
+    /// The energy of a saved meal as it was saved.
+    public static func kcal(of meal: FoodSavedMeal) -> Double {
+        meal.items.reduce(0) { $0 + ($1.per100g["energy_kcal"] ?? 0) * $1.grams / 100 }
+    }
+
     /// A recipe as a food: per 100 g of the whole pot, one serving as its portion.
     public static func item(for recipe: FoodRecipe) -> FoodItem? {
         let grams = recipe.items.reduce(0) { $0 + $1.grams }

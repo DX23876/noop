@@ -4694,5 +4694,11 @@
   "The service did not take it. Your text is still here.": "Le service ne l'a pas accepté. Votre texte est toujours là.",
   "Nothing answered. Your text is still here; try again when you are back online.": "Rien n'a répondu. Votre texte est toujours là ; réessayez une fois reconnecté.",
   "Sending is switched off": "L'envoi est désactivé",
-  "Nothing leaves this device while that is off, so a report cannot go out either. The switch is on the Project page, under Taking part.": "Tant que c'est désactivé, rien ne quitte cet appareil, pas même un signalement. Le réglage se trouve sur la page Projet, sous Participer."
+  "Nothing leaves this device while that is off, so a report cannot go out either. The switch is on the Project page, under Taking part.": "Tant que c'est désactivé, rien ne quitte cet appareil, pas même un signalement. Le réglage se trouve sur la page Projet, sous Participer.",
+  "Add %@ g again": "Ajouter à nouveau %@ g",
+  "Keep": "Garder",
+  "Keep as favourite": "Garder en favori",
+  "Log %@ again": "Enregistrer à nouveau %@",
+  "Log the whole meal again with one tap from your favourites.": "Réenregistre tout le repas d’un seul geste depuis tes favoris.",
+  "Star a food, or keep a whole meal from its menu on the Food page, to find it here.": "Mets une étoile à un aliment ou garde un repas entier depuis son menu sur la page Nutrition pour le retrouver ici."
 }

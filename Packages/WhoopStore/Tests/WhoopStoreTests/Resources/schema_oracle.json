@@ -91,7 +91,8 @@
   "v87-food-photo",
   "v88-food-day-complete",
   "v89-workout-route",
-  "v90-training-program"
+  "v90-training-program",
+  "v91-food-saved-meal"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -5969,6 +5970,87 @@
      ]
     }
    ]
+  },
+  "foodMeal": {
+   "platform": "ios_only",
+   "reason": "Fork food log (GRDB v91, owner 2026-11-21): whole meals kept as favourites, wearer input. Android reads this store through the shared core; Room has no twin.",
+   "columns": [
+    {
+     "name": "id",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "name",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "createdAt",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "updatedAt",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "id"
+   ],
+   "indices": []
+  },
+  "foodMealItem": {
+   "platform": "ios_only",
+   "reason": "Fork food log (GRDB v91, owner 2026-11-21): whole meals kept as favourites, wearer input. Android reads this store through the shared core; Room has no twin.",
+   "columns": [
+    {
+     "name": "mealId",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "position",
+     "affinity": "INTEGER",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "foodId",
+     "affinity": "TEXT",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "name",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "grams",
+     "affinity": "REAL",
+     "notNull": true,
+     "default": null
+    },
+    {
+     "name": "per100g",
+     "affinity": "TEXT",
+     "notNull": true,
+     "default": null
+    }
+   ],
+   "primaryKey": [
+    "mealId",
+    "position"
+   ],
+   "indices": []
   }
  }
 }

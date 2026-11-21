@@ -215,6 +215,27 @@ final class FoodLogTests: XCTestCase {
         XCTAssertEqual(item.per100g[.energyKcal]!, (278.4 + 204.8) / 4, accuracy: 1e-9)
     }
 
+    func testASavedMealLogsAgainAsItsFoodsWithTheirAmounts() throws {
+        let milk = FoodItem(id: "bls:M111000", source: .bls, name: "Milch", per100g: NutrientAmounts([.energyKcal: 64]))
+        var loose = FoodLog.entry(for: milk, grams: 200, at: Date(), origin: .coach)
+        loose.foodId = nil
+        let quick = FoodLog.quickEntry(name: "Kantine", kcal: 600, proteinG: nil, carbsG: nil, fatG: nil, at: Date())
+        let entries = [FoodLog.entry(for: oats, grams: 80, at: Date(), origin: .search), loose, quick]
+        let meal = try XCTUnwrap(FoodLog.savedMeal(name: "  Porridge ", from: entries, id: "m"))
+        XCTAssertEqual(meal.name, "Porridge")
+        XCTAssertEqual(meal.items.map(\.grams), [80, 200], "a quick entry has no amount to repeat")
+        XCTAssertEqual(FoodLog.kcal(of: meal), 80 * 3.48 + 200 * 0.64, accuracy: 1e-9)
+
+        let at = date("2026-11-21", 7, 30)
+        let again = FoodLog.entries(of: meal, at: at, kind: .breakfast)
+        XCTAssertEqual(again.map(\.foodId), ["bls:C133000", nil], "a food saved without an id gets no made-up one")
+        XCTAssertEqual(again.map(\.day), ["2026-11-21", "2026-11-21"])
+        XCTAssertTrue(again.allSatisfy { $0.meal == "breakfast" && $0.origin == .copy })
+        XCTAssertEqual(again[1].totals["energy_kcal"], 128)
+        XCTAssertNil(FoodLog.savedMeal(name: "Nur Kantine", from: [quick]))
+        XCTAssertNil(FoodLog.savedMeal(name: " ", from: entries))
+    }
+
     func testFoodLogDaysFeedNutritionReadsAboveHealthAndBelowAManualDay() async throws {
         let store = try await WhoopStore.inMemory()
         try await store.upsertMetricSeries([MetricPoint(day: "2026-11-08", key: NutritionReads.caloriesKey, value: 2_500),
