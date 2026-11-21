@@ -286,7 +286,9 @@ public enum WorkoutSource: Equatable, Sendable {
     /// with every prior entry. The final array is reconstructed in original order and every component keeps
     /// its earliest input slot, preserving the UI's stable ordering while selecting the same richer winner.
     /// `onMerge` is invoked with (winner, loser) for each collapsed pair so the trace path can record it.
-    private static func collapseCrossSource(
+    /// `internal` (not private) so the randomised oracle can check EACH pass on its own: a divergence
+    /// then names the pass that caused it instead of the pair of them.
+    static func collapseCrossSource(
         _ input: [WorkoutRow],
         onMerge: ((_ winner: WorkoutRow, _ loser: WorkoutRow) -> Void)? = nil
     ) -> [WorkoutRow] {
@@ -418,43 +420,48 @@ public enum WorkoutSource: Equatable, Sendable {
         classify(a.source) == .apple ? b : a
     }
 
-    /// Collapse `crossSportSameSession` pairs, after the same-sport collapse has run. Walks the rows in
-    /// start order and compares each only with those starting within the tolerance, so the pass stays
-    /// linear over a ten-year list. Order-stable the same way `collapseCrossSource` is: the kept row takes
-    /// the pair's earliest input slot.
-    private static func collapseCrossSport(
+    /// Collapse `crossSportSameSession` pairs, after the same-sport collapse has run.
+    ///
+    /// The walk is the plainest one: rows in INPUT order, each compared with the rows already kept, the
+    /// FIRST match wins — the same shape as the same-sport collapse before it, so both passes read alike
+    /// and the randomised oracle on each platform can check them against that reading. It matters here:
+    /// several rows can sit inside one tolerance window, and which of them pair up depends on the order
+    /// they are walked in, so the order is part of the contract rather than an accident of the sweep. A
+    /// start-ordered sweep paired them differently, which the Kotlin oracle caught.
+    ///
+    /// It stays near-linear by comparing a row only with the kept rows whose start can be within
+    /// `crossSportStartToleranceS`: kept slots are indexed by their start bucket, and a merged slot moves
+    /// bucket with its winner.
+    static func collapseCrossSport(
         _ input: [WorkoutRow],
         onMerge: ((_ winner: WorkoutRow, _ loser: WorkoutRow) -> Void)? = nil
     ) -> [WorkoutRow] {
         guard input.count > 1 else { return input }
-        let order = input.indices.sorted { lhs, rhs in
-            if input[lhs].startTs != input[rhs].startTs { return input[lhs].startTs < input[rhs].startTs }
-            return lhs < rhs
-        }
-        var removed = Set<Int>()
-        var replacements: [Int: WorkoutRow] = [:]
-        for (position, index) in order.enumerated() {
-            if removed.contains(index) { continue }
-            var next = position + 1
-            while next < order.count {
-                let other = order[next]
-                next += 1
-                guard input[other].startTs - input[index].startTs <= crossSportStartToleranceS else { break }
-                if removed.contains(other) { continue }
-                let current = replacements[index] ?? input[index]
-                let candidate = replacements[other] ?? input[other]
-                guard crossSportSameSession(current, candidate) else { continue }
-                let winner = preferredCrossSport(current, candidate)
-                onMerge?(winner, winner == current ? candidate : current)
-                let anchor = min(index, other), loserSlot = max(index, other)
-                replacements[anchor] = winner
-                replacements.removeValue(forKey: loserSlot)
-                removed.insert(loserSlot)
+        func bucket(_ ts: Int) -> Int { ts / crossSportStartToleranceS }
+        var kept: [WorkoutRow] = []
+        var slotsByBucket: [Int: [Int]] = [:]
+        for row in input {
+            let home = bucket(row.startTs)
+            var candidates: [Int] = []
+            for neighbour in (home - 1)...(home + 1) {
+                candidates.append(contentsOf: slotsByBucket[neighbour] ?? [])
             }
+            guard let hit = candidates.sorted().first(where: { crossSportSameSession(kept[$0], row) }) else {
+                slotsByBucket[home, default: []].append(kept.count)
+                kept.append(row)
+                continue
+            }
+            let existing = kept[hit]
+            let winner = preferredCrossSport(existing, row)
+            onMerge?(winner, winner == existing ? row : existing)
+            let was = bucket(existing.startTs), now = bucket(winner.startTs)
+            if was != now {
+                slotsByBucket[was]?.removeAll { $0 == hit }
+                slotsByBucket[now, default: []].append(hit)
+            }
+            kept[hit] = winner
         }
-        return input.indices.compactMap { index in
-            removed.contains(index) ? nil : (replacements[index] ?? input[index])
-        }
+        return kept
     }
 
     /// Diagnostic twin of `dedupCrossSource(...)` for the Workouts & GPS test mode: returns the BYTE-IDENTICAL

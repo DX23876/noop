@@ -337,40 +337,48 @@ object WorkoutEditing {
         if (crossSportSide(a.source) == CrossSportSide.PHONE_HEALTH) b else a
 
     /**
-     * Collapse [crossSportSameSession] pairs, after the same-sport collapse has run. Walks the rows in
-     * start order and compares each only with those starting within the tolerance, so the pass stays
-     * linear over a ten-year list, and keeps the pair's earliest input slot. Mirrors Swift's
-     * `collapseCrossSport`.
+     * Collapse [crossSportSameSession] pairs, after the same-sport collapse has run.
+     *
+     * The walk is the plainest one: rows in INPUT order, each compared with the rows already kept, the
+     * FIRST match wins — the same shape as [collapseCrossSource] before it. It matters: several rows can
+     * sit inside one tolerance window, and which of them pair up depends on the order they are walked in,
+     * so the order is part of the contract. It stays near-linear by comparing a row only with the kept
+     * rows whose start can be within [CROSS_SPORT_START_TOLERANCE_S], indexing kept slots by their start
+     * bucket and moving a merged slot's bucket with its winner. Mirrors Swift's `collapseCrossSport`.
      */
     private fun collapseCrossSport(
         input: List<WorkoutRow>,
         onMerge: ((winner: WorkoutRow, loser: WorkoutRow) -> Unit)? = null,
     ): List<WorkoutRow> {
         if (input.size < 2) return input
-        val order = input.indices.sortedWith(compareBy({ input[it].startTs }, { it }))
-        val removed = HashSet<Int>()
-        val replacements = HashMap<Int, WorkoutRow>()
-        for ((position, index) in order.withIndex()) {
-            if (index in removed) continue
-            var next = position + 1
-            while (next < order.size) {
-                val other = order[next]
-                next++
-                if (input[other].startTs - input[index].startTs > CROSS_SPORT_START_TOLERANCE_S) break
-                if (other in removed) continue
-                val current = replacements[index] ?: input[index]
-                val candidate = replacements[other] ?: input[other]
-                if (!crossSportSameSession(current, candidate)) continue
-                val winner = preferredCrossSport(current, candidate)
-                onMerge?.invoke(winner, if (winner === current) candidate else current)
-                val anchor = minOf(index, other)
-                val loserSlot = maxOf(index, other)
-                replacements[anchor] = winner
-                replacements.remove(loserSlot)
-                removed.add(loserSlot)
+        fun bucket(ts: Long): Long = ts / CROSS_SPORT_START_TOLERANCE_S
+        val kept = ArrayList<WorkoutRow>(input.size)
+        val slotsByBucket = HashMap<Long, ArrayList<Int>>()
+        for (row in input) {
+            val home = bucket(row.startTs)
+            val candidates = ArrayList<Int>()
+            for (neighbour in (home - 1)..(home + 1)) {
+                slotsByBucket[neighbour]?.let { candidates.addAll(it) }
             }
+            candidates.sort()
+            val hit = candidates.firstOrNull { crossSportSameSession(kept[it], row) }
+            if (hit == null) {
+                slotsByBucket.getOrPut(home) { ArrayList() }.add(kept.size)
+                kept.add(row)
+                continue
+            }
+            val existing = kept[hit]
+            val winner = preferredCrossSport(existing, row)
+            onMerge?.invoke(winner, if (winner === existing) row else existing)
+            val was = bucket(existing.startTs)
+            val now = bucket(winner.startTs)
+            if (was != now) {
+                slotsByBucket[was]?.remove(hit)
+                slotsByBucket.getOrPut(now) { ArrayList() }.add(hit)
+            }
+            kept[hit] = winner
         }
-        return input.indices.mapNotNull { if (it in removed) null else (replacements[it] ?: input[it]) }
+        return kept
     }
 
     /** A short, source-only descriptor of a row for the Workouts test-mode dedup trace. Mirrors Swift. */

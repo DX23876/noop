@@ -675,15 +675,31 @@ class WorkoutEditingTest {
 
     // MARK: - dedup perf refactor: bucketed collapse == naive walk (byte-identical)
 
-    /** The ORIGINAL O(n²) collapse, kept here verbatim as the oracle the bucketed version must match. */
+    /**
+     * The ORIGINAL O(n²) collapse, kept here verbatim as the oracle the bucketed version must match,
+     * followed by the same-shaped naive pass for one session stored under two sport names (#2929): every
+     * kept row compared with every other, first match wins, NOOP's row kept. Both passes are written as
+     * the plainest thing that could be meant, so a divergence says the fast version carries an order
+     * dependency the plain reading does not.
+     */
     private fun naiveDedupCrossSource(rows: List<WorkoutRow>): List<WorkoutRow> {
         val input = WorkoutEditing.dropDetectedShadows(rows)
-        val kept = ArrayList<WorkoutRow>(input.size)
+        val sameSport = ArrayList<WorkoutRow>(input.size)
         outer@ for (row in input) {
-            for (i in kept.indices) {
-                if (WorkoutEditing.sameActivity(kept[i], row)) {
-                    kept[i] = WorkoutEditing.preferred(kept[i], row)
+            for (i in sameSport.indices) {
+                if (WorkoutEditing.sameActivity(sameSport[i], row)) {
+                    sameSport[i] = WorkoutEditing.preferred(sameSport[i], row)
                     continue@outer
+                }
+            }
+            sameSport.add(row)
+        }
+        val kept = ArrayList<WorkoutRow>(sameSport.size)
+        cross@ for (row in sameSport) {
+            for (i in kept.indices) {
+                if (WorkoutEditing.crossSportSameSession(kept[i], row)) {
+                    kept[i] = WorkoutEditing.preferredCrossSport(kept[i], row)
+                    continue@cross
                 }
             }
             kept.add(row)
@@ -706,11 +722,15 @@ class WorkoutEditingTest {
         )
         val sources = listOf("apple-health", "whoop", "my-whoop", "manual", "my-whoop-noop", "lifting", "activity-file")
         val rnd = java.util.Random(20260713L)
+        var crossSportMerges = 0
         repeat(2000) {
             val n = rnd.nextInt(14)
             val rows = ArrayList<WorkoutRow>(n)
             repeat(n) {
-                val start = 1_000L + rnd.nextInt(20) * 300L          // clustered starts -> real overlaps
+                // 30-second steps, so starts land INSIDE the cross-sport tolerance as well as outside it.
+                // At 300-second steps the cross-sport pass almost never fired and this oracle passed
+                // without exercising it (#2929).
+                val start = 1_000L + rnd.nextInt(20) * 30L           // clustered starts -> real overlaps
                 val dur = 300L + rnd.nextInt(12) * 300L
                 rows.add(
                     WorkoutRow(
@@ -733,6 +753,26 @@ class WorkoutEditingTest {
             assertEquals("bucketed dedup diverged from naive for input: $rows", expected, actual)
             // The trace twin must return the exact same kept list the plain path does.
             assertEquals(actual, WorkoutEditing.dedupCrossSourceTrace(rows).first)
+            if (actual.size < naiveSameSportOnly(rows).size) crossSportMerges++
         }
+        assertTrue(
+            "the inputs must actually produce cross-sport pairs to merge, saw $crossSportMerges",
+            crossSportMerges > 100,
+        )
+    }
+
+    /** The same-sport half of the oracle alone, to tell whether a case exercised the cross-sport pass. */
+    private fun naiveSameSportOnly(rows: List<WorkoutRow>): List<WorkoutRow> {
+        val kept = ArrayList<WorkoutRow>()
+        outer@ for (row in WorkoutEditing.dropDetectedShadows(rows)) {
+            for (i in kept.indices) {
+                if (WorkoutEditing.sameActivity(kept[i], row)) {
+                    kept[i] = WorkoutEditing.preferred(kept[i], row)
+                    continue@outer
+                }
+            }
+            kept.add(row)
+        }
+        return kept
     }
 }

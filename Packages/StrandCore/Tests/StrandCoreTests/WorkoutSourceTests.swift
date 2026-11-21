@@ -1,5 +1,5 @@
 import XCTest
-import StrandCore
+@testable import StrandCore
 import WhoopStore
 
 
@@ -98,6 +98,58 @@ final class WorkoutSourceTests: XCTestCase {
         XCTAssertEqual(kept.count, 40)
         XCTAssertTrue(kept.allSatisfy { $0.sport == "Spazieren" })
         XCTAssertEqual(kept.map(\.startTs), (0..<40).map { 100_000 + $0 * 3_600 }, "order and bounds kept")
+    }
+
+    /// The cross-sport pass must equal the plainest reading of it over randomised inputs: every kept row
+    /// compared with every other, FIRST match wins, NOOP's row kept. It runs over the REAL output of the
+    /// same-sport pass, so the two together are what is checked, and it is written against the pass rather
+    /// than the pair so a divergence names the pass that caused it. Kotlin carries the same oracle; there
+    /// it caught a start-ordered sweep pairing rows differently from this reading.
+    ///
+    /// NOT asserted here: that the bucketed same-sport collapse equals ITS naive walk. On these inputs it
+    /// does not, in about 5 % of cases, and that predates the cross-sport pass (the Kotlin twin does match
+    /// its own naive walk, so the two platforms can keep different rows for one list). Left as a finding
+    /// rather than folded into this change.
+    func testTheCrossSportPassMatchesTheNaiveWalkOverRandomInputs() {
+        let sports = ["Running", "running", "Cycling", "yoga", "custom", "Walking",
+                      "TraditionalStrengthTraining", "Traditional Strength Training", "detected"]
+        let sources = ["apple-health", "whoop", "my-whoop", "manual", "my-whoop-noop", "lifting",
+                       "activity-file", "hevy", "detected-confirmed"]
+        var seed: UInt64 = 20_261_121
+        func next(_ bound: Int) -> Int {          // xorshift, so the case set is identical on every machine
+            seed ^= seed << 13; seed ^= seed >> 7; seed ^= seed << 17
+            return Int(seed % UInt64(bound))
+        }
+        func naiveCrossSport(_ rows: [WorkoutRow]) -> [WorkoutRow] {
+            var kept: [WorkoutRow] = []
+            for row in rows {
+                if let hit = kept.indices.first(where: { WorkoutSource.crossSportSameSession(kept[$0], row) }) {
+                    kept[hit] = WorkoutSource.preferredCrossSport(kept[hit], row)
+                } else {
+                    kept.append(row)
+                }
+            }
+            return kept
+        }
+        var pairsSeen = 0
+        for _ in 0..<2_000 {
+            var rows: [WorkoutRow] = []
+            for _ in 0..<next(14) {
+                let start = 1_000 + next(20) * 30      // clustered starts, inside and outside the tolerance
+                let dur = 300 + next(12) * 300
+                rows.append(row(start: start, end: start + dur,
+                                sport: sports[next(sports.count)], source: sources[next(sources.count)],
+                                avgHr: next(2) == 0 ? 90 + next(80) : nil,
+                                maxHr: next(2) == 0 ? 120 + next(80) : nil,
+                                strain: next(2) == 0 ? Double(next(21)) : nil))
+            }
+            let afterSameSport = WorkoutSource.collapseCrossSource(WorkoutSource.dropDetectedShadows(rows))
+            let expected = naiveCrossSport(afterSameSport)
+            XCTAssertEqual(WorkoutSource.collapseCrossSport(afterSameSport), expected, "diverged for \(rows)")
+            XCTAssertEqual(WorkoutSource.dedupCrossSource(rows), expected, "the whole path must end there too")
+            if expected.count < afterSameSport.count { pairsSeen += 1 }
+        }
+        XCTAssertGreaterThan(pairsSeen, 100, "the inputs must actually produce cross-sport pairs to merge")
     }
 
     // MARK: - cross-source dedup (#687)
