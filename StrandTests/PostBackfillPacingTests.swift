@@ -1,5 +1,5 @@
 import XCTest
-@testable import NOOP
+@testable import Strand
 
 /// Pins the wait that decides when a post-offload scoring pass may start, against the owner's iPhone log
 /// of 2026-11-22 — the chain that published a night of 123 minutes while 81 886 rows were still arriving.
