@@ -518,7 +518,11 @@ object HealthConnectImporter {
             counts = counts,
             firstDay = firstDay,
             lastDay = lastDay,
-            message = if (total == 0) NOTHING_FOUND
+            // NOT [NOTHING_FOUND], which is a block's "this month held no records". An import that
+            // brought no rows usually found plenty and had already imported all of it, and telling the
+            // wearer nothing was found would be a different and untrue claim. This is the sentence the
+            // whole-window import has always ended on.
+            message = if (total == 0) "Nothing new to import from Health Connect."
             else "Imported $total rows from Health Connect.",
         )
     }

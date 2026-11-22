@@ -57,7 +57,8 @@ struct AppleHealthView: View {
     // every other Apple Health metric is unit-agnostic. Display-only.
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
     /// The wearer's chosen import depth, in months (`ImportDepth`). Stored, so the choice survives the
-    /// screen; the key matches the Android preference's name so a strap log reads the same on both.
+    /// screen. The key is spelled as the Android preference is for the sake of anyone reading both
+    /// platforms' settings side by side; nothing reads it across the boundary.
     @AppStorage("noop.importMonths") private var importMonths = ImportDepth.default.months
 
     /// The label of one depth step. A function rather than a property on `ImportDepth`, which is pure and

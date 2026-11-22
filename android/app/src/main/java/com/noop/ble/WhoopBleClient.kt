@@ -3978,11 +3978,16 @@ class WhoopBleClient(
      *  under half a second and every one was dropped. Concurrent because the entry is cleared from the
      *  GATT binder thread in onDescriptorWrite and read on the main looper in drainCccdQueue. */
     private val cccdRetriesByChar = ConcurrentHashMap<UUID, Int>()
-    /** Puffin notify characteristics CONFIRMED on this link, counted in onDescriptorWrite and cleared in
+    /** Puffin notify characteristics CONFIRMED on this link, filled in onDescriptorWrite and cleared in
      *  [reset]. The offload arrives on those channels, so this is what [CccdDrainPolicy.handshakeMayComplete]
      *  reads before the handshake tail runs, and what keeps an empty offload on an incompletely subscribed
-     *  link out of the empty-offload streak. */
-    private val confirmedNotifyChars = AtomicInteger(0)
+     *  link out of the empty-offload streak.
+     *
+     *  A SET of characteristics and not a count of confirmations, which is what it was first written as:
+     *  the keep-alive's recovery re-queues all four, so two channels confirming a second time would have
+     *  reached four and declared the subscriptions complete while two had never worked once — the exact
+     *  wrong readout this field exists to prevent. */
+    private val confirmedNotifyChars = java.util.Collections.newSetFromMap(ConcurrentHashMap<UUID, Boolean>())
     /** Recoveries the keep-alive has already spent on a handshake that never finished, on this link.
      *  Bounded by [CccdDrainPolicy.recovery] so a strap that cannot subscribe is not bounced forever. */
     private var handshakeRecoveryAttempts = 0
@@ -3992,9 +3997,18 @@ class WhoopBleClient(
     /** #2026-11-22: takes the GATT slot back from a descriptor write that was ACCEPTED and never
      *  completed. Without it `cccdInFlight` latched for the whole link (the 21:24 link: no failure line,
      *  no further subscribe, no offload for 36 146 s). Cancelled in onDescriptorWrite and in [reset]. */
+    /** Which descriptor write the armed timeout belongs to. onDescriptorWrite fires on the GATT binder
+     *  thread while the timeout runs on the main looper, so the two can cross: without this the runnable
+     *  could log "accepted but never completed" about a subscribe that had just succeeded, and re-queue
+     *  it. A diagnostic may only assert what it can attribute. Both the arming and the completion move
+     *  the sequence, so a runnable that started before either one stands down. */
+    @Volatile private var cccdInFlightSeq = 0
+    /** The sequence the currently armed timeout was armed for. */
+    @Volatile private var cccdTimeoutSeq = -1
     private val cccdTimeoutRunnable = Runnable {
         val ch = cccdInFlightChar
-        if (!cccdInFlight || ch == null) return@Runnable
+        val armedFor = cccdTimeoutSeq
+        if (!cccdInFlight || ch == null || armedFor != cccdInFlightSeq) return@Runnable
         log(CccdDrainPolicy.writeTimedOutLine(ch.uuid.toString()))
         cccdInFlight = false
         cccdInFlightChar = null
@@ -8303,7 +8317,7 @@ class WhoopBleClient(
                 // [CccdDrainPolicy.handshakeMayComplete] before the handshake tail, and by the
                 // empty-offload streak, which must not blame a firmware for our own failed subscribe.
                 descriptor.characteristic?.uuid?.let {
-                    if (it in WHOOP5_NOTIFY_CHARS) confirmedNotifyChars.incrementAndGet()
+                    if (it in WHOOP5_NOTIFY_CHARS) confirmedNotifyChars.add(it)
                 }
             }
             // This CCCD write is done. Release the slot HERE, on the binder thread, which is what
@@ -8314,6 +8328,9 @@ class WhoopBleClient(
             handler.removeCallbacks(cccdTimeoutRunnable)
             cccdInFlight = false
             cccdInFlightChar = null
+            // Retire this write's sequence, so a timeout runnable that is already executing on the main
+            // looper finds its own write gone rather than timing out a subscribe that just landed.
+            cccdInFlightSeq += 1
             drainCccdQueue(g)
             drainWriteQueue()
         }
@@ -9790,7 +9807,7 @@ class WhoopBleClient(
                 CccdDrainPolicy.Recovery.REDRAIN -> {
                     handshakeRecoveryAttempts++
                     log("WHOOP 5/MG: the connect handshake has not completed and no offload has been " +
-                            "requested (${confirmedNotifyChars.get()} of ${WHOOP5_NOTIFY_CHARS.size} notify " +
+                            "requested (${confirmedNotifyChars.size} of ${WHOOP5_NOTIFY_CHARS.size} notify " +
                             "channels confirmed) — re-subscribing the notify channels")
                     // The PUFFIN chars specifically. `enableLiveNotifications` re-arms 0x2A37 and the
                     // battery characteristic only, which on this link are the two that already worked.
@@ -9809,7 +9826,7 @@ class WhoopBleClient(
                 CccdDrainPolicy.Recovery.BOUNCE -> {
                     handshakeRecoveryAttempts++
                     log("WHOOP 5/MG: the connect handshake is still unfinished after a re-subscribe " +
-                            "(${confirmedNotifyChars.get()} of ${WHOOP5_NOTIFY_CHARS.size} notify channels " +
+                            "(${confirmedNotifyChars.size} of ${WHOOP5_NOTIFY_CHARS.size} notify channels " +
                             "confirmed) — bouncing the link to rebuild it")
                     noteLocalTeardown("handshakeNeverCompleted")
                     intentionalDisconnect = false   // let the auto-reconnect fire
@@ -11421,7 +11438,7 @@ class WhoopBleClient(
                 // link of the 2026-11-22 tester log, where all four subscribes gave up and the handshake
                 // was declared done regardless. The keep-alive recovers it ([CccdDrainPolicy.recovery]);
                 // claiming "done" here is what stopped anything from trying.
-                if (!CccdDrainPolicy.handshakeMayComplete(confirmedNotifyChars.get())) {
+                if (!CccdDrainPolicy.handshakeMayComplete(confirmedNotifyChars.size)) {
                     log(CccdDrainPolicy.noConfirmedChannelsLine(WHOOP5_NOTIFY_CHARS.size))
                     return
                 }
@@ -11458,8 +11475,12 @@ class WhoopBleClient(
         val ops = gattOps ?: return
         cccdInFlight = true
         cccdInFlightChar = ch
-        // Take the slot back if the write is accepted and never answered (the 21:24 link).
+        cccdInFlightSeq += 1
+        // Take the slot back if the write is accepted and never answered (the 21:24 link). Armed for
+        // THIS write's sequence, so a timeout that crosses a completion on the binder thread stands down
+        // instead of blaming the next subscribe.
         handler.removeCallbacks(cccdTimeoutRunnable)
+        cccdTimeoutSeq = cccdInFlightSeq
         handler.postDelayed(cccdTimeoutRunnable, CccdDrainPolicy.WRITE_TIMEOUT_MS)
 
         // Tell the local stack to surface notifications, then write the CCCD so the remote starts
@@ -12179,12 +12200,12 @@ class WhoopBleClient(
         // would latch "history sync is experimental on 5.0" and widen the stall fuse to ten minutes on
         // the strength of our own failed descriptor write ([CccdDrainPolicy.countsTowardEmptyStreak]).
         val subscriptionsComplete = CccdDrainPolicy.countsTowardEmptyStreak(
-            confirmedNotifyChars = confirmedNotifyChars.get(),
+            confirmedNotifyChars = confirmedNotifyChars.size,
             totalNotifyChars = WHOOP5_NOTIFY_CHARS.size,
         )
         if (reason == "timeout" && isWhoop5 && !bankedThisOffload && !subscriptionsComplete) {
             log(CccdDrainPolicy.emptyOffloadNotChargedLine(
-                confirmedNotifyChars = confirmedNotifyChars.get(),
+                confirmedNotifyChars = confirmedNotifyChars.size,
                 totalNotifyChars = WHOOP5_NOTIFY_CHARS.size,
             ))
         } else if (reason == "timeout" && isWhoop5) {
@@ -13154,7 +13175,7 @@ class WhoopBleClient(
         // Per LINK, all three: a confirmed channel, a spent retry budget and a recovery attempt all
         // describe the link that just ended, and carrying any of them into the next one would make the
         // handshake gate or the empty-offload streak reason about a connection that is gone.
-        confirmedNotifyChars.set(0)
+        confirmedNotifyChars.clear()
         handshakeRecoveryAttempts = 0
         sessionStarted = false
         rawDumpedRespCmds.clear()   // #900: re-arm the per-command raw-frame dump for the next connection
