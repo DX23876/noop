@@ -1036,9 +1036,11 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit, goalKcal: Doubl
                         withContext(Dispatchers.IO) {
                             // An online result is kept as the wearer's own food, so it is there offline next time.
                             var lines = cart.map { line -> if (line.item.source == "online") CoreFood.saveOwn(line.item, "online")?.let { line.copy(item = it) } ?: line else line }
-                            // Missing vitamins and minerals from the closest BLS food, only when the wearer chose it.
-                            if (prefs.estimateMissing && com.noop.ui.NoopPrefs.coachEnabled(context)) {
-                                CoreFood.coachEnrich(lines.map { it.item })?.let { filled -> lines = lines.zip(filled) { l, i -> l.copy(item = i) } }
+                            // What each product is made of, so the score can count it; its missing vitamins and
+                            // minerals only when the wearer chose that.
+                            if (com.noop.ui.NoopPrefs.coachEnabled(context)) {
+                                CoreFood.coachEnrich(lines.map { it.item }, prefs.estimateMissing)
+                                    ?.let { filled -> lines = lines.zip(filled) { l, i -> l.copy(item = i) } }
                             }
                             FoodHealthConnect.wrote(context, CoreFood.logCart(lines, atEpoch, meal))
                         }

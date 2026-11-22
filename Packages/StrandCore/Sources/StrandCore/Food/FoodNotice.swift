@@ -71,10 +71,9 @@ public enum FoodNotice {
     /// The day's vegetable grams as the score counts them.
     public static func vegetableGrams(_ entries: [FoodLogEntry], facts: [String: FoodScore.FoodFacts] = [:]) -> Double {
         entries.reduce(0) { sum, entry in
-            guard let g = entry.grams, g > 0,
-                  FoodScore.kind(of: entry, group: entry.foodId.flatMap { facts[$0] }?.group,
-                                 name: entry.name.lowercased()) == .vegetables else { return sum }
-            return sum + g
+            guard let g = entry.grams, g > 0 else { return sum }
+            let share = FoodScore.groups(of: entry, facts: facts).first { $0.0 == .vegetables }?.1 ?? 0
+            return sum + g * share
         }
     }
 

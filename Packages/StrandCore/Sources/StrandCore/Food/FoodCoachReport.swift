@@ -34,7 +34,7 @@ public enum FoodCoachReport {
                             context: Context, calendar: Calendar = .current) -> String {
         let inSpan = all.filter { $0.day >= from && $0.day <= to }
         var lines = ["FOOD LOG \(from) to \(to) (today \(today)). Logged by the user in NOOP; amounts as logged."]
-        lines.append("NOTES are 0 to 10 after the Alternate Healthy Eating Index with the owner's choices: a day scores its own food, but fish, nuts and pulses and meat over the 7 days ending on it; week and month add the amounts up first and score once, so they can differ from the day notes. A day counts from half the usual intake; PROVISIONAL means today is still being eaten. Describe links between food and other data as observations, never as causes.")
+        lines.append("NOTES are 0 to 10 from the nutrition quality score (the Alternate Healthy Eating Index's parts, weighed the owner's way): points earned for vegetables, fruit, whole grains, nuts and pulses and omega 3, points lost for free sugar, saturated fat, salt, red meat, processed meat and alcohol, around a neutral middle, so food the log cannot place costs nothing. A day scores its own food, but fish, nuts and pulses and meat over the 7 days ending on it; week and month add the amounts up first and score once, so they can differ from the day notes. A day counts from a third of the usual intake; PROVISIONAL means today is still being eaten. Describe links between food and other data as observations, never as causes.")
         if let diet = context.dietLine { lines.append("DIET_PLAN: \(diet)") }
         guard !all.isEmpty else {
             lines.append("NO_ENTRIES: the user has logged no food. Say so; do not guess what they eat.")
@@ -53,7 +53,7 @@ public enum FoodCoachReport {
             case .success(let note):
                 parts.append("note \(one(note.score))\(note.provisional ? " PROVISIONAL" : "")\(note.uncertain ? " UNCERTAIN (\(percent(1 - note.placedShare)) of energy without a food group)" : "")")
             case .failure(let error):
-                if case .tooLittle = error.reason { parts.append("no note (less than half the usual intake logged)") }
+                if case .tooLittle = error.reason { parts.append("no note (less than a third of the usual intake logged)") }
             }
             if let goals = context.goals(day) {
                 let state = FoodGoalState.day(kcal: totals[.energyKcal] ?? 0, proteinG: totals[.proteinG] ?? 0,

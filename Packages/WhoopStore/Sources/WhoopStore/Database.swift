@@ -2188,6 +2188,15 @@ extension WhoopStore {
         migrator.registerMigration("v91-food-saved-meal") { db in
             try WhoopStore.createFoodSavedMealTables(db)
         }
+        // What a food is made of, as the coach or the wearer worked it out (owner, 2026-11-22): the groups its
+        // weight falls into, how much of it is whole grain, and how much of its sugar is free sugar. The
+        // nutrition score counts food by these, since Open Food Facts leaves four of ten of this wearer's own
+        // products without any category at all. Additive and nullable, held as JSON the store does not read;
+        // `FoodClassification` in StrandCore owns its shape. The score is worked out at view time and nothing
+        // derived from it is stored, so nothing goes stale. Analysis migration required: no.
+        migrator.registerMigration("v92-food-classification") { db in
+            try db.alter(table: "foodCustom") { t in t.add(column: "classification", .text) }
+        }
         return migrator
     }
 }

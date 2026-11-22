@@ -15,7 +15,7 @@ public enum FoodOnline {
     public static let minimumQueryLength = 3
 
     static let fields = "code,product_name,product_name_de,product_name_en,generic_name,brands,serving_size,"
-        + "serving_quantity,nova_group,pnns_groups_2,nutriments"
+        + "serving_quantity,nova_group,pnns_groups_2,categories_tags,ingredients_text,nutriments"
 
     /// The fields to ask for, with the product name in the app language when that is neither German nor English,
     /// so a Spanish app reads `product_name_es` where a product has one.
@@ -117,7 +117,12 @@ public enum FoodOnline {
                         group: group, nova: (json["nova_group"] as? NSNumber)?.intValue,
                         servingG: serving.flatMap { $0 > 0 && $0 <= 5_000 ? $0 : nil }, servingLabel: text("serving_size"),
                         per100g: energy.amounts, barcode: code,
-                        estimatedKeys: energy.filled ? [FoodEnergy.mark] : nil)
+                        estimatedKeys: energy.filled ? [FoodEnergy.mark] : nil,
+                        // The ingredient list and the full category tags, so the coach can read what a product is
+                        // made of instead of guessing it from the name (owner, 2026-11-22). Neither is stored: they
+                        // are read once, when the food is classified.
+                        ingredients: text("ingredients_text"),
+                        categories: (json["categories_tags"] as? [String])?.prefix(12).joined(separator: ", "))
     }
 }
 

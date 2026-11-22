@@ -395,7 +395,10 @@ public enum FoodLibrary {
                                 nova: food.nova, servingG: food.servingG, servingLabel: food.servingLabel,
                                 per100g: food.per100g.stored, origin: existing?.origin ?? origin,
                                 sourceId: source, createdAt: existing?.createdAt ?? stamp, updatedAt: stamp,
-                                estimatedFrom: food.estimatedFrom, estimatedKeys: food.estimatedKeys ?? [])
+                                estimatedFrom: food.estimatedFrom, estimatedKeys: food.estimatedKeys ?? [],
+                                // The wearer's own answer stands: a coach classification never replaces one.
+                                classification: Self.keptClassification(food.classification,
+                                                                        stored: existing?.classification)?.json)
         guard (try? await store.saveCustomFood(custom)) == true else { return nil }
         return item(for: custom)
     }
@@ -438,7 +441,16 @@ public enum FoodLibrary {
         FoodItem(id: food.id, source: .own, name: food.name, brand: food.brand, group: food.group, nova: food.nova,
                  servingG: food.servingG, servingLabel: food.servingLabel,
                  per100g: NutrientAmounts(stored: food.per100g), barcode: food.barcode,
-                 estimatedFrom: food.estimatedFrom, estimatedKeys: food.estimatedKeys.isEmpty ? nil : food.estimatedKeys)
+                 estimatedFrom: food.estimatedFrom, estimatedKeys: food.estimatedKeys.isEmpty ? nil : food.estimatedKeys,
+                 classification: FoodClassification.decode(food.classification))
+    }
+
+    /// Which classification is written: the wearer's own, when there is one, whatever the coach now says.
+    static func keptClassification(_ next: FoodClassification?, stored: String?) -> FoodClassification? {
+        let kept = FoodClassification.decode(stored)
+        if kept?.author == .wearer, next?.author != .wearer { return kept }
+        guard let next, next.isSound else { return kept }
+        return next
     }
 }
 

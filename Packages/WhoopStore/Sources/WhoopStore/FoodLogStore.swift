@@ -87,12 +87,15 @@ public struct CustomFood: Equatable, Sendable {
     /// The BLS food missing nutrients were borrowed from, and which ones, when the wearer let the coach fill gaps.
     public var estimatedFrom: String?
     public var estimatedKeys: [String]
+    /// What the food is made of, as the coach or the wearer worked it out, held as the JSON of StrandCore's
+    /// `FoodClassification`. The store keeps it without reading it, so its shape lives in one place.
+    public var classification: String?
 
     public init(id: String, name: String, brand: String? = nil, barcode: String? = nil, group: String? = nil,
                 nova: Int? = nil, servingG: Double? = nil, servingLabel: String? = nil, per100g: FoodNutrientValues,
                 origin: Origin, sourceId: String? = nil, createdAt: Int, updatedAt: Int,
-                estimatedFrom: String? = nil, estimatedKeys: [String] = []) {
-        self.estimatedFrom = estimatedFrom; self.estimatedKeys = estimatedKeys
+                estimatedFrom: String? = nil, estimatedKeys: [String] = [], classification: String? = nil) {
+        self.estimatedFrom = estimatedFrom; self.estimatedKeys = estimatedKeys; self.classification = classification
         self.id = id; self.name = name; self.brand = brand; self.barcode = barcode; self.group = group
         self.nova = nova; self.servingG = servingG; self.servingLabel = servingLabel; self.per100g = per100g
         self.origin = origin; self.sourceId = sourceId; self.createdAt = createdAt; self.updatedAt = updatedAt
@@ -415,12 +418,13 @@ extension WhoopStore {
             try db.execute(sql: """
                 INSERT OR REPLACE INTO foodCustom
                   (id, name, brand, barcode, foodGroup, nova, servingG, servingLabel, per100g, origin, sourceId,
-                   createdAt, updatedAt, estimatedFrom, estimatedKeys)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   createdAt, updatedAt, estimatedFrom, estimatedKeys, classification)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, arguments: [
                     food.id, food.name, food.brand, food.barcode, food.group, food.nova, food.servingG,
                     food.servingLabel, Self.encodeNutrients(food.per100g), food.origin.rawValue, food.sourceId,
-                    food.createdAt, food.updatedAt, food.estimatedFrom, Self.encodeKeys(food.estimatedKeys)])
+                    food.createdAt, food.updatedAt, food.estimatedFrom, Self.encodeKeys(food.estimatedKeys),
+                    food.classification])
         }
         return true
     }
@@ -461,7 +465,8 @@ extension WhoopStore {
                           group: row["foodGroup"], nova: row["nova"], servingG: row["servingG"],
                           servingLabel: row["servingLabel"], per100g: per100g, origin: origin,
                           sourceId: row["sourceId"], createdAt: row["createdAt"], updatedAt: row["updatedAt"],
-                          estimatedFrom: row["estimatedFrom"], estimatedKeys: decodeKeys(row["estimatedKeys"]))
+                          estimatedFrom: row["estimatedFrom"], estimatedKeys: decodeKeys(row["estimatedKeys"]),
+                          classification: row["classification"])
     }
 
     // MARK: - Recipes

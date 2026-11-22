@@ -146,11 +146,12 @@ struct FoodScoreView: View {
         case .vegetables: "foodMotif_vegetables"
         case .fruit: "foodMotif_fruit"
         case .wholeGrains: "foodMotif_grains"
-        case .sugaryDrinks: "foodMotif_drinks"
         case .nutsLegumes: "foodMotif_legumes"
         case .redMeat: "foodMotif_meat"
+        case .processedMeat: "foodMotif_meat"
         case .fishOmega3: "foodMotif_fish"
-        case .polyFats: "foodMotif_fats"
+        case .freeSugar: "foodMotif_sweets"
+        case .satFat: "foodMotif_fats"
         case .sodium: "foodMotif_salt"
         case .alcohol: "foodMotif_alcohol"
         case .fiber: "foodMotif_vegetables"
@@ -172,10 +173,8 @@ struct FoodScoreView: View {
         }
     }
 
-    /// Points added (a part to have more of) or lost (a part to keep low), from -10 to +10.
-    private func effect(_ part: FoodScore.Part) -> Double {
-        part.component.isLimit ? -(10 - part.points) : part.points
-    }
+    /// What the part did to the score: `FoodScore.Part.points` is signed, so there is nothing to work out here.
+    private func effect(_ part: FoodScore.Part) -> Double { part.points }
 
     private func signed(_ part: FoodScore.Part) -> String {
         let e = effect(part)

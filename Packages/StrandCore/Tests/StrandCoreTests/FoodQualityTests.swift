@@ -36,11 +36,11 @@ final class FoodQualityTests: XCTestCase {
         var entries = week.map { entry("bls:G000000", "Brokkoli", day: $0, grams: 400, kcal: 1_500) }
         entries.append(entry("bls:U100000", "Rind Steak", day: week[0], grams: 700, kcal: 1_000))
         let sunday = try note(FoodQuality.day(week[6], entries: entries, male: true, usualKcal: nil, today: "2026-11-30"))
-        // 700 g in the week is 100 g a day: past the 50 g free allowance.
-        XCTAssertLessThan(try XCTUnwrap(part(sunday, .redMeat)).points, 10)
+        // 700 g in the week is 100 g a day: past the 50 g free allowance, so the part costs points.
+        XCTAssertLessThan(try XCTUnwrap(part(sunday, .redMeat)).points, 0)
         let laterWeek = try note(FoodQuality.day("2026-11-09", entries: entries + [entry("bls:G000000", "Brokkoli", day: "2026-11-09", grams: 400, kcal: 1_500)],
                                                  male: true, usualKcal: nil, today: "2026-11-30"))
-        XCTAssertEqual(try XCTUnwrap(part(laterWeek, .redMeat)).points, 10, accuracy: 0.001, "seven days on, the steak is out of the window")
+        XCTAssertEqual(try XCTUnwrap(part(laterWeek, .redMeat)).points, 0, accuracy: 0.001, "seven days on, the steak is out of the window")
     }
 
     func testSausageIsStrictAndRedMeatIsFreeUpToTheWcrfLimit() throws {
@@ -48,8 +48,12 @@ final class FoodQualityTests: XCTestCase {
         let beef = week.map { entry("bls:U100000", "Rind", day: $0, grams: 50) }
         let s = try XCTUnwrap(FoodQuality.period(span: 7, lastDay: week[6], entries: sausage, male: true, today: "2026-11-30"))
         let b = try XCTUnwrap(FoodQuality.period(span: 7, lastDay: week[6], entries: beef, male: true, today: "2026-11-30"))
-        XCTAssertEqual(try XCTUnwrap(part(s, .redMeat)).points, 10 * 0.5 / 1.5, accuracy: 0.001)
-        XCTAssertEqual(try XCTUnwrap(part(b, .redMeat)).points, 10, accuracy: 0.001)
+        // Sausage is its own part now: 85 g is one portion of the 1.5 that spend it, and it never touches the
+        // red-meat part (owner, 2026-11-22).
+        XCTAssertEqual(try XCTUnwrap(part(s, .processedMeat)).points, -10 / 1.5, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(part(s, .redMeat)).points, 0, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(part(b, .redMeat)).points, 0, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(part(b, .processedMeat)).points, 0, accuracy: 0.001)
     }
 
     func testKetoScoresFibreInPlaceOfWholeGrains() throws {
@@ -59,7 +63,7 @@ final class FoodQualityTests: XCTestCase {
         XCTAssertNil(part(keto, .wholeGrains))
         XCTAssertEqual(try XCTUnwrap(part(keto, .fiber)).points, 10, accuracy: 0.001)
         let plain = try XCTUnwrap(FoodQuality.period(span: 7, lastDay: week[6], entries: entries, male: true, today: "2026-11-30"))
-        XCTAssertEqual(try XCTUnwrap(part(plain, .wholeGrains)).points, 0, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(part(plain, .wholeGrains)).points, 0, accuracy: 0.001)   // no grains logged
         XCTAssertGreaterThan(keto.score, plain.score)
     }
 
@@ -77,10 +81,10 @@ final class FoodQualityTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(part(note, .vegetables)).amountPerDay, 3_200.0 / 80 / 7, accuracy: 0.01)
     }
 
-    func testAHalfLoggedDayHasNoNoteYet() {
+    func testADayUnderAThirdOfTheUsualHasNoNoteYet() {
         let entries = [entry("bls:G000000", "Brokkoli", day: week[6], grams: 200, kcal: 600)]
         let result = FoodQuality.day(week[6], entries: entries, male: true, usualKcal: 2_000, today: week[6])
-        XCTAssertEqual(result.failureReason, .tooLittle(loggedKcal: 600, neededKcal: 1_000))
+        XCTAssertEqual(result.failureReason, .tooLittle(loggedKcal: 600, neededKcal: 2_000 / 3))
         let enough = entries + [entry("bls:B000000", "Brot", day: week[6], grams: 200, kcal: 500)]
         let today = try? FoodQuality.day(week[6], entries: enough, male: true, usualKcal: 2_000, today: week[6]).get()
         XCTAssertEqual(today?.provisional, true)

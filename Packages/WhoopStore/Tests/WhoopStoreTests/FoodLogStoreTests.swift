@@ -114,6 +114,25 @@ final class FoodLogStoreTests: XCTestCase {
         XCTAssertTrue(none.isEmpty)
     }
 
+    /// What a food is made of travels with it (v92): the store keeps the text without reading it, and an older
+    /// food that has none reads back as none rather than as an empty string.
+    func testACustomFoodKeepsItsClassification() async throws {
+        let store = try await WhoopStore.inMemory()
+        let classification = #"{"shares":{"nuts":0.35},"wholeGrainShare":0.4,"freeSugarShare":0.8,"author":"coach","version":1}"#
+        let granola = CustomFood(id: "own:2", name: "Granola", per100g: ["energy_kcal": 433], origin: .online,
+                                 createdAt: 1, updatedAt: 1, classification: classification)
+        let savedGranola = try await store.saveCustomFood(granola)
+        XCTAssertTrue(savedGranola)
+        let stored = try await store.customFood(id: "own:2")
+        XCTAssertEqual(stored?.classification, classification)
+        let plain = CustomFood(id: "own:3", name: "Gouda", per100g: ["energy_kcal": 356], origin: .online,
+                              createdAt: 1, updatedAt: 1)
+        let savedPlain = try await store.saveCustomFood(plain)
+        XCTAssertTrue(savedPlain)
+        let storedPlain = try await store.customFood(id: "own:3")
+        XCTAssertNil(storedPlain?.classification)
+    }
+
     func testSavedMealsKeepTheirFoodsInOrderNewestFirst() async throws {
         let store = try await WhoopStore.inMemory()
         let breakfast = FoodSavedMeal(id: "m1", name: "Frühstück", items: [

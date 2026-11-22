@@ -23,11 +23,22 @@ public struct FoodItem: Equatable, Sendable, Identifiable, Codable {
     /// The BLS food whose values filled this one's gaps, and which nutrients they are (`FoodEstimate`).
     public var estimatedFrom: String?
     public var estimatedKeys: [String]?
+    /// What the food is made of, as the coach or the wearer worked it out (`FoodClassification`). Only the
+    /// wearer's own foods carry one; a BLS row says what it is through its id.
+    public var classification: FoodClassification?
+    /// What the product says it is made of, as Open Food Facts has it. Read once to classify the food and never
+    /// stored, so it cannot go stale beside the product's own label.
+    public var ingredients: String?
+    /// The product's category tags from Open Food Facts, for the same one reading.
+    public var categories: String?
 
     public init(id: String, source: Source, name: String, nameEn: String? = nil, brand: String? = nil,
                 group: String? = nil, nova: Int? = nil, servingG: Double? = nil, servingLabel: String? = nil,
-                per100g: NutrientAmounts, barcode: String? = nil, estimatedFrom: String? = nil, estimatedKeys: [String]? = nil) {
-        self.estimatedFrom = estimatedFrom; self.estimatedKeys = estimatedKeys
+                per100g: NutrientAmounts, barcode: String? = nil, estimatedFrom: String? = nil,
+                estimatedKeys: [String]? = nil, classification: FoodClassification? = nil,
+                ingredients: String? = nil, categories: String? = nil) {
+        self.estimatedFrom = estimatedFrom; self.estimatedKeys = estimatedKeys; self.classification = classification
+        self.ingredients = ingredients; self.categories = categories
         self.id = id; self.source = source; self.name = name; self.nameEn = nameEn; self.brand = brand
         self.group = group; self.nova = nova; self.servingG = servingG; self.servingLabel = servingLabel
         self.per100g = per100g; self.barcode = barcode

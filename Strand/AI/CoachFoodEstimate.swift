@@ -110,14 +110,23 @@ extension AICoachEngine {
         return estimated.estimatedFrom == nil ? nil : estimated
     }
 
-    /// The cart's products with their gaps filled and kept as the wearer's own, so each product is matched once.
-    /// Lines that need nothing, or find no match, come back unchanged.
-    func fillingMissingNutrients(_ items: [FoodItem], store: WhoopStore) async -> [FoodItem] {
+    /// The cart's products worked over once and kept as the wearer's own, so each product is read by the model
+    /// once and never again: what it is made of (`CoachFoodClassify`), and, when the wearer asked for it, its
+    /// missing vitamins and minerals (`CoachFoodEstimate`). Lines that need nothing come back unchanged.
+    ///
+    /// Classifying is not behind a switch of its own (owner, 2026-11-22): without it the nutrition score counts a
+    /// product as nothing at all, so it is the score's groundwork, not an extra like borrowing nutrients.
+    func enriching(_ items: [FoodItem], store: WhoopStore, fillGaps: Bool) async -> [FoodItem] {
         var out: [FoodItem] = []
         for item in items {
-            guard let filled = await estimateMissingNutrients(item),
-                  let kept = await FoodLibrary.saveOwn(store: store, filled, origin: item.source == .online ? .online : .own)
-            else { out.append(item); continue }
+            var next = item
+            // A BLS row and a recipe built from them say what they are through their ids.
+            if next.source != .bls, next.source != .recipe, next.classification == nil,
+               let classified = await classifying(next) { next = classified }
+            if fillGaps, let filled = await estimateMissingNutrients(next) { next = filled }
+            guard next != item,
+                  let kept = await FoodLibrary.saveOwn(store: store, next, origin: item.source == .online ? .online : .own)
+            else { out.append(next); continue }
             out.append(kept)
         }
         return out
