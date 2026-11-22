@@ -2263,12 +2263,13 @@ private struct SleepFreshnessNote: View {
         let current = latestWakeTs.map {
             calendar.isDate(Date(timeIntervalSince1970: TimeInterval($0)), inSameDayAs: now)
         } ?? false
-        // AppModel intentionally waits two quiet seconds after HISTORY_COMPLETE before starting the
-        // scoring pass. Treat that debounce as calculation too; otherwise the banner can flash the final
-        // "wasn't detected" verdict between sync completion and `intelligence.computing` becoming true.
-        let calculationQueued = live.lastSyncedAt.map {
-            (0..<5).contains(now.timeIntervalSince1970 - $0)
-        } ?? false
+        // The scoring pass does not start when the sync stamps `lastSyncedAt`: it waits for the chunks to
+        // stop arriving, because one chain is many sessions (see `PostBackfillPacing`). This used to
+        // treat "`lastSyncedAt` is under five seconds old" as calculation, which was tuned to the old
+        // two-second debounce and would now expire in the middle of the wait, flashing the final "wasn't
+        // detected" verdict while the night was still being offloaded. `analyzingHistory` is that state,
+        // published by the pass itself rather than guessed at from a timestamp.
+        let calculationQueued = live.analyzingHistory
         let status = resolveSleepFreshness(
             hasCurrentNight: current,
             morningReady: calendar.component(.hour, from: now) >= 6,

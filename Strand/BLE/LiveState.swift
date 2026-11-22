@@ -589,6 +589,15 @@ public final class LiveState: ObservableObject {
     /// Chunks acked during the current offload session — an honest progress signal (total pending is
     /// unknowable from the protocol, so a count, never a percent).
     @Published public var syncChunksThisSession: Int = 0
+    /// A post-offload scoring pass is waiting out the chain or running. Twin of the Android
+    /// `LiveState.analyzingHistory`, which has published this since its own pacing landed.
+    ///
+    /// The Sleep page needs it. It used to infer "a pass is about to start" from `lastSyncedAt` being
+    /// less than five seconds old, which was tuned to the two-second debounce; with the pass now waiting
+    /// for the chunks to go quiet (see `PostBackfillPacing`) that guess expires mid-wait and the page
+    /// would fall through to its "waiting for last night's sleep" verdict while the night was in fact
+    /// being offloaded. A guess at a state nobody published; now it is published.
+    @Published public var analyzingHistory = false
     /// Monotonic uptime at which the last historical chunk landed, nil until one has. What
     /// `PostBackfillPacing` waits on, so the scoring pass follows the CHAIN rather than the two-second
     /// quiet window on `lastSyncedAt`, which is stamped once per session and fires in the middle of an

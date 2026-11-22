@@ -1071,6 +1071,9 @@ final class AppModel: ObservableObject {
             return
         }
         postOffloadRefreshInFlight = true
+        // Published so the Sleep page can say the night is still being worked on rather than inferring it
+        // from the age of `lastSyncedAt`. Twin of the Android flag of the same name.
+        live.analyzingHistory = true
         // Wait for the chunks to stop arriving. `lastSyncedAt` is stamped once per offload SESSION, and
         // an auto-continued chain (#364/#451) is many sessions: the two-second debounce that calls this
         // fired four seconds into a ten-minute chain and published a night missing four hours, to the
@@ -1133,7 +1136,9 @@ final class AppModel: ObservableObject {
         if postOffloadRefreshPending {
             postOffloadRefreshPending = false
             await refreshAfterCompletedBackfill()
+            return   // the follow-up owns the flag from here, and has just cleared it itself
         }
+        live.analyzingHistory = false
     }
 
     #if os(iOS)
