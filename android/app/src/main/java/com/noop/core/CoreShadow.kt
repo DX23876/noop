@@ -119,6 +119,8 @@ object CoreShadow {
         }
         val args = org.json.JSONObject().put("dir", dir.path)
             .put("home", File(context.filesDir, "core-home").apply { mkdirs() }.path)
+        // Always named, English included: "no table" and "nobody told us" must not look the same.
+        args.put("lang", languageTag(context))
         localizationFile(context, dir)?.let { args.put("l10n", it.path) }
         val result = SwiftCore.call("core.setResources", args.toString())
         val ready = runCatching { org.json.JSONObject(result.orEmpty()).optBoolean("ok") }.getOrDefault(false)
@@ -130,13 +132,27 @@ object CoreShadow {
     private val RESOURCES = listOf("whoop_protocol.json", "exercise-catalog.json", "food-bls.tsv", "food-bls.json")
 
     /**
+     * The wearer's language as a tag ("de", "es", "pt-PT"): the app's own choice, or the phone's.
+     *
+     * Handed to the core on the same call that installs the table, because the core has TWO readers of
+     * this one fact and only one of them could see it. The second is the coach's reply language, which
+     * asked `Bundle.main` instead, got English for every wearer, and told a Spanish wearer with a
+     * Spanish app that English was the app's language (reported 2026-11-22).
+     */
+    fun languageTag(context: Context): String =
+        com.noop.ui.AppLanguagePrefs.selected(context).storageValue
+            // The full tag, not `language`: on the phone's own setting that bare code is "pt" where the
+            // app's own choice is "pt-PT", and only the second tells European Portuguese from Brazilian.
+            // The table reads the part before the dash either way.
+            ?: java.util.Locale.getDefault().toLanguageTag()
+
+    /**
      * The wearer's language for the text the shared core writes (`CoreLocalization`): the app's chosen language, or
      * the phone's, as the per-language table `core-l10n/<code>.l10n` built from the Apple String Catalog. English,
      * or a language without a table, leaves the core on its English source.
      */
     private fun localizationFile(context: Context, dir: File): File? {
-        val tag = com.noop.ui.AppLanguagePrefs.selected(context).storageValue ?: java.util.Locale.getDefault().language
-        val code = tag.substringBefore('-').lowercase()
+        val code = languageTag(context).substringBefore('-').lowercase()
         if (code == "en") return null
         val target = File(dir, "l10n.json")
         // Keyed like the other resources, with the language: a new APK or another language copies the table again.
@@ -159,7 +175,7 @@ object CoreShadow {
     fun applyLanguage(context: Context) {
         if (!SwiftCore.available) return
         val dir = File(context.filesDir, "core-resources").apply { mkdirs() }
-        val args = org.json.JSONObject()
+        val args = org.json.JSONObject().put("lang", languageTag(context))
         localizationFile(context, dir)?.let { args.put("l10n", it.path) }
         SwiftCore.call("core.setLanguage", args.toString())
         noteDataChanged()

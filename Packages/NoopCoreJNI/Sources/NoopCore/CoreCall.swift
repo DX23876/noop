@@ -126,7 +126,10 @@ public enum CoreCall {
                 BundledExerciseCatalog.resourceDirectory = directory
                 FoodCatalog.resourceDirectory = directory
                 // The wearer's language for the text the shared code writes; none keeps the English source.
-                CoreLocalization.load((args["l10n"] as? String).map { URL(fileURLWithPath: $0) })
+                // The tag comes with it, because the coach's reply language is the same fact and this
+                // platform has nowhere else to read it from.
+                CoreLocalization.load((args["l10n"] as? String).map { URL(fileURLWithPath: $0) },
+                                      language: args["lang"] as? String)
                 return #"{"ok":true}"#
             } catch {
                 return #"{"error":"protocolSchemaUnavailable"}"#
@@ -143,7 +146,8 @@ public enum CoreCall {
         if op == "core.setLanguage" {
             // A language picked in Settings, applied without a restart.
             let args = (try? JSONSerialization.jsonObject(with: Data(argsJSON.utf8)) as? [String: Any]) ?? [:]
-            CoreLocalization.load((args["l10n"] as? String).map { URL(fileURLWithPath: $0) })
+            CoreLocalization.load((args["l10n"] as? String).map { URL(fileURLWithPath: $0) },
+                                  language: args["lang"] as? String)
             return #"{"ok":true}"#
         }
         let args = (try? JSONSerialization.jsonObject(with: Data(argsJSON.utf8)) as? [String: Any]) ?? [:]

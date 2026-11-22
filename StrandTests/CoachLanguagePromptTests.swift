@@ -89,6 +89,30 @@ final class CoachLanguagePromptTests: XCTestCase {
         XCTAssertEqual(engine.systemPrompt.components(separatedBy: engine.languageClause).count - 1, 1)
     }
 
+    /// Every language Settings offers has to be one the coach can answer in.
+    ///
+    /// The gate that was missing. `CoachReplyLanguage` described its set as mirroring the upstream
+    /// String Catalog, so nothing failed when this fork added Polish to `AppLanguage`: Settings offered
+    /// it, the UI was translated, and the coach quietly fell through to English. A language added here
+    /// now fails this test until the coach knows it, which is the point — the app's own list is the
+    /// authority, and it is the thing that changes.
+    func testEveryLanguageTheAppOffersIsOneTheCoachCanAnswerIn() {
+        for language in AppLanguage.allCases where language != .system {
+            let resolved = CoachReplyLanguage.resolve(preferredLocalizations: [language.rawValue])
+            guard language != .english else {
+                XCTAssertEqual(resolved.identifier, "en")
+                continue
+            }
+            XCTAssertNotEqual(
+                resolved.identifier, "en",
+                "Settings offers \(language.rawValue), and the coach would answer in English")
+            // Same language, region or script left to the resolver: the app's generic "zh" is answered
+            // in Simplified, which is the catalogue it resolves to as well.
+            XCTAssertEqual(resolved.identifier.prefix(2), language.rawValue.prefix(2),
+                           "\(language.rawValue) is answered in \(resolved.identifier)")
+        }
+    }
+
     func testCardAnalysisUsesTheSameStrictLanguageContract() {
         let language = CoachReplyLanguage(identifier: "de", englishName: "German")
         let prompt = AICoachEngine.cardAnalysisSystem(persona: .friend, replyLanguage: language)

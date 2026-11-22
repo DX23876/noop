@@ -5,13 +5,30 @@ import Foundation
 /// `Localizable.xcstrings`). Empty, every text stays the English source, as before.
 public enum CoreLocalization {
     nonisolated(unsafe) private static var table: [String: String] = [:]
+    nonisolated(unsafe) private static var tag: String?
     private static let lock = NSLock()
 
+    /// The language tag the host last named, or nil for English, which ships no table.
+    ///
+    /// Held beside the table and set by the same call, because the two are one fact and a reader that
+    /// resolves it for itself gets it wrong. `CoachReplyLanguage` was that reader: on Android it asked
+    /// `Bundle.main.preferredLocalizations`, which describes a process bundle with no localizations in
+    /// it, so the coach told a Spanish wearer with a Spanish app to expect English and answered in
+    /// English (reported 2026-11-22). Nothing else on this platform knew the language either, since
+    /// the table is keyed by English source text and says nothing about which language it holds.
+    public static var language: String? {
+        lock.lock(); defer { lock.unlock() }
+        return tag
+    }
+
     /// Loads one language's table (`{"source key": "translation"}`); nil or an unreadable file clears it.
-    public static func load(_ url: URL?) {
+    ///
+    /// [language] is the tag that table belongs to, supplied rather than guessed, and required even when
+    /// there is no table: English has none, and "no table" and "we were never told" must not look alike.
+    public static func load(_ url: URL?, language: String?) {
         let decoded = url.flatMap { try? Data(contentsOf: $0) }
             .flatMap { try? JSONDecoder().decode([String: String].self, from: $0) } ?? [:]
-        lock.lock(); table = decoded; lock.unlock()
+        lock.lock(); table = decoded; tag = language?.isEmpty == false ? language : nil; lock.unlock()
     }
 
     static func lookup(_ key: String) -> String? {
