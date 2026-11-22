@@ -930,6 +930,10 @@ private fun ImportStep(viewModel: AppViewModel) {
                         icon = Icons.Filled.FileUpload,
                         enabled = !busy,
                     ) { whoopImportLauncher.launch(arrayOf("*/*")) }
+                    // Beside the Health Connect button and not above both: a file import reads whatever
+                    // the file holds, and only the Health Connect read takes a window. This is the first
+                    // import anybody runs, which is the one a decade-wide read kills on a strict phone.
+                    if (healthConnectAvailable) ImportDepthChooser(enabled = !busy)
                     OnboardingActionButton(
                         label = uiString(R.string.l10n_onboarding_screen_import_from_health_connect_35d55e21),
                         icon = Icons.Filled.MonitorHeart,

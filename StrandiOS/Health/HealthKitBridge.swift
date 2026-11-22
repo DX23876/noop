@@ -1214,14 +1214,19 @@ final class HealthKitBridge: ObservableObject {
     /// Build the local Apple-Health history used by long-range Coach questions. This is an explicit
     /// action because a multi-year HealthKit query can take noticeable time; subsequent normal syncs
     /// remain incremental/short-window. Ten years matches the existing sparse body-composition lookback.
-    func startFullHistoryImport() {
+    /// `days` is the wearer's chosen depth (`ImportDepth`), defaulting to the ten-year lookback this has
+    /// always used. The choice exists because this is the one Apple-side read that is years wide: every
+    /// other sync here is anchored and incremental, and the body-composition lookback is sparse.
+    // `HealthKitBridge.` and not `Self.`: a covariant `Self` cannot be referenced from a default
+    // argument expression.
+    func startFullHistoryImport(days: Int = HealthKitBridge.bodyCompositionLookbackDays) {
         guard auth == .authorized, !syncing, !fullHistoryImporting else { return }
         // Publish synchronously so the view cannot mistake the scheduling gap for a completed import.
         fullHistoryImporting = true
         fullHistoryProgress = 0
         fullHistoryTask = Task { [weak self] in
             guard let self else { return }
-            await self.sync(days: Self.bodyCompositionLookbackDays, importingFullHistory: true)
+            await self.sync(days: days, importingFullHistory: true)
             self.fullHistoryTask = nil
         }
     }

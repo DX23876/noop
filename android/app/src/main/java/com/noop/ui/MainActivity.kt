@@ -877,6 +877,16 @@ object NoopPrefs {
         of(context).edit().putInt(KEY_HC_SYNC_HOURS, hours).apply()
     }
 
+    /** How far back an import reads, in months. See `ImportDepth`; a year unless the wearer chose. */
+    const val KEY_IMPORT_MONTHS = "noop.importMonths"
+
+    fun importMonths(context: Context): Long =
+        of(context).getLong(KEY_IMPORT_MONTHS, com.noop.ingest.ImportDepth.DEFAULT.months)
+
+    fun setImportMonths(context: Context, months: Long) {
+        of(context).edit().putLong(KEY_IMPORT_MONTHS, months).apply()
+    }
+
     fun hcLastSync(context: Context): Long =
         of(context).getLong(KEY_HC_LAST_SYNC, 0L)
 

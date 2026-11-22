@@ -574,6 +574,9 @@ fun DataSourcesScreen(vm: AppViewModel) {
                     routesAwaitingConsent = routesAwaitingConsent,
                     onOpenHealthConnect = { openHealthConnectSettings() },
                 )
+                // How far back the import reads, above the button that starts it. Remembered, because
+                // the periodic auto-sync has no screen to ask from and must use the same answer.
+                ImportDepthChooser(enabled = !busy)
                 BackupButton(
                     label = uiString(R.string.l10n_data_sources_screen_import_from_health_connect_35d55e21),
                     icon = Icons.Filled.FileUpload,

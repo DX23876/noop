@@ -7438,4 +7438,9 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="coach_page_health_1">Есть ли что-то необычное?</string>
     <string name="coach_page_health_2">Как меняются мои показатели?</string>
     <string name="forge_workout_actions">Действия с тренировкой</string>
+    <string name="import_depth_label">Сколько истории импортировать</string>
+    <string name="import_depth_one_month">1 месяц</string>
+    <string name="import_depth_one_year">1 год</string>
+    <string name="import_depth_three_years">3 года</string>
+    <string name="import_depth_ten_years">10 лет</string>
 </resources>

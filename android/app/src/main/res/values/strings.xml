@@ -7473,4 +7473,9 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="coach_page_health_1">Is anything unusual?</string>
     <string name="coach_page_health_2">How are my values developing?</string>
     <string name="forge_workout_actions">Workout actions</string>
+    <string name="import_depth_label">How much history to import</string>
+    <string name="import_depth_one_month">1 month</string>
+    <string name="import_depth_one_year">1 year</string>
+    <string name="import_depth_three_years">3 years</string>
+    <string name="import_depth_ten_years">10 years</string>
 </resources>

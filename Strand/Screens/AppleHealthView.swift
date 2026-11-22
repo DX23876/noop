@@ -56,6 +56,20 @@ struct AppleHealthView: View {
     // Imperial/Metric display preference (D#103). Weight and lean mass (stored kg) re-label to lb here;
     // every other Apple Health metric is unit-agnostic. Display-only.
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
+    /// The wearer's chosen import depth, in months (`ImportDepth`). Stored, so the choice survives the
+    /// screen; the key matches the Android preference's name so a strap log reads the same on both.
+    @AppStorage("noop.importMonths") private var importMonths = ImportDepth.default.months
+
+    /// The label of one depth step. A function rather than a property on `ImportDepth`, which is pure and
+    /// in a package that holds no user-facing copy.
+    private static func depthLabel(_ depth: ImportDepth) -> String {
+        switch depth {
+        case .oneMonth: return String(localized: "1 month")
+        case .oneYear: return String(localized: "1 year")
+        case .threeYears: return String(localized: "3 years")
+        case .tenYears: return String(localized: "10 years")
+        }
+    }
     private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
     /// kg value → the active mass unit, full string with label (e.g. "74.5 kg" / "164.2 lb").
     private func massLabel(_ kg: Double) -> String { UnitFormatter.massFromKilograms(kg, system: unitSystem) }
@@ -505,8 +519,17 @@ struct AppleHealthView: View {
                             .tint(StrandPalette.metricCyan)
                         }
                     } else {
+                        // How far back to read, beside the button that starts it. The label no longer
+                        // says "all", because with a choice of a month that would be untrue; the chooser
+                        // is what names the amount. Twin of the Android `ImportDepthChooser`.
+                        Picker(String(localized: "How much history to import"), selection: $importMonths) {
+                            ForEach(ImportDepth.allCases, id: \.self) { step in
+                                Text(Self.depthLabel(step)).tag(step.months)
+                            }
+                        }
+                        .pickerStyle(.segmented)
                         Button {
-                            health.startFullHistoryImport()
+                            health.startFullHistoryImport(days: ImportDepth.ofMonths(importMonths).days)
                             Task {
                                 while health.fullHistoryImporting {
                                     try? await Task.sleep(for: .milliseconds(250))
@@ -515,7 +538,7 @@ struct AppleHealthView: View {
                                 await load()
                             }
                         } label: {
-                            Label("Import all Apple Health history", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90")
+                            Label("Import Apple Health history", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90")
                         }
                         .buttonStyle(.bordered)
                         .tint(StrandPalette.metricCyan)

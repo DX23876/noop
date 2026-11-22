@@ -450,11 +450,15 @@ object HealthConnectImporter {
         repo: WhoopRepository,
         heightCm: Double = 0.0,
         types: Set<ImportType>? = null,
-        years: Long = WINDOW_YEARS,
+        // How far back to read, in months. Null means the wearer's choice (`ImportDepth`, a year by
+        // default). Read here rather than at each caller, so every entry point — the periodic auto-sync,
+        // Data Sources, onboarding — honours it without each of them having to remember to.
+        months: Long? = null,
     ): ImportSummary {
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
-        val blocks = ImportBlocks.monthly(start = today.minusYears(years), end = today, zone = zone)
+        val depthMonths = months ?: NoopPrefs.importMonths(context)
+        val blocks = ImportBlocks.monthly(start = today.minusMonths(depthMonths), end = today, zone = zone)
         if (blocks.isEmpty()) return ImportSummary.failure(SOURCE, "The import window is empty.")
 
         // Read ONCE for the whole import: it is a store read over every strap source and cannot change
@@ -462,6 +466,14 @@ object HealthConnectImporter {
         val coveredDays: Set<String> = buildSet {
             for (id in strapSourceIds(repo)) addAll(strapDays(repo, id))
         }
+
+        // Said once, before the first block: an import that brings a year when the wearer expected a
+        // decade is otherwise indistinguishable in a log from one that failed to find the rest.
+        ImportProgress.note(
+            context,
+            "Import Health Connect: reading $depthMonths month(s) back, " +
+                "${blocks.size} block(s), newest first",
+        )
 
         val counts = HashMap<String, Int>()
         var firstDay: String? = null

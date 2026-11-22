@@ -7423,4 +7423,9 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="coach_page_health_1">Há algo fora do normal?</string>
     <string name="coach_page_health_2">Como estão a evoluir os meus valores?</string>
     <string name="forge_workout_actions">Ações do treino</string>
+    <string name="import_depth_label">Quanto histórico importar</string>
+    <string name="import_depth_one_month">1 mês</string>
+    <string name="import_depth_one_year">1 ano</string>
+    <string name="import_depth_three_years">3 anos</string>
+    <string name="import_depth_ten_years">10 anos</string>
 </resources>

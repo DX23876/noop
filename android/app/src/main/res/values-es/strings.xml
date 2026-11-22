@@ -7431,4 +7431,9 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="coach_page_health_1">¿Hay algo inusual?</string>
     <string name="coach_page_health_2">¿Cómo evolucionan mis valores?</string>
     <string name="forge_workout_actions">Acciones del entrenamiento</string>
+    <string name="import_depth_label">Cuánto historial importar</string>
+    <string name="import_depth_one_month">1 mes</string>
+    <string name="import_depth_one_year">1 año</string>
+    <string name="import_depth_three_years">3 años</string>
+    <string name="import_depth_ten_years">10 años</string>
 </resources>

@@ -7447,4 +7447,9 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="coach_page_health_1">Ist etwas auffällig?</string>
     <string name="coach_page_health_2">Wie entwickeln sich meine Werte?</string>
     <string name="forge_workout_actions">Workout-Aktionen</string>
+    <string name="import_depth_label">Wie viel Verlauf importieren</string>
+    <string name="import_depth_one_month">1 Monat</string>
+    <string name="import_depth_one_year">1 Jahr</string>
+    <string name="import_depth_three_years">3 Jahre</string>
+    <string name="import_depth_ten_years">10 Jahre</string>
 </resources>

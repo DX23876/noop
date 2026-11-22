@@ -7374,4 +7374,9 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="coach_page_health_1">有什么异常吗？</string>
     <string name="coach_page_health_2">我的各项数值变化如何？</string>
     <string name="forge_workout_actions">训练操作</string>
+    <string name="import_depth_label">导入多少历史数据</string>
+    <string name="import_depth_one_month">1 个月</string>
+    <string name="import_depth_one_year">1 年</string>
+    <string name="import_depth_three_years">3 年</string>
+    <string name="import_depth_ten_years">10 年</string>
 </resources>

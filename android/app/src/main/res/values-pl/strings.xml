@@ -7482,4 +7482,9 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="coach_page_health_1">Czy coś jest nietypowe?</string>
     <string name="coach_page_health_2">Jak zmieniają się moje wartości?</string>
     <string name="forge_workout_actions">Akcje treningu</string>
+    <string name="import_depth_label">Ile historii zaimportować</string>
+    <string name="import_depth_one_month">1 miesiąc</string>
+    <string name="import_depth_one_year">1 rok</string>
+    <string name="import_depth_three_years">3 lata</string>
+    <string name="import_depth_ten_years">10 lat</string>
 </resources>
