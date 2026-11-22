@@ -172,7 +172,7 @@ struct CoachHistoryView: View {
     private func row(_ convo: CoachConversation) -> some View {
         HStack(spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(convo.title.isEmpty ? String(localized: "New chat") : convo.title)
+                Text(CoachView.shownTitle(convo.title))
                     .font(StrandFont.subhead)
                     .foregroundStyle(StrandPalette.textPrimary)
                     .lineLimit(1)

@@ -298,11 +298,16 @@ struct CoachView: View {
         // rebuild mid-flight cannot send it twice, and gated on `isConfigured` so an unconfigured handoff
         // (which the launcher does not produce, but a future caller might) degrades to showing setup
         // rather than a failed request.
+        //
+        // Sent through `startSend`, the engine's own task, never awaited here: clearing `pendingPrompt` changes this
+        // task's id, and SwiftUI cancels a `.task(id:)` whose id changes, so an awaited send was cancelled before
+        // its request left. The question then sat in the chat with no answer (found 2026-11-22: every "ask the
+        // coach" button on a page).
         .task(id: coach.pendingPrompt) {
             guard let prompt = coach.pendingPrompt, !prompt.isEmpty else { return }
             coach.pendingPrompt = nil
             guard coach.isConfigured else { return }
-            await coach.send(prompt)
+            coach.startSend(prompt)
         }
         // Tapping the daily check-in notification (routed here by RootTabView) runs a real check-in —
         // a look BACK at what happened, not a re-run of the morning brief. Its own once-a-day lock.
@@ -391,8 +396,14 @@ struct CoachView: View {
     /// The chat's title: a named conversation wins, else the coach's own name.
     private var headerTitle: String {
         coach.activeConversation?.title.isEmpty == false
-            ? coach.activeConversation!.title
+            ? Self.shownTitle(coach.activeConversation!.title)
             : identityStore.identity.name
+    }
+
+    /// A conversation's title as shown. The engine stores the English placeholder "New chat" for a chat nobody
+    /// named yet; shown as stored it read English in every other language.
+    static func shownTitle(_ stored: String) -> String {
+        stored.isEmpty || stored == "New chat" ? String(localized: "New chat") : stored
     }
 
     /// One compact glass row instead of a button bar stacked over a 64pt centred avatar. The old header
@@ -436,7 +447,7 @@ struct CoachView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityElement(children: .combine)
             .accessibilityLabel(coach.activeConversation?.title.isEmpty == false
-                                 ? coach.activeConversation!.title
+                                 ? Self.shownTitle(coach.activeConversation!.title)
                                  : String(localized: "\(identityStore.identity.name), your coach"))
 
             // The plan book. The dot means something is waiting for YOUR answer — the coach can propose,
@@ -1653,8 +1664,12 @@ extension View {
                     }
                 }
         }
-        // A header's page frames only the questions asked while the chat it opened is up.
-        let closed = { coach.clearEntryPage() }
+        // A header's page frames only the questions asked while the chat it opened is up. What arrived while the
+        // chat was open (a brief written as it opened) has been seen, so the unread dot does not outlive it.
+        let closed = {
+            coach.clearEntryPage()
+            coach.markCoachMessagesSeen()
+        }
         #if os(iOS)
         if halfSheet {
             self.sheet(isPresented: isPresented, onDismiss: closed) {
