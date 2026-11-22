@@ -21,6 +21,10 @@ struct ForgeFoodView: View {
     /// Set once the arrival sheet has been shown, so coming back from a subpage does not open it again.
     @State private var openedAdd = false
     @State private var scrolledPast = false
+    /// The calendar day the page last knew as today. As the Nutrition tab the page lives as long as the app, so
+    /// past midnight it would still show yesterday; a page left on today moves on with the date (`followToday`).
+    @State private var knownToday = Repository.localDayKey(.now)
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showAdd = false
     @State private var showSettings = false
     /// The first-visit setup (owner, 2026-11-09), shown while `FoodProductDataPrefs.setupNeeded`.
@@ -163,7 +167,11 @@ struct ForgeFoodView: View {
         }
         .sensoryFeedback(.success, trigger: model.savedRevision)
         .sensoryFeedback(.selection, trigger: model.day)
-        .task { await model.load(repo: repo, profile: Repository.analyticsProfile(profile)) }
+        .task {
+            followToday()
+            await model.load(repo: repo, profile: Repository.analyticsProfile(profile))
+        }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { followToday() } }
         .onChange(of: model.day) { Task { await model.reload(repo: repo) } }
         .sheet(isPresented: $planning) { DietPlannerView(model: model).environmentObject(repo) }
         .sheet(isPresented: $showAdd) { FoodAddSheet(model: model).environmentObject(repo) }
@@ -288,6 +296,14 @@ struct ForgeFoodView: View {
     private func logHabit() { Task { await model.logHabit(repo: repo) } }
     private func reloadGoals() { Task { await model.reloadGoals(repo: repo, profile: Repository.analyticsProfile(profile)) } }
     private func openSettings() { showSettings = true }
+
+    /// A page showing today moves to the new today once the date has changed; another day stays where it was put.
+    private func followToday() {
+        let today = Repository.localDayKey(.now)
+        guard today != knownToday else { return }
+        if model.day == knownToday { model.day = today }
+        knownToday = today
+    }
     private func openNutrients() { subpage = .nutrients }
     private func openScore() { subpage = .score }
     private func openBadges() { subpage = .badges }

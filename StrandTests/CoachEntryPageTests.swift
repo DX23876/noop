@@ -22,4 +22,16 @@ final class CoachEntryPageTests: XCTestCase {
         XCTAssertEqual(AICoachEngine.context("  ", entryPage: page), page.promptNote)
         XCTAssertEqual(AICoachEngine.context("data", entryPage: page), page.promptNote + "\n\ndata")
     }
+
+    @MainActor
+    func testClosingTheChatDropsThePageAndItsChips() {
+        let engine = AICoachEngine(repo: Repository(deviceId: "test-coach-entry-page"))
+        let page = CoachEntryPage(kind: .sleep, day: "2026-11-20", suggestions: ["Why was my night like this?"])
+        engine.openedFromPage(page)
+        XCTAssertEqual(engine.entryPage, page)
+        XCTAssertEqual(engine.cardSuggestions, page.suggestions)
+        engine.clearEntryPage()
+        XCTAssertNil(engine.entryPage)
+        XCTAssertTrue(engine.cardSuggestions.isEmpty)
+    }
 }

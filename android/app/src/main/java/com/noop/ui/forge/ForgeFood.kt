@@ -104,6 +104,23 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var day by remember { mutableStateOf(LocalDate.now()) }
+    // As the Nutrition tab the page can stay open past midnight; a page on today moves on with the date (iOS
+    // `followToday`), another day stays where it was put. Re-stamped on every resume, as the journal does.
+    var knownToday by remember { mutableStateOf(LocalDate.now()) }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                val today = LocalDate.now()
+                if (today != knownToday) {
+                    if (day == knownToday) day = today
+                    knownToday = today
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     var summary by remember { mutableStateOf<CoreFood.Day?>(null) }
     // The diet plan (decision 2026-11-09) outranks the base goals; its figures come from the core.
     var dietPlan by remember { mutableStateOf(CoreDietPlan.load(context)) }

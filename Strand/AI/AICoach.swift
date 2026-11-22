@@ -3556,6 +3556,8 @@ final class AICoachEngine: ObservableObject {
     /// The chat was closed: the page it was opened from no longer frames the next question, which may come from
     /// anywhere (a card's ask button, a notification, the floating button).
     func clearEntryPage() {
+        // The page's chips go with it; a card's follow-ups (other suggestions) stay.
+        if let page = entryPage, cardSuggestions == page.suggestions { cardSuggestions = [] }
         entryPage = nil
     }
 
