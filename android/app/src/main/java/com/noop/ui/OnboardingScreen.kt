@@ -808,19 +808,29 @@ private fun ImportStep(viewModel: AppViewModel) {
     val importFailed = uiString(R.string.onboarding_failed)
     val healthConnectDenied = uiString(R.string.onboarding_health_connect_denied)
 
+    /**
+     * Run an importer through the shared [ImportRunner], which puts it on the VIEW MODEL's scope.
+     *
+     * It used to run on this screen's `rememberCoroutineScope`, and leaving onboarding is the next thing
+     * anybody does: a tester's log of 2026-11-22 has his Health Connect import dying at 195 000 records
+     * with "The coroutine scope left the composition", on his very first import. `DataSourcesScreen` was
+     * moved off that scope on 2026-11-15 and this twin was missed.
+     */
     fun runImport(block: suspend () -> ImportSummary) {
-        busy = true
-        status = importingText
-        scope.launch {
-            val summary = withContext(Dispatchers.IO) {
-                runCatching { block() }.getOrElse { ImportSummary.failure(importLabel, it.message ?: importFailed) }
-            }
-            // Import & Data Ingest test mode (Test Centre): emit the parser / per-stage / day-delta trace,
-            // tagged IMPORT, iff the mode is on. Gated zero-cost when off; shared with the Data Sources flow.
-            emitImportTrace(context, viewModel, summary)
+        val started = ImportRunner.run(context, viewModel, onDone = { summary ->
             busy = false
             status = summary.message
             Toast.makeText(context, summary.message, Toast.LENGTH_LONG).show()
+        }, block = block)
+        if (started) {
+            busy = true
+            status = importingText
+        } else {
+            // Another import is already running. Its own step label says so, and is already translated.
+            com.noop.ingest.ImportProgress.state.value?.let {
+                status = com.noop.ingest.ImportProgress.stepLabel(context, it)
+                Toast.makeText(context, status, Toast.LENGTH_LONG).show()
+            }
         }
     }
 

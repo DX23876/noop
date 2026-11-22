@@ -225,45 +225,26 @@ fun DataSourcesScreen(vm: AppViewModel) {
     /**
      * Run an importer off the main thread, refresh the counts, then toast the result.
      *
-     * On the VIEW MODEL's scope, not this screen's: a Health Connect import over the ten-year window runs
-     * for minutes, and on `rememberCoroutineScope` it was cancelled the moment the wearer navigated away
-     * or the configuration changed, halfway through, with nothing said. It now survives the screen, which
-     * is also what lets the home screen and the lock screen show where it has got to.
-     *
-     * The progress is ended HERE, in a finally, because an importer returns from a dozen places and
-     * throws from more; ending it where it is begun is the only way every one of them is covered.
+     * The scope, the strap-log mirror, the trace and the single-import slot all live in [ImportRunner]
+     * now, shared with the onboarding screen, which had a second copy of this that was still on the
+     * screen's own scope and died with the composition. What stays here is what is this screen's:
+     * the busy flag and the counts.
      */
     fun runImport(block: suspend () -> ImportSummary) {
-        startedHere = true
-        vm.viewModelScope.launch {
-            val summary = withContext(Dispatchers.IO) {
-                try {
-                    runCatching { block() }.getOrElse { ImportSummary.failure("Import", it.message ?: "failed") }
-                } finally {
-                    com.noop.ingest.ImportProgress.end(context)
-                }
-            }
-            // Mirror the import into the SAME exported strap log the WHOOP path uses (issue #421 parity),
-            // so a tester's file import is captured in a shared debug bundle. On success: brand label +
-            // per-table COUNTS only (e.g. "dailyMetric=120, sleepSession=88"). On a zero-row/failed import:
-            // the brand label + the human reason from the summary. Never a file name, a path, or any health
-            // value. Prefixed "Import: " so it's distinguishable from WHOOP / generic-HR lines. The Swift
-            // twin logs the same in DataSourcesView's import handlers.
-            if (summary.totalRows > 0) {
-                val countsText = summary.counts.entries.joinToString(", ") { "${it.key}=${it.value}" }
-                vm.ble.externalLog("Import ${summary.source}: $countsText")
-            } else {
-                vm.ble.externalLog("Import ${summary.source} failed: ${summary.message}")
-            }
-            // Import & Data Ingest test mode (Test Centre): emit the parser / per-stage / day-delta trace,
-            // tagged IMPORT, iff the mode is on. Gated zero-cost when off (one SharedPreferences bool read).
-            // The numbers are the SAME per-table counts the summary carries (Room upserts are fire-and-forget,
-            // so the persisted count equals the mapped count at this seam); emission changes nothing saved. No
-            // file name, path, or health value is in any line. Twin of the macOS DataSourcesView handlers.
-            emitImportTrace(context, vm, summary)
+        val started = ImportRunner.run(context, vm, onDone = { summary ->
             refreshCounts()
             startedHere = false
             Toast.makeText(context, summary.message, Toast.LENGTH_LONG).show()
+        }, block = block)
+        if (started) {
+            startedHere = true
+        } else {
+            // Another import holds the slot. Say WHICH step it is on rather than inventing a sentence:
+            // the running import's own label is the honest answer, and it is already translated.
+            com.noop.ingest.ImportProgress.state.value?.let {
+                Toast.makeText(context, com.noop.ingest.ImportProgress.stepLabel(context, it),
+                               Toast.LENGTH_LONG).show()
+            }
         }
     }
 

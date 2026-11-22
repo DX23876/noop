@@ -58,6 +58,21 @@ object ImportProgress {
      */
     data class Problem(val kindKey: String?, val reason: String)
 
+    /**
+     * One import at a time, claimed here because this object is already the single owner of "an import is
+     * running" and a second owner could disagree with it.
+     *
+     * The tester log of 2026-11-22 holds nine `Import Health Connect: started` lines, two of them in the
+     * SAME second (18:46:12), each reading its own ten-year window and each counting its own records to
+     * over a million. They also overwrote each other's progress, so the screen and the notification
+     * described whichever had reported last. [state] alone cannot gate it: the importer calls [begin]
+     * after its first read, so two runs started together both see null.
+     */
+    private val slotHeld = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /** Claims the single import slot; false when one is already running. Released by [end]. */
+    fun claim(): Boolean = slotHeld.compareAndSet(false, true)
+
     private val _state = MutableStateFlow<State?>(null)
     private val _problems = MutableStateFlow<List<Problem>>(emptyList())
 
@@ -75,8 +90,18 @@ object ImportProgress {
      */
     val problems: StateFlow<List<Problem>> = _problems.asStateFlow()
 
-    /** True while an import is running, for a screen that only disables its buttons. */
-    val running: Boolean get() = _state.value != null
+    /**
+     * True while an import is running, for a screen that only disables its buttons.
+     *
+     * Two honest signals, either of which means an import is under way, resolved here so no screen has to
+     * pick one: the SLOT is claimed, or a progress state exists. `_state.value != null` alone was the
+     * wrong answer in the window that matters, because the importer calls [begin] after its first read,
+     * so between a run starting and that first page of records it said no import was running — which is
+     * how two runs started in the same second (18:46:12 in the tester log of 2026-11-22). The slot alone
+     * would be the wrong answer for an importer that calls [begin] without going through
+     * `ImportRunner`, and would quietly stop reporting it.
+     */
+    val running: Boolean get() = slotHeld.get() || _state.value != null
 
     private const val CHANNEL_ID = "noop_import_progress"
     private const val NOTIF_ID = 4215
@@ -146,6 +171,9 @@ object ImportProgress {
      * says nothing more than that the progress is gone. Safe to call when none was running.
      */
     fun end(context: Context) {
+        // Released BEFORE the early return: a run that failed before it called [begin] holds the slot
+        // just the same, and leaving it held would refuse every later import for the life of the process.
+        slotHeld.set(false)
         if (_state.value == null) return
         _state.value = null
         runCatching { NotificationManagerCompat.from(context).cancel(NOTIF_ID) }
