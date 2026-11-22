@@ -19,11 +19,14 @@ final class AppLanguageCatalogTests: XCTestCase {
         XCTAssertEqual(picker, AppLanguageCatalog.offered.map(\.tag))
     }
 
-    func testThePickerNamesEachLanguageAsTheCoreDoes() {
+    /// The picker reads its names from the catalogue now, so what is left to check is that every
+    /// offered language HAS one. An empty autonym is a blank row a wearer cannot pick on purpose.
+    func testEveryOfferedLanguageHasAName() {
         for language in AppLanguageCatalog.offered {
-            let shown = AppLanguage(rawValue: language.tag)?.autonym
-            XCTAssertEqual(shown, language.autonym,
-                           "\(language.tag) is called differently here than in the core")
+            XCTAssertFalse(language.autonym.isEmpty, "\(language.tag) would show as a blank row")
+            XCTAssertFalse(language.englishName.isEmpty, "\(language.tag) has no name for the coach")
+            XCTAssertEqual(AppLanguage(rawValue: language.tag)?.autonym, language.autonym,
+                           "\(language.tag) is not reachable from the picker's own cases")
         }
     }
 

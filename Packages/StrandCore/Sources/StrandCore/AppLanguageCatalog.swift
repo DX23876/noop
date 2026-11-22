@@ -29,15 +29,21 @@ public enum AppLanguageCatalog {
         /// The language's name in English, for the instruction the coach gives the model and for the
         /// generated Kotlin case name.
         public let englishName: String
+        /// How the Apple String Catalog spells this language, which is also the identifier the coach
+        /// names to the model. Equal to `tag` for all but simplified Chinese, where the picker stores
+        /// the generic `zh` and the catalogue holds `zh-Hans`.
+        public let appleCatalogCode: String
         /// The Android resource qualifier holding this language's UI (`values-<qualifier>`), or nil for
         /// English, which lives in `values/`. Declared rather than derived from the tag because the two
         /// spellings differ: `pt-PT` is `pt-rPT`, and simplified Chinese is plain `zh`.
         public let androidQualifier: String?
 
-        public init(tag: String, autonym: String, englishName: String, androidQualifier: String?) {
+        public init(tag: String, autonym: String, englishName: String,
+                    appleCatalogCode: String? = nil, androidQualifier: String?) {
             self.tag = tag
             self.autonym = autonym
             self.englishName = englishName
+            self.appleCatalogCode = appleCatalogCode ?? tag
             self.androidQualifier = androidQualifier
         }
     }
@@ -55,14 +61,24 @@ public enum AppLanguageCatalog {
         .init(tag: "pl", autonym: "Polski", englishName: "Polish", androidQualifier: "pl"),
         .init(tag: "ru", autonym: "Русский", englishName: "Russian", androidQualifier: "ru"),
         .init(tag: "zh", autonym: "简体中文", englishName: "Chinese (Simplified)",
-              androidQualifier: "zh"),
+              appleCatalogCode: "zh-Hans", androidQualifier: "zh"),
+        // `b+zh+Hant`, not `zh-rTW`: the region form would match Taiwan only, leaving Hong Kong and
+        // Macau on the simplified strings, which is the fallback a reader of `zh-rTW` would not expect.
+        // Apple's own resolver sends tw, hk and mo to Hant, and this keeps Android doing the same.
         .init(tag: "zh-Hant", autonym: "繁體中文", englishName: "Chinese (Traditional)",
-              androidQualifier: "zh-rTW"),
+              androidQualifier: "b+zh+Hant"),
     ]
 
     /// The offered language with this exact tag, or nil. Not a fuzzy match: an OS tag like `de-DE` or
     /// `zh-Hans-CN` is resolved by `CoachReplyLanguage`, which knows the script and region rules.
     public static func language(tag: String) -> Language? {
         offered.first { $0.tag == tag }
+    }
+
+    /// The offered language the Apple String Catalog spells this way, or nil. This is the key the
+    /// coach's reply language joins on, so that the English name a wearer's model is told lives here
+    /// and not in a second list beside it.
+    public static func language(appleCatalogCode code: String) -> Language? {
+        offered.first { $0.appleCatalogCode == code }
     }
 }

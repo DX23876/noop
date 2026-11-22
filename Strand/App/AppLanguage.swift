@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 
 /// The language NOOP uses for app-owned copy. Region-specific measurement and clock preferences remain
 /// separate: this changes words, not the user's unit-system choice or time zone.
@@ -26,21 +27,15 @@ enum AppLanguage: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 
     /// Language names are autonyms on purpose, so the picker remains understandable while changing from
-    /// an unfamiliar language. The system choice is localized at its call site.
+    /// an unfamiliar language. The system choice is localized at its call site, so it has none here.
+    ///
+    /// Read from `AppLanguageCatalog` rather than listed again: the names were a second copy of the
+    /// core's list, kept in step by a test instead of by there being one of them, and the Android
+    /// picker showed a third spelling of Chinese for exactly that reason (2026-11-22). The cases
+    /// themselves stay, because their raw values are what is persisted and what the compiler checks
+    /// every `switch` in the app against.
     var autonym: String {
-        switch self {
-        case .system:     return ""
-        case .english:    return "English"
-        case .german:     return "Deutsch"
-        case .spanish:    return "Español"
-        case .french:     return "Français"
-        case .italian:    return "Italiano"
-        case .portuguese: return "Português"
-        case .polish:     return "Polski"
-        case .russian:    return "Русский"
-        case .chinese:    return "简体中文"
-        case .traditionalChinese: return "繁體中文"
-        }
+        AppLanguageCatalog.language(tag: rawValue)?.autonym ?? ""
     }
 
     static func resolve(_ raw: String) -> AppLanguage {

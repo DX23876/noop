@@ -31,7 +31,7 @@ enum class AppLanguage(val storageValue: String?, val autonym: String) {
     CHINESE_SIMPLIFIED("zh", "简体中文");
 
     // Offered on Apple and left out here for want of a translation:
-    //   zh-Hant (Chinese (Traditional)) needs res/values-zh-rTW/strings.xml
+    //   zh-Hant (Chinese (Traditional)) needs res/values-b+zh+Hant/strings.xml
     // END generated
 
     companion object {

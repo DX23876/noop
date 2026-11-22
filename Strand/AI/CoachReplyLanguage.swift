@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 
 /// The language used for every user-visible Coach completion.
 ///
@@ -20,8 +21,10 @@ struct CoachReplyLanguage: Equatable, Sendable {
         // language (reported 2026-11-22). The host names it in the same call that installs the core's
         // translation table, so the text the core writes and the language it asks the model for are one
         // fact resolved in one place. A host that never named it still falls back to the bundle.
-        return resolve(preferredLocalizations: CoreLocalization.language.map { [$0] }
-            ?? Bundle.main.preferredLocalizations)
+        // No bundle fallback here. `Bundle.main` is the very thing that cannot answer on this
+        // platform, so reading it would look like a resolution and only ever yield English. A host
+        // that has not named a language is told so in plain English instead.
+        return CoreLocalization.language.map { resolve(preferredLocalizations: [$0]) } ?? .english
         #else
         return resolve(preferredLocalizations: Bundle.main.preferredLocalizations)
         #endif
@@ -40,29 +43,39 @@ struct CoachReplyLanguage: Equatable, Sendable {
 
         switch language {
         case "en": return .english
-        case "de": return CoachReplyLanguage(identifier: "de", englishName: "German")
-        case "es": return CoachReplyLanguage(identifier: "es", englishName: "Spanish")
-        case "fr": return CoachReplyLanguage(identifier: "fr", englishName: "French")
-        case "it": return CoachReplyLanguage(identifier: "it", englishName: "Italian")
-        case "pl": return CoachReplyLanguage(identifier: "pl", englishName: "Polish")
-        case "ru": return CoachReplyLanguage(identifier: "ru", englishName: "Russian")
-        case "pt":
-            return parts.dropFirst().first == "pt"
-                ? CoachReplyLanguage(identifier: "pt-PT", englishName: "Portuguese (Portugal)")
-                : .english
+        // One line, because there is nothing to decide: the OS tag's language subtag already names
+        // these, and what they are CALLED comes from the catalogue.
+        case "de", "es", "fr", "it", "pl", "ru": return named(language)
+        // Portuguese only as European Portuguese. Brazilian is a different language to write in and
+        // the app does not have it, so it falls to English rather than being answered in the wrong one.
+        case "pt": return parts.dropFirst().first == "pt" ? named("pt-PT") : .english
         case "zh":
             let subtags = Set(parts.dropFirst())
             if subtags.contains("hant") || !subtags.isDisjoint(with: ["tw", "hk", "mo"]) {
-                return CoachReplyLanguage(identifier: "zh-Hant", englishName: "Chinese (Traditional)")
+                return named("zh-Hant")
             }
             if subtags.contains("hans") || subtags.isEmpty
                 || !subtags.isDisjoint(with: ["cn", "sg"]) {
-                return CoachReplyLanguage(identifier: "zh-Hans", englishName: "Chinese (Simplified)")
+                return named("zh-Hans")
             }
             return .english
         default:
             return .english
         }
+    }
+
+    /// The offered language the catalogue spells this way, named as the catalogue names it.
+    ///
+    /// The switch above decides WHICH language an OS tag means, which is Apple's script and region
+    /// rules and belongs here; it no longer decides what that language is called, which was a second
+    /// list of names beside the core's and drifted from it (Polish was in one and not the other).
+    /// A code with no entry can only mean the two have come apart, which
+    /// `CoachLanguagePromptTests` and `Tools/test_coach_reply_language_handover.py` both fail on.
+    private static func named(_ appleCatalogCode: String) -> CoachReplyLanguage {
+        guard let language = AppLanguageCatalog.language(appleCatalogCode: appleCatalogCode) else {
+            return .english
+        }
+        return CoachReplyLanguage(identifier: appleCatalogCode, englishName: language.englishName)
     }
 
     /// Kept in English because this is an instruction to the model, not UI text. It is deliberately

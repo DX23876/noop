@@ -90,11 +90,23 @@ class CoachReplyLanguageHandoverTest(unittest.TestCase):
         """
         offered = re.findall(r'\.init\(tag: "([^"]+)"', CATALOG.read_text(encoding="utf-8"))
         self.assertGreater(len(offered), 5, "premise: the core's language list was found")
-        known = re.findall(r'case "([a-z]{2})":', REPLY.read_text(encoding="utf-8"))
+        # Every quoted language subtag the resolver decides on, however the cases are grouped.
+        reply = REPLY.read_text(encoding="utf-8")
+        cases = re.findall(r'^\s*case (.+?):', reply, re.M)
+        known = {code for line in cases for code in re.findall(r'"([a-z]{2})"', line)}
         for tag in offered:
             with self.subTest(language=tag):
                 self.assertIn(tag.split("-")[0], known,
                               f"the core offers {tag} and the coach would answer in English")
+
+    def test_the_coach_takes_a_languages_name_from_the_core(self):
+        """The second list of names, which drifted: Polish was in one of them and not the other."""
+        reply = REPLY.read_text(encoding="utf-8")
+        self.assertIn("AppLanguageCatalog.language(appleCatalogCode:", reply,
+                      "the resolver names languages itself again instead of asking the catalogue")
+        self.assertNotRegex(
+            reply, r'englishName: "(?!English")',
+            "a language is named in the resolver; the catalogue is where names live")
 
 
 if __name__ == "__main__":

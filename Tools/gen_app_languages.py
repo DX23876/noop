@@ -34,6 +34,8 @@ END = "    // END generated"
 
 ENTRY = re.compile(
     r'\.init\(tag:\s*"([^"]+)",\s*autonym:\s*"([^"]+)",\s*englishName:\s*"([^"]+)",\s*'
+    # `appleCatalogCode` is optional in the initialiser and is not this generator's business.
+    r'(?:appleCatalogCode:\s*"[^"]*",\s*)?'
     r'androidQualifier:\s*(?:"([^"]+)"|nil)\)',
     re.S,
 )
@@ -79,6 +81,8 @@ def render(languages: list[Language]) -> tuple[str, list[Language]]:
     missing = [l for l in languages if l not in offered]
 
     lines = [BEGIN]
+    # Not from the catalogue, and first: "follow the phone" is an affordance rather than a language,
+    # so it has no entry there, and the picker shows it above the list.
     lines.append("    SYSTEM(null, \"\"),")
     for index, language in enumerate(offered):
         tail = ";" if index == len(offered) - 1 else ","
@@ -95,6 +99,12 @@ def render(languages: list[Language]) -> tuple[str, list[Language]]:
 
 def main() -> int:
     check = "--check" in sys.argv[1:]
+    # Which languages are offered is read from the tree, so a tree without it would quietly rewrite
+    # the picker down to English. Refuse instead of writing that.
+    if not RES.is_dir():
+        print(f"no Android resources at {RES}; refusing to decide the language list without them",
+              file=sys.stderr)
+        return 1
     languages = catalog()
 
     # The gap that had Russian translated and unofferable: a locale in the tree that the catalogue
