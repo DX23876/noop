@@ -125,6 +125,12 @@ source and carries a `Co-authored-by` line where the work was taken as code.
 | [@msff](https://github.com/msff) | The Mac menu-bar label redraws only when what it shows changes | ryanbr/noop#2889 |
 | [@andynilson](https://github.com/andynilson) | Charge and Effort translations | ryanbr/noop#2878 |
 
+### Pull requests to this fork, adopted directly
+
+| Who | What NOOP Forge took | Source |
+|---|---|---|
+| [@rome6](https://github.com/rome6) | The on-open Health Connect catch-up and an import asked for by hand became one guarded runner: it cannot overlap itself, it ends the import's progress even when the read fails, and it answers with a named outcome instead of a boolean | DX23876/noop#56 |
+
 ### Testers
 
 | Who | What NOOP Forge took | Source |

@@ -2978,6 +2978,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val hcSyncHours: StateFlow<Int> = _hcSyncHours.asStateFlow()
     private val _hcLastSync = MutableStateFlow(NoopPrefs.hcLastSync(appContext))
     val hcLastSync: StateFlow<Long> = _hcLastSync.asStateFlow()
+
+    /** Whether a Health Connect import started by [syncHealthConnectIfStale] or [syncHealthConnectNow] is running. */
+    private val _hcSyncing = MutableStateFlow(false)
+    val hcSyncing: StateFlow<Boolean> = _hcSyncing.asStateFlow()
     private val _hcWriteback = MutableStateFlow(NoopPrefs.hcWriteback(appContext))
     val hcWriteback: StateFlow<Boolean> = _hcWriteback.asStateFlow()
 
@@ -3056,26 +3060,71 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val last = _hcLastSync.value
         val now = System.currentTimeMillis()
         if (!force && last != 0L && now - last < intervalMs) return
+        if (_hcSyncing.value) return
+        viewModelScope.launch { runHealthConnectImport() }
+    }
+
+    /**
+     * The wearer asked for an import now: pulls a workout another app (a watch's companion) wrote to Health
+     * Connect without waiting for the on-open catch-up interval or going through Data Sources. Unlike the
+     * catch-up it runs whether or not auto-sync is on, since the wearer asked for it. [onResult] gets one
+     * line to show, on the main thread.
+     *
+     * Adopted from #56 by @rome6, whose version called this from a sync button in the Training header. The
+     * button is not here: the same "fetch now" is the pull gesture, which every tab offers and which asks
+     * every connected source rather than this one alone.
+     */
+    fun syncHealthConnectNow(onResult: (String) -> Unit) {
+        if (_hcSyncing.value) return
         viewModelScope.launch {
-            val ran = withContext(Dispatchers.IO) {
+            val message = when (val outcome = runHealthConnectImport()) {
+                HcImportOutcome.Unavailable -> appContext.getString(com.noop.R.string.l10n_onboarding_screen_health_connect_is_not_available_on_0336b16d)
+                HcImportOutcome.NotGranted -> appContext.getString(com.noop.R.string.cx_hc_not_granted)
+                is HcImportOutcome.Done -> outcome.message
+            }
+            onResult(message)
+        }
+    }
+
+    private sealed interface HcImportOutcome {
+        data object Unavailable : HcImportOutcome
+        data object NotGranted : HcImportOutcome
+        data class Done(val message: String, val succeeded: Boolean) : HcImportOutcome
+    }
+
+    /** The one Health Connect import both the catch-up and the manual sync run; records the last sync on success. */
+    private suspend fun runHealthConnectImport(): HcImportOutcome {
+        _hcSyncing.value = true
+        try {
+            val outcome = withContext(Dispatchers.IO) {
                 if (HealthConnectImporter.sdkStatus(appContext) != HealthConnectClient.SDK_AVAILABLE) {
-                    return@withContext false
+                    return@withContext HcImportOutcome.Unavailable
                 }
                 val granted = runCatching {
                     HealthConnectImporter.client(appContext).permissionController.getGrantedPermissions()
                 }.getOrDefault(emptySet())
-                // Partial permissions are fine (#150): auto-import as long as at least one selected type is granted.
+                // Partial permissions are fine (#150): import as long as at least one selected type is granted.
                 if (!HealthConnectImporter.anySelectedGranted(HealthConnectImporter.selectedTypes(appContext), granted)) {
-                    return@withContext false
+                    return@withContext HcImportOutcome.NotGranted
                 }
-                // Pass the profile height so the importer can derive BMI (Health Connect has no BMI record).
-                runCatching { HealthConnectImporter.importAll(appContext, repository, profileStore.heightCm) }.isSuccess
+                try {
+                    // Pass the profile height so the importer can derive BMI (Health Connect has no BMI record).
+                    runCatching { HealthConnectImporter.importAll(appContext, repository, profileStore.heightCm) }
+                        .fold({ HcImportOutcome.Done(it.message, succeeded = true) },
+                              { HcImportOutcome.Done(it.message ?: "Health Connect import failed", succeeded = false) })
+                } finally {
+                    // The importer begins its progress and leaves ending it to the caller.
+                    com.noop.ingest.ImportProgress.end(appContext)
+                }
             }
-            if (ran) {
+            if (outcome is HcImportOutcome.Done && outcome.succeeded) {
                 val t = System.currentTimeMillis()
                 NoopPrefs.setHcLastSync(appContext, t)
                 _hcLastSync.value = t
             }
+            return outcome
+        } finally {
+            _hcSyncing.value = false
         }
     }
 

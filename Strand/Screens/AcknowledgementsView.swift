@@ -73,6 +73,7 @@ struct AcknowledgementsView: View {
         Contributor(handle: "@christophersarmiento", work: "Strap model stamped only after a scan accepts it"),
         Contributor(handle: "@goodgord", work: "No sleep merge across a data gap"),
         Contributor(handle: "@spidervirus", work: "No startup zero heart rate"),
+        Contributor(handle: "@rome6", work: "One guarded runner for the Health Connect import, with a named outcome"),
         Contributor(handle: "@fadkeprasad", work: "Power-saving cadence for automatic syncs"),
         Contributor(handle: "@paradix86", work: "Italian WHOOP exports"),
         Contributor(handle: "@msff", work: "Mac menu-bar redraws"),
