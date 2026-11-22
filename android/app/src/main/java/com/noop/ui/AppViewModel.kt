@@ -1,5 +1,8 @@
 package com.noop.ui
 
+import com.noop.core.CoreHevyImport
+import com.noop.core.CoreSourceRefresh
+import kotlinx.coroutines.async
 import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
@@ -3077,7 +3080,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun syncHealthConnectNow(onResult: (String) -> Unit) {
         if (_hcSyncing.value) return
         viewModelScope.launch {
-            val message = when (val outcome = runHealthConnectImport()) {
+            val message = when (val outcome = runHealthConnectImport(months = 1)) {
                 HcImportOutcome.Unavailable -> appContext.getString(com.noop.R.string.l10n_onboarding_screen_health_connect_is_not_available_on_0336b16d)
                 HcImportOutcome.NotGranted -> appContext.getString(com.noop.R.string.cx_hc_not_granted)
                 is HcImportOutcome.Done -> outcome.message
@@ -3086,14 +3089,106 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    // MARK: - "Fetch now" from every connected source (the pull gesture)
+
+    /** When each source was last asked, so the core's floor can hold off a drumbeat of pulls. In memory:
+     *  a restart is allowed to ask again straight away. */
+    private val lastAskedBySource = java.util.concurrent.ConcurrentHashMap<CoreSourceRefresh.Source, Long>()
+
+    /** The services a pull could ask, re-read when a screen resumes; the strap is read live beside it. */
+    private val _refreshServices = MutableStateFlow<Set<CoreSourceRefresh.Source>>(emptySet())
+    val refreshServices: StateFlow<Set<CoreSourceRefresh.Source>> = _refreshServices.asStateFlow()
+
+    /** Which services are connected right now. The permission read is IO, so this is not asked from a
+     *  composable's gesture check; the screens read [refreshServices]. */
+    fun refreshConnectedServices() {
+        viewModelScope.launch {
+            val found = withContext(Dispatchers.IO) {
+                buildSet {
+                    val healthReady = HealthConnectImporter.sdkStatus(appContext) == HealthConnectClient.SDK_AVAILABLE &&
+                        runCatching {
+                            val granted = HealthConnectImporter.client(appContext)
+                                .permissionController.getGrantedPermissions()
+                            HealthConnectImporter.anySelectedGranted(
+                                HealthConnectImporter.selectedTypes(appContext), granted)
+                        }.getOrDefault(false)
+                    if (healthReady) add(CoreSourceRefresh.Source.HEALTH)
+                    if (runCatching { CoreHevyImport.connected(appContext) }.getOrDefault(false)) {
+                        add(CoreSourceRefresh.Source.HEVY)
+                    }
+                }
+            }
+            _refreshServices.value = found
+        }
+    }
+
+    /**
+     * What a pull does: ask every connected source that the core says may be asked, side by side, and
+     * answer with the one line the core forms from what they brought.
+     *
+     * [strapReady] comes from the screen, which reads the live connection state; the strap is asked but
+     * never decides the line, because an offload runs for minutes behind its own progress.
+     */
+    suspend fun refreshConnectedSources(strapReady: Boolean): CoreSourceRefresh.Verdict {
+        val connected = buildSet {
+            addAll(_refreshServices.value)
+            if (strapReady) add(CoreSourceRefresh.Source.STRAP)
+        }
+        val now = System.currentTimeMillis() / 1000L
+        val askable = CoreSourceRefresh.askable(connected, lastAskedBySource.toMap(), now)
+        if (askable.isEmpty()) return CoreSourceRefresh.Verdict.None
+        for (source in askable) lastAskedBySource[source] = now
+
+        val answers = kotlinx.coroutines.coroutineScope {
+            askable.map { source ->
+                async {
+                    when (source) {
+                        CoreSourceRefresh.Source.HEALTH -> when (val outcome = runHealthConnectImport(months = 1)) {
+                            is HcImportOutcome.Done ->
+                                CoreSourceRefresh.Answer(source, brought = outcome.brought,
+                                                         failed = !outcome.succeeded)
+                            // Unavailable or not granted is not a failure the wearer can act on from
+                            // here; it means this source should not have been asked at all.
+                            else -> CoreSourceRefresh.Answer(source, failed = false)
+                        }
+                        CoreSourceRefresh.Source.HEVY -> {
+                            val status = runCatching { CoreHevyImport.sync(appContext) }.getOrNull()
+                            CoreSourceRefresh.Answer(
+                                source,
+                                brought = (status?.stored ?: 0) + (status?.updated ?: 0),
+                                failed = status == null || status.error != null)
+                        }
+                        // Asked, not awaited: its own progress carries it to the end.
+                        CoreSourceRefresh.Source.STRAP -> {
+                            ble.syncNow()
+                            CoreSourceRefresh.Answer(source)
+                        }
+                    }
+                }
+            }.map { it.await() }
+        }
+        if (answers.any { it.brought > 0 }) {
+            com.noop.core.CoreShadow.noteDataChanged()
+            rescoreAfterEdit()
+        }
+        return CoreSourceRefresh.verdict(answers)
+    }
+
     private sealed interface HcImportOutcome {
         data object Unavailable : HcImportOutcome
         data object NotGranted : HcImportOutcome
-        data class Done(val message: String, val succeeded: Boolean) : HcImportOutcome
+        data class Done(val message: String, val succeeded: Boolean, val brought: Int = 0) : HcImportOutcome
     }
 
-    /** The one Health Connect import both the catch-up and the manual sync run; records the last sync on success. */
-    private suspend fun runHealthConnectImport(): HcImportOutcome {
+    /**
+     * The one Health Connect import both the catch-up and an import asked for by hand run; records the
+     * last sync on success.
+     *
+     * [months] is how far back to read: null leaves the wearer's chosen depth, which the catch-up wants.
+     * A pull passes 1, because what someone just finished is always in the current month and a pull must
+     * not start a run of minutes over a year of history.
+     */
+    private suspend fun runHealthConnectImport(months: Long? = null): HcImportOutcome {
         _hcSyncing.value = true
         try {
             val outcome = withContext(Dispatchers.IO) {
@@ -3109,8 +3204,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 try {
                     // Pass the profile height so the importer can derive BMI (Health Connect has no BMI record).
-                    runCatching { HealthConnectImporter.importAll(appContext, repository, profileStore.heightCm) }
-                        .fold({ HcImportOutcome.Done(it.message, succeeded = true) },
+                    runCatching {
+                        HealthConnectImporter.importAll(appContext, repository, profileStore.heightCm,
+                                                        months = months)
+                    }
+                        .fold({ HcImportOutcome.Done(it.message, succeeded = true,
+                                                     brought = it.counts.values.sum()) },
                               { HcImportOutcome.Done(it.message ?: "Health Connect import failed", succeeded = false) })
                 } finally {
                     // The importer begins its progress and leaves ending it to the caller.

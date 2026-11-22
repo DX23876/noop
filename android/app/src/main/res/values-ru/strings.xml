@@ -5753,6 +5753,10 @@
     <string name="forge_se_invalid_order">Пробуждение должно быть позже отхода ко сну. Проверьте дату с обеих сторон.</string>
     <string name="forge_se_invalid_span">Эти времена охватывают более 24 часов. Проверьте дату с обеих сторон: ночь, переходящая через полночь, заканчивается на СЛЕДУЮЩИЙ день.</string>
     <string name="forge_se_invalid_future">Сон не может заканчиваться в будущем.</string>
+    <string name="forge_refresh_up_to_date">Всё актуально.</string>
+    <string name="forge_refresh_brought">Получено нового: %1$d.</string>
+    <string name="forge_refresh_failed">%1$s недоступен, остальное актуально.</string>
+    <string name="forge_refresh_failed_brought">Получено нового: %2$d. %1$s недоступен.</string>
     <string name="forge_hv_edit">Изменить</string>
     <string name="forge_hv_edit_vitals">Изменить показатели</string>
     <string name="forge_hv_done">Готово</string>

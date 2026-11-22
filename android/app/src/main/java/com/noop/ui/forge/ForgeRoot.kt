@@ -79,13 +79,16 @@ fun ForgeRoot(viewModel: AppViewModel) {
             when (tab) {
                 // The new design has one Today whatever the dashboard style, as iOS; the classic page jumps to tabs
                 // the new design does not have.
+                // The four tabs a connected source feeds carry the pull gesture (`ForgePullToRefresh`),
+                // wrapped here rather than inside each screen so one place decides which tabs offer it
+                // and no screen can quietly stop offering it.
                 ForgeTab.Today ->
                     if (!ForgeDesign.preview && DashboardStylePrefs.style(context) == "classic") ForgeClassicToday(padding, viewModel)
-                    else ForgeTodayScreen(padding, width, viewModel)
+                    else ForgePullToRefresh(viewModel) { ForgeTodayScreen(padding, width, viewModel) }
                 ForgeTab.Trends -> ForgeTrendsScreen(padding, width, viewModel)
-                ForgeTab.Health -> ForgeHealthTab(padding, width, viewModel)
-                ForgeTab.Training -> ForgeTrainingScreen(padding, viewModel)
-                ForgeTab.Sleep -> ForgeSleepScreen(padding, width, viewModel)
+                ForgeTab.Health -> ForgePullToRefresh(viewModel) { ForgeHealthTab(padding, width, viewModel) }
+                ForgeTab.Training -> ForgePullToRefresh(viewModel) { ForgeTrainingScreen(padding, viewModel) }
+                ForgeTab.Sleep -> ForgePullToRefresh(viewModel) { ForgeSleepScreen(padding, width, viewModel) }
                 ForgeTab.More -> ForgeMoreScreen(padding, viewModel)
                 // The food log in its own tab (owner, 2026-11-21); leaving it returns to Today, as the coach's tab.
                 ForgeTab.Nutrition -> {

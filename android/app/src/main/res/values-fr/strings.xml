@@ -5770,6 +5770,10 @@
     <string name="forge_se_invalid_order">L\'heure de réveil doit être après l\'heure du coucher. Vérifiez la date des deux.</string>
     <string name="forge_se_invalid_span">Ces heures couvrent plus de 24 heures. Vérifiez la date des deux — une nuit qui passe minuit se termine le jour SUIVANT.</string>
     <string name="forge_se_invalid_future">Un sommeil ne peut pas se terminer dans le futur.</string>
+    <string name="forge_refresh_up_to_date">Tout est à jour.</string>
+    <string name="forge_refresh_brought">Récupérés : %1$d.</string>
+    <string name="forge_refresh_failed">%1$s injoignable, le reste est à jour.</string>
+    <string name="forge_refresh_failed_brought">Récupérés : %2$d. %1$s injoignable.</string>
     <string name="forge_hv_edit">Modifier</string>
     <string name="forge_hv_edit_vitals">Modifier les signes vitaux</string>
     <string name="forge_hv_done">Terminé</string>

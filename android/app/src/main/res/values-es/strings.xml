@@ -5774,6 +5774,10 @@
     <string name="forge_se_invalid_order">La hora de despertar debe ser posterior a la hora de acostarse. Comprueba la fecha de ambas.</string>
     <string name="forge_se_invalid_span">Estos tiempos abarcan más de 24 horas. Comprueba la fecha de ambas — una noche que cruza la medianoche termina al día SIGUIENTE.</string>
     <string name="forge_se_invalid_future">Un sueño no puede terminar en el futuro.</string>
+    <string name="forge_refresh_up_to_date">Todo al día.</string>
+    <string name="forge_refresh_brought">Nuevos: %1$d.</string>
+    <string name="forge_refresh_failed">No se pudo contactar con %1$s, el resto está al día.</string>
+    <string name="forge_refresh_failed_brought">Nuevos: %2$d. No se pudo contactar con %1$s.</string>
     <string name="forge_hv_edit">Editar</string>
     <string name="forge_hv_edit_vitals">Editar constantes vitales</string>
     <string name="forge_hv_done">Listo</string>

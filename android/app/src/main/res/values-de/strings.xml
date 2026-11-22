@@ -5790,6 +5790,10 @@
     <string name="forge_se_invalid_order">Das Aufstehen muss nach dem Schlafengehen erfolgen. Überprüfe das Datum auf beiden Seiten.</string>
     <string name="forge_se_invalid_span">Diese Zeiten umfassen mehr als 24 Stunden. Überprüfe das Datum auf beiden Seiten – eine Nacht, die die Mitternacht überschreitet, endet am NÄCHSTEN Tag.</string>
     <string name="forge_se_invalid_future">Ein Schlaf kann nicht in der Zukunft enden.</string>
+    <string name="forge_refresh_up_to_date">Alles aktuell.</string>
+    <string name="forge_refresh_brought">Neu geholt: %1$d.</string>
+    <string name="forge_refresh_failed">%1$s nicht erreichbar, der Rest ist aktuell.</string>
+    <string name="forge_refresh_failed_brought">Neu geholt: %2$d. %1$s nicht erreichbar.</string>
     <string name="forge_hv_edit">Bearbeiten</string>
     <string name="forge_hv_edit_vitals">Vitalwerte bearbeiten</string>
     <string name="forge_hv_done">Fertig</string>

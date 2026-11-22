@@ -5741,6 +5741,10 @@
     <string name="forge_se_invalid_order">L\'orario di sveglia deve seguire quello di coricarsi. Controlla la data di entrambi.</string>
     <string name="forge_se_invalid_span">Questi orari coprono più di 24 ore. Controlla la data di entrambi: una notte che supera la mezzanotte finisce il giorno SUCCESSIVO.</string>
     <string name="forge_se_invalid_future">Un sonno non può terminare nel futuro.</string>
+    <string name="forge_refresh_up_to_date">Tutto aggiornato.</string>
+    <string name="forge_refresh_brought">Nuovi: %1$d.</string>
+    <string name="forge_refresh_failed">%1$s non raggiungibile, il resto è aggiornato.</string>
+    <string name="forge_refresh_failed_brought">Nuovi: %2$d. %1$s non raggiungibile.</string>
     <string name="forge_hv_edit">Modifica</string>
     <string name="forge_hv_edit_vitals">Modifica parametri vitali</string>
     <string name="forge_hv_done">Fatto</string>

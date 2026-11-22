@@ -5794,6 +5794,10 @@
     <string name="forge_se_invalid_order">Pobudka musi nastąpić po pójściu spać. Sprawdź datę po obu stronach.</string>
     <string name="forge_se_invalid_span">Te godziny obejmują ponad 24 godziny. Sprawdź datę po obu stronach — noc przekraczająca północ kończy się NASTĘPNEGO dnia.</string>
     <string name="forge_se_invalid_future">Sen nie może kończyć się w przyszłości.</string>
+    <string name="forge_refresh_up_to_date">Wszystko aktualne.</string>
+    <string name="forge_refresh_brought">Nowe: %1$d.</string>
+    <string name="forge_refresh_failed">Brak połączenia z %1$s, reszta jest aktualna.</string>
+    <string name="forge_refresh_failed_brought">Nowe: %2$d. Brak połączenia z %1$s.</string>
     <string name="forge_hv_edit">Redagować</string>
     <string name="forge_hv_edit_vitals">Edytuj parametry życiowe</string>
     <string name="forge_hv_done">Gotowe</string>
