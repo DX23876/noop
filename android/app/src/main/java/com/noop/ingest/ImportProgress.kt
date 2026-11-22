@@ -90,19 +90,6 @@ object ImportProgress {
      */
     val problems: StateFlow<List<Problem>> = _problems.asStateFlow()
 
-    /**
-     * True while an import is running, for a screen that only disables its buttons.
-     *
-     * Two honest signals, either of which means an import is under way, resolved here so no screen has to
-     * pick one: the SLOT is claimed, or a progress state exists. `_state.value != null` alone was the
-     * wrong answer in the window that matters, because the importer calls [begin] after its first read,
-     * so between a run starting and that first page of records it said no import was running — which is
-     * how two runs started in the same second (18:46:12 in the tester log of 2026-11-22). The slot alone
-     * would be the wrong answer for an importer that calls [begin] without going through
-     * `ImportRunner`, and would quietly stop reporting it.
-     */
-    val running: Boolean get() = slotHeld.get() || _state.value != null
-
     private const val CHANNEL_ID = "noop_import_progress"
     private const val NOTIF_ID = 4215
 

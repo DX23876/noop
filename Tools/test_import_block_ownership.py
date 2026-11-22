@@ -1,11 +1,11 @@
 """A month-wise import must write only the days its block owns, and must run the water window once.
 
 The Health Connect import reads a month at a time since 2026-11-22, which bounds a pass that had peaked
-at 2 269 462 records in memory. Two lines in that change are the ones that can LOSE a wearer's data, and
-neither is reachable by any JVM test: `HealthConnectImporter.import` needs a live `HealthConnectClient`,
+at 2 269 462 records in memory. Several lines in that change are the ones that can LOSE a wearer's data,
+and none is reachable by any JVM test: `HealthConnectImporter.import` needs a live `HealthConnectClient`,
 so every existing HealthConnect test pins a pure helper instead and the write-out path is covered by
-none. Inverting either guard leaves the whole Android suite green. So they are guarded here, at the
-source, which is also the leg of CI that has no path filter.
+none. Inverting any of these guards leaves the whole Android suite green. So they are guarded here, at
+the source, which is also the leg of CI that has no path filter.
 
 **The month boundary.** A night is keyed by the day the sleeper WOKE (`SleepSessionRecord` is bucketed on
 `endTime`) while Health Connect filters a read by the record's START, and the per-day write REPLACES the
@@ -22,6 +22,9 @@ only, which is the newest, so the window lies in its range.
 
 Both remedies follow `HealthWriteback.sleepEntriesOwned`, which answered the same shape for the Apple
 Health write-back: read wider than the window, write only the keys the window owns.
+
+Assertions use `assertTrue(needle in src)` and not `assertIn`, which prints the whole haystack: a
+failure should show the sentence that explains it, not 110 KB of Kotlin in front of it.
 """
 
 import pathlib
@@ -39,7 +42,7 @@ class ImportBlockOwnershipTest(unittest.TestCase):
 
     def test_the_per_day_rows_are_written_only_by_the_block_that_owns_the_day(self) -> None:
         self.assertTrue(
-            "if (window != null && !window.owns(day)) continue" in self.src,
+            "if (!window.owns(day)) continue" in self.src,
             "The per-day write loop no longer skips days the block does not own. A night that woke on "
             "the 1st is read by BOTH the block that owns it and the previous one (whose read reaches a "
             "night further back), and the write REPLACES the whole day row - so without this the two "
@@ -48,7 +51,7 @@ class ImportBlockOwnershipTest(unittest.TestCase):
 
     def test_the_sleep_rows_are_written_only_by_the_block_that_owns_the_night(self) -> None:
         self.assertTrue(
-            "(window == null || window.owns(it.first))" in self.src,
+            "window.owns(it.first)" in self.src,
             "The sleep-session write no longer filters by block ownership. Sessions are keyed by the "
             "wake day, so a night read in the previous month would be written there too.",
         )
@@ -71,21 +74,35 @@ class ImportBlockOwnershipTest(unittest.TestCase):
             "wearer's imported water.",
         )
         # The zero-fill is what makes the gate necessary; if it ever goes, this test's reason goes with it.
-        self.assertIn("HydrationStore.importWindow(windowDays, hydrationMl)", self.src)
+        self.assertTrue("HydrationStore.importWindow(windowDays, hydrationMl)" in self.src)
 
-    def test_the_loop_marks_the_first_block_and_leaves_the_stamp_to_the_import(self) -> None:
-        self.assertTrue("isFirstBlock = index == 0" in self.src,
-                        "importAll no longer tells the first block that it is first, so either every "
-                      "block runs the once-per-import work or none does.")
-        self.assertTrue("stampRun = false" in self.src,
-                        "importAll no longer suppresses the per-block run stamp, so the last month would "
-                      "be recorded as the whole import (#1735).")
+    def test_the_loop_marks_the_first_block_and_stamps_the_run_only_once(self) -> None:
+        self.assertTrue(
+            "isFirstBlock = index == 0" in self.src,
+            "importAll no longer tells the first block that it is first, so either every block runs the "
+            "once-per-import work (announcing it, the legacy refile, the water window) or none does.",
+        )
+        # One import, one stamp (#1735): "ran and found nothing" and "never ran" are different
+        # diagnoses, and a stamp per block would report the last month as the whole import.
+        self.assertEqual(
+            1, self.src.count("recordImportRun(context, rows"),
+            "There is more than one run stamp again. One import, one stamp, outside the block loop.",
+        )
+        loop = self.src.index("for ((index, block) in blocks.withIndex())")
+        stamp = self.src.index("recordImportRun(context, rows = total")
+        self.assertGreater(
+            stamp, loop,
+            "The run stamp moved above or into the block loop, so it would report one month as the "
+            "whole import (#1735).",
+        )
 
     def test_a_block_reads_a_night_wider_than_it_owns(self) -> None:
-        self.assertIn("READ_LEAD_SECONDS", self.blocks)
-        self.assertTrue("minusSeconds(READ_LEAD_SECONDS)" in self.blocks,
-                        "A block no longer starts reading before its first owned day, so a night that "
-                      "began the evening before is not read by the block that must write it.")
+        self.assertTrue("READ_LEAD_SECONDS" in self.blocks)
+        self.assertTrue(
+            "minusSeconds(READ_LEAD_SECONDS)" in self.blocks,
+            "A block no longer starts reading before its first owned day, so a night that began the "
+            "evening before is not read by the block that must write it.",
+        )
 
 
 if __name__ == "__main__":

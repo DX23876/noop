@@ -85,8 +85,6 @@ object HealthConnectImporter {
     internal const val HC_DEVICE = "health-connect"
     private const val HC_WORKOUT_SOURCE = "health-connect"
 
-    /** Read window: a wide ~10-year span ending now. Health Connect itself caps retention. */
-    private const val WINDOW_YEARS = 10L
 
     /**
      * What a run that read successfully and found nothing says.
@@ -205,7 +203,7 @@ object HealthConnectImporter {
 
     /**
      * Read access to records older than 30 days. Without it Health Connect serves an app only the last 30 days, so the
-     * "bring your history" import (a [WINDOW_YEARS] window) quietly stopped at a month (2026-11-11). Asked together with
+     * "bring your history" import (a multi-year window) quietly stopped at a month (2026-11-11). Asked together with
      * the data types; a Health Connect that does not know it simply leaves it out of the grant.
      */
     const val HISTORY_PERMISSION = "android.permission.health.READ_HEALTH_DATA_HISTORY"
@@ -228,7 +226,7 @@ object HealthConnectImporter {
         types.any { it.permission in granted }
 
     /**
-     * Hydration import window, in days (#949) — deliberately much shorter than [WINDOW_YEARS].
+     * Hydration import window, in days (#949) — deliberately much shorter than the import's own depth.
      *
      * Imported water is stored as one REPLACED row per day, and every day in the window is written
      * (0.0 included) so a drink deleted in the source app disappears here too. Over the 10-year window
@@ -488,9 +486,8 @@ object HealthConnectImporter {
                 heightCm = heightCm,
                 types = types,
                 window = block,
-                coveredDaysIn = coveredDays,
+                coveredDays = coveredDays,
                 isFirstBlock = index == 0,
-                stampRun = false,
             )
             // A failure is the import's failure, as it always was: a read that could not be completed
             // leaves a window half imported, and reporting the rest as a success would hide that.
@@ -534,21 +531,19 @@ object HealthConnectImporter {
         // Null means "whatever the user has selected", resolved AFTER the grant-based migration below. A
         // non-lazy default is evaluated at CALL time, before the migration could widen it.
         types: Set<ImportType>? = null,
-        // One month of the import, from [importAll], or null for the whole window in one pass. Given, the
-        // read covers the block's range (a night wider than it owns, see [ImportBlocks]) and the write
-        // covers only the days it owns, so the blocks cannot take turns replacing each other's rows.
-        window: ImportBlocks.Block? = null,
+        // The month this call is responsible for. Mandatory: every caller goes through [importAll], and
+        // the whole-window alternative was an unreachable second path that each guard below had to ask
+        // about. The read covers the block's range (a night wider than it owns, see [ImportBlocks]) and
+        // the write covers only the days it owns, so two blocks cannot replace each other's rows.
+        window: ImportBlocks.Block,
         // The strap-coverage set, read once by [importAll] rather than once per block: it is a store read
         // over every strap source and does not change between two blocks of one import.
-        coveredDaysIn: Set<String>? = null,
+        coveredDays: Set<String>,
         // Whether this call is the import's FIRST block, which owns the work that belongs to the import
         // rather than to a month: announcing it ([ImportProgress.begin], which also clears the problem
         // list), the one-off legacy refile, and the water window — a REPLACE with zero-fill over the last
         // thirty days, which an older block would write as zeros and erase.
-        isFirstBlock: Boolean = true,
-        // Whether this call records the import run. [importAll] stamps once, at the end, with the whole
-        // import's totals; a stamp per block would report the last month as the whole import.
-        stampRun: Boolean = true,
+        isFirstBlock: Boolean,
     ): ImportSummary {
         if (sdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
             return ImportSummary.failure(SOURCE, "Health Connect is not available on this device.")
@@ -607,9 +602,7 @@ object HealthConnectImporter {
 
         val zone = ZoneId.systemDefault()
         val end = Instant.now()
-        val start = LocalDate.now(zone).minusYears(WINDOW_YEARS).atStartOfDay(zone).toInstant()
-        val filter = window?.let { TimeRangeFilter.between(it.readStart, it.readEnd) }
-            ?: TimeRangeFilter.between(start, end)
+        val filter = TimeRangeFilter.between(window.readStart, window.readEnd)
         // #528: skip our own writes on import (see readAll / isSelfWritten).
         val selfPackage = context.packageName
         val selectedRecordTypes = readableRecordTypes(effectiveTypes, granted)
@@ -800,9 +793,7 @@ object HealthConnectImporter {
                 // `workoutDays` and `workoutSamples` are index-parallel, so a session skipped later would
                 // have to be removed from three places at once. A workout is keyed by the day it STARTED,
                 // so the block that owns that day is the one whose read range contains its start.
-                if (window != null &&
-                    !window.owns(localDayKey(r.startTime, r.startZoneOffset, zone))
-                ) return@readSelected
+                if (!window.owns(localDayKey(r.startTime, r.startZoneOffset, zone))) return@readSelected
                 // #1205: read the GPS route when the provider attached one. Health Connect gates
                 // route data behind a SEPARATE permission (READ_EXERCISE_ROUTES) that cannot be
                 // requested via the standard dialog — it is granted in Settings or via
@@ -859,7 +850,8 @@ object HealthConnectImporter {
             // replacement).
             //
             // Cost: was two FULL record-list scans per workout, O(workouts × kcal records). At
-            // WINDOW_YEARS = 10 and ~15-minute provider buckets each list runs to hundreds of thousands
+            // at the longest depth ([ImportDepth.TEN_YEARS]) and ~15-minute provider buckets each list
+            // runs to hundreds of thousands
             // of rows, so a first import paid that per workout. Now sorted once into a KcalIndex and
             // range-scanned per window — the fix the previous version of this comment nominated.
             // Sorted ONCE for the whole pass, not per workout: two O(n log n) sorts replace the
@@ -1010,9 +1002,6 @@ object HealthConnectImporter {
         // there" cannot be told from "Health Connect never imported it" without this: the log had per-source
         // row counts but nothing about WHEN they last moved. Mirrors the sync.lastWriteOkAt pattern the
         // strap-write path already uses. Best-effort - a stamp failure must not sink a good import.
-            // Stamped on the EMPTY path too, deliberately: "ran and found nothing" and "never ran" are
-            // different diagnoses and this is the only line that separates them.
-            if (stampRun) recordImportRun(context, rows = 0, throughDay = null)
             return ImportSummary(
                 source = SOURCE,
                 counts = emptyMap(),
@@ -1034,9 +1023,6 @@ object HealthConnectImporter {
         // so without them the sparse HC backfill (recovery/strain/stages = null) shadows the computed
         // day and blanks Today / regresses Sleep stages (#112). Each read is wrapped so a missing
         // source is empty, not fatal; HC still gap-fills any day the strap did NOT cover.
-        val coveredDays: Set<String> = coveredDaysIn ?: buildSet {
-            for (id in strapSourceIds(repo)) addAll(strapDays(repo, id))
-        }
 
         val appleRows = ArrayList<AppleDaily>(acc.size)
         val dailyRows = ArrayList<DailyMetric>(acc.size)
@@ -1051,7 +1037,7 @@ object HealthConnectImporter {
             // A block writes only its own days. The read reaches a night further back so a session that
             // began before the block still lands in the day it belongs to; that day is the previous
             // block's, and writing it here would replace its row with one built from a night alone.
-            if (window != null && !window.owns(day)) continue
+            if (!window.owns(day)) continue
             // #589: de-overlap the per-source maps by MAX (sum within a source, max across sources) so a
             // phone+watch pair doesn't double-count the day's steps / calories. Mirrors the iOS/macOS and
             // Android-XML de-overlap (stepsBySource.values.max()).
@@ -1146,7 +1132,7 @@ object HealthConnectImporter {
             // #983: write the collected sleep sessions under WHOOP, but ONLY for days the strap does not
             // already cover (same guard as the daily rows) so a real strap night is never shadowed.
             val sleepRows = hcSleepSessions
-                .filter { it.first !in coveredDays && (window == null || window.owns(it.first)) }
+                .filter { it.first !in coveredDays && window.owns(it.first) }
                 .map { it.second }
             if (sleepRows.isNotEmpty()) {
                 repo.upsertDevice(WHOOP, name = "WHOOP")
@@ -1171,10 +1157,8 @@ object HealthConnectImporter {
         // (periodic auto-sync, Data Sources, onboarding) keeps the profile current. Best-effort like the
         // import stamp below: a profile write must not sink an otherwise good import.
         //
-        // Skipped on a BLOCK: it reads what the import has written so far, so running it once after the
-        // last block sees the whole import, while per block it would run a hundred and twenty times and
-        // the earliest of them would decide the profile from one month. [importAll] makes that one call.
-        if (window == null) syncProfileWeight(context, repo)
+        // NOT here: it reads what the import has written so far, so it belongs after the LAST block,
+        // where it sees the whole import rather than one month. [importAll] makes that one call.
 
         val counts = buildMap {
             if (appleRows.isNotEmpty()) put("appleDaily", appleRows.size)
@@ -1192,17 +1176,12 @@ object HealthConnectImporter {
         val lastDay = touchedDays.lastOrNull()
 
         val total = counts.values.sum()
-        // #1735: record that an import RAN and what it brought. "Hours after a ride it still is not
-        // there" cannot be told from "Health Connect never imported it" without this: the log had per-source
-        // row counts but nothing about WHEN they last moved. Mirrors the sync.lastWriteOkAt pattern the
-        // strap-write path already uses. Best-effort - a stamp failure must not sink a good import.
-        if (stampRun) recordImportRun(context, rows = total, throughDay = lastDay)
         return ImportSummary(
             source = SOURCE,
             counts = counts,
             firstDay = firstDay,
             lastDay = lastDay,
-            message = if (total == 0) "Nothing new to import from Health Connect."
+            message = if (total == 0) NOTHING_FOUND
             else "Imported $total rows from Health Connect.",
         )
     }
@@ -1459,7 +1438,7 @@ object HealthConnectImporter {
      *
      * What it does fix is travel and relocation: a record written at 01:30 in Tokyo is the 16th to
      * the person who made it, but a phone now set to `Europe/London` resolves the same instant to
-     * the 15th. `WINDOW_YEARS` is 10, so one import keys a decade of history that way, and importing
+     * the 15th. At the longest depth one import keys a decade of history that way, and importing
      * again after moving re-keys the same records differently — which surfaces as a doubled day
      * beside a gap rather than as an obviously wrong timestamp.
      *
@@ -1524,7 +1503,8 @@ object HealthConnectImporter {
      * walking the whole list (#835 follow-up).
      *
      * The post-pass calls [sumKcalInWindow] twice per workout, and each call scanned every record in the
-     * import window. `WINDOW_YEARS` is 10 and providers write these in ~15-minute buckets, so each list
+     * import window. At the longest depth that is ten years, and providers write these in ~15-minute
+     * buckets, so each list
      * runs to hundreds of thousands of rows: the shape is O(workouts x records), which the original
      * comment flagged as "fine at realistic sizes; if a multi-year import ever makes it hurt, sort both
      * lists by start and range-scan". This is that.

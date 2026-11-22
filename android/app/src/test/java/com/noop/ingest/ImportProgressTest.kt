@@ -3,7 +3,6 @@ package com.noop.ingest
 import android.content.Context
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -40,7 +39,6 @@ class ImportProgressTest {
     @Test
     fun `nothing runs until an importer says it started`() {
         assertNull(ImportProgress.state.value)
-        assertFalse(ImportProgress.running)
     }
 
     @Test
@@ -74,7 +72,6 @@ class ImportProgressTest {
         ImportProgress.step(context, ImportProgress.Step.SAVING)
         assertEquals(ImportProgress.Step.SAVING, ImportProgress.state.value?.step)
         assertEquals(2_000, ImportProgress.state.value?.records)
-        assertTrue(ImportProgress.running)
     }
 
     /**
