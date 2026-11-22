@@ -22,14 +22,19 @@ public enum ConnectedSourceRefresh {
         case strap
     }
 
-    /// What one source answered. `brought` counts what actually arrived, so a source that ran and found
-    /// nothing is not the same as one that never ran.
+    /// What one source answered.
+    ///
+    /// `brought` counts what actually arrived, so a source that ran and found nothing is not the same as
+    /// one that never ran. It is OPTIONAL because not every importer counts: Apple's HealthKit sync
+    /// answers with success or failure and nothing else. A source that ran without a count must not be
+    /// read as "brought nothing", or the line would say everything is current in the same breath as
+    /// three workouts arriving.
     public struct Answer: Equatable, Sendable {
         public let source: Source
-        public let brought: Int
+        public let brought: Int?
         public let failed: Bool
 
-        public init(source: Source, brought: Int = 0, failed: Bool = false) {
+        public init(source: Source, brought: Int? = 0, failed: Bool = false) {
             self.source = source
             self.brought = brought
             self.failed = failed
@@ -42,6 +47,9 @@ public enum ConnectedSourceRefresh {
         case upToDate
         /// Something arrived; the number is across all sources that brought anything.
         case brought(total: Int)
+        /// Something ran and brought no count of its own, so there is nothing to put a number on. Said
+        /// rather than "up to date", which would be a claim this answer cannot support.
+        case refreshed
         /// At least one source could not be reached. `brought` may still be non-zero: naming only the
         /// failure would throw away what did arrive, which is the kind of half-true line this project
         /// keeps removing.
@@ -78,8 +86,11 @@ public enum ConnectedSourceRefresh {
         let services = answers.filter { $0.source != .strap }
         guard !services.isEmpty else { return nil }
         let failed = services.filter(\.failed).map(\.source)
-        let brought = services.filter { !$0.failed }.reduce(0) { $0 + $1.brought }
+        let ran = services.filter { !$0.failed }
+        let brought = ran.reduce(0) { $0 + ($1.brought ?? 0) }
         if !failed.isEmpty { return .partial(failed: failed, brought: brought) }
-        return brought > 0 ? .brought(total: brought) : .upToDate
+        if brought > 0 { return .brought(total: brought) }
+        // Ran, nothing counted, and at least one source cannot count: say so rather than promise.
+        return ran.contains { $0.brought == nil } ? .refreshed : .upToDate
     }
 }

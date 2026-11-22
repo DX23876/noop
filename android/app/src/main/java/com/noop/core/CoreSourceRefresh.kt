@@ -22,14 +22,21 @@ object CoreSourceRefresh {
         }
     }
 
-    /** What one source answered; [brought] counts what actually arrived. */
-    data class Answer(val source: Source, val brought: Int = 0, val failed: Boolean = false)
+    /**
+     * What one source answered. [brought] is null when the source cannot count what it fetched, which is
+     * not the same as fetching nothing — reading it that way would let the line claim everything is
+     * current in the same breath as three workouts arriving.
+     */
+    data class Answer(val source: Source, val brought: Int? = 0, val failed: Boolean = false)
 
     /** What the screen should say. The platform words it; see `forge_refresh_*`. */
     sealed interface Verdict {
         /** Nothing ran, or only the strap did: say nothing at all. */
         data object None : Verdict
         data object UpToDate : Verdict
+
+        /** Something ran and brought no count of its own: said rather than promising "up to date". */
+        data object Refreshed : Verdict
         data class Brought(val total: Int) : Verdict
         data class Partial(val failed: List<Source>, val brought: Int) : Verdict
     }
@@ -58,12 +65,14 @@ object CoreSourceRefresh {
     fun verdict(answers: List<Answer>): Verdict {
         val rows = JSONArray()
         for (a in answers) {
-            rows.put(JSONObject().put("source", a.source.raw).put("brought", a.brought)
-                         .put("failed", a.failed))
+            val row = JSONObject().put("source", a.source.raw).put("failed", a.failed)
+            if (a.brought != null) row.put("brought", a.brought)
+            rows.put(row)
         }
         val reply = call("refresh.verdict", JSONObject().put("answers", rows))
         return when (reply.optString("verdict")) {
             "upToDate" -> Verdict.UpToDate
+            "refreshed" -> Verdict.Refreshed
             "brought" -> Verdict.Brought(reply.optInt("total"))
             "partial" -> {
                 val failed = reply.optJSONArray("failed") ?: JSONArray()

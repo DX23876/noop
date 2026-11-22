@@ -5775,6 +5775,7 @@
     <string name="forge_se_invalid_span">Estos tiempos abarcan más de 24 horas. Comprueba la fecha de ambas — una noche que cruza la medianoche termina al día SIGUIENTE.</string>
     <string name="forge_se_invalid_future">Un sueño no puede terminar en el futuro.</string>
     <string name="forge_refresh_up_to_date">Todo al día.</string>
+    <string name="forge_refresh_refreshed">Actualizado.</string>
     <string name="forge_refresh_brought">Nuevos: %1$d.</string>
     <string name="forge_refresh_failed">No se pudo contactar con %1$s, el resto está al día.</string>
     <string name="forge_refresh_failed_brought">Nuevos: %2$d. No se pudo contactar con %1$s.</string>

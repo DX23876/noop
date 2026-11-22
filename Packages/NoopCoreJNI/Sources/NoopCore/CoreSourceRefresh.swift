@@ -49,8 +49,10 @@ enum CoreSourceRefresh {
             .compactMap { row in
                 guard let raw = row["source"] as? String,
                       let source = ConnectedSourceRefresh.Source(rawValue: raw) else { return nil }
+                // A missing "brought" means the source cannot count what it fetched, which is not the
+                // same as fetching nothing.
                 return ConnectedSourceRefresh.Answer(source: source,
-                                                     brought: row["brought"] as? Int ?? 0,
+                                                     brought: row["brought"] as? Int,
                                                      failed: row["failed"] as? Bool ?? false)
             }
         switch ConnectedSourceRefresh.verdict(answers) {
@@ -58,6 +60,8 @@ enum CoreSourceRefresh {
             return CoreRead.json(VerdictReply(verdict: "none"))
         case .upToDate:
             return CoreRead.json(VerdictReply(verdict: "upToDate"))
+        case .refreshed:
+            return CoreRead.json(VerdictReply(verdict: "refreshed"))
         case .brought(let total):
             return CoreRead.json(VerdictReply(verdict: "brought", total: total))
         case .partial(let failed, let brought):

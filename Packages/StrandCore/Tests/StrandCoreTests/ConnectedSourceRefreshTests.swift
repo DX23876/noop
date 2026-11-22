@@ -72,3 +72,26 @@ final class ConnectedSourceRefreshTests: XCTestCase {
         XCTAssertNil(Refresh.verdict([]))
     }
 }
+
+extension ConnectedSourceRefreshTests {
+
+    /// Apple's HealthKit sync answers with success or failure and no count. Reading that as "brought
+    /// nothing" would let the line say everything is current in the same breath as three workouts
+    /// arriving, so a source that cannot count says so.
+    func testASourceThatCannotCountIsNotReadAsNothing() {
+        let verdict = ConnectedSourceRefresh.verdict([.init(source: .health, brought: nil)])
+        XCTAssertEqual(verdict, .refreshed)
+    }
+
+    func testACountedArrivalStillWinsOverAnUncountedOne() {
+        let verdict = ConnectedSourceRefresh.verdict([.init(source: .health, brought: nil),
+                                                      .init(source: .hevy, brought: 2)])
+        XCTAssertEqual(verdict, .brought(total: 2))
+    }
+
+    func testAFailureStillWinsOverAnUncountedArrival() {
+        let verdict = ConnectedSourceRefresh.verdict([.init(source: .health, brought: nil),
+                                                      .init(source: .hevy, failed: true)])
+        XCTAssertEqual(verdict, .partial(failed: [.hevy], brought: 0))
+    }
+}

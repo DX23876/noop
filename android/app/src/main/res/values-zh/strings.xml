@@ -5735,6 +5735,7 @@
     <string name="forge_se_invalid_span">这段时间超过 24 小时。请检查两边的日期：跨过午夜的一晚结束在第二天。</string>
     <string name="forge_se_invalid_future">睡眠不能结束于未来。</string>
     <string name="forge_refresh_up_to_date">全部已是最新。</string>
+    <string name="forge_refresh_refreshed">已更新。</string>
     <string name="forge_refresh_brought">新获取：%1$d。</string>
     <string name="forge_refresh_failed">无法连接 %1$s，其余已是最新。</string>
     <string name="forge_refresh_failed_brought">新获取：%2$d。无法连接 %1$s。</string>

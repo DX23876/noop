@@ -109,6 +109,8 @@ private fun RefreshVerdictLine(modifier: Modifier = Modifier) {
     val text = when (shown) {
         is CoreSourceRefresh.Verdict.UpToDate ->
             androidx.compose.ui.res.stringResource(com.noop.R.string.forge_refresh_up_to_date)
+        is CoreSourceRefresh.Verdict.Refreshed ->
+            androidx.compose.ui.res.stringResource(com.noop.R.string.forge_refresh_refreshed)
         is CoreSourceRefresh.Verdict.Brought ->
             androidx.compose.ui.res.stringResource(com.noop.R.string.forge_refresh_brought, shown.total)
         is CoreSourceRefresh.Verdict.Partial -> {

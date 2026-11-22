@@ -5839,6 +5839,7 @@
     <string name="forge_se_invalid_span">These times span more than 24 hours. Check the date on both — a night that crosses midnight ends on the NEXT day.</string>
     <string name="forge_se_invalid_future">A sleep can\'t end in the future.</string>
     <string name="forge_refresh_up_to_date">Everything is up to date.</string>
+    <string name="forge_refresh_refreshed">Refreshed.</string>
     <string name="forge_refresh_brought">Fetched: %1$d new.</string>
     <string name="forge_refresh_failed">%1$s could not be reached, the rest is up to date.</string>
     <string name="forge_refresh_failed_brought">Fetched: %2$d new. %1$s could not be reached.</string>

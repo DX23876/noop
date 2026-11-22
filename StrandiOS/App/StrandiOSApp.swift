@@ -212,6 +212,30 @@ struct StrandiOSApp: App {
         NotificationPresenter.shared.onGoalTapped = { [weak services] in
             services?.router.openGoals()
         }
+        // The pull gesture's sources, set once here for the same reason `AppModel.healthWriteBack` is a
+        // closure: HealthKit, Hevy's store and the strap live in types the view layer should not reach
+        // into. Who may be asked, how often and what the line says stays the shared core's.
+        ForgeConnectedRefresh.shared.health = .init(
+            isConnected: { [weak bridge] in bridge?.auth == .authorized },
+            fetch: { [weak bridge] in
+                // `sync` answers true or false and never a count, so a successful run is "uncounted"
+                // rather than a zero the line would read as "everything is up to date".
+                guard let bridge else { return .failed }
+                return await bridge.sync(days: 31) ? .uncounted : .failed
+            })
+        ForgeConnectedRefresh.shared.hevy = .init(
+            isConnected: { HevyCredentials.isConnected },
+            fetch: { [weak model] in
+                guard let model, let store = await model.repo.storeHandle() else { return .failed }
+                let summary = try? await HevySyncCoordinator(fetcher: HevyAPIClient(), store: store).run()
+                guard let summary else { return .failed }
+                // What arrived, as the wearer would count it: the workouts the run fetched.
+                return .brought(summary.fetchedWorkouts)
+            })
+        ForgeConnectedRefresh.shared.strap = (
+            isReady: { [weak model] in model?.live.connected == true && model?.live.bonded == true },
+            ask: { [weak model] in model?.ble.syncNow() })
+
         // Register a separate, always-on-while-authorized refresh task for Apple Health write-back.
         // The operation is write-only and bounded to the bridge's recent window; fresh BLE offloads still
         // use the immediate hook below. BGTaskScheduler chooses the actual wake time.

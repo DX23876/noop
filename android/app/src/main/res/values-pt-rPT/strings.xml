@@ -5767,6 +5767,7 @@
     <string name="forge_se_invalid_span">Estas horas abrangem mais de 24 horas. Verifique a data em ambas — uma noite que passa a meia-noite termina no dia SEGUINTE.</string>
     <string name="forge_se_invalid_future">Um sono não pode terminar no futuro.</string>
     <string name="forge_refresh_up_to_date">Tudo atualizado.</string>
+    <string name="forge_refresh_refreshed">Atualizado.</string>
     <string name="forge_refresh_brought">Novos: %1$d.</string>
     <string name="forge_refresh_failed">Não foi possível contactar %1$s, o resto está atualizado.</string>
     <string name="forge_refresh_failed_brought">Novos: %2$d. Não foi possível contactar %1$s.</string>

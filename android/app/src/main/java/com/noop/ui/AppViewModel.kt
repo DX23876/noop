@@ -3167,7 +3167,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 }
             }.map { it.await() }
         }
-        if (answers.any { it.brought > 0 }) {
+        if (answers.any { (it.brought ?: 0) > 0 }) {
             com.noop.core.CoreShadow.noteDataChanged()
             rescoreAfterEdit()
         }
