@@ -4002,13 +4002,13 @@ class WhoopBleClient(
      *  could log "accepted but never completed" about a subscribe that had just succeeded, and re-queue
      *  it. A diagnostic may only assert what it can attribute. Both the arming and the completion move
      *  the sequence, so a runnable that started before either one stands down. */
-    @Volatile private var cccdInFlightSeq = 0
+    private val cccdInFlightSeq = AtomicInteger(0)
     /** The sequence the currently armed timeout was armed for. */
     @Volatile private var cccdTimeoutSeq = -1
     private val cccdTimeoutRunnable = Runnable {
         val ch = cccdInFlightChar
         val armedFor = cccdTimeoutSeq
-        if (!cccdInFlight || ch == null || armedFor != cccdInFlightSeq) return@Runnable
+        if (!cccdInFlight || ch == null || armedFor != cccdInFlightSeq.get()) return@Runnable
         log(CccdDrainPolicy.writeTimedOutLine(ch.uuid.toString()))
         cccdInFlight = false
         cccdInFlightChar = null
@@ -8330,7 +8330,10 @@ class WhoopBleClient(
             cccdInFlightChar = null
             // Retire this write's sequence, so a timeout runnable that is already executing on the main
             // looper finds its own write gone rather than timing out a subscribe that just landed.
-            cccdInFlightSeq += 1
+            // ATOMIC, not `+= 1` on a @Volatile var: this runs on the GATT binder thread while the arming
+            // below runs on the main looper, and a lost increment would leave the value unchanged —
+            // exactly the state the runnable reads as "my write is still the current one".
+            cccdInFlightSeq.incrementAndGet()
             drainCccdQueue(g)
             drainWriteQueue()
         }
@@ -11475,12 +11478,12 @@ class WhoopBleClient(
         val ops = gattOps ?: return
         cccdInFlight = true
         cccdInFlightChar = ch
-        cccdInFlightSeq += 1
+        val seq = cccdInFlightSeq.incrementAndGet()
         // Take the slot back if the write is accepted and never answered (the 21:24 link). Armed for
         // THIS write's sequence, so a timeout that crosses a completion on the binder thread stands down
         // instead of blaming the next subscribe.
         handler.removeCallbacks(cccdTimeoutRunnable)
-        cccdTimeoutSeq = cccdInFlightSeq
+        cccdTimeoutSeq = seq
         handler.postDelayed(cccdTimeoutRunnable, CccdDrainPolicy.WRITE_TIMEOUT_MS)
 
         // Tell the local stack to surface notifications, then write the CCCD so the remote starts

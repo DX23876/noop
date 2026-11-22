@@ -8,6 +8,17 @@ package com.noop.ble
  */
 internal object PostBackfillPacing {
     const val QUIET_MS = 10_000L
+
+    /**
+     * Fork (DX23876), 2026-11-22: the Swift twin (`Strand/BLE/PostBackfillPacing.swift`) caps at half an
+     * hour instead, and says why — an auto-continued chain on the owner's phone ran about ten minutes, so
+     * five would release the pass with the night half offloaded. The number is deliberately not shared:
+     * there, the cheap current-day refresh runs per slice and is what keeps the screen moving, while a
+     * pass released by this cap is Apple's whole pass. Here the follow-up re-arm
+     * (`analyzeAfterBackfillPending`) scores the night again when the next chunk lands, so a pass
+     * released early is corrected rather than left standing. If that ever stops being true, this cap has
+     * the Apple bug.
+     */
     const val MAX_WAIT_MS = 300_000L
     const val POLL_MS = 500L
 
