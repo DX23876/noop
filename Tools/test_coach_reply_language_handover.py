@@ -30,7 +30,7 @@ SHADOW = ROOT / "android/app/src/main/java/com/noop/core/CoreShadow.kt"
 CALL = ROOT / "Packages/NoopCoreJNI/Sources/NoopCore/CoreCall.swift"
 SHIM = ROOT / "Packages/NoopCoreJNI/Sources/NoopCore/AndroidLocalizationShim.swift"
 REPLY = ROOT / "Strand/AI/CoachReplyLanguage.swift"
-APP_LANGUAGE = ROOT / "Strand/App/AppLanguage.swift"
+CATALOG = ROOT / "Packages/StrandCore/Sources/StrandCore/AppLanguageCatalog.swift"
 
 #: The two ops that hand the core its language: once at startup, once when Settings changes it.
 LANGUAGE_OPS = ("core.setResources", "core.setLanguage")
@@ -82,19 +82,19 @@ class CoachReplyLanguageHandoverTest(unittest.TestCase):
         self.assertIn("Bundle.main.preferredLocalizations", reply.split("#else")[1],
                       "Apple must keep reading its own bundle, where that IS the app's language")
 
-    def test_the_coach_knows_every_language_settings_offers(self):
-        """The drift that hid Polish: Settings offered it, the coach had no case, nobody failed.
+    def test_the_coach_knows_every_language_the_core_offers(self):
+        """The drift that hid Polish: both pickers offered it, the coach had no case, nobody failed.
 
         `CoachLanguagePromptTests` asserts the same thing where the types are, and it runs only under
         `xcodebuild` on macOS. This runs on every push.
         """
-        offered = re.findall(r'case \w+ = "([^"]+)"', APP_LANGUAGE.read_text(encoding="utf-8"))
-        self.assertGreater(len(offered), 5, "premise: the app's language list was found")
+        offered = re.findall(r'\.init\(tag: "([^"]+)"', CATALOG.read_text(encoding="utf-8"))
+        self.assertGreater(len(offered), 5, "premise: the core's language list was found")
         known = re.findall(r'case "([a-z]{2})":', REPLY.read_text(encoding="utf-8"))
         for tag in offered:
             with self.subTest(language=tag):
                 self.assertIn(tag.split("-")[0], known,
-                              f"Settings offers {tag} and the coach would answer in English")
+                              f"the core offers {tag} and the coach would answer in English")
 
 
 if __name__ == "__main__":

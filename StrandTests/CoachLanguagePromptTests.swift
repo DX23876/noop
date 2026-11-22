@@ -1,4 +1,5 @@
 import XCTest
+import StrandCore
 @testable import Strand
 
 /// Nothing in `systemPrompt` used to say what language to reply in, so the coach defaulted to English
@@ -97,19 +98,22 @@ final class CoachLanguagePromptTests: XCTestCase {
     /// now fails this test until the coach knows it, which is the point — the app's own list is the
     /// authority, and it is the thing that changes.
     func testEveryLanguageTheAppOffersIsOneTheCoachCanAnswerIn() {
-        for language in AppLanguage.allCases where language != .system {
-            let resolved = CoachReplyLanguage.resolve(preferredLocalizations: [language.rawValue])
-            guard language != .english else {
+        for language in AppLanguageCatalog.offered {
+            let resolved = CoachReplyLanguage.resolve(preferredLocalizations: [language.tag])
+            guard language.tag != "en" else {
                 XCTAssertEqual(resolved.identifier, "en")
                 continue
             }
             XCTAssertNotEqual(
                 resolved.identifier, "en",
-                "Settings offers \(language.rawValue), and the coach would answer in English")
-            // Same language, region or script left to the resolver: the app's generic "zh" is answered
-            // in Simplified, which is the catalogue it resolves to as well.
-            XCTAssertEqual(resolved.identifier.prefix(2), language.rawValue.prefix(2),
-                           "\(language.rawValue) is answered in \(resolved.identifier)")
+                "the app offers \(language.tag), and the coach would answer in English")
+            // Same language, region or script left to the resolver: the generic "zh" is answered in
+            // Simplified, which is the catalogue it resolves to as well.
+            XCTAssertEqual(resolved.identifier.prefix(2), language.tag.prefix(2),
+                           "\(language.tag) is answered in \(resolved.identifier)")
+            // And the model is told the language by the name the core gives it, so the instruction and
+            // the picker cannot name the same language two ways.
+            XCTAssertEqual(resolved.englishName, language.englishName, language.tag)
         }
     }
 
