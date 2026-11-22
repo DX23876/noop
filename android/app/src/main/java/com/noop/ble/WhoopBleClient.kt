@@ -3994,9 +3994,6 @@ class WhoopBleClient(
     /** The characteristic whose descriptor write holds the GATT slot right now, so the timeout below can
      *  re-queue exactly that one. Written and read on the main looper. */
     private var cccdInFlightChar: BluetoothGattCharacteristic? = null
-    /** #2026-11-22: takes the GATT slot back from a descriptor write that was ACCEPTED and never
-     *  completed. Without it `cccdInFlight` latched for the whole link (the 21:24 link: no failure line,
-     *  no further subscribe, no offload for 36 146 s). Cancelled in onDescriptorWrite and in [reset]. */
     /** Which descriptor write the armed timeout belongs to. onDescriptorWrite fires on the GATT binder
      *  thread while the timeout runs on the main looper, so the two can cross: without this the runnable
      *  could log "accepted but never completed" about a subscribe that had just succeeded, and re-queue
@@ -4005,6 +4002,9 @@ class WhoopBleClient(
     private val cccdInFlightSeq = AtomicInteger(0)
     /** The sequence the currently armed timeout was armed for. */
     @Volatile private var cccdTimeoutSeq = -1
+    /** #2026-11-22: takes the GATT slot back from a descriptor write that was ACCEPTED and never
+     *  completed. Without it `cccdInFlight` latched for the whole link (the 21:24 link: no failure line,
+     *  no further subscribe, no offload for 36 146 s). Cancelled in onDescriptorWrite and in [reset]. */
     private val cccdTimeoutRunnable = Runnable {
         val ch = cccdInFlightChar
         val armedFor = cccdTimeoutSeq
@@ -13489,6 +13489,16 @@ class WhoopBleClient(
      * the general [log] stays private. Callers must pass a serial PREFIX, never a full serial.
      */
     fun logIdentity(line: String) = log(line)
+
+    /**
+     * One line per "fetch now" pull, always on, into the same strap log: which sources were connected,
+     * which were asked, what came back, and the reason any of them declined.
+     *
+     * The iPhone writes the same lines (`ForgeConnectedRefresh`), and for the same reason: the first
+     * report of this gesture said three sources had failed, and without the reasons that cost an evening
+     * of theories. A pull is a handful of taps a day, so the line costs nothing when nothing is wrong.
+     */
+    fun logPull(line: String) = log(line)
 
     private fun log(s: String, domain: com.noop.testcentre.TestDomain? = null) {
         // A diagnostic log line must NEVER be able to crash the app. log() runs on the GATT binder

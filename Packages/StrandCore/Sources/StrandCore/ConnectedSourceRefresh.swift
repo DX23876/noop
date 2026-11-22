@@ -50,6 +50,11 @@ public enum ConnectedSourceRefresh {
         /// Something ran and brought no count of its own, so there is nothing to put a number on. Said
         /// rather than "up to date", which would be a claim this answer cannot support.
         case refreshed
+        /// Only the strap was asked. It carries its own progress and can run for minutes, so this makes
+        /// no claim about freshness — but silence is not the answer either: the wearer pulled, something
+        /// began, and a screen that says nothing reads as a gesture that did nothing (owner's iPhone,
+        /// 2026-11-22).
+        case strapAsked
         /// At least one source could not be reached. `brought` may still be non-zero: naming only the
         /// failure would throw away what did arrive, which is the kind of half-true line this project
         /// keeps removing.
@@ -84,7 +89,9 @@ public enum ConnectedSourceRefresh {
     /// everything is current while an offload is still running.
     public static func verdict(_ answers: [Answer]) -> Verdict? {
         let services = answers.filter { $0.source != .strap }
-        guard !services.isEmpty else { return nil }
+        guard !services.isEmpty else {
+            return answers.contains { $0.source == .strap } ? .strapAsked : nil
+        }
         let failed = services.filter(\.failed).map(\.source)
         let ran = services.filter { !$0.failed }
         let brought = ran.reduce(0) { $0 + ($1.brought ?? 0) }

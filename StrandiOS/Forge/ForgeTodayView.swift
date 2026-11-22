@@ -221,7 +221,8 @@ struct ForgeTodayView: View {
             }
         }
         .background(ForgeBackground(tab: .today, showsMotif: true))
-        .refreshable { await repo.refresh(); await load() }
+        .refreshable { await ForgeConnectedRefresh.shared.pull(); await repo.refresh(); await load() }
+        .overlay(alignment: .top) { ForgeRefreshStrips() }
         // `task` also starts over each time Today comes back into view, so what was just logged on another page
         // is read then. A reload waits for the page's transition and for the rest of a burst of changes.
         .task(id: reloadKey) {

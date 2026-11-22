@@ -418,15 +418,13 @@ object HealthConnectImporter {
     fun client(context: Context): HealthConnectClient = HealthConnectClient.getOrCreate(context)
 
     /**
-     * Read all configured record types, aggregate per local day, and upsert into [repo].
-     * Assumes [PERMISSIONS] have already been granted. Returns [ImportSummary.failure] when
-     * Health Connect is unavailable or the permissions are not actually granted.
+     * Read all configured record types, aggregate per local day, and upsert into [repo], a month at a
+     * time and newest month first.
      *
-     * [heightCm] is the user's profile height, used ONLY to derive BMI on days that carry a weight
-     * (Health Connect has no BMI record, unlike Apple Health). Pass 0.0 to skip BMI derivation.
-     */
-    /**
-     * Import the window a month at a time, newest month first.
+     * Assumes [PERMISSIONS] have already been granted. Returns [ImportSummary.failure] when Health
+     * Connect is unavailable or the permissions are not actually granted. [heightCm] is the user's
+     * profile height, used ONLY to derive BMI on days that carry a weight (Health Connect has no BMI
+     * record, unlike Apple Health); pass 0.0 to skip BMI derivation.
      *
      * Fork (DX23876), 2026-11-22. [import] reads its whole window in one pass, and most of what it reads
      * is folded per day as it goes — but not all: `activeKcalRecords` and `totalKcalRecords` hold one

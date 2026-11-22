@@ -112,7 +112,8 @@ struct ForgeTrainingView: View {
         }
         .background(ForgeBackground(tab: .training))
         .overlay { ForgeStatusBarScrim(tab: .training) }
-        .refreshable { await repo.refresh() }
+        .refreshable { await ForgeConnectedRefresh.shared.pull(); await repo.refresh() }
+        .overlay(alignment: .top) { ForgeRefreshStrips() }
         .task(id: "\(repo.refreshSeq)|\(weekStartRaw)") { await load() }
         .sheet(isPresented: $addingWorkout) { ForgeWorkoutEditor() }
         .sheet(item: $editing) { ForgeWorkoutEditor(target: $0) }

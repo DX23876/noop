@@ -37,6 +37,9 @@ object CoreSourceRefresh {
 
         /** Something ran and brought no count of its own: said rather than promising "up to date". */
         data object Refreshed : Verdict
+
+        /** Only the strap was asked: no claim about freshness, but not silence either. */
+        data object StrapAsked : Verdict
         data class Brought(val total: Int) : Verdict
         data class Partial(val failed: List<Source>, val brought: Int) : Verdict
     }
@@ -73,6 +76,7 @@ object CoreSourceRefresh {
         return when (reply.optString("verdict")) {
             "upToDate" -> Verdict.UpToDate
             "refreshed" -> Verdict.Refreshed
+            "strapAsked" -> Verdict.StrapAsked
             "brought" -> Verdict.Brought(reply.optInt("total"))
             "partial" -> {
                 val failed = reply.optJSONArray("failed") ?: JSONArray()

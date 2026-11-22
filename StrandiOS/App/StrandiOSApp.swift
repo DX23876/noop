@@ -215,26 +215,67 @@ struct StrandiOSApp: App {
         // The pull gesture's sources, set once here for the same reason `AppModel.healthWriteBack` is a
         // closure: HealthKit, Hevy's store and the strap live in types the view layer should not reach
         // into. Who may be asked, how often and what the line says stays the shared core's.
+        // Captured strongly, on purpose: the bridge lives as long as the app does, and a weak capture
+        // here answers "not connected" for the rest of the session the moment nothing else happens to
+        // hold it — a silent, permanent no, which is the worst shape a source check can take.
         ForgeConnectedRefresh.shared.health = .init(
-            isConnected: { [weak bridge] in bridge?.auth == .authorized },
-            fetch: { [weak bridge] in
+            isConnected: { bridge.auth == .authorized },
+            fetch: {
                 // `sync` answers true or false and never a count, so a successful run is "uncounted"
                 // rather than a zero the line would read as "everything is up to date".
-                guard let bridge else { return .failed }
-                return await bridge.sync(days: 31) ? .uncounted : .failed
-            })
+                if await bridge.sync(days: 31) { return .uncounted }
+                // A bare false is not a reason. Read the attributed one and say it, then decide from it:
+                // on the owner's iPhone every pull during a 183-day import reported Apple Health as
+                // unreachable, when what had happened was that his own import still held the bridge.
+                let refusal = bridge.lastRefusal
+                ForgeConnectedRefresh.shared.note(.health, declined: refusal?.rawValue ?? "unknown")
+                switch refusal {
+                // The same fetch, started a moment earlier, and it will land. Calling that a source
+                // that could not be reached is a claim about the daemon that never happened.
+                case .alreadyRunning: return .uncounted
+                // Not connected for this purpose at all, so it is left out of the line rather than
+                // named as a failure — the Data Sources screen is where an unconnected source belongs.
+                case .notAuthorized: return .notAvailable
+                default: return .failed
+                }
+            },
+            // `auth` begins `.unknown` and the launch pipeline resolves it; a pull can come first.
+            settle: { await bridge.refreshAuthIfPreviouslyGranted() })
         ForgeConnectedRefresh.shared.hevy = .init(
             isConnected: { HevyCredentials.isConnected },
             fetch: { [weak model] in
-                guard let model, let store = await model.repo.storeHandle() else { return .failed }
-                let summary = try? await HevySyncCoordinator(fetcher: HevyAPIClient(), store: store).run()
-                guard let summary else { return .failed }
-                // What arrived, as the wearer would count it: the workouts the run fetched.
-                return .brought(summary.fetchedWorkouts)
+                guard let model, let store = await model.repo.storeHandle() else {
+                    ForgeConnectedRefresh.shared.note(.hevy, declined: "noStore")
+                    return .failed
+                }
+                do {
+                    let summary = try await HevySyncCoordinator(fetcher: HevyAPIClient(), store: store).run()
+                    // What arrived, as the wearer would count it: the workouts the run fetched.
+                    return .brought(summary.fetchedWorkouts)
+                } catch {
+                    // The lane throws a typed reason; read THAT rather than matching words in a
+                    // description, which is a check that breaks the day someone rewords a message.
+                    let hevy = error as? HevyError
+                    ForgeConnectedRefresh.shared.note(.hevy, declined: hevy.map { "\($0)" } ?? "\(error)")
+                    switch hevy {
+                    // A run already under way is the same fetch, not an unreachable service.
+                    case .syncInProgress: return .uncounted
+                    // No key, a key Hevy rejects, or an account its API does not serve. None of these
+                    // is "Hevy could not be reached", and none of them changes between two pulls, so
+                    // repeating it on every gesture is a nag about a lane only Data Sources can fix —
+                    // where the reason is already stated in full. Left out of the line (owner,
+                    // 2026-11-22: a complaint about a service the wearer does not use).
+                    case .notConnected, .unauthorized, .notPro: return .notAvailable
+                    default: return .failed
+                    }
+                }
             })
         ForgeConnectedRefresh.shared.strap = (
-            isReady: { [weak model] in model?.live.connected == true && model?.live.bonded == true },
-            ask: { [weak model] in model?.ble.syncNow() })
+            isReady: { model.live.connected && model.live.bonded },
+            ask: { model.ble.syncNow() })
+        // One line per pull, always on, so the next report does not need an evening of guessing: it was
+        // the Android log that made the same feature provable there within seconds.
+        ForgeConnectedRefresh.shared.log = { line in model.live.append(log: line, domain: nil) }
 
         // Register a separate, always-on-while-authorized refresh task for Apple Health write-back.
         // The operation is write-only and bounded to the bridge's recent window; fresh BLE offloads still

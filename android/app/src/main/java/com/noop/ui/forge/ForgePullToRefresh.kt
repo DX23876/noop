@@ -45,10 +45,11 @@ internal fun ForgePullToRefresh(viewModel: AppViewModel, content: @Composable ()
 
     LaunchedEffect(Unit) { viewModel.refreshConnectedServices() }
 
-    val state = rememberPullToRefreshState(
-        // Nothing connected means nothing to fetch: a gesture that cannot do anything must not pretend.
-        enabled = { services.isNotEmpty() || strapReadyNow },
-    )
+    // Always offered, and the pull always answers. Offering it only while a source is connected means
+    // reading connectivity at one moment and acting at another; the Apple side lost three rounds to
+    // exactly that on the owner's phone (2026-11-22). Asking at the moment of the pull and saying what
+    // came of it — including "nothing is connected" — is the half that cannot go stale.
+    val state = rememberPullToRefreshState()
     var fetching by remember { mutableStateOf(false) }
     LaunchedEffect(state.isRefreshing) {
         if (!state.isRefreshing) return@LaunchedEffect
@@ -58,7 +59,7 @@ internal fun ForgePullToRefresh(viewModel: AppViewModel, content: @Composable ()
         } finally {
             fetching = false
         }
-        RefreshVerdictHost.show(verdict)
+        if (verdict != null) RefreshVerdictHost.show(verdict)
         // The services are done; the strap, if it was asked, carries on behind its own progress. Holding
         // the spinner for it would leave it turning for minutes.
         state.endRefresh()
@@ -99,21 +100,11 @@ internal object RefreshVerdictHost {
     /** How long the line stands before it fades. Long enough to read, short enough not to linger. */
     const val SHOWN_MS = 3_000L
 
-    fun show(value: CoreSourceRefresh.Verdict) {
-        // "None" is a pull that asked nothing but the strap, or nothing at all: there is nothing to say,
-        // and saying "up to date" would be a promise the offload has not kept yet.
-        _verdict.value = if (value is CoreSourceRefresh.Verdict.None) null else value
-    }
+    fun show(value: CoreSourceRefresh.Verdict) { _verdict.value = value }
 
     fun clear() { _verdict.value = null }
 }
 
-/**
- * What the last pull brought, for three seconds.
- *
- * The wording is this platform's, from its own catalogue; the core decided WHAT to say, not how. A
- * failure keeps the count beside it, because naming only the failure would throw away what did arrive.
- */
 /** The one shape both strips take, so the "fetching" line and the verdict cannot drift apart. */
 @Composable
 private fun RefreshStrip(text: String) {
@@ -130,6 +121,12 @@ private fun RefreshStrip(text: String) {
     }
 }
 
+/**
+ * What the last pull brought, for three seconds.
+ *
+ * The wording is this platform's, from its own catalogue; the core decided WHAT to say, not how. A
+ * failure keeps the count beside it, because naming only the failure would throw away what did arrive.
+ */
 @Composable
 private fun RefreshVerdictLine(modifier: Modifier = Modifier) {
     val verdict by RefreshVerdictHost.verdict.collectAsStateWithLifecycle()
@@ -141,6 +138,8 @@ private fun RefreshVerdictLine(modifier: Modifier = Modifier) {
     val text = when (shown) {
         is CoreSourceRefresh.Verdict.UpToDate ->
             androidx.compose.ui.res.stringResource(com.noop.R.string.forge_refresh_up_to_date)
+        is CoreSourceRefresh.Verdict.StrapAsked ->
+            androidx.compose.ui.res.stringResource(com.noop.R.string.forge_refresh_strap)
         is CoreSourceRefresh.Verdict.Refreshed ->
             androidx.compose.ui.res.stringResource(com.noop.R.string.forge_refresh_refreshed)
         is CoreSourceRefresh.Verdict.Brought ->
@@ -154,7 +153,9 @@ private fun RefreshVerdictLine(modifier: Modifier = Modifier) {
                 androidx.compose.ui.res.stringResource(com.noop.R.string.forge_refresh_failed, who)
             }
         }
-        is CoreSourceRefresh.Verdict.None -> return
+        // A pull that reached nothing: the one case where silence reads exactly like a broken gesture.
+        is CoreSourceRefresh.Verdict.None ->
+            androidx.compose.ui.res.stringResource(com.noop.R.string.forge_refresh_no_source)
     }
     RefreshStrip(text)
 }

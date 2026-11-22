@@ -844,9 +844,6 @@ struct RootTabView: View {
             onCoachSettings: { pushOnToday(MoreDestination.coachSettings) },
             onAsk: askCoach
         )
-        // Pull to fetch now, as on the other phone and as this app's classic Today has always done:
-        // every connected source is asked, and the core decides who, how often and what it says.
-        .forgeRefreshable(.today)
         .safeAreaInset(edge: .bottom, spacing: 0) { AnalysisUpdateBanner() }
     }
 
@@ -855,12 +852,10 @@ struct RootTabView: View {
             if model.activeWorkout != nil { session.present() }
             else { withAnimation(Self.sheetEase) { quickAction = .workout } }
         }, onAsk: askCoach)
-        .forgeRefreshable(.training)
     }
 
     private var forgeSleepRoot: some View {
         ForgeSleepView(onProfile: { showAllFeatures = true }, onAsk: askCoach)
-            .forgeRefreshable(.sleep)
     }
 
     private var forgeNutritionRoot: some View {
@@ -869,7 +864,6 @@ struct RootTabView: View {
 
     private var forgeHealthRoot: some View {
         ForgeHealthView(onProfile: { showAllFeatures = true }, onAsk: askCoach)
-            .forgeRefreshable(.health)
     }
 
     /// Whether Today can be seen: its tab is open and none of this shell's sheets lies over it. A sheet leaves

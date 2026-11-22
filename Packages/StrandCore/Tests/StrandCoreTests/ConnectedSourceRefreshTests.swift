@@ -63,9 +63,10 @@ final class ConnectedSourceRefreshTests: XCTestCase {
         XCTAssertEqual(verdict, .upToDate)
     }
 
-    func testAPullThatOnlyAskedTheStrapSaysNothing() {
-        XCTAssertNil(Refresh.verdict([.init(source: .strap, brought: 40)]),
-                     "claiming everything is current while an offload runs would be a promise nobody kept")
+    /// It still makes no claim about freshness — but it does say the pull reached something, because a
+    /// screen that stays silent reads as a gesture that did nothing.
+    func testAPullThatOnlyAskedTheStrapSaysSoWithoutPromising() {
+        XCTAssertEqual(Refresh.verdict([.init(source: .strap, brought: 40)]), .strapAsked)
     }
 
     func testNoAnswersAtAllSaysNothing() {

@@ -111,7 +111,8 @@ struct ForgeSleepView: View {
         }
         .background(ForgeBackground(tab: .sleep))
         .overlay { ForgeStatusBarScrim(tab: .sleep) }
-        .refreshable { await repo.refresh() }
+        .refreshable { await ForgeConnectedRefresh.shared.pull(); await repo.refresh() }
+        .overlay(alignment: .top) { ForgeRefreshStrips() }
         .sleepNightEditing(editor)
         // An add refused for lying on top of a stored sleep offers that sleep. This page browses one night
         // at a time, so it moves to the night that holds the onset and opens the editor there.

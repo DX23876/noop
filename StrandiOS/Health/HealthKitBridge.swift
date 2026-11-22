@@ -33,6 +33,21 @@ final class HealthKitBridge: ObservableObject {
     }
 
     @Published private(set) var auth: AuthState = .unknown
+
+    /// Why the last `sync` declined, or nil when it ran. `sync` answers with a bare Bool, which reads to
+    /// every caller as "Apple Health could not be reached" — and that is what the pull gesture told the
+    /// owner about a sync that was merely already running (2026-11-22). A refusal that cannot be
+    /// attributed is the thing AGENTS.md warns about; this is the attribution.
+    enum SyncRefusal: String, Sendable {
+        case notAuthorized
+        case deviceLocked
+        case alreadyRunning
+        case noStore
+        case badWindow
+        case stepsUnreadable
+    }
+
+    @Published private(set) var lastRefusal: SyncRefusal?
     @Published private(set) var lastSync: Date?
     @Published private(set) var syncing = false
     /// Coalesces a fresh-data notification that arrives while another HealthKit pass owns the bridge.
@@ -735,8 +750,9 @@ final class HealthKitBridge: ObservableObject {
     func sync(days: Int = 30, importingFullHistory: Bool = false,
               from explicitStart: Date? = nil, through explicitEnd: Date? = nil,
               repairingHistory: Bool = false) async -> Bool {
-        guard auth == .authorized else { return false }
+        guard auth == .authorized else { lastRefusal = .notAuthorized; return false }
         guard protectedDataAvailable else {
+            lastRefusal = .deviceLocked
             deferUntilUnlock(.sync)
             return false
         }
@@ -744,9 +760,11 @@ final class HealthKitBridge: ObservableObject {
             // A full sync includes write-back. If new strap data is landing concurrently, guarantee one
             // final write-only reconciliation after the current owner releases the bridge.
             writeBackPending = true
+            lastRefusal = .alreadyRunning
             return false
         }
         syncing = true
+        lastRefusal = nil
         // #1578: include aggregate reads, writes, and failed attempts in the health-sync diagnostics.
         let passStart = Date()
         HealthSyncStats.beginSync()
@@ -765,7 +783,7 @@ final class HealthKitBridge: ObservableObject {
         // Before syncing: pick up any read or share type this version added (#949, #2644).
         // No-op once the stored signature matches, which is every sync after the first.
         await requestNewAuthorizationTypesIfNeeded()
-        guard let store = await repo.storeHandle() else { return false }
+        guard let store = await repo.storeHandle() else { lastRefusal = .noStore; return false }
 
         func progress(_ value: Double) {
             guard importingFullHistory else { return }
@@ -774,7 +792,10 @@ final class HealthKitBridge: ObservableObject {
 
         let cal = Calendar.current
         let end = explicitEnd ?? Date()
-        guard let start = explicitStart ?? cal.date(byAdding: .day, value: -days, to: cal.startOfDay(for: end)) else { return false }
+        guard let start = explicitStart ?? cal.date(byAdding: .day, value: -days, to: cal.startOfDay(for: end)) else {
+            lastRefusal = .badWindow
+            return false
+        }
         let fromDay = Self.dayString(start)
         let toDay = Self.dayString(end.addingTimeInterval(-0.001))
         // Body composition (weight/body-fat/lean/BMI) is SPARSE and slow-moving — a weigh-in can be weeks
@@ -834,6 +855,7 @@ final class HealthKitBridge: ObservableObject {
         // The next foreground or observer sync can retry without losing the last good reading.
         guard stepsReadOk != .failed else {
             lastSyncDays = 0
+            lastRefusal = .stepsUnreadable
             reportFailure(nil, detail: String(localized: "Steps"), owing: .sync)
             return false
         }

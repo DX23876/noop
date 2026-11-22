@@ -3129,34 +3129,63 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      * [strapReady] comes from the screen, which reads the live connection state; the strap is asked but
      * never decides the line, because an offload runs for minutes behind its own progress.
      */
-    suspend fun refreshConnectedSources(strapReady: Boolean): CoreSourceRefresh.Verdict {
+    suspend fun refreshConnectedSources(strapReady: Boolean): CoreSourceRefresh.Verdict? {
         val connected = buildSet {
             addAll(_refreshServices.value)
             if (strapReady) add(CoreSourceRefresh.Source.STRAP)
         }
         val now = System.currentTimeMillis() / 1000L
         val askable = CoreSourceRefresh.askable(connected, lastAskedBySource.toMap(), now)
-        if (askable.isEmpty()) return CoreSourceRefresh.Verdict.None
+        val names = { set: Set<CoreSourceRefresh.Source> ->
+            if (set.isEmpty()) "none" else set.map { it.raw }.sorted().joinToString(",")
+        }
+        if (askable.isEmpty()) {
+            ble.logPull("Pull: connected ${names(connected)} — asked none")
+            // Null says nothing at all, and `None` says no source is connected. Those are two different
+            // facts and the floor produces the first: a second pull within thirty seconds must not tell
+            // a wearer with three connected sources that they have none.
+            return if (connected.isEmpty()) CoreSourceRefresh.Verdict.None else null
+        }
         for (source in askable) lastAskedBySource[source] = now
 
+        // Null is a source left OUT of the line, not one that brought nothing: a source that is not set
+        // up, or whose key the service itself rejects, is a matter for Data Sources, and naming it on
+        // every pull is a complaint about something the wearer does not use (owner, 2026-11-22). The
+        // iPhone draws the same distinction in `ForgeConnectedRefresh.Outcome.notAvailable`.
         val answers = kotlinx.coroutines.coroutineScope {
             askable.map { source ->
                 async {
                     when (source) {
                         CoreSourceRefresh.Source.HEALTH -> when (val outcome = runHealthConnectImport(months = 1)) {
-                            is HcImportOutcome.Done ->
+                            is HcImportOutcome.Done -> {
+                                if (!outcome.succeeded) {
+                                    ble.logPull("Pull: health declined — ${outcome.message}")
+                                }
                                 CoreSourceRefresh.Answer(source, brought = outcome.brought,
                                                          failed = !outcome.succeeded)
-                            // Unavailable or not granted is not a failure the wearer can act on from
-                            // here; it means this source should not have been asked at all.
-                            else -> CoreSourceRefresh.Answer(source, failed = false)
+                            }
+                            // Health Connect is missing, or no selected type is granted. Not a failure
+                            // and not an answer: this source should not have been asked at all.
+                            else -> {
+                                ble.logPull("Pull: health declined — ${outcome.javaClass.simpleName}")
+                                null
+                            }
                         }
                         CoreSourceRefresh.Source.HEVY -> {
                             val status = runCatching { CoreHevyImport.sync(appContext) }.getOrNull()
-                            CoreSourceRefresh.Answer(
-                                source,
-                                brought = (status?.stored ?: 0) + (status?.updated ?: 0),
-                                failed = status == null || status.error != null)
+                            val error = if (status == null) "storeUnavailable" else status.error
+                            if (error != null) ble.logPull("Pull: hevy declined — $error")
+                            when (error) {
+                                null -> CoreSourceRefresh.Answer(
+                                    source, brought = (status?.stored ?: 0) + (status?.updated ?: 0))
+                                // A run already under way is the same fetch, a moment earlier.
+                                "busy" -> CoreSourceRefresh.Answer(source, brought = null)
+                                // No key, a key Hevy rejects, or an account its API does not serve.
+                                // None of these is "could not be reached", and none changes between
+                                // two pulls; the reason is already stated in Data Sources.
+                                "notConnected", "unauthorized", "notPro" -> null
+                                else -> CoreSourceRefresh.Answer(source, brought = 0, failed = true)
+                            }
                         }
                         // Asked, not awaited: its own progress carries it to the end.
                         CoreSourceRefresh.Source.STRAP -> {
@@ -3165,13 +3194,28 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         }
                     }
                 }
-            }.map { it.await() }
+            }.mapNotNull { it.await() }
         }
         if (answers.any { (it.brought ?: 0) > 0 }) {
             com.noop.core.CoreShadow.noteDataChanged()
             rescoreAfterEdit()
         }
-        return CoreSourceRefresh.verdict(answers)
+        val verdict = CoreSourceRefresh.verdict(answers)
+        ble.logPull("Pull: asked ${names(askable)} — ${describePull(verdict)}")
+        // The core answers `None` when only the strap ran, or when every service was left out: a line
+        // promising freshness the offload has not delivered yet would be a claim nobody made.
+        return verdict.takeUnless { it is CoreSourceRefresh.Verdict.None }
+    }
+
+    /** The pull's verdict for the strap log, in the same words the iPhone writes. */
+    private fun describePull(verdict: CoreSourceRefresh.Verdict): String = when (verdict) {
+        CoreSourceRefresh.Verdict.None -> "nothing to say"
+        CoreSourceRefresh.Verdict.UpToDate -> "up to date"
+        CoreSourceRefresh.Verdict.Refreshed -> "refreshed"
+        CoreSourceRefresh.Verdict.StrapAsked -> "strap asked"
+        is CoreSourceRefresh.Verdict.Brought -> "brought ${verdict.total}"
+        is CoreSourceRefresh.Verdict.Partial ->
+            "partial, failed ${verdict.failed.joinToString(",") { it.raw }}, brought ${verdict.brought}"
     }
 
     private sealed interface HcImportOutcome {

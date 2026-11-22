@@ -62,6 +62,8 @@ enum CoreSourceRefresh {
             return CoreRead.json(VerdictReply(verdict: "upToDate"))
         case .refreshed:
             return CoreRead.json(VerdictReply(verdict: "refreshed"))
+        case .strapAsked:
+            return CoreRead.json(VerdictReply(verdict: "strapAsked"))
         case .brought(let total):
             return CoreRead.json(VerdictReply(verdict: "brought", total: total))
         case .partial(let failed, let brought):

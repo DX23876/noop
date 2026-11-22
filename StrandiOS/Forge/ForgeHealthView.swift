@@ -201,7 +201,8 @@ struct ForgeHealthView: View {
         }
         .background(ForgeBackground(tab: .health))
         .overlay { ForgeStatusBarScrim(tab: .health) }
-        .refreshable { await repo.refresh() }
+        .refreshable { await ForgeConnectedRefresh.shared.pull(); await repo.refresh() }
+        .overlay(alignment: .top) { ForgeRefreshStrips() }
         .sheet(item: $tilePick) { pick in tilePicker(pick) }
         .task(id: repo.days.count) { await load() }
         .onAppear(perform: refreshVitalsCache)

@@ -5791,6 +5791,8 @@
     <string name="forge_se_invalid_span">Diese Zeiten umfassen mehr als 24 Stunden. Überprüfe das Datum auf beiden Seiten – eine Nacht, die die Mitternacht überschreitet, endet am NÄCHSTEN Tag.</string>
     <string name="forge_se_invalid_future">Ein Schlaf kann nicht in der Zukunft enden.</string>
     <string name="forge_refresh_up_to_date">Alles aktuell.</string>
+    <string name="forge_refresh_no_source">Keine Quelle verbunden.</string>
+    <string name="forge_refresh_strap">Strap wird abgeglichen …</string>
     <string name="forge_refresh_fetching">Wird geholt …</string>
     <string name="forge_refresh_refreshed">Aktualisiert.</string>
     <string name="forge_refresh_brought">Neu geholt: %1$d.</string>
