@@ -296,6 +296,14 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
+          # ONLY the artifacts meant for testers, by name. Without the pattern this downloads every
+          # artifact of the run, and the step below attaches whatever it finds: the build of
+          # 2026-11-22 put `slice-arm64.tar` and `slice-x86_64.tar` on the public prerelease, 353 MB
+          # of intermediate Mach-O bundles nobody can install and the release text does not mention.
+          # Those two are kept for a day on purpose (`retention-days: 1`) because only the `macos` job
+          # needs them. So a leg that wants its output published names it `testing-…`, and a leg whose
+          # output is scaffolding does not.
+          pattern: testing-*
           path: dist
       - name: Recreate the rolling release and attach everything
         env:
@@ -310,6 +318,12 @@ jobs:
           FILES=$(find dist -type f | sort)
           test -n "$FILES" || { echo "::error::no artifacts to publish"; exit 1; }
           echo "$FILES"
+          # Belt to the pattern's braces: whatever a future leg calls its artifact, a tar of a build
+          # tree is not something a tester installs, and this is the step that would publish it.
+          if printf '%s\n' "$FILES" | grep -q '/slice-.*\.tar$'; then
+            echo "::error::a macOS slice tar reached the publish set; it is scaffolding, not a download."
+            exit 1
+          fi
           # ROLLING release: recreate the single tag so stale (incl. old-version) assets never linger —
           # one stable URL, always the newest build, zero cleanup. (To KEEP a build, cut a one-off tag.)
           #
