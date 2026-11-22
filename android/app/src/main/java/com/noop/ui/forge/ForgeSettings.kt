@@ -753,9 +753,10 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
 
 /** The scrolling column every Settings screen sits in, clear of the system bars. */
 @Composable
-internal fun SettingsColumn(content: @Composable ColumnScope.() -> Unit) {
+internal fun SettingsColumn(scroll: androidx.compose.foundation.ScrollState = rememberScrollState(),
+                            content: @Composable ColumnScope.() -> Unit) {
     Column(
-        Modifier.fillMaxSize().statusBarsPadding().verticalScroll(rememberScrollState())
+        Modifier.fillMaxSize().statusBarsPadding().verticalScroll(scroll)
             .padding(horizontal = ForgeMetrics.screenPadding).widthIn(max = ForgeMetrics.maxContentWidth)
             .navigationBarsPadding().padding(bottom = ForgeMetrics.space4),
         verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap),

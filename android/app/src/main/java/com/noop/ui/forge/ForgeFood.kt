@@ -410,12 +410,18 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
     }
 
     // The Food page's picture (iOS `FoodHeroPicture`): a dark still life behind the title, fading out above the plate.
+    // It scrolls with the page, as on iOS, instead of staying behind the cards that scroll over it.
+    val pageScroll = androidx.compose.foundation.rememberScrollState()
     Box(Modifier.fillMaxSize()) {
         // drawable-night holds the night photo, drawable the daylight one, so it never sits as a dark block on light.
         androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.food_hero), contentDescription = null,
             contentScale = androidx.compose.ui.layout.ContentScale.Crop, alignment = Alignment.TopEnd,
             modifier = Modifier.fillMaxWidth().height(400.dp)
-                .graphicsLayer(compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen)
+                // Read in the layer phase, so scrolling moves the picture without recomposing the page.
+                .graphicsLayer {
+                    compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen
+                    translationY = -pageScroll.value.toFloat()
+                }
                 .drawWithContent {
                     drawContent()
                     drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(
@@ -423,7 +429,7 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
                         0.7f to androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.35f), 0.92f to androidx.compose.ui.graphics.Color.Transparent),
                         blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
                 })
-        SettingsColumn {
+        SettingsColumn(pageScroll) {
             // Adding sits in the title row, always in reach, instead of a button below the meals.
             val foodButtons: @Composable () -> Unit = {
                 IconButton(onClick = { settings = true }) {
