@@ -1047,12 +1047,41 @@ final class AppModel: ObservableObject {
         _ = await intelligence.refreshCurrentDayActivity()
     }
 
+    /// A post-offload refresh is past its cheap half and waiting out the chain, or running its heavy
+    /// pass. A second slice of the same chain re-enters here (every slice stamps `lastSyncedAt`), and
+    /// without this every slice would start its own wait and they would all fall through together the
+    /// moment the chunks went quiet. Twin of the Android `analyzeAfterBackfillScheduled` latch.
+    private var postOffloadRefreshInFlight = false
+    /// A slice landed while the heavy pass was already running, so its days are not in that pass. One
+    /// follow-up is re-armed rather than queued per slice. Twin of `analyzeAfterBackfillPending`.
+    private var postOffloadRefreshPending = false
+
     private func refreshAfterCompletedBackfill() async {
         live.append(log: "Backfill: refreshing dashboard cache from completed sync")
-        // Publish the two continuously-changing activity values first. This reads one calendar day and
-        // writes only steps/Effort; it is intentionally independent of the multi-day sleep/recovery pass
-        // below, which may take minutes on a large local library or be deferred by iOS.
+        // Publish the two continuously-changing activity values first, on EVERY slice. This reads one
+        // calendar day and writes only steps/Effort; it is intentionally independent of the multi-day
+        // sleep/recovery pass below, which may take minutes on a large local library or be deferred by
+        // iOS. It is also what keeps the screen moving during a long offload, which is the job Android's
+        // five-minute pacing cap does there — see PostBackfillPacing.
         await refreshCurrentDayActivity()
+        // A pass is already waiting out this chain or scoring it: re-arm one follow-up and leave. Without
+        // the latch, a ten-minute chain's dozens of slices each started a wait of their own.
+        if postOffloadRefreshInFlight {
+            postOffloadRefreshPending = true
+            return
+        }
+        postOffloadRefreshInFlight = true
+        // Wait for the chunks to stop arriving. `lastSyncedAt` is stamped once per offload SESSION, and
+        // an auto-continued chain (#364/#451) is many sessions: the two-second debounce that calls this
+        // fired four seconds into a ten-minute chain and published a night missing four hours, to the
+        // dashboard, the widget and Apple Health (owner's log, 2026-11-22). The chunks know better than
+        // the session boundaries do.
+        let waitStartedAt = ProcessInfo.processInfo.systemUptime
+        while PostBackfillPacing.keepWaiting(now: ProcessInfo.processInfo.systemUptime,
+                                             waitStartedAt: waitStartedAt,
+                                             lastChunkAt: live.lastBackfillChunkAt) {
+            try? await Task.sleep(nanoseconds: UInt64(PostBackfillPacing.pollSeconds * 1_000_000_000))
+        }
         // Score the freshly-offloaded raw data RIGHT NOW rather than waiting for the next 15-minute
         // analyzeRecent tick , otherwise a just-synced night's Charge / Effort / Rest can take up to
         // 15 minutes to appear on a strap-only (no-import) dashboard. analyzeRecent no-ops if a tick is
@@ -1095,6 +1124,16 @@ final class AppModel: ObservableObject {
         // The sync that just completed moves the "strap not synced" reminder three hours ahead.
         rearmSyncReminder()
         #endif
+        // Release the latch before the follow-up, so the re-entry runs its own wait rather than being
+        // turned away by it. A slice that landed while the pass was running is not in that pass, and the
+        // Android twin re-arms exactly one follow-up for the same reason. Bounded by the auto-continue
+        // cap: a re-arm needs a further slice, and a chain hands over at most
+        // `BackfillContinuation.defaultMaxAutoContinues` of them.
+        postOffloadRefreshInFlight = false
+        if postOffloadRefreshPending {
+            postOffloadRefreshPending = false
+            await refreshAfterCompletedBackfill()
+        }
     }
 
     #if os(iOS)

@@ -589,6 +589,11 @@ public final class LiveState: ObservableObject {
     /// Chunks acked during the current offload session — an honest progress signal (total pending is
     /// unknowable from the protocol, so a count, never a percent).
     @Published public var syncChunksThisSession: Int = 0
+    /// Monotonic uptime at which the last historical chunk landed, nil until one has. What
+    /// `PostBackfillPacing` waits on, so the scoring pass follows the CHAIN rather than the two-second
+    /// quiet window on `lastSyncedAt`, which is stamped once per session and fires in the middle of an
+    /// auto-continued offload. Spans sessions on purpose; cleared with the link.
+    @Published public var lastBackfillChunkAt: TimeInterval?
 
     /// Undecodable HISTORICAL_DATA record frames seen this offload session whose raw bytes WERE
     /// preserved to the on-device archive (#77 / #91). Drives the honest "saved on this Mac" sync

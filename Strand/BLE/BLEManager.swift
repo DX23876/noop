@@ -2779,6 +2779,13 @@ public final class BLEManager: NSObject, ObservableObject {
         // the other state mutations (e.g. lastSyncedAt in exitBackfilling). NOT historicalAckLogCounter
         // — that's a puffin-write log throttle that never increments on WHOOP 4.
         state.syncChunksThisSession += 1
+        // The one place a chunk is known to have landed, which is what `PostBackfillPacing` waits on.
+        // Monotonic, because the wait compares three instants and a wall-clock step would make "quiet" a
+        // rounding artefact. Deliberately NOT cleared when a session starts: the gap between a session
+        // ending and the next one of the same chain handing over its first chunk is a few seconds, and a
+        // counter reset to "never" there would read as quiet and publish a half-offloaded night. Cleared
+        // on teardown only, with the link it describes.
+        state.lastBackfillChunkAt = ProcessInfo.processInfo.systemUptime
     }
 
     // MARK: Backfill helpers
@@ -7272,6 +7279,9 @@ extension BLEManager: @preconcurrency CBCentralManagerDelegate {
         state.backfilling = false
         state.historyPendingSync = false   // #1164: a stale "pending" must not outlive the link
         state.syncChunksThisSession = 0
+        // Cleared with the LINK, not with the session: the pacing wait spans an auto-continued chain,
+        // and clearing it between two sessions of one chain would read as quiet (see PostBackfillPacing).
+        state.lastBackfillChunkAt = nil
         // A mid-sync disconnect bypasses exitBackfilling, so clear the reject counters here too —
         // otherwise a stale non-zero count survives until the next beginBackfill. (#77/#91)
         state.rejectedFramesThisSession = 0
