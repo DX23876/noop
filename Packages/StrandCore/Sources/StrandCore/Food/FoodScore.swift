@@ -267,12 +267,28 @@ public enum FoodScore {
         return 0.5 + 0.5 * ramp(mg, from: half, to: max)
     }
 
-    /// How much of a food is whole-grain cereal: what the coach or the wearer worked out, else the name, which
-    /// only catches a food that says so ("Vollkorn", "whole grain") and misses oats, so the classification is
-    /// what makes this part real.
+    /// How much of a food is whole-grain cereal: what the coach or the wearer worked out, else what the name
+    /// says. For a branded product the name only catches one that says so, which is why the classification
+    /// exists. For a BLS row it is enough, because the BLS names its foods systematically: whole grain is
+    /// "Vollkorn" or "ganzes Korn", flakes are rolled whole grain, rice is "unpoliert" or "poliert", and a
+    /// flour says its type when it is not wholemeal. So a BLS row needs no model to be read (owner, 2026-11-22).
     static func wholeGrainShare(_ entry: FoodLogEntry, facts: FoodFacts?) -> Double {
         if let share = facts?.wholeGrainShare { return share.clamped(0, 1) }
-        return wholeGrainWords.contains(where: entry.name.lowercased().contains) ? 1 : 0
+        let name = entry.name.lowercased()
+        if let id = entry.foodId, id.hasPrefix("bls:") { return blsWholeGrainShare(name: name, id: id) }
+        return wholeGrainWords.contains(where: name.contains) ? 1 : 0
+    }
+
+    /// A BLS row's whole-grain share from its own name, in either language the catalogue carries.
+    static func blsWholeGrainShare(name: String, id: String) -> Double {
+        // Bran and germ are parts of the grain, not the whole of it, and "Oat bran flakes" would otherwise pass
+        // on the word "flakes".
+        guard !grainFractionWords.contains(where: name.contains) else { return 0 }
+        if blsWholeGrainWords.contains(where: name.contains) { return 1 }
+        // The grains that are whole as they are sold, but only in the BLS's grain group: a gluten-free millet
+        // bread is made from milled flour and says nothing about whole grain.
+        let letter = id.dropFirst(4).first.map { String($0).lowercased() }
+        return letter == "c" && wholeByNatureWords.contains(where: name.contains) ? 1 : 0
     }
 
     /// How much of a food's sugar is free sugar: what the coach or the wearer worked out, else none, except a
@@ -301,6 +317,14 @@ public enum FoodScore {
                                      "leberkäse", "pastrami", "mortadella", "kassler", "frankfurter", "wiener"]
 
     static let wholeGrainWords = ["vollkorn", "whole grain", "wholegrain", "whole wheat", "wholemeal"]
+    /// What the BLS calls whole grain, in German and in English: the word itself, the whole kernel, flakes
+    /// (rolled whole grain), unpolished rice, wild rice and groats (cracked whole grain).
+    static let blsWholeGrainWords = wholeGrainWords + ["ganzes korn", "flocken", "flakes", "unpoliert",
+                                                        "brown rice", "wildreis", "wild rice", "grütze", "groats"]
+    /// Pseudo-cereals, whole as they are sold.
+    static let wholeByNatureWords = ["quinoa", "amaranth", "buchweizen", "buckwheat", "hirse", "millet", "grünkern"]
+    /// Parts of a grain rather than the whole grain: bran, germ and semolina.
+    static let grainFractionWords = ["kleie", "bran", "keim", "germ", "grieß", "semolina", "stärke", "starch"]
     static let juiceWords = ["saft", "juice", "nektar", "nectar", "smoothie"]
     static let nutWords = ["nuss", "nüsse", "mandel", "nut", "almond", "kern", "seed", "samen", "pistazie", "pistachio"]
 

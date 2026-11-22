@@ -189,6 +189,34 @@ final class FoodScoreTests: XCTestCase {
         XCTAssertEqual(part(classified, .wholeGrains).points, 10, accuracy: 0.001)
     }
 
+    /// A BLS row carries no classification: the catalogue's own naming is read instead, in either language.
+    func testTheBlsNamesSayWhichGrainsAreWhole() throws {
+        let whole = ["bls:B101000": "Vollkornbrot", "bls:B101000 ": "Wholemeal bread",
+                     "bls:C111000": "Wheat whole grain, raw", "bls:C133000": "Hafer Flocken",
+                     "bls:C133032": "Oat flakes, boiled", "bls:C351000": "Brown rice raw",
+                     "bls:C351000 ": "Reis unpoliert, roh", "bls:C353100": "Wild rice raw",
+                     "bls:C137000": "Oat groats", "bls:C118000": "Quinoa white, raw",
+                     "bls:C211000": "Wheat wholemeal flour"]
+        for (id, name) in whole {
+            XCTAssertEqual(FoodScore.blsWholeGrainShare(name: name.lowercased(), id: id.trimmingCharacters(in: .whitespaces)),
+                           1, "\(name) is whole grain")
+        }
+        let refined = ["bls:C352000": "White rice raw", "bls:C223100": "Rye flour, Type 815",
+                       "bls:C136000": "Oat semolina", "bls:C138000": "Oat bran flakes",
+                       "bls:C114000": "Weizen Keim", "bls:B717000": "Hirsebrot glutenfrei",
+                       "bls:B881100": "Eiweißbrot/Proteinbrot"]
+        for (id, name) in refined {
+            XCTAssertEqual(FoodScore.blsWholeGrainShare(name: name.lowercased(), id: id), 0, "\(name) is not whole grain")
+        }
+    }
+
+    func testOatsFromTheCatalogueCountWithoutAClassification() throws {
+        let entries = days.map { entry("bls:C133000", "Oat flakes", day: $0, grams: 90, totals: ["energy_kcal": 335]) }
+        let result = try XCTUnwrap(FoodScore.week(entries: entries, lastDay: "2026-11-08", male: true))
+        XCTAssertEqual(part(result, .wholeGrains).amountPerDay, 90, accuracy: 0.001)
+        XCTAssertEqual(part(result, .wholeGrains).points, 10, accuracy: 0.001)
+    }
+
     func testClassificationRefusesMoreThanAWholeFood() {
         XCTAssertTrue(FoodClassification(shares: [.nuts: 0.35, .vegetables: 0.2], wholeGrainShare: 0.4).isSound)
         XCTAssertFalse(FoodClassification(shares: [.nuts: 0.7, .vegetables: 0.7]).isSound)
