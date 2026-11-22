@@ -333,7 +333,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 // An earlier refusal's note must not stay under a card whose import is now running: that is
                 // one card stating two different things about the same grant.
                 hcNote = null
-                runImport { HealthConnectImporter.import(context, vm.repo, ProfileStore.from(context).heightCm) }
+                runImport { HealthConnectImporter.importAll(context, vm.repo, ProfileStore.from(context).heightCm) }
             } else {
                 hcNote = context.getString(R.string.cx_hc_not_granted)
                 Toast.makeText(context, context.getString(R.string.cx_hc_not_granted), Toast.LENGTH_LONG).show()

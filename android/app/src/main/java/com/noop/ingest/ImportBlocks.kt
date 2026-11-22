@@ -33,7 +33,7 @@ import java.time.ZoneId
  * is widened by [READ_LEAD_SECONDS] and [Block.owns] is what the write-out filters on. A day therefore
  * belongs to exactly one block, and every block sees the records that belong to its days.
  */
-internal object ImportBlocks {
+object ImportBlocks {
 
     /**
      * How far before its first owned day a block starts reading. A full day, which is longer than any

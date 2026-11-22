@@ -88,6 +88,30 @@ object HealthConnectImporter {
     /** Read window: a wide ~10-year span ending now. Health Connect itself caps retention. */
     private const val WINDOW_YEARS = 10L
 
+    /**
+     * What a run that read successfully and found nothing says.
+     *
+     * Named because [importAll] has to tell that apart from a block that FAILED, and `ImportSummary`
+     * cannot: a failure and an empty import have the same shape, empty counts and a message. Changing
+     * that shape would change a type the Apple side shares, so the discriminator is this one value
+     * rather than a new field — and it is a constant, not a literal in two places, so the two cannot
+     * drift into disagreeing.
+     */
+    private const val NOTHING_FOUND = "No Health Connect data found to import."
+
+    /**
+     * Opt-in profile weight sync, in one place because two callers need it: the whole-window [import] at
+     * its end, and [importAll] after its last block. Best-effort — a profile write must not sink an
+     * otherwise good import — but a cancelled import still stops here rather than carrying on.
+     */
+    private suspend fun syncProfileWeight(context: Context, repo: WhoopRepository) {
+        try {
+            HealthConnectWeightSync.syncFromRepository(context, repo)
+        } catch (e: Exception) {
+            if (e is kotlin.coroutines.cancellation.CancellationException) throw e
+        }
+    }
+
     /** Page size for paginated readRecords() calls. */
     private const val PAGE_SIZE = 5000
 
@@ -403,6 +427,90 @@ object HealthConnectImporter {
      * [heightCm] is the user's profile height, used ONLY to derive BMI on days that carry a weight
      * (Health Connect has no BMI record, unlike Apple Health). Pass 0.0 to skip BMI derivation.
      */
+    /**
+     * Import the window a month at a time, newest month first.
+     *
+     * Fork (DX23876), 2026-11-22. [import] reads its whole window in one pass, and most of what it reads
+     * is folded per day as it goes — but not all: `activeKcalRecords` and `totalKcalRecords` hold one
+     * entry per calorie record, which a provider writing fifteen-minute buckets makes hundreds of
+     * thousands of over ten years, and `workoutSamples` holds every heart-rate sample of every session.
+     * A tester's log of 2026-11-22 counted 2 269 462 records in one pass, with two such passes running at
+     * once, on a phone that gives an app a few hundred megabytes. A month at a time, the peak is a month.
+     *
+     * Newest first, because that is the order in which data is missed, and because a run that is killed
+     * has then banked the weeks anybody would look at first. [ImportBlocks] carries the block split and
+     * the boundary rule that keeps a night from being lost at it.
+     *
+     * The work that belongs to the import rather than to a month happens once: the announcement, the
+     * legacy refile and the water window on the first block, the strap-coverage read here, the run stamp
+     * at the end. A failing block ends the import, as a failing read always has.
+     */
+    suspend fun importAll(
+        context: Context,
+        repo: WhoopRepository,
+        heightCm: Double = 0.0,
+        types: Set<ImportType>? = null,
+        years: Long = WINDOW_YEARS,
+    ): ImportSummary {
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        val blocks = ImportBlocks.monthly(start = today.minusYears(years), end = today, zone = zone)
+        if (blocks.isEmpty()) return ImportSummary.failure(SOURCE, "The import window is empty.")
+
+        // Read ONCE for the whole import: it is a store read over every strap source and cannot change
+        // between two blocks of one run. Passed down so no block reads it again.
+        val coveredDays: Set<String> = buildSet {
+            for (id in strapSourceIds(repo)) addAll(strapDays(repo, id))
+        }
+
+        val counts = HashMap<String, Int>()
+        var firstDay: String? = null
+        var lastDay: String? = null
+        var failure: ImportSummary? = null
+
+        for ((index, block) in blocks.withIndex()) {
+            ImportProgress.note(context, ImportBlocks.blockLine(index, blocks.size, block))
+            val summary = import(
+                context = context,
+                repo = repo,
+                heightCm = heightCm,
+                types = types,
+                window = block,
+                coveredDaysIn = coveredDays,
+                isFirstBlock = index == 0,
+                stampRun = false,
+            )
+            // A failure is the import's failure, as it always was: a read that could not be completed
+            // leaves a window half imported, and reporting the rest as a success would hide that.
+            if (summary.counts.isEmpty() && summary.message != NOTHING_FOUND) {
+                failure = summary
+                break
+            }
+            for ((table, n) in summary.counts) counts[table] = (counts[table] ?: 0) + n
+            summary.firstDay?.let { d -> if (firstDay == null || d < firstDay!!) firstDay = d }
+            summary.lastDay?.let { d -> if (lastDay == null || d > lastDay!!) lastDay = d }
+        }
+
+        // Once, after the last block, so it reads everything the import wrote rather than one month's
+        // worth. See the skipped call inside [import].
+        syncProfileWeight(context, repo)
+
+        val total = counts.values.sum()
+        // Stamped once, with the whole import's totals. Per block it would have reported the last month
+        // as the import, and on the empty path "ran and found nothing" is still worth separating from
+        // "never ran" (#1735).
+        recordImportRun(context, rows = total, throughDay = lastDay)
+        failure?.let { return it }
+        return ImportSummary(
+            source = SOURCE,
+            counts = counts,
+            firstDay = firstDay,
+            lastDay = lastDay,
+            message = if (total == 0) NOTHING_FOUND
+            else "Imported $total rows from Health Connect.",
+        )
+    }
+
     suspend fun import(
         context: Context,
         repo: WhoopRepository,
@@ -410,6 +518,21 @@ object HealthConnectImporter {
         // Null means "whatever the user has selected", resolved AFTER the grant-based migration below. A
         // non-lazy default is evaluated at CALL time, before the migration could widen it.
         types: Set<ImportType>? = null,
+        // One month of the import, from [importAll], or null for the whole window in one pass. Given, the
+        // read covers the block's range (a night wider than it owns, see [ImportBlocks]) and the write
+        // covers only the days it owns, so the blocks cannot take turns replacing each other's rows.
+        window: ImportBlocks.Block? = null,
+        // The strap-coverage set, read once by [importAll] rather than once per block: it is a store read
+        // over every strap source and does not change between two blocks of one import.
+        coveredDaysIn: Set<String>? = null,
+        // Whether this call is the import's FIRST block, which owns the work that belongs to the import
+        // rather than to a month: announcing it ([ImportProgress.begin], which also clears the problem
+        // list), the one-off legacy refile, and the water window — a REPLACE with zero-fill over the last
+        // thirty days, which an older block would write as zeros and erase.
+        isFirstBlock: Boolean = true,
+        // Whether this call records the import run. [importAll] stamps once, at the end, with the whole
+        // import's totals; a stamp per block would report the last month as the whole import.
+        stampRun: Boolean = true,
     ): ImportSummary {
         if (sdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) {
             return ImportSummary.failure(SOURCE, "Health Connect is not available on this device.")
@@ -418,11 +541,13 @@ object HealthConnectImporter {
         // Fork (DX23876), 2026-11-15: from here on the import is doing work that can take minutes, so it
         // says where it is ([ImportProgress]). The caller ends it, in a finally, because this function
         // returns from a dozen places.
-        ImportProgress.begin(context, SOURCE)
+        // Once per IMPORT, not once per block: it also clears the problem list, so a later block would
+        // throw away what an earlier one could not read.
+        if (isFirstBlock) ImportProgress.begin(context, SOURCE)
 
         // Refile any legacy Health Connect data that landed in the shared "apple-health" bucket before
         // #34 BEFORE importing, so a re-import refiles cleanly instead of duplicating across both sources.
-        try { repo.refileLegacyHealthConnect() } catch (e: Exception) {
+        if (isFirstBlock) try { repo.refileLegacyHealthConnect() } catch (e: Exception) {
             ImportProgress.quietFailure(context, "refiling legacy rows", e.message ?: e::class.java.simpleName)
         }
         // #112 follow-up heal: purge the shadow rows earlier imports wrote while the covered-days
@@ -467,7 +592,8 @@ object HealthConnectImporter {
         val zone = ZoneId.systemDefault()
         val end = Instant.now()
         val start = LocalDate.now(zone).minusYears(WINDOW_YEARS).atStartOfDay(zone).toInstant()
-        val filter = TimeRangeFilter.between(start, end)
+        val filter = window?.let { TimeRangeFilter.between(it.readStart, it.readEnd) }
+            ?: TimeRangeFilter.between(start, end)
         // #528: skip our own writes on import (see readAll / isSelfWritten).
         val selfPackage = context.packageName
         val selectedRecordTypes = readableRecordTypes(effectiveTypes, granted)
@@ -654,6 +780,13 @@ object HealthConnectImporter {
             readSelected(ExerciseSessionRecord::class) { r ->
                 val startS = r.startTime.epochSecond
                 val endS = r.endTime.epochSecond
+                // Dropped at the READ, not at the write, unlike the per-day rows above: `workouts`,
+                // `workoutDays` and `workoutSamples` are index-parallel, so a session skipped later would
+                // have to be removed from three places at once. A workout is keyed by the day it STARTED,
+                // so the block that owns that day is the one whose read range contains its start.
+                if (window != null &&
+                    !window.owns(localDayKey(r.startTime, r.startZoneOffset, zone))
+                ) return@readSelected
                 // #1205: read the GPS route when the provider attached one. Health Connect gates
                 // route data behind a SEPARATE permission (READ_EXERCISE_ROUTES) that cannot be
                 // requested via the standard dialog — it is granted in Settings or via
@@ -831,7 +964,10 @@ object HealthConnectImporter {
         // revoked rather than simply leaving it be.
         // Hydration tracking is opt-in and default OFF, so an import must not quietly populate a feature
         // the user has turned off — and skipping it saves writing a window of rows nothing will read.
-        if (hydrationReadOk &&
+        // `isFirstBlock` is false for every block but the first: the write below is a REPLACE over a
+        // thirty-day window with zero-fill, and a block whose months lie outside that window would write
+        // it as zeros and erase the water. The newest block runs first, so the window is in its range.
+        if (isFirstBlock && hydrationReadOk &&
             HealthPermission.getReadPermission(HydrationRecord::class) in granted &&
             NoopPrefs.hydrationTracking(context)
         ) {
@@ -860,11 +996,11 @@ object HealthConnectImporter {
         // strap-write path already uses. Best-effort - a stamp failure must not sink a good import.
             // Stamped on the EMPTY path too, deliberately: "ran and found nothing" and "never ran" are
             // different diagnoses and this is the only line that separates them.
-            recordImportRun(context, rows = 0, throughDay = null)
+            if (stampRun) recordImportRun(context, rows = 0, throughDay = null)
             return ImportSummary(
                 source = SOURCE,
                 counts = emptyMap(),
-                message = "No Health Connect data found to import.",
+                message = NOTHING_FOUND,
             )
         }
 
@@ -882,7 +1018,7 @@ object HealthConnectImporter {
         // so without them the sparse HC backfill (recovery/strain/stages = null) shadows the computed
         // day and blanks Today / regresses Sleep stages (#112). Each read is wrapped so a missing
         // source is empty, not fatal; HC still gap-fills any day the strap did NOT cover.
-        val coveredDays: Set<String> = buildSet {
+        val coveredDays: Set<String> = coveredDaysIn ?: buildSet {
             for (id in strapSourceIds(repo)) addAll(strapDays(repo, id))
         }
 
@@ -896,6 +1032,10 @@ object HealthConnectImporter {
         val metricSeriesRows = ArrayList<MetricSeriesRow>(acc.size)
 
         for ((day, a) in acc) {
+            // A block writes only its own days. The read reaches a night further back so a session that
+            // began before the block still lands in the day it belongs to; that day is the previous
+            // block's, and writing it here would replace its row with one built from a night alone.
+            if (window != null && !window.owns(day)) continue
             // #589: de-overlap the per-source maps by MAX (sum within a source, max across sources) so a
             // phone+watch pair doesn't double-count the day's steps / calories. Mirrors the iOS/macOS and
             // Android-XML de-overlap (stepsBySource.values.max()).
@@ -989,7 +1129,9 @@ object HealthConnectImporter {
             }
             // #983: write the collected sleep sessions under WHOOP, but ONLY for days the strap does not
             // already cover (same guard as the daily rows) so a real strap night is never shadowed.
-            val sleepRows = hcSleepSessions.filter { it.first !in coveredDays }.map { it.second }
+            val sleepRows = hcSleepSessions
+                .filter { it.first !in coveredDays && (window == null || window.owns(it.first)) }
+                .map { it.second }
             if (sleepRows.isNotEmpty()) {
                 repo.upsertDevice(WHOOP, name = "WHOOP")
                 repo.upsertSleepSessions(sleepRows)
@@ -1012,12 +1154,11 @@ object HealthConnectImporter {
         // Opt-in profile weight sync. Hooked here rather than at the callers so every entry point
         // (periodic auto-sync, Data Sources, onboarding) keeps the profile current. Best-effort like the
         // import stamp below: a profile write must not sink an otherwise good import.
-        try {
-            HealthConnectWeightSync.syncFromRepository(context, repo)
-        } catch (e: Exception) {
-            // Best-effort, but a cancelled import must still stop here rather than carry on.
-            if (e is kotlin.coroutines.cancellation.CancellationException) throw e
-        }
+        //
+        // Skipped on a BLOCK: it reads what the import has written so far, so running it once after the
+        // last block sees the whole import, while per block it would run a hundred and twenty times and
+        // the earliest of them would decide the profile from one month. [importAll] makes that one call.
+        if (window == null) syncProfileWeight(context, repo)
 
         val counts = buildMap {
             if (appleRows.isNotEmpty()) put("appleDaily", appleRows.size)
@@ -1039,7 +1180,7 @@ object HealthConnectImporter {
         // there" cannot be told from "Health Connect never imported it" without this: the log had per-source
         // row counts but nothing about WHEN they last moved. Mirrors the sync.lastWriteOkAt pattern the
         // strap-write path already uses. Best-effort - a stamp failure must not sink a good import.
-        recordImportRun(context, rows = total, throughDay = lastDay)
+        if (stampRun) recordImportRun(context, rows = total, throughDay = lastDay)
         return ImportSummary(
             source = SOURCE,
             counts = counts,

@@ -855,7 +855,7 @@ private fun ImportStep(viewModel: AppViewModel) {
                                           "$hit of ${selectedPermissions.size} selected permission(s) granted" +
                                           if (without.isEmpty()) "" else ", still without a grant: ${without.joinToString(",")}")
             if (HealthConnectImporter.anySelectedGranted(hcReadTypes, granted)) {
-                runImport { HealthConnectImporter.import(context, viewModel.repo, ProfileStore.from(context).heightCm) }
+                runImport { HealthConnectImporter.importAll(context, viewModel.repo, ProfileStore.from(context).heightCm) }
             } else {
                 status = healthConnectDenied
                 Toast.makeText(context, healthConnectDenied, Toast.LENGTH_LONG).show()

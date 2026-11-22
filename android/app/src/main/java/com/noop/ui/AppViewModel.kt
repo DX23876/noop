@@ -3069,7 +3069,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     return@withContext false
                 }
                 // Pass the profile height so the importer can derive BMI (Health Connect has no BMI record).
-                runCatching { HealthConnectImporter.import(appContext, repository, profileStore.heightCm) }.isSuccess
+                runCatching { HealthConnectImporter.importAll(appContext, repository, profileStore.heightCm) }.isSuccess
             }
             if (ran) {
                 val t = System.currentTimeMillis()

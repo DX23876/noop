@@ -179,6 +179,17 @@ object ImportProgress {
         runCatching { NotificationManagerCompat.from(context).cancel(NOTIF_ID) }
     }
 
+    /**
+     * A line about the run's course for the strap log only, with nothing on screen.
+     *
+     * Which month a long import has reached is what makes an exported log readable afterwards, and it is
+     * not something to put in front of the wearer: a screen says the step and the count, and a month
+     * index would be a second, finer readout of the same progress.
+     */
+    fun note(context: Context, line: String) {
+        log(context, line)
+    }
+
     /** The strap log, so an import's course sits in the same exported file as everything else. */
     private fun log(context: Context, line: String) {
         runCatching {
