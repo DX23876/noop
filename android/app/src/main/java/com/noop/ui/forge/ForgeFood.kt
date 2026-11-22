@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -907,6 +910,7 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit, goalKcal: Doubl
         FoodDescribeDialog(coachReads, onDismiss = { describing = false }) { lines -> cart.addAll(lines); describing = false }
     }
 
+    Box(Modifier.fillMaxSize()) {
     SettingsColumn {
         PageTitle(stringResource(R.string.food_add), onBack)
         OutlinedTextField(query, { query = it }, modifier = Modifier.fillMaxWidth(), singleLine = true,
@@ -988,14 +992,26 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit, goalKcal: Doubl
                 }
             }
         }
+        // Room under the last card for the pinned cart.
+        if (cart.isNotEmpty()) Spacer(Modifier.height(260.dp))
+    }
+        // The cart pinned to the bottom, as iOS's `FoodCartBar`: at the end of the long list a one-tap add left
+        // no trace on screen (owner, 2026-11-22). Its lines scroll inside it when there are many.
         if (cart.isNotEmpty()) {
-            ForgeCard(Modifier.fillMaxWidth()) {
-                cart.toList().forEach { line ->
+            // Solid, as the tab bar: a card follows Card transparency and let the list show through.
+            Column(Modifier.align(Alignment.BottomCenter).fillMaxWidth().navigationBarsPadding()
+                       .padding(horizontal = ForgeMetrics.screenPadding, vertical = ForgeMetrics.space2)
+                       .widthIn(max = ForgeMetrics.maxContentWidth)
+                       .shadow(18.dp, RoundedCornerShape(24.dp))
+                       .background(Forge.colors.surface, RoundedCornerShape(24.dp))
+                       .padding(ForgeMetrics.cardPadding),
+                   verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+                Column(Modifier.heightIn(max = 132.dp).verticalScroll(rememberScrollState())) { cart.toList().forEach { line ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(stringResource(R.string.food_item_grams, line.item.name, gramsText(line.grams)), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
                         IconButton(onClick = { cart.remove(line) }) { Icon(Icons.Rounded.Close, stringResource(R.string.food_remove)) }
                     }
-                }
+                } }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.weight(1f)) { MealChooser(meal) { meal = it } }
                     TextButton(onClick = { naming = true }) {
