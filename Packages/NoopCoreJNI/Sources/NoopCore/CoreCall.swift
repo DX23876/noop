@@ -349,6 +349,9 @@ public enum CoreCall {
             return ok(true)
         default: break
         }
+        // The pull gesture's rules: pure policy, answered before the store is needed, because a wearer
+        // can pull on a phone whose store has not opened yet.
+        if let answer = CoreSourceRefresh.run(op, args) { return answer }
         guard let (store, _) = ShadowSession.storeAndPath, let reader = ShadowSession.reader else {
             return #"{"error":"noStore"}"#
         }
