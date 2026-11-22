@@ -356,10 +356,9 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                             workoutRunning = viewModel.activeWorkout.collectAsState().value != null,
                             onCustomize = { editingWidgets = true }, viewModel = viewModel,
                             onBattery = { openMore?.invoke() ?: selectTab(ForgeTab.More) })
-            // A running import, above everything: it is the answer to "why is nothing here yet" and the
-            // page it was started from is not the page the wearer waits on. Draws nothing when none runs,
-            // and it is shown on a past day too, because the import is not about the day on screen.
-            com.noop.ui.ImportProgressBanner()
+            // The running-import banner moved to `ForgePullToRefresh`, which wraps all four tabs a source
+            // feeds: it used to hang on Today alone, and the page an import was started from is not the
+            // page the wearer waits on.
             // The illness early warning above the rings, as iOS's `HealthAlertBanner` on its Today; it belongs to
             // today, so a past day does not repeat it.
             val healthAlert by viewModel.healthAlert.collectAsState()

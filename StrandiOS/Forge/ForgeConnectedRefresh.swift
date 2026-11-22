@@ -50,6 +50,10 @@ final class ForgeConnectedRefresh: ObservableObject {
     /// screen so it survives a tab change, as the Android banner does.
     @Published private(set) var line: String?
 
+    /// True while a pull is still asking. The system's own spinner says a gesture was made; this says
+    /// the app is doing something about it, which is the half the Android import banner carries there.
+    @Published private(set) var fetching = false
+
     /// When each source was last asked, so the core's floor can hold off a drumbeat of pulls.
     private var lastAsked: [ConnectedSourceRefresh.Source: Int] = [:]
     private var fadeTask: Task<Void, Never>?
@@ -73,6 +77,8 @@ final class ForgeConnectedRefresh: ObservableObject {
         let askable = ConnectedSourceRefresh.askable(connected: connected, lastAsked: lastAsked, now: now)
         guard !askable.isEmpty else { return }
         for source in askable { lastAsked[source] = now }
+        fetching = true
+        defer { fetching = false }
 
         var answers: [ConnectedSourceRefresh.Answer] = []
         // Asked side by side: Hevy should not wait behind a month of Health.
@@ -174,18 +180,24 @@ private struct ForgeRefreshableModifier: ViewModifier {
         content
             .modifier(RefreshableWhen(active: refresher.canPull) { await refresher.pull() })
             .overlay(alignment: .top) {
-                if let line = refresher.line {
-                    Text(line)
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                        .padding(.horizontal, NoopMetrics.space3)
-                        .padding(.vertical, NoopMetrics.space2)
-                        .background(StrandPalette.surfaceRaised,
-                                    in: RoundedRectangle(cornerRadius: NoopMetrics.cardRadius,
-                                                         style: .continuous))
-                        .padding(NoopMetrics.space3)
-                        .transition(.opacity)
+                // One shape for both, so "fetching" and the verdict cannot drift apart, and stacked so
+                // they never sit on top of each other.
+                VStack(spacing: NoopMetrics.space2) {
+                    if refresher.fetching { strip(String(localized: "Fetching…")) }
+                    if let line = refresher.line { strip(line) }
                 }
             }
+    }
+
+    private func strip(_ text: String) -> some View {
+        Text(text)
+            .font(StrandFont.footnote)
+            .foregroundStyle(StrandPalette.textPrimary)
+            .padding(.horizontal, NoopMetrics.space3)
+            .padding(.vertical, NoopMetrics.space2)
+            .background(StrandPalette.surfaceRaised,
+                        in: RoundedRectangle(cornerRadius: NoopMetrics.cardRadius, style: .continuous))
+            .padding(NoopMetrics.space3)
+            .transition(.opacity)
     }
 }

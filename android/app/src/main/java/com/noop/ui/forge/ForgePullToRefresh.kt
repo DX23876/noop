@@ -49,9 +49,15 @@ internal fun ForgePullToRefresh(viewModel: AppViewModel, content: @Composable ()
         // Nothing connected means nothing to fetch: a gesture that cannot do anything must not pretend.
         enabled = { services.isNotEmpty() || strapReadyNow },
     )
+    var fetching by remember { mutableStateOf(false) }
     LaunchedEffect(state.isRefreshing) {
         if (!state.isRefreshing) return@LaunchedEffect
-        val verdict = viewModel.refreshConnectedSources(strapReady = strapReadyNow)
+        fetching = true
+        val verdict = try {
+            viewModel.refreshConnectedSources(strapReady = strapReadyNow)
+        } finally {
+            fetching = false
+        }
         RefreshVerdictHost.show(verdict)
         // The services are done; the strap, if it was asked, carries on behind its own progress. Holding
         // the spinner for it would leave it turning for minutes.
@@ -60,7 +66,17 @@ internal fun ForgePullToRefresh(viewModel: AppViewModel, content: @Composable ()
 
     Box(Modifier.fillMaxSize().nestedScroll(state.nestedScrollConnection)) {
         content()
-        RefreshVerdictLine(Modifier.align(Alignment.TopCenter))
+        androidx.compose.foundation.layout.Column(
+            Modifier.align(Alignment.TopCenter),
+            horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally,
+        ) {
+            // A running import, on every tab the gesture reaches rather than on Today alone: the page an
+            // import was started from is not the page the wearer waits on. Draws nothing when none runs.
+            com.noop.ui.ImportProgressBanner()
+            // While a pull is still asking, so the gesture's own spinner is not the only sign.
+            if (fetching) RefreshStrip(androidx.compose.ui.res.stringResource(com.noop.R.string.forge_refresh_fetching))
+            RefreshVerdictLine()
+        }
         // Material draws its circle even at rest (progress 0), which reads as a permanent grey dot at the
         // top of an idle tab; compose it only while something is actually happening. The gesture itself
         // flows through the nestedScroll above, so this cannot disable it.
@@ -98,6 +114,22 @@ internal object RefreshVerdictHost {
  * The wording is this platform's, from its own catalogue; the core decided WHAT to say, not how. A
  * failure keeps the count beside it, because naming only the failure would throw away what did arrive.
  */
+/** The one shape both strips take, so the "fetching" line and the verdict cannot drift apart. */
+@Composable
+private fun RefreshStrip(text: String) {
+    androidx.compose.material3.Surface(
+        modifier = Modifier.padding(ForgeMetrics.space3),
+        color = Forge.colors.surface,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(ForgeMetrics.cardRadius),
+        tonalElevation = 0.dp,
+    ) {
+        androidx.compose.material3.Text(
+            text, style = Forge.type.caption, color = Forge.colors.text,
+            modifier = Modifier.padding(horizontal = ForgeMetrics.space3, vertical = ForgeMetrics.space2),
+        )
+    }
+}
+
 @Composable
 private fun RefreshVerdictLine(modifier: Modifier = Modifier) {
     val verdict by RefreshVerdictHost.verdict.collectAsStateWithLifecycle()
@@ -124,17 +156,7 @@ private fun RefreshVerdictLine(modifier: Modifier = Modifier) {
         }
         is CoreSourceRefresh.Verdict.None -> return
     }
-    androidx.compose.material3.Surface(
-        modifier = modifier.padding(ForgeMetrics.space3),
-        color = Forge.colors.surface,
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(ForgeMetrics.cardRadius),
-        tonalElevation = 0.dp,
-    ) {
-        androidx.compose.material3.Text(
-            text, style = Forge.type.caption, color = Forge.colors.text,
-            modifier = Modifier.padding(horizontal = ForgeMetrics.space3, vertical = ForgeMetrics.space2),
-        )
-    }
+    RefreshStrip(text)
 }
 
 /** A source as the wearer knows it. Product names stay as they are; the strap never reaches this line. */

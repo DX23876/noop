@@ -5795,6 +5795,7 @@
     <string name="forge_se_invalid_span">Te godziny obejmują ponad 24 godziny. Sprawdź datę po obu stronach — noc przekraczająca północ kończy się NASTĘPNEGO dnia.</string>
     <string name="forge_se_invalid_future">Sen nie może kończyć się w przyszłości.</string>
     <string name="forge_refresh_up_to_date">Wszystko aktualne.</string>
+    <string name="forge_refresh_fetching">Pobieranie…</string>
     <string name="forge_refresh_refreshed">Zaktualizowano.</string>
     <string name="forge_refresh_brought">Nowe: %1$d.</string>
     <string name="forge_refresh_failed">Brak połączenia z %1$s, reszta jest aktualna.</string>

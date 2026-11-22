@@ -62,6 +62,18 @@ class PullToRefreshGuardTest(unittest.TestCase):
                 needle = f".forgeRefreshable(.{tab[0].lower() + tab[1:]})"
                 self.assertTrue(needle in host, f"the {tab} tab does not carry the pull gesture")
 
+    def test_the_running_import_is_visible_on_every_tab_with_the_gesture(self):
+        """It hung on Today alone, and the page an import was started from is not the one you wait on."""
+        self.assertTrue("ImportProgressBanner()" in self.wrapper,
+                        "the import banner is not on the tabs the gesture reaches")
+        today = (ROOT / "android/app/src/main/java/com/noop/ui/forge/ForgeToday.kt").read_text(encoding="utf-8")
+        self.assertFalse("ImportProgressBanner()" in today,
+                         "drawn twice on Today: once inline and once through the wrapper")
+        # And both phones say that a pull is still asking, not just the system's spinner.
+        self.assertTrue("forge_refresh_fetching" in self.wrapper)
+        apple = (ROOT / "StrandiOS/Forge/ForgeConnectedRefresh.swift").read_text(encoding="utf-8")
+        self.assertTrue("fetching" in apple, "the Apple side shows nothing while a pull is asking")
+
     def test_both_phones_name_the_same_three_outcomes(self):
         """Different words per language are fine; a different SET of things to say is not."""
         android = (ROOT / "android/app/src/main/res/values/strings.xml").read_text(encoding="utf-8")

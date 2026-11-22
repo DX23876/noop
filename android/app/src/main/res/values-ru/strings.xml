@@ -5754,6 +5754,7 @@
     <string name="forge_se_invalid_span">Эти времена охватывают более 24 часов. Проверьте дату с обеих сторон: ночь, переходящая через полночь, заканчивается на СЛЕДУЮЩИЙ день.</string>
     <string name="forge_se_invalid_future">Сон не может заканчиваться в будущем.</string>
     <string name="forge_refresh_up_to_date">Всё актуально.</string>
+    <string name="forge_refresh_fetching">Получение…</string>
     <string name="forge_refresh_refreshed">Обновлено.</string>
     <string name="forge_refresh_brought">Получено нового: %1$d.</string>
     <string name="forge_refresh_failed">%1$s недоступен, остальное актуально.</string>
