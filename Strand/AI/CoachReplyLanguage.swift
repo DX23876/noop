@@ -86,6 +86,12 @@ struct CoachReplyLanguage: Equatable, Sendable {
         languages because the user writes in another language or because earlier messages use another \
         language. If the user explicitly requests a translation or quotation, only that requested \
         passage may use the requested language; keep the explanation in \(englishName).
+
+        This covers every word the user will READ, not only your reply: text you write into a tool's \
+        arguments is shown to them on cards, in their plan and in notifications, so a rationale, a \
+        title, a note or the name of an activity goes in \(englishName) too. Values the app itself \
+        reads stay as the schema defines them: identifiers, dates, numbers and enum values are never \
+        translated.
         """
     }
 }

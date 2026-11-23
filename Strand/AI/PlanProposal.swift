@@ -42,6 +42,21 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         }
     }
 
+    /// What KIND of activity a proposal is, in a word the app chooses rather than the model.
+    ///
+    /// `sport` is free text and is shown to the wearer, so from 2026-11-23 the coach writes it in their
+    /// language. That broke the only thing that ever read it: `PlanWorkoutMatcher` guessed the activity
+    /// from word fragments, English with a few German ones, so "Paseo en bici" matched nothing and the
+    /// ride the wearer actually did would have been recorded as a session that never happened. The
+    /// family is the language-free half of the same fact, named by the model from this fixed list and
+    /// compared against the logged workout, whose name still comes from the strap and from imports.
+    ///
+    /// Optional on purpose: a proposal stored before this existed has none, and falls back to the word
+    /// search, which is right for it because its `sport` was written in English.
+    enum SportFamily: String, Codable, CaseIterable {
+        case running, cycling, walking, hiking, strength, mobility, swimming, rowing, hiit, other
+    }
+
     /// The lifecycle. `proposed` is where every coach suggestion starts and where it STAYS until the
     /// user does something. Everything after `accepted` describes what actually happened, which is what
     /// makes honest adherence possible later.
@@ -126,6 +141,8 @@ struct PlanProposal: Codable, Identifiable, Equatable {
     /// The activity, free text ("Zone 2 ride", "CrossFit"). Free rather than an enum because the sport
     /// vocabulary comes from the user's own history, not from us.
     var sport: String
+    /// The activity as one of a fixed set, so the wearer's language cannot change what it means.
+    var sportFamily: SportFamily?
     var intent: Intent
     /// Optional target Effort (0–100) for the session.
     ///
@@ -170,6 +187,7 @@ struct PlanProposal: Codable, Identifiable, Equatable {
          day: String,
          time: Date? = nil,
          sport: String,
+         sportFamily: SportFamily? = nil,
          intent: Intent,
          targetEffort: Double? = nil,
          zone: Int? = nil,
@@ -192,6 +210,7 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         self.day = day
         self.time = time
         self.sport = sport
+        self.sportFamily = sportFamily
         self.intent = intent
         self.targetEffort = targetEffort
         self.zone = zone
@@ -213,7 +232,7 @@ struct PlanProposal: Codable, Identifiable, Equatable {
 
     // Back-compat: fields added later decode with defaults so a stored plan never fails to load.
     private enum CodingKeys: String, CodingKey {
-        case id, day, time, sport, intent, targetEffort, zone, durationMin, rationale, status
+        case id, day, time, sport, sportFamily, intent, targetEffort, zone, durationMin, rationale, status
         case source, swappedFrom, rescheduledFrom, skipReason, goalId, goalIds, createdAt, decidedAt
         case effectFeedback, feedbackNote
         case completionEvidence, rejectedWorkoutKeys
@@ -225,6 +244,7 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         day = try c.decodeIfPresent(String.self, forKey: .day) ?? ""
         time = try c.decodeIfPresent(Date.self, forKey: .time)
         sport = try c.decodeIfPresent(String.self, forKey: .sport) ?? ""
+        sportFamily = try c.decodeIfPresent(SportFamily.self, forKey: .sportFamily)
         intent = try c.decodeIfPresent(Intent.self, forKey: .intent) ?? .easy
         targetEffort = try c.decodeIfPresent(Double.self, forKey: .targetEffort)
         zone = try c.decodeIfPresent(Int.self, forKey: .zone)
@@ -252,6 +272,7 @@ struct PlanProposal: Codable, Identifiable, Equatable {
         try c.encode(day, forKey: .day)
         try c.encodeIfPresent(time, forKey: .time)
         try c.encode(sport, forKey: .sport)
+        try c.encodeIfPresent(sportFamily, forKey: .sportFamily)
         try c.encode(intent, forKey: .intent)
         try c.encodeIfPresent(targetEffort, forKey: .targetEffort)
         try c.encodeIfPresent(zone, forKey: .zone)
@@ -280,8 +301,37 @@ struct PlanProposal: Codable, Identifiable, Equatable {
     }
 
     /// The parts of the one-line description that do not depend on who is reading it.
-    /// e.g. "Zone 2 ride (easy), 20 min in Zone 2 at 10:00".
-    private func summaryStem() -> String {
+    /// e.g. "Zone 2 ride (Easy), 20 min in Zone 2 at 10:00".
+    ///
+    /// Translated, in pieces that are whole phrases rather than glued fragments: "20 min in Zone 2" is
+    /// one unit because its word order is the language's business, while the comma-separated pieces are
+    /// a list and may stand in any order. The sport is the coach's own wording and is already in the
+    /// wearer's language (`CoachReplyLanguage.promptClause`); the intent is ours, so it goes through
+    /// the catalogue the way `CoreCoach` resolves the same labels for the picker.
+    ///
+    /// This used to be assembled from English literals, and so the card read "Zone 2 ride (easy),
+    /// 45 min in Zone 2" to a Spanish wearer whose whole app was Spanish (reported 2026-11-22).
+    private func localizedStem() -> String {
+        // Not a catalogue string itself: "name (intent)" reads the same in every language, and both
+        // halves are already in the wearer's. A key of "%@ (%@)" would also collide with anything.
+        var parts: [String] = ["\(sport) (\(intent.label.localizedCatalogValue))"]
+        switch (durationMin, zone) {
+        case let (minutes?, zone?): parts.append(String(localized: "\(minutes) min in Zone \(zone)"))
+        case let (minutes?, nil): parts.append(String(localized: "\(minutes) min"))
+        case let (nil, zone?): parts.append(String(localized: "in Zone \(zone)"))
+        case (nil, nil): break
+        }
+        if let time {
+            let df = DateFormatter(); df.dateFormat = "HH:mm"
+            parts.append(String(localized: "starting at \(df.string(from: time))"))
+        }
+        return parts.joined(separator: ", ")
+    }
+
+    /// The same line in English, for the model and for stored memory. Deliberately a second builder
+    /// rather than the translated one: `contextSummary()` must not move with the wearer's language, or
+    /// a remembered session would read differently to the coach every time Settings changed.
+    private func englishStem() -> String {
         var s = "\(sport) (\(intent.rawValue))"
         if let durationMin { s += ", \(durationMin) min" }
         if let zone { s += " in Zone \(zone)" }
@@ -304,9 +354,10 @@ struct PlanProposal: Codable, Identifiable, Equatable {
     /// Callers writing for the MODEL or for stored memory want `contextSummary()` instead — the split is
     /// deliberate, so neither can be reached by forgetting an argument.
     func summary(effortScale: EffortScale) -> String {
-        var s = summaryStem()
+        var s = localizedStem()
         if let targetEffort {
-            s += ", target effort " + UnitFormatter.effortWithScale(targetEffort, scale: effortScale)
+            let shown = UnitFormatter.effortWithScale(targetEffort, scale: effortScale)
+            s += ", " + String(localized: "target effort \(shown)")
         }
         return s
     }
@@ -316,7 +367,7 @@ struct PlanProposal: Codable, Identifiable, Equatable {
     /// day context (`effort(0-100)`) describe it. Rendering the wearer's display axis here would feed the
     /// coach numbers on a scale its own tools cannot accept.
     func contextSummary() -> String {
-        var s = summaryStem()
+        var s = englishStem()
         if let targetEffort { s += String(format: ", target effort %.0f", targetEffort) }
         return s
     }

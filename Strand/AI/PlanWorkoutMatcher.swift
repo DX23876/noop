@@ -54,7 +54,7 @@ enum PlanWorkoutMatcher {
                 return isCandidate(proposal: proposal, workout: workout, calendar: calendar)
             }
             candidatesByPlan[proposal.id] = candidates
-            for workout in candidates where isStrongSportMatch(proposal.sport, workout.sport) {
+            for workout in candidates where isStrongSportMatch(proposal, workout.sport) {
                 plansByWorkout[workout.workoutKey, default: []].insert(proposal.id)
             }
         }
@@ -70,7 +70,7 @@ enum PlanWorkoutMatcher {
         }
         for proposal in ordered {
             let strong = (candidatesByPlan[proposal.id] ?? []).filter {
-                isStrongSportMatch(proposal.sport, $0.sport) && !consumed.contains($0.workoutKey)
+                isStrongSportMatch(proposal, $0.sport) && !consumed.contains($0.workoutKey)
             }
             guard strong.count == 1, let workout = strong.first,
                   plansByWorkout[workout.workoutKey]?.count == 1 else { continue }
@@ -105,7 +105,7 @@ enum PlanWorkoutMatcher {
             timeFits = dayKey(workoutDate, calendar: calendar) == proposal.day
         }
         guard timeFits else { return false }
-        if isStrongSportMatch(proposal.sport, workout.sport) { return true }
+        if isStrongSportMatch(proposal, workout.sport) { return true }
         // Generic imported/detected labels can be plausible in the right time slot, but never strong
         // enough for automatic completion.
         return isGeneric(workout.sport) || isGeneric(proposal.sport)
@@ -114,6 +114,24 @@ enum PlanWorkoutMatcher {
     static func isStrongSportMatch(_ planned: String, _ actual: String) -> Bool {
         guard !isGeneric(planned), !isGeneric(actual) else { return false }
         return sportFamily(planned) == sportFamily(actual)
+    }
+
+    /// Whether the workout is the session this proposal named.
+    ///
+    /// Reads the proposal's own `sportFamily` when it has one, because from 2026-11-23 the coach writes
+    /// `sport` in the wearer's language and the word search below only knows English and a little
+    /// German: "Paseo en bici" matches nothing, and an unmatched proposal is recorded as a session that
+    /// never happened. The workout's side keeps the search, which is right — those names come from the
+    /// strap and from imports, not from the model.
+    ///
+    /// A proposal stored before the field existed has none and falls back to the search, which is also
+    /// right: the model that wrote it wrote English.
+    static func isStrongSportMatch(_ proposal: PlanProposal, _ actual: String) -> Bool {
+        guard let family = proposal.sportFamily else {
+            return isStrongSportMatch(proposal.sport, actual)
+        }
+        guard family != .other, !isGeneric(actual) else { return false }
+        return family.rawValue == sportFamily(actual)
     }
 
     static func normalizedLabel(_ value: String) -> String {

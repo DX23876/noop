@@ -17,7 +17,8 @@ extension AICoachEngine {
     /// `propose_plan`: record a SUGGESTION. Note what this deliberately cannot do — it cannot accept,
     /// schedule, or activate anything. The proposal sits in `.proposed` until the user taps yes, and the
     /// returned string tells the model to say exactly that rather than describing it as settled.
-    func proposePlanTool(day: String?, sport: String, intent: String,
+    func proposePlanTool(day: String?, sport: String,
+                         sportFamily: PlanProposal.SportFamily? = nil, intent: String,
                          targetEffort: Double?, rationale: String, time: String?,
                          zone: Int? = nil, durationMin: Int? = nil,
                          goalId: String? = nil, goalIds: [String]? = nil) async -> String {
@@ -93,6 +94,9 @@ extension AICoachEngine {
         }
 
         let proposal = PlanProposal(day: dayKey, time: when, sport: trimmedSport,
+                                    // Nil when an older model skipped the field: the matcher then reads
+                                    // the name the way it always did, which that model wrote in English.
+                                    sportFamily: sportFamily,
                                     intent: parsedIntent,
                                     targetEffort: effort,
                                     zone: cleanZone, durationMin: cleanDuration,

@@ -614,8 +614,16 @@ enum CoachTool: String, CaseIterable {
                     ],
                     "sport": [
                         "type": "string",
-                        "description": "The activity, e.g. \"Zone 2 ride\", \"CrossFit\", \"Easy run\". "
+                        "description": "The activity as the user will read it, e.g. \"Zone 2 ride\", "
+                            + "\"CrossFit\", \"Easy run\". Their language, like everything they read. "
                             + "Prefer wording that matches the user's own logged sports."
+                    ],
+                    "sport_family": [
+                        "type": "string",
+                        "enum": PlanProposal.SportFamily.allCases.map(\.rawValue),
+                        "description": "Which kind of activity `sport` is. Never translated: this is "
+                            + "how the app recognises the session the user actually did as the one it "
+                            + "proposed, whatever language the name is in. Use other when none fits."
                     ],
                     "intent": [
                         "type": "string",
@@ -659,7 +667,7 @@ enum CoachTool: String, CaseIterable {
                         "description": "Optional active-goal UUIDs this session may support. These are suggestions; the user confirms them when accepting."
                     ]
                 ],
-                "required": ["sport", "intent"]
+                "required": ["sport", "sport_family", "intent"]
             ]
         case .findHevyExercises:
             return [
@@ -767,7 +775,7 @@ enum CoachTool: String, CaseIterable {
                     "diet_break_every_weeks": ["type": "integer", "description": "A week at maintenance after this many weeks; 0 for none."],
                     "day_shift_percent": ["type": "number", "description": "Share of the day's calories moved to training days, 0 to 25."],
                     "break_week_now": ["type": "boolean", "description": "Take a week at maintenance from today."],
-                    "rationale": ["type": "string", "description": "One or two sentences on why, in the user's language."],
+                    "rationale": ["type": "string", "description": "One or two sentences on why."],
                 ],
                 "required": ["rationale"],
             ]
@@ -1378,6 +1386,8 @@ extension AICoachEngine {
             return await proposePlanTool(
                 day: input["day"] as? String,
                 sport: (input["sport"] as? String) ?? "",
+                sportFamily: (input["sport_family"] as? String)
+                    .flatMap(PlanProposal.SportFamily.init(rawValue:)),
                 intent: (input["intent"] as? String) ?? "",
                 targetEffort: (input["target_effort"] as? Double)
                     ?? (input["target_effort"] as? Int).map(Double.init),

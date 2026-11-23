@@ -121,7 +121,10 @@ final class CoachPlanStore: ObservableObject {
         }) {
             let existing = proposals[idx]
             proposals[idx] = PlanProposal(
-                id: existing.id, day: p.day, time: p.time, sport: p.sport, intent: p.intent,
+                id: existing.id, day: p.day, time: p.time, sport: p.sport,
+                // Carried over with the name: dropping it here would send a re-proposed session back
+                // to matching on its name, which from 2026-11-23 is in the wearer's language.
+                sportFamily: p.sportFamily, intent: p.intent,
                 targetEffort: p.targetEffort, zone: p.zone, durationMin: p.durationMin,
                 rationale: p.rationale, status: .proposed,
                 source: .coachProposed,

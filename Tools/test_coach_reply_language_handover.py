@@ -30,6 +30,8 @@ SHADOW = ROOT / "android/app/src/main/java/com/noop/core/CoreShadow.kt"
 CALL = ROOT / "Packages/NoopCoreJNI/Sources/NoopCore/CoreCall.swift"
 SHIM = ROOT / "Packages/NoopCoreJNI/Sources/NoopCore/AndroidLocalizationShim.swift"
 REPLY = ROOT / "Strand/AI/CoachReplyLanguage.swift"
+TOOLS = ROOT / "Strand/AI/CoachTools.swift"
+PROPOSAL = ROOT / "Strand/AI/PlanProposal.swift"
 CATALOG = ROOT / "Packages/StrandCore/Sources/StrandCore/AppLanguageCatalog.swift"
 
 #: The two ops that hand the core its language: once at startup, once when Settings changes it.
@@ -107,6 +109,51 @@ class CoachReplyLanguageHandoverTest(unittest.TestCase):
         self.assertNotRegex(
             reply, r'englishName: "(?!English")',
             "a language is named in the resolver; the catalogue is where names live")
+
+
+    def test_the_clause_covers_what_the_model_writes_into_tools(self):
+        """A tool argument is not a reply, and the model read the clause that way.
+
+        The chat answered a Spanish wearer in Spanish while the card above it said "Zone 2 ride
+        (easy), 45 min in Zone 2": the session's name and rationale are written into `propose_plan`,
+        and nothing told the model those are read by a person too (reported 2026-11-23).
+        """
+        reply = REPLY.read_text(encoding="utf-8")
+        clause = reply[reply.index("var promptClause"):]
+        self.assertIn("tool", clause.lower(),
+                      "the clause speaks only about replies, so tool text goes out in English")
+        # And it is said ONCE. A schema that repeats it is the drift that left every other tool silent.
+        tools = TOOLS.read_text(encoding="utf-8")
+        self.assertNotIn("in the user's language", tools,
+                         "a tool schema names the language itself; the clause is where that is said")
+
+    def test_a_proposed_session_carries_a_language_free_kind(self):
+        """What the wearer reads may be translated; what the app matches on may not.
+
+        `PlanWorkoutMatcher` recognises the session someone actually did by word fragments in the
+        proposal's name, English with a few German ones. Once the name follows the wearer's language,
+        that is the difference between a completed session and one the app records as never happened.
+        """
+        proposal = PROPOSAL.read_text(encoding="utf-8")
+        self.assertIn("enum SportFamily", proposal,
+                      "a proposal's activity is free text only, so its language decides whether it matches")
+        self.assertIn("var sportFamily: SportFamily?", proposal,
+                      "the family is not stored, so it cannot be read back when the workout lands")
+        tools = TOOLS.read_text(encoding="utf-8")
+        self.assertIn('"sport_family"', tools, "propose_plan does not ask for the family")
+        self.assertIn('"required": ["sport", "sport_family", "intent"]', tools,
+                      "the family is optional for the model, so it will be omitted")
+
+    def test_the_line_the_model_reads_is_not_translated(self):
+        """The other half: `contextSummary()` feeds the model and stored memory.
+
+        Translating it would make a remembered session read differently to the coach every time the
+        wearer changed the app's language.
+        """
+        proposal = PROPOSAL.read_text(encoding="utf-8")
+        context = proposal[proposal.index("func contextSummary()"):]
+        self.assertIn("englishStem()", context.split("\n    }")[0],
+                      "contextSummary builds on the translated line; the model's copy must not move")
 
 
 if __name__ == "__main__":
