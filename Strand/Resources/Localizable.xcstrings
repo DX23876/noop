@@ -655629,6 +655629,64 @@
         }
       }
     },
+    "Wide · the whole day, with sleep and workouts" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Breit · der ganze Tag mit Schlaf und Training"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ancho · todo el día, con sueño y entrenamientos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Large · toute la journée, avec sommeil et entraînements"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Largo · tutta la giornata, con sonno e allenamenti"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Szeroki · cały dzień ze snem i treningami"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Largo · o dia inteiro, com sono e treinos"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Широкий · весь день со сном и тренировками"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "宽 · 全天，含睡眠和锻炼"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "寬 · 全天，含睡眠和鍛鍊"
+          }
+        }
+      }
+    },
     "No sleep stages for this night." : {
       "localizations" : {
         "de" : {
