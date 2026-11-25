@@ -5268,6 +5268,8 @@
     <string name="food_empty_title">Ainda nada registado</string>
     <string name="food_empty_body">Pesquisa um alimento, lê um código de barras ou introduz só as calorias.</string>
     <string name="food_today">Hoje</string>
+    <string name="food_yesterday">Ontem</string>
+    <string name="food_choose_day">Escolher um dia</string>
     <string name="food_previous_day">Dia anterior</string>
     <string name="food_next_day">Dia seguinte</string>
     <string name="food_meal_breakfast">Pequeno-almoço</string>

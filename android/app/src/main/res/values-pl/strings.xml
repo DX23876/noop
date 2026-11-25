@@ -5296,6 +5296,8 @@
     <string name="food_empty_title">Nic jeszcze nie zapisano</string>
     <string name="food_empty_body">Wyszukaj produkt, zeskanuj kod kreskowy albo po prostu wpisz kalorie.</string>
     <string name="food_today">Dzisiaj</string>
+    <string name="food_yesterday">Wczoraj</string>
+    <string name="food_choose_day">Wybierz dzień</string>
     <string name="food_previous_day">Poprzedni dzień</string>
     <string name="food_next_day">Następnego dnia</string>
     <string name="food_meal_breakfast">Śniadanie</string>

@@ -454,6 +454,7 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
                 PageTitle(stringResource(R.string.food_title), onBack) { foodButtons() }
                 Text(dayTitle(day).uppercase(Locale.getDefault()), style = Forge.type.overline, color = Forge.sceneInk.secondary)
             }
+            FoodDayJump(day) { day = it }
             DietPlanLine(dietPlan, planResolved) { if (dietPlan == null) planning = true else showPlan = true }
             FoodHero(day, summary?.totals ?: emptyMap(), goals, burnedByDay[day.toString()], onDay = { day = it })
             planDay?.let { FoodPlanDayLines(it) }
@@ -569,8 +570,44 @@ internal fun mealName(kind: String): String = stringResource(when (kind) {
 })
 
 @Composable
-private fun dayTitle(day: LocalDate): String = if (day == LocalDate.now()) stringResource(R.string.food_today)
-    else day.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(Locale.getDefault()))
+private fun dayTitle(day: LocalDate): String = when (day) {
+    LocalDate.now() -> stringResource(R.string.food_today)
+    LocalDate.now().minusDays(1) -> stringResource(R.string.food_yesterday)
+    else -> day.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(Locale.getDefault()))
+}
+
+/** The shown day with a calendar behind it and a way back to today, as iOS `FoodDayPicker` (owner, 2026-11-25).
+ *  The arrows stay on the plate below. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun FoodDayJump(day: LocalDate, onDay: (LocalDate) -> Unit) {
+    var choosing by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+        TextButton(onClick = { choosing = true }) {
+            Text(stringResource(R.string.food_choose_day), style = Forge.type.subhead, color = Forge.colors.accent)
+        }
+        Spacer(Modifier.weight(1f))
+        if (day != LocalDate.now()) TextButton(onClick = { onDay(LocalDate.now()) }) {
+            Text(stringResource(R.string.food_today), style = Forge.type.subhead, color = Forge.colors.accent)
+        }
+    }
+    if (choosing) {
+        val state = androidx.compose.material3.rememberDatePickerState(
+            initialSelectedDateMillis = day.toEpochDay() * 86_400_000,
+            selectableDates = object : androidx.compose.material3.SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis / 86_400_000 <= LocalDate.now().toEpochDay()
+            })
+        androidx.compose.material3.DatePickerDialog(onDismissRequest = { choosing = false }, confirmButton = {
+            TextButton(onClick = {
+                state.selectedDateMillis?.let { onDay(LocalDate.ofEpochDay(it / 86_400_000)) }
+                choosing = false
+            }) { Text(stringResource(android.R.string.ok)) }
+        }, dismissButton = { TextButton(onClick = { choosing = false }) { Text(stringResource(R.string.food_cancel)) } }) {
+            androidx.compose.material3.DatePicker(state)
+        }
+    }
+}
 
 /**
  * The plate standing free in the scene, as iOS `FoodPlate`: calories eaten as the outer ring, protein, carbohydrate

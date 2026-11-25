@@ -5276,6 +5276,8 @@
     <string name="food_empty_title">Aún no hay nada registrado</string>
     <string name="food_empty_body">Busca un alimento, escanea un código de barras o introduce solo las calorías.</string>
     <string name="food_today">Hoy</string>
+    <string name="food_yesterday">Ayer</string>
+    <string name="food_choose_day">Elegir un día</string>
     <string name="food_previous_day">Día anterior</string>
     <string name="food_next_day">Día siguiente</string>
     <string name="food_meal_breakfast">Desayuno</string>

@@ -5337,6 +5337,8 @@
     <string name="food_empty_title">Nothing logged yet</string>
     <string name="food_empty_body">Search for a food, scan a barcode or just enter the calories.</string>
     <string name="food_today">Today</string>
+    <string name="food_yesterday">Yesterday</string>
+    <string name="food_choose_day">Choose a day</string>
     <string name="food_previous_day">Previous day</string>
     <string name="food_next_day">Next day</string>
     <string name="food_meal_breakfast">Breakfast</string>

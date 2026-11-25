@@ -5255,6 +5255,8 @@
     <string name="food_empty_title">Пока ничего не записано</string>
     <string name="food_empty_body">Найди продукт, отсканируй штрихкод или просто введи калории.</string>
     <string name="food_today">Сегодня</string>
+    <string name="food_yesterday">Вчера</string>
+    <string name="food_choose_day">Выбрать день</string>
     <string name="food_previous_day">Предыдущий день</string>
     <string name="food_next_day">Следующий день</string>
     <string name="food_meal_breakfast">Завтрак</string>

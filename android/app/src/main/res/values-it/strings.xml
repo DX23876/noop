@@ -5243,6 +5243,8 @@
     <string name="food_empty_title">Ancora niente registrato</string>
     <string name="food_empty_body">Cerca un alimento, scansiona un codice a barre o inserisci solo le calorie.</string>
     <string name="food_today">Oggi</string>
+    <string name="food_yesterday">Ieri</string>
+    <string name="food_choose_day">Scegli un giorno</string>
     <string name="food_previous_day">Giorno precedente</string>
     <string name="food_next_day">Giorno successivo</string>
     <string name="food_meal_breakfast">Colazione</string>

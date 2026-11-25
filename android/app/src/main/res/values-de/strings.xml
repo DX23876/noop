@@ -5290,6 +5290,8 @@
     <string name="food_empty_title">Noch nichts geloggt</string>
     <string name="food_empty_body">Suche ein Lebensmittel, scanne einen Barcode oder gib einfach die Kalorien ein.</string>
     <string name="food_today">Heute</string>
+    <string name="food_yesterday">Gestern</string>
+    <string name="food_choose_day">Tag wählen</string>
     <string name="food_previous_day">Vorheriger Tag</string>
     <string name="food_next_day">Nächster Tag</string>
     <string name="food_meal_breakfast">Frühstück</string>
