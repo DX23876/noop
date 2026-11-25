@@ -707,6 +707,32 @@ struct ExerciseMediaManagementView: View {
 
     var body: some View {
         Form {
+            if NoopVisualStyle.skin == .forge {
+                // The new design's anatomy: the state on the list, the explanation as each group's footer.
+                Section {
+                    stateRow
+                } header: {
+                    Text("Optional exercise media")
+                } footer: {
+                    Text("Exercise logging, routines and analytics work without media. NOOP does not bundle, host or mirror these files.")
+                }
+                Section {
+                    LabeledContent("Source", value: media.provider.source.host ?? media.provider.source.absoluteString)
+                    LabeledContent("Rights holder", value: media.provider.rightsHolder)
+                    if let manifest {
+                        LabeledContent("Downloaded files", value: manifest.fileCount.formatted())
+                        LabeledContent("Archive checksum", value: String(manifest.archiveSHA256.prefix(16)))
+                    }
+                } header: {
+                    Text("Source and rights")
+                } footer: {
+                    VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+                        Text(media.provider.attribution)
+                        Text(media.provider.rightsStatus)
+                        Text("A user-initiated download does not create any additional licence through NOOP.")
+                    }
+                }
+            } else {
             Section("Optional exercise media") {
                 Text("Exercise logging, routines and analytics work without media. NOOP does not bundle, host or mirror these files.")
                     .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
@@ -723,6 +749,7 @@ struct ExerciseMediaManagementView: View {
                 Text(media.provider.rightsStatus).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                 Text("A user-initiated download does not create any additional licence through NOOP.")
                     .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+            }
             }
             Section("Controls") {
                 if media.isWithdrawn {

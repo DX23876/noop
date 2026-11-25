@@ -42,36 +42,60 @@ struct StorageView: View {
 
     // MARK: - Cards
 
+    @ViewBuilder
     private func breakdownCard(_ r: AppModel.StorageReport) -> some View {
+        if NoopVisualStyle.skin == .forge {
+            SettingsSubGroup(title: "On-device footprint") { breakdownRows(r) }
+        } else {
         StrandCard {
             VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
                 Text("On-device footprint")
                     .font(StrandFont.headline)
                     .foregroundStyle(StrandPalette.textPrimary)
 
-                row(icon: "cylinder.split.1x2",
-                    label: "Health database",
-                    bytes: r.db,
-                    tint: StrandPalette.accent)
-                Divider().overlay(StrandPalette.hairline)
-                row(icon: "tray.full",
-                    label: "Leftover import copies",
-                    bytes: r.inbox,
-                    tint: r.inbox > 0 ? StrandPalette.statusWarning : StrandPalette.textTertiary,
-                    note: r.inbox > 0 ? "Reclaimable" : nil)
-                Divider().overlay(StrandPalette.hairline)
-                row(icon: "clock.arrow.circlepath",
-                    label: "Import temp files",
-                    bytes: r.importTemp,
-                    tint: r.importTemp > 0 ? StrandPalette.statusWarning : StrandPalette.textTertiary,
-                    note: r.importTemp > 0 ? "Reclaimable" : nil)
+                breakdownRows(r)
             }
+        }
         }
     }
 
+    /// The three sizes, shared by both designs.
+    @ViewBuilder
+    private func breakdownRows(_ r: AppModel.StorageReport) -> some View {
+        row(icon: "cylinder.split.1x2",
+            label: "Health database",
+            bytes: r.db,
+            tint: StrandPalette.accent)
+        Divider().overlay(StrandPalette.hairline)
+        row(icon: "tray.full",
+            label: "Leftover import copies",
+            bytes: r.inbox,
+            tint: r.inbox > 0 ? StrandPalette.statusWarning : StrandPalette.textTertiary,
+            note: r.inbox > 0 ? "Reclaimable" : nil)
+        Divider().overlay(StrandPalette.hairline)
+        row(icon: "clock.arrow.circlepath",
+            label: "Import temp files",
+            bytes: r.importTemp,
+            tint: r.importTemp > 0 ? StrandPalette.statusWarning : StrandPalette.textTertiary,
+            note: r.importTemp > 0 ? "Reclaimable" : nil)
+    }
+
+    @ViewBuilder
     private func cleanUpCard(_ r: AppModel.StorageReport) -> some View {
         let reclaimable = r.inbox + r.importTemp
-        return StrandCard {
+        if NoopVisualStyle.skin == .forge {
+            SettingsSubGroup(title: "Clean up", footer: Text(reclaimable > 0
+                ? "There's about \(Self.format(reclaimable)) of leftover import scratch space to reclaim. This never removes your imported data."
+                : "Nothing to reclaim right now. NOOP already cleans up import scratch space automatically.")) {
+                if let lastCleanedSummary {
+                    Text(lastCleanedSummary)
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.statusPositive.legibleText)
+                }
+                cleanUpButton(reclaimable: reclaimable)
+            }
+        } else {
+        StrandCard {
             VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
                 Text("Clean up")
                     .font(StrandFont.headline)
@@ -89,26 +113,45 @@ struct StorageView: View {
                         .foregroundStyle(StrandPalette.statusPositive.legibleText)
                 }
 
-                Button {
-                    Task { await cleanUp() }
-                } label: {
-                    HStack(spacing: NoopMetrics.space2) {
-                        if cleaning { ProgressView().controlSize(.small) }
-                        Text(cleaning ? "Cleaning up…" : "Clean up now")
-                    }
-                }
-                .buttonStyle(NoopButtonStyle(.primary, fullWidth: true))
-                .disabled(cleaning || reclaimable == 0)
-                .accessibilityLabel("Clean up leftover import files")
+                cleanUpButton(reclaimable: reclaimable)
             }
+        }
         }
     }
 
+    private func cleanUpButton(reclaimable: Int64) -> some View {
+        Button {
+            Task { await cleanUp() }
+        } label: {
+            HStack(spacing: NoopMetrics.space2) {
+                if cleaning { ProgressView().controlSize(.small) }
+                Text(cleaning ? "Cleaning up…" : "Clean up now")
+            }
+        }
+        .buttonStyle(NoopButtonStyle(.primary, fullWidth: true))
+        .disabled(cleaning || reclaimable == 0)
+        .accessibilityLabel("Clean up leftover import files")
+    }
+
+    @ViewBuilder
     private var explainerCard: some View {
+        if NoopVisualStyle.skin == .forge {
+            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                Text("Why does this grow?")
+                    .font(StrandFont.footnote.weight(.semibold))
+                    .textCase(.uppercase)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .accessibilityAddTraits(.isHeader)
+                Text("When you import an Apple Health or WHOOP export, iOS hands NOOP a private copy of the file. NOOP reads it, saves your data into the health database, then deletes the copy. Older builds didn't delete every copy. This screen reclaims any that were left behind.")
+                    .settingsCaption()
+            }
+            .padding(.horizontal, NoopMetrics.space4)
+        } else {
         DataPendingNote(
             title: "Why does this grow?",
             message: "When you import an Apple Health or WHOOP export, iOS hands NOOP a private copy of the file. NOOP reads it, saves your data into the health database, then deletes the copy. Older builds didn't delete every copy. This screen reclaims any that were left behind.",
             symbol: "questionmark.circle")
+        }
     }
 
     // MARK: - Row
