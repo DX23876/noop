@@ -203,6 +203,17 @@ final class FoodLogTests: XCTestCase {
         XCTAssertEqual(edited.per100g, entry.per100g)
     }
 
+    func testANewAmountRetiresTheOldPortionName() {
+        let portion = FoodLog.entry(for: oats, grams: 40, at: date("2026-11-08", 7), origin: .search,
+                                    portionLabel: "1 portion (40 g)", id: "p")
+        XCTAssertNil(FoodLog.edited(portion, grams: 80).portionLabel, "80 g is no longer the 40 g portion")
+        XCTAssertEqual(FoodLog.edited(portion, grams: 40).portionLabel, "1 portion (40 g)", "the same amount keeps it")
+        let can = FoodLog.entry(for: oats, grams: 330, at: date("2026-11-08", 7), origin: .search,
+                                portionLabel: "1 of 6 (330 ml)", id: "c")
+        XCTAssertEqual(FoodLog.edited(can, grams: 250).portionLabel, "250 ml", "a drink stays in millilitres")
+        XCTAssertEqual(FoodLog.edited(can, grams: 12.25).portionLabel, "12.3 ml")
+    }
+
     func testMealsGroupByTimeAndByChosenMeal() {
         let a = FoodLog.entry(for: oats, grams: 50, at: date("2026-11-08", 7, 0), origin: .search, id: "a")
         let b = FoodLog.entry(for: oats, grams: 50, at: date("2026-11-08", 7, 30), origin: .search, id: "b")

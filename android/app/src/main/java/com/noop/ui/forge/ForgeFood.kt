@@ -805,7 +805,10 @@ private fun FoodEntryDialog(entry: CoreFood.Entry, onDismiss: () -> Unit, onSave
         Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2),
                modifier = Modifier.verticalScroll(rememberScrollState())) {
             if (entry.per100g != null) {
-                OutlinedTextField(grams, { grams = it }, label = { Text(stringResource(R.string.food_grams)) },
+                // A drink is edited in millilitres; its label is where a logged entry keeps that (core `FoodLog.edited`).
+                val drink = entry.portionLabel?.contains(Regex("""\d\s?ml\b""")) == true
+                OutlinedTextField(grams, { grams = it },
+                                  label = { Text(stringResource(if (drink) R.string.food_millilitres else R.string.food_grams)) },
                                   keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
             }
             MealChooser(meal) { meal = it }
