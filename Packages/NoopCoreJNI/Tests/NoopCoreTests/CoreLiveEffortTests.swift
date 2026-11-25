@@ -115,14 +115,21 @@ final class CoreLiveEffortTests: XCTestCase {
         XCTAssertEqual(live, expected, accuracy: 1e-9)
     }
 
-    /// A day the pass has not stored yet resolves from the night means stored for the nights before it.
+    /// A day the pass has not stored yet resolves from the nights stored before it, each halfway between its
+    /// lowest bin (the daily row's resting heart rate) and its mean.
     func testADayWithoutAStoredValueResolvesFromTheNightsBefore() async throws {
         let store = try await WhoopStore.inMemory()
-        let points = ["2026-11-18": 60.0, "2026-11-19": 64, "2026-11-20": 70].map {
-            MetricPoint(day: $0.key, key: EffortRestingHR.nightMeanSeriesKey, value: $0.value)
-        }
-        _ = try await store.upsertMetricSeries(points, deviceId: "my-whoop-noop")
+        let nights: [(day: String, mean: Double, lowest: Int)] = [("2026-11-18", 60, 50), ("2026-11-19", 64, 54),
+                                                                  ("2026-11-20", 70, 58)]
+        _ = try await store.upsertMetricSeries(nights.map {
+            MetricPoint(day: $0.day, key: EffortRestingHR.nightMeanSeriesKey, value: $0.mean)
+        }, deviceId: "my-whoop-noop")
+        _ = try await store.upsertDailyMetrics(nights.map {
+            DailyMetric(day: $0.day, totalSleepMin: nil, efficiency: nil, deepMin: nil, remMin: nil, lightMin: nil,
+                        disturbances: nil, restingHr: $0.lowest, avgHrv: nil, recovery: nil, strain: nil,
+                        exerciseCount: 0, steps: nil)
+        }, deviceId: "my-whoop-noop")
         let resting = await reader(store).effortRestingHR(day: "2026-11-21")
-        XCTAssertEqual(resting, 64)
+        XCTAssertEqual(resting, 59, "the median of 55, 59 and 64")
     }
 }

@@ -3,8 +3,8 @@ import XCTest
 import WhoopProtocol
 import WhoopStore
 
-/// The day pass scores Effort against `EffortRestingHR` (the main night's mean) while the day keeps showing
-/// the night's lowest five minutes, and a detected bout is found on the day's baseline but scored on Effort's.
+/// The day pass scores Effort against `EffortRestingHR` (halfway between the night's lowest five minutes and its
+/// mean) while the day keeps showing the lowest five minutes, and a detected bout is found on the day's baseline but scored on Effort's.
 final class EffortRestingHRDayTests: XCTestCase {
     private let profile = UserProfile(weightKg: 75, heightCm: 178, age: 30, sex: "male")
     private let day = "2026-07-27"
@@ -32,13 +32,14 @@ final class EffortRestingHRDayTests: XCTestCase {
         let samples = hr(nightStart, nightEnd, bpm: 60, dip: (dipStart, dipStart + 600, 50))
             + hr(dayStart + 14 * 3600, dayStart + 15 * 3600, bpm: 140)
         let res = AnalyticsEngine.analyzeDay(day: day, hr: samples, rr: [], profile: profile,
-                                             providedSleep: [night], recentNightMeanRHR: [70, 70, 70])
+                                             providedSleep: [night], recentNightRHR: [70, 70, 70])
 
         let mean = try XCTUnwrap(AnalyticsEngine.primarySessionRestingHR(sessions: [night], hr: samples))
+        let halfway = 50 + (mean - 50) / 2
         XCTAssertEqual(res.daily.restingHr, 50, "the day still shows the night's lowest five minutes")
-        XCTAssertEqual(res.effortRestingHR, mean, accuracy: 1e-9, "Effort reads the night's mean")
+        XCTAssertEqual(res.effortRestingHR, halfway, accuracy: 1e-9, "Effort reads halfway to the night's mean")
         let maxHR = MaxHeartRate.resolve(override: nil, age: profile.age).bpm
-        let expected = try XCTUnwrap(StrainScorer.strain(samples, maxHR: maxHR, restingHR: mean,
+        let expected = try XCTUnwrap(StrainScorer.strain(samples, maxHR: maxHR, restingHR: halfway,
                                                          lowIntensity: .day(workouts: [])))
         XCTAssertEqual(try XCTUnwrap(res.strain), expected, accuracy: 1e-9)
         let onTheNadir = try XCTUnwrap(StrainScorer.strain(samples, maxHR: maxHR, restingHR: 50,
@@ -51,7 +52,7 @@ final class EffortRestingHRDayTests: XCTestCase {
         let dayStart = AnalyticsEngine.dayStartUtcSeconds(day)
         let samples = hr(dayStart + 10 * 3600, dayStart + 12 * 3600, bpm: 110)
         let res = AnalyticsEngine.analyzeDay(day: day, hr: samples, rr: [], profile: profile,
-                                             recentNightMeanRHR: [80, 70, 72, 74])
+                                             recentNightRHR: [80, 70, 72, 74])
         XCTAssertNil(res.daily.restingHr)
         XCTAssertEqual(res.effortRestingHR, 73, accuracy: 1e-9)
     }

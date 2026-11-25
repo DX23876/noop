@@ -2001,13 +2001,17 @@ public final class DailyAnalysis {
         }
         // Today's level for the readers outside the pass (profile, zones, live Effort, coach, Settings).
         host.store(measuredByDay[newestScanDay]?.stored, forKey: MaxHeartRate.measuredLevelKey)
-        // Effort's resting heart rate on a day without a night of its own: the main-night means stored for
-        // the nights before it (`EffortRestingHR`), read once for the window and its lookback.
+        // Effort's resting heart rate on a day without a night of its own: the nights stored before it, each
+        // halfway between its lowest bin and its mean (`EffortRestingHR`), read once for the window and its
+        // lookback.
+        let effortLookback = EffortRestingHR.lookbackStart(for: scanDayKeys.min() ?? newestScanDay)
         let effortNightMeans = ((try? await store.metricSeries(
-            deviceId: computedId, key: EffortRestingHR.nightMeanSeriesKey,
-            from: EffortRestingHR.lookbackStart(for: scanDayKeys.min() ?? newestScanDay),
+            deviceId: computedId, key: EffortRestingHR.nightMeanSeriesKey, from: effortLookback,
             to: newestScanDay)) ?? [])
             .reduce(into: [String: Double]()) { $0[$1.day] = $1.value }
+        let effortNightLowest = ((try? await store.dailyMetrics(deviceId: computedId, from: effortLookback,
+                                                                to: newestScanDay)) ?? [])
+            .reduce(into: [String: Double]()) { out, row in out[row.day] = row.restingHr.map(Double.init) }
         // #2438: the recorded and imported workouts of the window, read once. Each day's Effort never falls
         // below any of them or of the bouts that day detects.
         let effortWorkoutSpans = await Self.effortWorkoutSpans(
@@ -2549,8 +2553,8 @@ public final class DailyAnalysis {
                                                      },
                                                      dismissedBouts: dismissedBouts,
                                                      strengthLoad: strengthLoadByDay[day] ?? 0,
-                                                     recentNightMeanRHR: EffortRestingHR.nightsBefore(
-                                                        day, in: effortNightMeans),
+                                                     recentNightRHR: EffortRestingHR.nightsBefore(
+                                                        day, means: effortNightMeans, lowest: effortNightLowest),
                                                      workoutPeakMET: EnergyModelRefresh.peakMET(
                                                         on: day, in: workoutPeakByDay),
                                                      method: settings.sleepStagerMethod)

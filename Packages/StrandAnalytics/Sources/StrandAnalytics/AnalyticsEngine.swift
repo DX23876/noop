@@ -537,10 +537,10 @@ public enum AnalyticsEngine {
                                   dismissedBouts: [Range<Int>] = [],
                                   // Load the day's rated strength sessions add before the curve (#2438).
                                   strengthLoad: Double = 0,
-                                  // The main-night mean HR of the nights before this day, oldest first
-                                  // (`rhr_primary_session`): Effort's resting heart rate when this day has
-                                  // no night of its own (`EffortRestingHR`).
-                                  recentNightMeanRHR: [Double] = [],
+                                  // The values of the nights before this day, oldest first
+                                  // (`EffortRestingHR.nightsBefore`): Effort's resting heart rate when this
+                                  // day has no night of its own.
+                                  recentNightRHR: [Double] = [],
                                   // The day's aerobic ceiling (stored by the energy model), so a detected
                                   // bout's calories are priced on the same curve as the day's workouts.
                                   // Nil prices bouts from the table MET of an unnamed session.
@@ -978,12 +978,13 @@ public enum AnalyticsEngine {
         // night `hr` for pure-function callers/tests.
         let resolvedMaxHR = maxHR ?? MaxHeartRate.resolve(override: maxHROverride, age: profile.age)
         let effMaxHR: Double? = resolvedMaxHR.bpm
-        // Effort reads the main night's mean, not the lowest five minutes the day shows (`EffortRestingHR`):
-        // the curve was fitted against WHOOP's resting heart rate. The mean is the `rhr_primary_session`
-        // shadow metric's own definition and inputs (`matched`, the night window).
+        // Effort reads halfway between the lowest five minutes the day shows and the main night's mean
+        // (`EffortRestingHR`): the curve was fitted against WHOOP's resting heart rate, which sits between the
+        // two. The mean is the `rhr_primary_session` shadow metric's own definition and inputs (`matched`, the
+        // night window).
         let nightMeanRHR = Self.primarySessionRestingHR(sessions: matched, hr: hr)
-        let restForStrain = EffortRestingHR.resolve(nightMean: nightMeanRHR, recentNightMeans: recentNightMeanRHR,
-                                                    deviceProvided: providedPrimaryRHR)
+        let restForStrain = EffortRestingHR.resolve(nightMean: nightMeanRHR, nightLowest: restingHRDaily.map(Double.init),
+                                                    recentNights: recentNightRHR, deviceProvided: providedPrimaryRHR)
         // ── Workouts ──────────────────────────────────────────────────────────
         // Detect over the full CALENDAR day (dayHr/dayGravity) when the caller supplies it, so a
         // current-day afternoon/evening workout is caught on its own day rather than lagging until
