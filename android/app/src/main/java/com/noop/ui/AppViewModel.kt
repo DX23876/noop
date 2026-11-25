@@ -850,6 +850,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // MARK: - Today's cached metrics
 
     private val _today = MutableStateFlow<DailyMetric?>(null)
+    /** The resting heart rate today's Effort is scored against (core `EffortRestingHR`), refreshed with [_today]:
+     *  a session saved today is scored against it so it sits on the same yardstick as its day. */
+    @Volatile private var effortRestingHRToday: Double = StrainScorer.defaultRestingHR
     val today: StateFlow<DailyMetric?> = _today.asStateFlow()
 
     /**
@@ -1216,6 +1219,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val logicalKey = logicalDayKeyNow()       // ISO yyyy-MM-dd, local logical day
                 val localKey = java.time.LocalDate.now().toString()
                 _today.value = resolveTodayRow(days, logicalKey, localKey)
+                effortRestingHRToday = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                    com.noop.core.CoreLiveEffort.effortRestingHR(logicalKey)
+                } ?: effortRestingHRToday
                 _healthAlert.value =
                     (if (_illnessWatchEnabled.value && _today.value != null &&
                         days.lastOrNull()?.day == _today.value?.day
@@ -2059,14 +2065,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // disagree with its own re-score. Read once here, at save time; the live readout during the
         // session is a transient running estimate and deliberately left alone.
         val restingHR = _today.value?.restingHr?.toDouble() ?: StrainScorer.defaultRestingHR
+        // Effort on its day's Effort resting heart rate (core `EffortRestingHR`), so the day never shows less
+        // than this session; calories keep the day's shown resting HR.
         val strain = if (samples.size >= 2)
             StrainScorer.strain(samples, maxHR = profileStore.hrMax.toDouble(),
-                restingHR = restingHR, method = NoopPrefs.effortMethod(appContext),
+                restingHR = effortRestingHRToday, method = NoopPrefs.effortMethod(appContext),
                 sex = profileStore.sex, workout = true) else null
         // Estimate calories from the captured HR window (same Keytel/Harris–Benedict model the
         // auto-detector uses) so a manual session shows energy too, not just duration/strain. (#117)
         val energyKcal = if (samples.size >= 2)
-            // #983: same measured resting HR as the strain above, not null. The calories model's
+            // #983: the day's measured resting HR, not null. The calories model's
             // active-vs-resting threshold sits at resting + 30% HRR, so the default silently shifts what
             // counts as active — and #972 already threads it in the rescore path, so leaving it null here
             // meant a saved workout's kcal disagreed with its own re-score just as its Effort did.

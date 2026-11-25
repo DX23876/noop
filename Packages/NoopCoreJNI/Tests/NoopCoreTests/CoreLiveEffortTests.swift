@@ -22,14 +22,14 @@ final class CoreLiveEffortTests: XCTestCase {
     func testWithoutHeartRateTheStoredRowStands() async throws {
         let store = try await WhoopStore.inMemory()
         let effort = await CoreRead.liveEffort(reader: reader(store), hrMaxOverride: 0, age: 40,
-                                               restingHr: 55, storedEffort: 31.0, mode: .sleepOnset)
+                                               storedEffort: 31.0, mode: .sleepOnset)
         XCTAssertEqual(effort, 31.0)
     }
 
     func testWithNeitherThereIsNothingToShow() async throws {
         let store = try await WhoopStore.inMemory()
         let effort = await CoreRead.liveEffort(reader: reader(store), hrMaxOverride: 0, age: 40,
-                                               restingHr: nil, storedEffort: nil, mode: .sleepOnset)
+                                               storedEffort: nil, mode: .sleepOnset)
         XCTAssertNil(effort)
     }
 
@@ -82,11 +82,47 @@ final class CoreLiveEffortTests: XCTestCase {
         let samples = (0..<3_600).map { HRSample(ts: from + $0, bpm: 150) }
         try await store.insert(Streams(hr: samples), deviceId: "my-whoop")
         let live = await CoreRead.liveEffort(reader: reader(store), hrMaxOverride: 190, age: 40,
-                                             restingHr: 55, storedEffort: nil, mode: .sleepOnset)
+                                             storedEffort: nil, mode: .sleepOnset)
         let scored = try XCTUnwrap(live)
         XCTAssertGreaterThan(scored, 0)
         let floored = await CoreRead.liveEffort(reader: reader(store), hrMaxOverride: 190, age: 40,
-                                                restingHr: 55, storedEffort: scored + 10, mode: .sleepOnset)
+                                                storedEffort: scored + 10, mode: .sleepOnset)
         XCTAssertEqual(floored, scored + 10, "the stored row is a floor, never lowered by a live refinement")
+    }
+
+    /// The live score reads the resting heart rate the pass stored for the day's Effort (`EffortRestingHR`),
+    /// not the lower one the day shows, so today's figure is taken on the stored day's yardstick.
+    func testTheLiveScoreReadsTheStoredEffortRestingHR() async throws {
+        let store = try await WhoopStore.inMemory()
+        let now = Date()
+        let (from, to) = LiveEffortScore.window(now: now, mode: .sleepOnset, cycle: nil)
+        guard to - from > 3_600 else {
+            throw XCTSkip("run before 01:00 local: the logical day is too short to lay down an hour of heart rate")
+        }
+        let samples = (0..<3_600).map { HRSample(ts: from + $0, bpm: 120) }
+        try await store.insert(Streams(hr: samples), deviceId: "my-whoop")
+        let day = LiveEffortScore.day(now: now, mode: .sleepOnset, cycle: nil)
+        _ = try await store.upsertMetricSeries([MetricPoint(day: day, key: EffortRestingHR.seriesKey, value: 72)],
+                                               deviceId: "my-whoop-noop")
+        let reader = reader(store)
+        let resting = await reader.effortRestingHR(day: day)
+        XCTAssertEqual(resting, 72)
+        let liveValue = await CoreRead.liveEffort(reader: reader, hrMaxOverride: 190, age: 40,
+                                                  storedEffort: nil, mode: .sleepOnset, now: now)
+        let live = try XCTUnwrap(liveValue)
+        let expected = try XCTUnwrap(StrainScorer.strain(samples, maxHR: 190, restingHR: 72,
+                                                         lowIntensity: .day(workouts: [])))
+        XCTAssertEqual(live, expected, accuracy: 1e-9)
+    }
+
+    /// A day the pass has not stored yet resolves from the night means stored for the nights before it.
+    func testADayWithoutAStoredValueResolvesFromTheNightsBefore() async throws {
+        let store = try await WhoopStore.inMemory()
+        let points = ["2026-11-18": 60.0, "2026-11-19": 64, "2026-11-20": 70].map {
+            MetricPoint(day: $0.key, key: EffortRestingHR.nightMeanSeriesKey, value: $0.value)
+        }
+        _ = try await store.upsertMetricSeries(points, deviceId: "my-whoop-noop")
+        let resting = await reader(store).effortRestingHR(day: "2026-11-21")
+        XCTAssertEqual(resting, 64)
     }
 }

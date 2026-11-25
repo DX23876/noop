@@ -408,7 +408,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             val liveEffort by produceState<Double?>(null, shown, coreRevision, model?.day?.effort) {
                 value = if (shown != today) null else withContext(Dispatchers.IO) {
                     CoreRead.open(context)
-                    com.noop.core.CoreLiveEffort.today(context, model?.day?.restingHr, model?.day?.effort)
+                    com.noop.core.CoreLiveEffort.today(context, model?.day?.effort)
                 }
             }
             val heroDay = (model?.day ?: CoreRead.Day(shown.toString(), null, null, null, null, null, null, null, null, null,

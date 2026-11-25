@@ -5115,7 +5115,6 @@ struct TodayView: View {
         let selectedDayKey = self.selectedDayKey
         let selectedDayOffset = self.selectedDayOffset
         let selectedLogicalDay = self.selectedLogicalDay
-        let restingHr = displayDay?.restingHr
         // #932: same-state re-mount → restore the prior day-scoped snapshot (no store queries). The exact
         // twin of the #849 history-wide short-circuit in loadAll, for the reads that follow the SELECTED
         // day: on a big library the day's hrBuckets + hrSamples reads cover 170k+ HR rows, and macOS
@@ -5241,15 +5240,15 @@ struct TodayView: View {
 
         // In-progress Effort for TODAY (#402): score today's strain over the SAME window the HR curve
         // above shows (logical-day midnight → now) so the gauge tracks the day live instead of lagging
-        // on the last persisted daily row. Uses the identical params the daily pass uses, Tanaka HRmax
-        // from age, today's resting HR (else the default), sex, so the live number matches what the
+        // on the last persisted daily row. Uses the identical params the daily pass uses, the pass's HRmax
+        // and Effort's own resting heart rate for the day (`EffortRestingHR`), so the live number matches what the
         // engine will eventually persist. Below StrainScorer.minReadings the scorer returns nil and the
         // gauge falls back to the stored row (never a fabricated value); a navigated past day clears it.
         // The read itself moved to `LiveEffort.today` verbatim, so Liquid and the two dashboards can score
         // today's Effort from the IDENTICAL window and parameters instead of each copying them (#1001's
         // one-figure rule, applied across Today STYLES rather than within one screen).
         let liveStrainLocal: Double? = selectedDayOffset == 0
-            ? await LiveEffort.today(repo: repo, profile: profile, restingHr: restingHr)
+            ? await LiveEffort.today(repo: repo, profile: profile)
             : nil
 
         // Sleep session overlapping the window. Uses `allSleepSessions` (BOTH the imported and the

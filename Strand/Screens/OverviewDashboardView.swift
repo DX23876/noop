@@ -426,7 +426,7 @@ struct OverviewDashboardView: View {
         // `effectiveEffort` floors at that row, the refinement can only raise the number, never drop it —
         // so nothing on screen moves backwards while this resolves.
         next.liveTodayStrain = selectedDayOffset == 0
-            ? await LiveEffort.today(repo: repo, profile: profile, restingHr: next.displayDay?.restingHr)
+            ? await LiveEffort.today(repo: repo, profile: profile)
             : nil
 
         guard !Task.isCancelled, key == loadKey, generation == loadGeneration else { return }

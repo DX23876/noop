@@ -190,6 +190,9 @@ final class Repository: ObservableObject {
 
     /// Daily metrics (recovery/strain/sleep/HRV/RHR…) over the recent window, oldest→newest.
     @Published var days: [DailyMetric] = []
+    /// The resting heart rate today's Effort is scored against (`StoreReader.effortRestingHR`), refreshed with
+    /// `days`: a workout recorded today is scored against it so it sits on the same yardstick as its day.
+    private(set) var effortRestingHRToday: Double = StrainScorer.defaultRestingHR
     /// The Charge baselines (HRV, resting HR, respiration) TODAY's Charge is scored against, resolved from the
     /// imported and own daily rows with the engine's own rule (#2525, AI-34: the nights before today),
     /// recomputed on every `refresh()`. For any other day read `chargeBaselines(forDay:)`: since AI-34 every
@@ -1368,6 +1371,8 @@ final class Repository: ObservableObject {
         let recoveryEpoch = Baselines.recoveryBaselineEpoch()
         let chargeFromDay = HealthspanWindow.dayKey(fromDay, plus: -ChargeBaselines.windowDays)
         let restTraits = await reader(store).restTraits(from: fromDay, to: toDay)
+        // The resting heart rate today's Effort is scored against, for a workout saved today (`EffortRestingHR`).
+        effortRestingHRToday = await reader(store).effortRestingHR(day: Self.logicalDayKey(now))
         let chargeInputs = ChargeBaselineInputs(
             imported: await unionDailyMetrics(store: store, from: chargeFromDay, to: toDay),
             computed: await unionComputedDailyMetrics(store: store, from: chargeFromDay, to: toDay),
@@ -3386,6 +3391,11 @@ final class Repository: ObservableObject {
         // #961: capture the injected profile ONCE (a Sendable scalar pair) so each child task can compute a
         // backfill strain off the main actor. nil ⇒ no fill, and the strain slot always comes back nil.
         let strainProfile = self.strainProfile
+        // A filled Effort is scored against its day's Effort resting heart rate (`EffortRestingHR`), as the
+        // day around it is; a day the pass never scored takes the scorer's default.
+        let fillDays = eligibleIndices.map { Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(rows[$0].startTs))) }
+        let effortRestingByDay = strainProfile == nil || fillDays.isEmpty ? [:]
+            : await reader(store).storedEffortRestingHRByDay(fromDay: fillDays.min()!, toDay: fillDays.max()!)
         var reduced: [Int: (avg: Int, peak: Int, strain: Double?)] = [:]
         for chunkStart in stride(from: 0, to: eligibleIndices.count, by: readChunk) {
             let chunk = eligibleIndices[chunkStart..<min(chunkStart + readChunk, eligibleIndices.count)]
@@ -3405,6 +3415,8 @@ final class Repository: ObservableObject {
                     // only the resulting Sendable String crosses into the task.
                     let hrIds = Self.workoutHrDeviceIds(source: rows[idx].source, activeStrapId: deviceId,
                                                         importedIds: importedReadIds)
+                    let effortResting = effortRestingByDay[Self.localDayKey(Date(timeIntervalSince1970: TimeInterval(startTs)))]
+                        ?? StrainScorer.defaultRestingHR
                     group.addTask { [hrIds] in
                         // #836: aggregate in SQLite over the WHOLE window instead of reducing up to 8000
                         // materialised rows. The old read capped at 8000, so a workout longer than ~2h13m
@@ -3429,7 +3441,8 @@ final class Repository: ObservableObject {
                             let samples = (try? await store.hrSamples(deviceId: hrIds[0],
                                                                       from: startTs, to: endTs,
                                                                       limit: 8000)) ?? []
-                            strain = StrainScorer.strain(samples, maxHR: p.hrMax, lowIntensity: .counted)
+                            strain = StrainScorer.strain(samples, maxHR: p.hrMax, restingHR: effortResting,
+                                                         lowIntensity: .counted)
                         } else {
                             strain = nil
                         }

@@ -99,7 +99,10 @@ public enum WorkoutHeartRateFills {
                                                  WorkoutHeartRateFill.appleRestingWindowDays)
         // Health Connect's resting heart rate reaches the daily rows of days the strap does not cover, so the same
         // read finds it there.
-        let own = await reader.restingHrByDay(fromDay: firstDay, toDay: lastDay)
+        // A day the pass scored lends its Effort resting heart rate (`EffortRestingHR`), so a filled session is
+        // scored as the day around it is; other days keep their own resting rate.
+        let own = (await reader.restingHrByDay(fromDay: firstDay, toDay: lastDay))
+            .merging(await reader.storedEffortRestingHRByDay(fromDay: firstDay, toDay: lastDay)) { _, effort in effort }
         let now = Int(Date().timeIntervalSince1970)
         var keys: [WorkoutKey] = []
         var fills: [WorkoutHeartRateFillRow] = []
@@ -152,7 +155,10 @@ public enum WorkoutHeartRateFills {
                                                   -WorkoutHeartRateFill.appleRestingWindowDays)
         let lastDay = WeeklyDigestEngine.addDays(StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(last))),
                                                  WorkoutHeartRateFill.appleRestingWindowDays)
-        let own = await reader.restingHrByDay(fromDay: firstDay, toDay: lastDay)
+        // A day the pass scored lends its Effort resting heart rate (`EffortRestingHR`), so a filled session is
+        // scored as the day around it is; other days keep their own resting rate.
+        let own = (await reader.restingHrByDay(fromDay: firstDay, toDay: lastDay))
+            .merging(await reader.storedEffortRestingHRByDay(fromDay: firstDay, toDay: lastDay)) { _, effort in effort }
         var apple: [String: Double] = [:]
         for metric in try await store.dailyMetrics(deviceId: MetricResolver.appleHealthSource, from: firstDay, to: lastDay) {
             if let value = metric.restingHr, value > 0 { apple[metric.day] = Double(value) }
@@ -225,8 +231,11 @@ public enum WorkoutHeartRateFills {
         })
         guard let first = candidates.map(\.startTs).min(),
               let last = candidates.map(\.startTs).max() else { return .untouched }
-        let own = await reader.restingHrByDay(fromDay: StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(first))),
-                                              toDay: StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(last))))
+        let firstDay = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(first)))
+        let lastDay = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(last)))
+        // A day the pass scored lends its Effort resting heart rate (`EffortRestingHR`), as in the fills above.
+        let own = (await reader.restingHrByDay(fromDay: firstDay, toDay: lastDay))
+            .merging(await reader.storedEffortRestingHRByDay(fromDay: firstDay, toDay: lastDay)) { _, effort in effort }
         let now = Int(Date().timeIntervalSince1970)
         var keys: [WorkoutKey] = []
         var fills: [WorkoutHeartRateFillRow] = []

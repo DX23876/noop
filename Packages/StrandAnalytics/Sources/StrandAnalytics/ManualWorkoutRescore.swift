@@ -49,6 +49,9 @@ public enum ManualWorkoutRescore {
     /// measured resting yet), so existing callers are byte-identical until they thread one.
     public static func scored(windowSamples: [HRSample], profile: UserProfile, hrMax: Double,
                               restingHR: Double? = nil,
+                              // The resting HR the strain is scored against (`EffortRestingHR`); nil
+                              // takes `restingHR`'s value. Calories keep `restingHR`.
+                              effortRestingHR: Double? = nil,
                               // The row's sport, which picks its curve and its table MET
                               // (`WorkoutEnergyEstimate.boutKcal`).
                               sport: String = "",
@@ -62,7 +65,7 @@ public enum ManualWorkoutRescore {
         let avg = Int((Double(bpms.reduce(0, +)) / Double(bpms.count)).rounded())
         let peak = bpms.max() ?? 0
         let strain = StrainScorer.strain(windowSamples, maxHR: hrMax,
-                                         restingHR: restingHR ?? StrainScorer.defaultRestingHR,
+                                         restingHR: effortRestingHR ?? restingHR ?? StrainScorer.defaultRestingHR,
                                          lowIntensity: .counted)
         let kcalRaw = WorkoutEnergyEstimate.boutKcal(windowSamples, sport: sport, profile: profile,
                                                      hrMax: hrMax, restingHR: restingHR,

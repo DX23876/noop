@@ -565,9 +565,12 @@ public enum CoreCall {
             return CoreRead.json(["value": await CoreRead.liveEffort(
                 reader: reader, hrMaxOverride: (args["hrMaxOverride"] as? NSNumber)?.intValue ?? 0,
                 age: (args["age"] as? NSNumber)?.intValue ?? 0,
-                restingHr: (args["restingHr"] as? NSNumber)?.intValue,
                 storedEffort: (args["storedEffort"] as? NSNumber)?.doubleValue,
                 mode: DayCycleMode.persisted(args["dayCycleMode"] as? String))])
+        case "read.effortRestingHR":
+            // The resting heart rate Effort is scored against on a day (`StoreReader.effortRestingHR`), for a
+            // workout Android scores itself (a saved session, a strap-filled row).
+            return CoreRead.json(["value": await reader.effortRestingHR(day: string("day"))])
         case "read.hasAnyDay":
             // The first-run question, as one boolean: "is there any day at all" (`CoreRead.hasAnyDay`).
             return CoreRead.json(["any": await CoreRead.hasAnyDay(reader: reader)])
