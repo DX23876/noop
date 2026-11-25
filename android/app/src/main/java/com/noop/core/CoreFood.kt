@@ -37,7 +37,17 @@ object CoreFood {
     data class Day(val day: String, val meals: List<Meal>, val totals: Map<String, Double>, val otherKcal: Double?, val otherSource: String?)
     data class Pack(val country: String, val iso: String, val rows: Int, val builtAt: String, val sha256: String)
     data class Label(val per100: Map<String, Double>, val servingAmount: Double?, val complete: Boolean)
-    data class CartLine(val item: Item, val grams: Double, val portionLabel: String? = null)
+    data class CartLine(val item: Item, val grams: Double, val portionLabel: String? = null) {
+        companion object {
+            /** A one-tap add: the stated portion keeps its name, a drink its millilitres (iOS `FoodItemRow.quickLine`). */
+            fun quick(item: Item, amount: Double, portionName: (String) -> String): CartLine {
+                val serving = item.servingG?.let { kotlin.math.abs(it - amount) < 0.01 } == true
+                val named = if (serving) item.servingLabel?.let(portionName) else null
+                val text = if (amount % 1.0 == 0.0) amount.toLong().toString() else "%.1f".format(java.util.Locale.ROOT, amount)
+                return CartLine(item, amount, named ?: if (item.liquid) "$text ml" else null)
+            }
+        }
+    }
 
     private fun call(op: String, args: JSONObject = JSONObject()): JSONObject? {
         if (!SwiftCore.available) return null

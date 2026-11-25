@@ -5258,6 +5258,7 @@
     <string name="food_worth_a_look">À regarder de près</string>
     <string name="food_not_known">inconnu</string>
     <string name="food_grams">Grammes</string>
+    <string name="food_add_amount">Ajouter %1$s</string>
     <string name="food_millilitres">Volume en ml</string>
     <string name="food_portion_one">Une portion (%1$s)</string>
     <string name="food_portion_last_time">La dernière fois %1$s</string>

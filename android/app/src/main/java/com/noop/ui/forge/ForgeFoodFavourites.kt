@@ -116,9 +116,11 @@ internal fun FoodPickRow(item: CoreFood.Item, motif: String?, lastGrams: Double?
                  stringResource(if (favourite) R.string.food_favourite_remove else R.string.food_favourite_add),
                  tint = if (favourite) Forge.colors.fat else Forge.colors.textSecondary)
         }
-        if (lastGrams != null && onQuickAdd != null) {
-            AddPill(stringResource(R.string.food_grams_value, gramsText(lastGrams)),
-                    stringResource(R.string.food_add_again, gramsText(lastGrams))) { onQuickAdd(lastGrams) }
+        // What the plus adds in one tap: last time's amount, else the product's own stated portion (iOS `FoodItemRow`).
+        val quick = lastGrams ?: item.servingG
+        if (quick != null && onQuickAdd != null) {
+            val amount = "${gramsText(quick)} ${if (item.liquid) "ml" else "g"}"
+            AddPill(amount, stringResource(R.string.food_add_amount, amount)) { onQuickAdd(quick) }
         } else {
             IconButton(onClick = onPick) { Icon(Icons.Rounded.AddCircle, stringResource(R.string.food_add), tint = Forge.colors.food) }
         }

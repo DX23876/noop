@@ -5241,6 +5241,7 @@
     <string name="food_worth_a_look">Стоит посмотреть</string>
     <string name="food_not_known">неизвестно</string>
     <string name="food_grams">Граммы</string>
+    <string name="food_add_amount">Добавить %1$s</string>
     <string name="food_millilitres">Миллилитры</string>
     <string name="food_portion_one">1 порция (%1$s)</string>
     <string name="food_portion_last_time">В прошлый раз %1$s</string>

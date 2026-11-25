@@ -5984,5 +5984,6 @@
   "Half a pack (%@)": "Pół opakowania (%@)",
   "Whole pack (%@)": "Całe opakowanie (%@)",
   "Whole pack (%lld × %@ %@)": "Całe opakowanie (%lld × %@ %@)",
-  "Choose a day": "Wybierz dzień"
+  "Choose a day": "Wybierz dzień",
+  "Add %@ %@": "Dodaj %1$@ %2$@"
 }

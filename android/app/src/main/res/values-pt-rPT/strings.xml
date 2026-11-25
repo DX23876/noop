@@ -5254,6 +5254,7 @@
     <string name="food_worth_a_look">Vale a pena dar uma olhada</string>
     <string name="food_not_known">desconhecido</string>
     <string name="food_grams">Gramas</string>
+    <string name="food_add_amount">Adicionar %1$s</string>
     <string name="food_millilitres">Mililitros</string>
     <string name="food_portion_one">1 porção (%1$s)</string>
     <string name="food_portion_last_time">Da última vez %1$s</string>

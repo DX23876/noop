@@ -5222,6 +5222,7 @@
     <string name="food_worth_a_look">值得一看</string>
     <string name="food_not_known">未知</string>
     <string name="food_grams">克</string>
+    <string name="food_add_amount">添加 %1$s</string>
     <string name="food_millilitres">毫升</string>
     <string name="food_portion_one">1 份（%1$s）</string>
     <string name="food_portion_last_time">上次 %1$s</string>

@@ -77,7 +77,7 @@ struct FoodAddSheet: View {
                             }
                             ForEach(search.online) { item in
                                 FoodItemRow(item: item, lastGrams: nil, isFavourite: model.favouriteIds.contains(item.id),
-                                            onPick: pick, onFavourite: favourite)
+                                            onPick: pick, onFavourite: favourite, onQuickAdd: quickAdd)
                             }
                         }
                     }
@@ -172,7 +172,7 @@ struct FoodAddSheet: View {
     private func addLine(_ line: FoodCartLine) { cart.append(line) }
     private func addLines(_ lines: [FoodCartLine]) { cart.append(contentsOf: lines) }
     private func quickAdd(_ item: FoodItem, _ grams: Double) {
-        cart.append(FoodCartLine(item: item, grams: grams))
+        cart.append(FoodItemRow.quickLine(item, grams))
         quickAdded += 1
     }
 

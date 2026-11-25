@@ -47,10 +47,10 @@ struct FoodItemRow: View {
                 .buttonStyle(.plain)
                 .contentTransition(.symbolEffect(.replace))
                 .sensoryFeedback(.selection, trigger: isFavourite)
-            if let lastGrams, let onQuickAdd {
-                Button { onQuickAdd(item, lastGrams) } label: {
+            if let quickAmount, let onQuickAdd {
+                Button { onQuickAdd(item, quickAmount) } label: {
                     HStack(spacing: 4) {
-                        Text("\(FoodText.grams(lastGrams)) g").monospacedDigit()
+                        Text(verbatim: "\(FoodText.grams(quickAmount)) \(unit)").monospacedDigit()
                         Image(systemName: "plus").fontWeight(.bold)
                     }
                     .font(ForgeFont.caption.weight(.semibold))
@@ -62,7 +62,7 @@ struct FoodItemRow: View {
                     .contentShape(.rect)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(Text("Add \(FoodText.grams(lastGrams)) g again"))
+                .accessibilityLabel(Text("Add \(FoodText.grams(quickAmount)) \(unit)"))
             } else {
                 Button("Choose the amount", systemImage: "plus.circle.fill", action: pick)
                     .labelStyle(.iconOnly)
@@ -72,6 +72,19 @@ struct FoodItemRow: View {
                     .buttonStyle(.plain)
             }
         }
+    }
+
+    /// The amount the plus adds in one tap: what the wearer had last time, else the product's own stated portion
+    /// (owner, 2026-11-25, as YAZIO and FDDB do). A food with neither opens the amount sheet instead.
+    private var quickAmount: Double? { lastGrams ?? item.servingG }
+    private var unit: String { item.liquid == true ? "ml" : "g" }
+
+    /// The cart line for a one-tap add: the stated portion keeps its name, a drink its millilitres.
+    static func quickLine(_ item: FoodItem, _ amount: Double) -> FoodCartLine {
+        let serving = item.servingG.map { abs($0 - amount) < 0.01 } == true
+        let named = serving ? item.servingLabel.map { String(localized: "1 portion (\($0))") } : nil
+        let drink = item.liquid == true ? "\(FoodText.grams(amount)) ml" : nil
+        return FoodCartLine(item: item, grams: amount, portionLabel: named ?? drink)
     }
 
     private var motif: FoodGroupMotif? { FoodGroupMotif.forFoodId(item.id) ?? FoodGroupMotif.forGroup(item.group) }

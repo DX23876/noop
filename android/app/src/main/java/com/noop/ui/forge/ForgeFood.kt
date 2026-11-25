@@ -874,6 +874,8 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit, goalKcal: Doubl
     var favourites by remember { mutableStateOf<List<CoreFood.Item>>(emptyList()) }
     var mine by remember { mutableStateOf<List<CoreFood.Item>>(emptyList()) }
     val cart = remember { mutableStateListOf<CoreFood.CartLine>() }
+    val portionContext = LocalContext.current
+    val portionName: (String) -> String = { portionContext.getString(R.string.food_portion_one, it) }
     var portionFor by remember { mutableStateOf<CoreFood.Item?>(null) }
     var quick by remember { mutableStateOf(false) }
     var scanning by remember { mutableStateOf(false) }
@@ -983,7 +985,7 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit, goalKcal: Doubl
                 favourites.forEach { item ->
                     FoodPickRow(item, motifs[item.id], last[item.id], true, onPick = { portionFor = item }, onFavourite = { on ->
                         scope.launch { withContext(Dispatchers.IO) { CoreFood.setFavourite(item, on) }; listRevision++ }
-                    }, onQuickAdd = { grams -> cart.add(CoreFood.CartLine(item, grams)) })
+                    }, onQuickAdd = { g -> cart.add(CoreFood.CartLine.quick(item, g, portionName)) })
                 }
                 TextButton(onClick = { buildingNew = true }) {
                     Icon(Icons.Rounded.Add, null, tint = Forge.colors.food)
@@ -1000,7 +1002,7 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit, goalKcal: Doubl
                 list.forEach { (item, grams) ->
                     FoodPickRow(item, motifs[item.id], grams, false, onPick = { portionFor = item }, onFavourite = { on ->
                         scope.launch { withContext(Dispatchers.IO) { CoreFood.setFavourite(item, on) }; listRevision++ }
-                    }, onQuickAdd = { g -> cart.add(CoreFood.CartLine(item, g)) })
+                    }, onQuickAdd = { g -> cart.add(CoreFood.CartLine.quick(item, g, portionName)) })
                 }
             }
             if (mine.isNotEmpty()) {
@@ -1023,12 +1025,17 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit, goalKcal: Doubl
                 results.forEach { item ->
                     FoodPickRow(item, motifs[item.id], last[item.id], favourites.any { it.id == item.id }, onPick = { portionFor = item },
                         onFavourite = { on -> scope.launch { withContext(Dispatchers.IO) { CoreFood.setFavourite(item, on) }; listRevision++ } },
-                        onQuickAdd = { g -> cart.add(CoreFood.CartLine(item, g)) })
+                        onQuickAdd = { g -> cart.add(CoreFood.CartLine.quick(item, g, portionName)) })
                 }
                 if (prefs.mode == FoodDataPrefs.ONLINE) {
                     Text(stringResource(R.string.food_off_name), style = Forge.type.overline, color = Forge.colors.textSecondary)
                     if (onlineFailed) Text(stringResource(R.string.food_online_failed), style = Forge.type.footnote, color = Forge.colors.textSecondary)
-                    online.forEach { item -> ItemRow(item, onAdd = { portionFor = item }, onFavourite = {}) }
+                    // Online results get the same one-tap plus as every other list, with the product's stated portion.
+                    online.forEach { item ->
+                        FoodPickRow(item, motifs[item.id], last[item.id], favourites.any { it.id == item.id },
+                            onPick = { portionFor = item }, onFavourite = {},
+                            onQuickAdd = { g -> cart.add(CoreFood.CartLine.quick(item, g, portionName)) })
+                    }
                 }
             }
         }
