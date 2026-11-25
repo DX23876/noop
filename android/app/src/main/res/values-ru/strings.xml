@@ -7465,4 +7465,34 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="import_depth_one_year">1 год</string>
     <string name="import_depth_three_years">3 года</string>
     <string name="import_depth_ten_years">10 лет</string>
+    <!-- settings-parity:p1:begin -->
+    <!-- settings-parity:p1:end -->
+    <!-- settings-parity spacer 1a -->
+    <!-- settings-parity spacer 1b -->
+    <!-- settings-parity spacer 1c -->
+    <!-- settings-parity:p2:begin -->
+    <!-- settings-parity:p2:end -->
+    <!-- settings-parity spacer 2a -->
+    <!-- settings-parity spacer 2b -->
+    <!-- settings-parity spacer 2c -->
+    <!-- settings-parity:p3:begin -->
+    <!-- settings-parity:p3:end -->
+    <!-- settings-parity spacer 3a -->
+    <!-- settings-parity spacer 3b -->
+    <!-- settings-parity spacer 3c -->
+    <!-- settings-parity:p4:begin -->
+    <!-- settings-parity:p4:end -->
+    <!-- settings-parity spacer 4a -->
+    <!-- settings-parity spacer 4b -->
+    <!-- settings-parity spacer 4c -->
+    <!-- settings-parity:p5:begin -->
+    <!-- settings-parity:p5:end -->
+    <!-- settings-parity spacer 5a -->
+    <!-- settings-parity spacer 5b -->
+    <!-- settings-parity spacer 5c -->
+    <!-- settings-parity:p6:begin -->
+    <!-- settings-parity:p6:end -->
+    <!-- settings-parity spacer 6a -->
+    <!-- settings-parity spacer 6b -->
+    <!-- settings-parity spacer 6c -->
 </resources>
