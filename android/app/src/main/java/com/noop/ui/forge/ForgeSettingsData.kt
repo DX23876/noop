@@ -229,12 +229,6 @@ internal fun CalculationsSection(viewModel: AppViewModel, change: (() -> Unit) -
         ToggleRow(stringResource(R.string.l10n_settings_screen_motion_aware_wake_refinement_67a91e47),
                   stringResource(R.string.l10n_settings_screen_reviews_each_scored_wake_block_for_537924ea),
                   experiment.motionAwareWake) { on -> change { experiment.motionAwareWake = on } }
-        // iOS's Lab switch beside the wake check: hourly stress against the wearer's usual days (display only).
-        RowDivider()
-        val stressContext = androidx.compose.ui.platform.LocalContext.current
-        var stressBaseline by remember { mutableStateOf(com.noop.ui.NoopPrefs.stressPersonalBaseline(stressContext)) }
-        ToggleRow(stringResource(R.string.forge_lab_stress_baseline), stringResource(R.string.forge_lab_stress_baseline_note),
-                  stressBaseline) { on -> stressBaseline = on; com.noop.ui.NoopPrefs.setStressPersonalBaseline(stressContext, on) }
     }
     // "If scores look wrong" (iOS `AnalysisMaintenanceSettingsCard`): the status of the engine, Refresh today,
     // Recalculate the last 21 days and Reset Charge baseline, in `ForgeSettingsScoreRepair.kt`. The Charge row that
@@ -294,37 +288,6 @@ internal fun DataBackupSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSu
         RowDivider()
         LinkRow(stringResource(R.string.nav_self_hosted_push), stringResource(R.string.push_settings_row_detail)) {
             onOpen(ForgeSettingsSub.SelfHostedPush)
-        }
-    }
-    StepsSourceCard()
-}
-
-/**
- * Where daily steps come from, as iOS's Devices and data sources picker (`StepsSource`): automatically (the strap's
- * count, then the phone's, then the 4.0's estimate), the strap alone, or Health Connect alone. The one steps reader
- * in the core follows it, so the Today tile, the steps page and AgeLess show the same count.
- */
-@Composable
-internal fun StepsSourceCard() {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var chosen by remember { mutableStateOf("automatic") }
-    LaunchedEffect(Unit) {
-        chosen = withContext(Dispatchers.IO) { com.noop.core.CorePrefs.read(context).optString(com.noop.core.CorePrefs.STEPS_SOURCE, "automatic") }
-            .ifEmpty { "automatic" }
-    }
-    SettingsCard(title = stringResource(R.string.forge_steps_from), blurb = stringResource(R.string.forge_steps_auto_note)) {
-        listOf("automatic" to stringResource(R.string.forge_steps_auto), "strap" to stringResource(R.string.forge_steps_strap),
-               "phone" to stringResource(R.string.today_source_health_connect)).forEachIndexed { i, (key, label) ->
-            if (i > 0) RowDivider()
-            Row(Modifier.fillMaxWidth().selectable(selected = chosen == key, role = androidx.compose.ui.semantics.Role.RadioButton) {
-                    if (chosen == key) return@selectable
-                    chosen = key
-                    scope.launch { withContext(Dispatchers.IO) { com.noop.core.CorePrefs.setStepsSource(context, key) } }
-                }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(label, style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
-                if (chosen == key) Icon(Icons.Rounded.Check, contentDescription = null, tint = Forge.colors.accent)
-            }
         }
     }
 }

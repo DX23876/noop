@@ -88,7 +88,7 @@ MORE_WITNESS = {
     "testCentre": (SETTINGS, "TestCentreScreen("),
     "powerSaving": (SETTINGS, "ForgeSettingsPage.BatteryRecording"),
     "settings": (MORE, "MoreDest.Settings"),
-    "settingsSearch": (MORE, "SETTINGS_SEARCH_WORDS"),
+    "settingsSearch": (MORE, "matchingSettingsEntries("),
     "settingsPage": (MORE_TAB, "initialPage = page"),
     # iOS's Mi Band screen imports a Mi Fitness export; Android imports it under Settings › Data sources.
     "miBand": ("android/app/src/main/java/com/noop/ui/DataSourcesScreen.kt", "XiaomiBandImporter.importExport"),

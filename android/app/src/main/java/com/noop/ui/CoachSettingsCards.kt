@@ -33,13 +33,16 @@ import com.noop.R
 import com.noop.core.CoreCoach
 import org.json.JSONObject
 
+/** Which half of [CoachSharedSettingsCards] to draw: the coaching cards, the privacy cards, or both. */
+internal enum class CoachSharedPart { All, Coaching, Privacy }
+
 /**
  * The coaching and data-access cards of the iOS coach settings (`CoachSettingsView`'s Coaching and Privacy & data
  * pages): coaching style, reply length, proactive messages, emoji, summarising past chats, the privacy level and
  * each data-access purpose. Every value lives in the shared coach; every label comes from the iOS catalogue.
  */
 @Composable
-internal fun CoachSharedSettingsCards(vm: CoachViewModel) {
+internal fun CoachSharedSettingsCards(vm: CoachViewModel, part: CoachSharedPart = CoachSharedPart.All) {
     val settings by vm.coachSettings.collectAsStateWithLifecycle()
     LaunchedEffect(Unit) { vm.loadCoachSettings() }
     val s = settings ?: return
@@ -47,7 +50,9 @@ internal fun CoachSharedSettingsCards(vm: CoachViewModel) {
     val l = s.labels
 
     // Quick presets (`presetBar`): one tap sets style, voice, emoji, proactive messages and reply length.
-    if (s.presets.isNotEmpty()) NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
+    val coaching = part != CoachSharedPart.Privacy
+    val privacy = part != CoachSharedPart.Coaching
+    if (coaching && s.presets.isNotEmpty()) NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(l["presets"].orEmpty(), style = NoopType.subhead, color = Palette.textPrimary)
             Text(l["presetsDetail"].orEmpty(), style = NoopType.footnote, color = Palette.textSecondary)
@@ -60,10 +65,10 @@ internal fun CoachSharedSettingsCards(vm: CoachViewModel) {
             }
         }
     }
-    ChoiceCard(uiString(R.string.coach_settings_style), s.personas, s.persona) { set("persona", it) }
-    ChoiceCard(uiString(R.string.coach_settings_length), s.verbosities, s.verbosity) { set("verbosity", it) }
-    ChoiceCard(uiString(R.string.coach_settings_proactive), s.proactives, s.proactive) { set("proactive", it) }
-    NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
+    if (coaching) ChoiceCard(uiString(R.string.coach_settings_style), s.personas, s.persona) { set("persona", it) }
+    if (coaching) ChoiceCard(uiString(R.string.coach_settings_length), s.verbosities, s.verbosity) { set("verbosity", it) }
+    if (coaching) ChoiceCard(uiString(R.string.coach_settings_proactive), s.proactives, s.proactive) { set("proactive", it) }
+    if (coaching) NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             ToggleRow(uiString(R.string.coach_settings_emoji), null, s.emoji) { set("emoji", it) }
             ToggleRow(uiString(R.string.coach_settings_summarise), s.autoSummarizeDetail, s.autoSummarize) {
@@ -71,7 +76,7 @@ internal fun CoachSharedSettingsCards(vm: CoachViewModel) {
             }
         }
     }
-    NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
+    if (privacy) NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Overline(uiString(R.string.coach_settings_privacy_level))
             Segmented(s.accessModes, s.accessMode) { set("accessMode", it) }

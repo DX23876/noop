@@ -245,6 +245,18 @@ internal fun SettingsCard(title: String?, blurb: String?, icon: ImageVector? = n
 }
 
 /**
+ * A group header of the Settings index as iOS `ForgeSettingsView.section` draws it: footnote size, semibold,
+ * upper case, secondary colour, 16 dp in, a little air above, read as a heading.
+ */
+@Composable
+internal fun SettingsGroupHeader(title: String) {
+    Text(title.uppercase(), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold),
+         color = Forge.colors.textSecondary,
+         modifier = Modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space4).padding(top = ForgeMetrics.space2)
+             .semantics { heading() })
+}
+
+/**
  * The head of a Settings page (iOS `SettingsPageBanner`), as iOS Settings opens its own pages: the page's symbol
  * on a tile in the colour of its row in the index, centred, with one plain line on what the page is for.
  */

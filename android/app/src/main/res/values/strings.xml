@@ -7718,6 +7718,53 @@ Plotting each series as change from its own first reading puts them on one scale
     <!-- settings-parity spacer 5b -->
     <!-- settings-parity spacer 5c -->
     <!-- settings-parity:p6:begin -->
+    <string name="fsp6_alerts_title">Alerts and reminders</string>
+    <string name="fsp6_alerts_subtitle">Lock Screen, wrist alerts and reminders</string>
+    <string name="fsp6_sub_roadmap">The plan, reported problems, wishes, and how to help</string>
+    <string name="fsp6_sub_strap">Connection, recording, battery, double-tap, steps</string>
+    <string name="fsp6_sub_battery">Power saving and continuous HRV</string>
+    <string name="fsp6_sub_actions">Double-tap, buzzes and heart-rate alerts</string>
+    <string name="fsp6_sub_today">Cards, order and style</string>
+    <string name="fsp6_sub_coach">Provider, model and memory</string>
+    <string name="fsp6_sub_language">Language, clock, week start and units</string>
+    <string name="fsp6_sub_appearance">Theme, background, charts and motion</string>
+    <string name="fsp6_sub_data">Backup, Health Connect, imports and storage</string>
+    <string name="fsp6_how_explained">Explained</string>
+    <string name="fsp6_how_model">Your model</string>
+    <string name="fsp6_ss_today_cards">Today cards</string>
+    <string name="fsp6_ss_style">Style</string>
+    <string name="fsp6_ss_imports">Health Connect &amp; imports</string>
+    <string name="fsp6_ss_whoop5">Lab · WHOOP 5 / MG</string>
+    <string name="fsp6_about_blurb">NOOP: all your data, none of the cloud.</string>
+    <string name="fsp6_about_pill">v%1$s</string>
+    <string name="fsp6_about_check_note">Checks the project\'s home (GitHub) for the latest version when you tap. Nothing else is sent.</string>
+    <string name="fsp6_about_support">Support the project</string>
+    <string name="fsp6_about_support_detail">Optional: buy a coffee on Ko-fi. NOOP stays free either way.</string>
+    <string name="fsp6_about_intro">A standalone companion for your WHOOP. Everything stays on this device: your history, your live stream, your numbers. Nothing is uploaded. NOOP is an independent, experimental project, not the WHOOP app.</string>
+    <string name="fsp6_about_built_on">Built on</string>
+    <string name="fsp6_about_proto4">johnmiddleton12/my-whoop · WHOOP 4.0 protocol</string>
+    <string name="fsp6_about_proto5">b-nnett/goose · WHOOP 5.0 protocol</string>
+    <string name="fsp6_ack_intro">NOOP uses the following third-party content under its own licence. A licence in one domain (code, data, media) is not treated as a licence in another.</string>
+    <string name="fsp6_ack_detail">Third-party content NOOP uses under its own licence.</string>
+    <string name="fsp6_ack_adopted_intro">NOOP Forge builds on NOOP by ryanbr and its contributors. These people\'s fixes and features were taken into NOOP Forge directly, from their own forks or their pull requests. ATTRIBUTION.md lists the sources.</string>
+    <string name="fsp6_ack_adopted_header">People whose work NOOP Forge adopted</string>
+    <string name="fsp6_ack_unavailable">The credits could not be loaded.</string>
+    <string name="fsp6_ack_licence_missing">The licence text is not available in this build.</string>
+    <string name="fsp6_help_tc_blurb">Turn on a test for the thing that\'s wrong, wear the strap, then tap Report. Your strap log, recalibrate, scheduled export and experimental probes all live here too.</string>
+    <string name="fsp6_help_open_tc">Open Test Centre</string>
+    <string name="fsp6_help_diag_blurb">A read-only export of the decoded sensor streams NOOP already stores. Works on any strap. Nothing is written to your device, and nothing is uploaded.</string>
+    <string name="fsp6_coach_conn">Connection &amp; model</string>
+    <string name="fsp6_coach_conn_detail">Provider, API key and which model answers.</string>
+    <string name="fsp6_coach_coaching">Coaching</string>
+    <string name="fsp6_coach_coaching_detail">Style, how you open Coach, and daily check-ins.</string>
+    <string name="fsp6_coach_privacy">Privacy &amp; data</string>
+    <string name="fsp6_coach_privacy_detail">What\'s shared, and the coach\'s instructions.</string>
+    <string name="fsp6_coach_forget_key">Forget saved key</string>
+    <string name="fsp6_coach_forget_title">Forget your saved %1$s key?</string>
+    <string name="fsp6_coach_forget_confirm">Forget key</string>
+    <string name="fsp6_coach_forget_message">You\'ll need to paste it again to reconnect. This is different from Disconnect, which keeps the key.</string>
+    <string name="fsp6_lab_blurb">Unfinished features. Off by default; turn one off again any time.</string>
+    <string name="fsp6_ss_motion">Motion</string>
     <!-- settings-parity:p6:end -->
     <!-- settings-parity spacer 6a -->
     <!-- settings-parity spacer 6b -->

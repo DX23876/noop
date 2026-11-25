@@ -7618,6 +7618,53 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <!-- settings-parity spacer 5b -->
     <!-- settings-parity spacer 5c -->
     <!-- settings-parity:p6:begin -->
+    <string name="fsp6_alerts_title">提醒与通知</string>
+    <string name="fsp6_alerts_subtitle">锁定屏幕、腕部提醒与提醒事项</string>
+    <string name="fsp6_sub_roadmap">计划、已报告的问题、心愿，以及如何帮忙</string>
+    <string name="fsp6_sub_strap">连接、记录、电量、双击、步数</string>
+    <string name="fsp6_sub_battery">省电与连续 HRV</string>
+    <string name="fsp6_sub_actions">双击、振动与心率提醒</string>
+    <string name="fsp6_sub_today">卡片、顺序与风格</string>
+    <string name="fsp6_sub_coach">服务商、模型与记忆</string>
+    <string name="fsp6_sub_language">语言、时钟、每周开始日与单位</string>
+    <string name="fsp6_sub_appearance">主题、背景、图表与动效</string>
+    <string name="fsp6_sub_data">备份、Health Connect、导入与存储</string>
+    <string name="fsp6_how_explained">说明</string>
+    <string name="fsp6_how_model">你的模型</string>
+    <string name="fsp6_ss_today_cards">今天页卡片</string>
+    <string name="fsp6_ss_style">风格</string>
+    <string name="fsp6_ss_imports">Health Connect与导入</string>
+    <string name="fsp6_ss_whoop5">实验室 · WHOOP 5 / MG</string>
+    <string name="fsp6_about_blurb">NOOP，你的全部数据，不上云端。</string>
+    <string name="fsp6_about_pill">v%1$s</string>
+    <string name="fsp6_about_check_note">点击时会到项目主页（GitHub）检查最新版本，不发送任何其他内容。</string>
+    <string name="fsp6_about_support">支持本项目</string>
+    <string name="fsp6_about_support_detail">可选：在 Ko-fi 上请开发者喝杯咖啡。无论如何 NOOP 都免费。</string>
+    <string name="fsp6_about_intro">为你的 WHOOP 打造的独立伴侣应用。一切都留在这台设备上，你的历史、你的实时数据流、你的各项数值。不上传任何内容。NOOP 是一个独立的实验性项目，并非 WHOOP 官方应用。</string>
+    <string name="fsp6_about_built_on">构建于</string>
+    <string name="fsp6_about_proto4">johnmiddleton12/my-whoop · WHOOP 4.0 协议</string>
+    <string name="fsp6_about_proto5">b-nnett/goose · WHOOP 5.0 协议</string>
+    <string name="fsp6_ack_intro">NOOP 在其自身许可下使用以下第三方内容。一个领域(代码、数据、媒体)的许可并不等同于另一个领域的许可。</string>
+    <string name="fsp6_ack_detail">NOOP 在其自身许可下使用的第三方内容。</string>
+    <string name="fsp6_ack_adopted_intro">NOOP Forge 基于 ryanbr 的 NOOP 及其贡献者的成果。以下贡献者的修复和功能是直接从他们自己的分支或拉取请求中采用到 NOOP Forge 的。来源列在 ATTRIBUTION.md 中。</string>
+    <string name="fsp6_ack_adopted_header">NOOP Forge 采用了其成果的贡献者</string>
+    <string name="fsp6_ack_unavailable">无法加载致谢名单。</string>
+    <string name="fsp6_ack_licence_missing">此版本不包含许可文本。</string>
+    <string name="fsp6_help_tc_blurb">为出问题的部分开启一项测试，佩戴手环，然后点击「报告」。你的手环日志、重新校准、定时导出和实验性探测也都在这里。</string>
+    <string name="fsp6_help_open_tc">打开测试中心</string>
+    <string name="fsp6_help_diag_blurb">对 NOOP 已存储的已解码传感器数据流进行只读导出。适用于任何手环，不会向你的设备写入任何内容，也不会上传任何内容。</string>
+    <string name="fsp6_coach_conn">连接方式及型号</string>
+    <string name="fsp6_coach_conn_detail">提供商、API 密钥以及对应的型号。</string>
+    <string name="fsp6_coach_coaching">Coaching</string>
+    <string name="fsp6_coach_coaching_detail">风格、打开 Coach 的方式以及每日签到。</string>
+    <string name="fsp6_coach_privacy">隐私和数据</string>
+    <string name="fsp6_coach_privacy_detail">分享的内容以及教练的指示。</string>
+    <string name="fsp6_coach_forget_key">忘记保存的密钥</string>
+    <string name="fsp6_coach_forget_title">忘记保存的 %1$s 密钥？</string>
+    <string name="fsp6_coach_forget_confirm">忘记钥匙</string>
+    <string name="fsp6_coach_forget_message">您需要再次粘贴它才能重新连接。这与 Disconnect 不同，Disconnect 保留密钥。</string>
+    <string name="fsp6_lab_blurb">尚未完成的功能。默认关闭，随时可以再次关闭。</string>
+    <string name="fsp6_ss_motion">运动</string>
     <!-- settings-parity:p6:end -->
     <!-- settings-parity spacer 6a -->
     <!-- settings-parity spacer 6b -->

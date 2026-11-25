@@ -76,6 +76,7 @@ import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.Map
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.UnfoldMore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
@@ -171,6 +172,9 @@ import kotlinx.coroutines.launch
 
 private const val SOURCE_URL = "https://github.com/DX23876/noop"
 
+/** The fork's optional donation page, opened in the browser (iOS `ProjectLinks.support`); the app never contacts it. */
+private const val SUPPORT_URL = "https://ko-fi.com/dx23876"
+
 @Composable
 internal fun HelpSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Unit) {
     val context = LocalContext.current
@@ -193,14 +197,26 @@ internal fun HelpSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> 
         RowDivider()
         LinkRow(stringResource(R.string.nav_noop_limitations), null) { onOpen(ForgeSettingsSub.Limitations) }
     }
-    SettingsCard(title = stringResource(R.string.forge_settings_diagnostics), blurb = null) {
-        LinkRow(stringResource(R.string.nav_test_centre), stringResource(R.string.forge_settings_test_centre_detail)) {
-            onOpen(ForgeSettingsSub.TestCentre)
-        }
+    // iOS `testCentreCard`: one row into the Test Centre. Sharing the strap log stays here too (Android-only, A-08).
+    SettingsCard(title = stringResource(R.string.nav_test_centre), blurb = stringResource(R.string.fsp6_help_tc_blurb)) {
+        LinkRow(stringResource(R.string.fsp6_help_open_tc), null) { onOpen(ForgeSettingsSub.TestCentre) }
         RowDivider()
         LinkRow(stringResource(R.string.forge_strap_log_share), stringResource(R.string.forge_strap_log_detail),
                 busy = sharing) {
             viewModel.shareStrapLog(context)
+        }
+    }
+    // iOS `rawSensorDiagnosticsCard` (HLP-06): the last 24 hours of decoded sensor streams as one CSV, read-only.
+    val scope = rememberCoroutineScope()
+    var exporting by remember { mutableStateOf(false) }
+    SettingsCard(title = stringResource(R.string.forge_settings_diagnostics), blurb = stringResource(R.string.fsp6_help_diag_blurb)) {
+        LinkRow(stringResource(R.string.l10n_settings_screen_export_raw_sensor_data_csv_a171b81e),
+                stringResource(R.string.l10n_settings_screen_saves_the_last_24h_of_decoded_f7026f47), busy = exporting) {
+            exporting = true
+            scope.launch {
+                runCatching { com.noop.ingest.RawSensorExport.export(context, viewModel.repo, viewModel.activeStrapId) }
+                exporting = false
+            }
         }
     }
 }
@@ -208,22 +224,15 @@ internal fun HelpSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> 
 @Composable
 internal fun LabSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Unit) {
     val context = LocalContext.current
-    SettingsCard(title = stringResource(R.string.forge_experimental_section), blurb = null) {
+    SettingsCard(title = stringResource(R.string.forge_experimental_section), blurb = stringResource(R.string.fsp6_lab_blurb)) {
         // The redesign's switch stood here until 2026-11-20. It is gone, not hidden: the design ships to
         // everyone and the screens under it are not maintained any more, so a way back only produces
         // reports from pages nobody is looking at (`ForgeDesign.retireTheOldDesign`).
-        // The two Lab passes of the shared core, as on iOS: off by default, scored at the next analysis.
-        var ageless by remember { mutableStateOf(com.noop.core.CoreFeatures.healthspan(context)) }
-        ToggleRow(stringResource(R.string.forge_lab_ageless), stringResource(R.string.forge_lab_ageless_detail), ageless) {
-            ageless = it
-            com.noop.core.CoreFeatures.setHealthspan(context, it)
-        }
-        RowDivider()
-        var rhythm by remember { mutableStateOf(com.noop.core.CoreFeatures.rhythmAge(context)) }
-        ToggleRow(stringResource(R.string.forge_lab_rhythm), stringResource(R.string.forge_lab_rhythm_detail), rhythm) {
-            rhythm = it
-            com.noop.core.CoreFeatures.setRhythmAge(context, it)
-        }
+        // iOS order: the personal stress baseline (display only, one home since 2026-11-25: Calculations no longer
+        // carries it), the training-based VO2max, strength in Effort, AgeLess, the daily rhythm.
+        var stressBaseline by remember { mutableStateOf(com.noop.ui.NoopPrefs.stressPersonalBaseline(context)) }
+        ToggleRow(stringResource(R.string.forge_lab_stress_baseline), stringResource(R.string.forge_lab_stress_baseline_note),
+                  stressBaseline) { on -> stressBaseline = on; com.noop.ui.NoopPrefs.setStressPersonalBaseline(context, on) }
         RowDivider()
         var exerciseVO2max by remember { mutableStateOf(com.noop.core.CoreFeatures.exerciseVO2max(context)) }
         ToggleRow(stringResource(R.string.forge_lab_xvo2), stringResource(R.string.forge_lab_xvo2_detail), exerciseVO2max) {
@@ -237,6 +246,19 @@ internal fun LabSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> U
                   stringResource(R.string.forge_lab_strength_effort_detail), strengthEffort) {
             strengthEffort = it
             viewModel.setEffortStrengthBonus(it)
+        }
+        RowDivider()
+        // The two Lab passes of the shared core, as on iOS: off by default, scored at the next analysis.
+        var ageless by remember { mutableStateOf(com.noop.core.CoreFeatures.healthspan(context)) }
+        ToggleRow(stringResource(R.string.forge_lab_ageless), stringResource(R.string.forge_lab_ageless_detail), ageless) {
+            ageless = it
+            com.noop.core.CoreFeatures.setHealthspan(context, it)
+        }
+        RowDivider()
+        var rhythm by remember { mutableStateOf(com.noop.core.CoreFeatures.rhythmAge(context)) }
+        ToggleRow(stringResource(R.string.forge_lab_rhythm), stringResource(R.string.forge_lab_rhythm_detail), rhythm) {
+            rhythm = it
+            com.noop.core.CoreFeatures.setRhythmAge(context, it)
         }
         RowDivider()
         // Parity plan 1.3: the check that the classic screens' rows and the core's agree. Since Android has no
@@ -283,20 +305,30 @@ internal fun AboutSection(onOpen: (ForgeSettingsSub) -> Unit) {
     var checking by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<UpdateCheck.Result?>(null) }
     var automatic by remember { mutableStateOf(UpdateWatch.isEnabled(context)) }
-    SettingsCard(title = null, blurb = null) {
-        SettingRow(stringResource(R.string.forge_version, BuildIdentity.uiVersion)) {}
-        RowDivider()
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.l10n_settings_screen_check_automatically_7cd229d2), style = Forge.type.body,
-                     color = Forge.colors.text)
-                Text(stringResource(R.string.l10n_settings_screen_once_a_day_noop_asks_github_5683aad3),
-                     style = Forge.type.caption, color = Forge.colors.textTertiary)
+    val colors = Forge.colors
+    fun open(url: String) = context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    SettingsCard(title = null, blurb = stringResource(R.string.fsp6_about_blurb)) {
+        // iOS `aboutCard`: the name, the version pill and the What's new button on one line.
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+            Text(stringResource(R.string.app_name), style = Forge.type.title2, color = colors.text)
+            ForgeBadgePill(stringResource(R.string.fsp6_about_pill, BuildConfig.VERSION_NAME), ForgeBadgeTone.Neutral)
+            Spacer(Modifier.weight(1f))
+            TextButton(onClick = { onOpen(ForgeSettingsSub.WhatsNew) }) {
+                Text(stringResource(R.string.l10n_settings_screen_what_s_new_4d8dc5fe), color = colors.accent)
             }
-            Switch(checked = automatic, onCheckedChange = { automatic = it; UpdateWatch.setEnabled(context, it) },
-                   colors = forgeSwitchColors())
+        }
+        // Which build this is (#47): the commit and date of the testing build, to read back beside a strap log.
+        BuildIdentity.stamp?.let { stamp ->
+            androidx.compose.foundation.text.selection.SelectionContainer {
+                Text(stamp, style = Forge.type.footnote, color = colors.textTertiary)
+            }
         }
         RowDivider()
+        LinkRow(stringResource(R.string.forge_provider_acknowledgements), stringResource(R.string.fsp6_ack_detail)) {
+            onOpen(ForgeSettingsSub.Acknowledgements)
+        }
+        RowDivider()
+        // Check for updates: a single, user-initiated read of GitHub's public releases API.
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(enabled = !checking, onClick = {
                 checking = true; result = null
@@ -304,36 +336,67 @@ internal fun AboutSection(onOpen: (ForgeSettingsSub) -> Unit) {
             }) {
                 Text(stringResource(if (checking) R.string.l10n_settings_screen_checking_820d6004
                                     else R.string.l10n_settings_screen_check_for_updates_736b9062),
-                     color = Forge.colors.accent)
+                     color = colors.accent)
             }
             Text(
                 when (val r = result) {
                     is UpdateCheck.Result.UpToDate -> stringResource(R.string.l10n_settings_screen_you_re_on_the_latest_r_027a82be, r.version)
-                    is UpdateCheck.Result.Available -> stringResource(R.string.forge_settings_update_available, r.version)
                     UpdateCheck.Result.Failed -> stringResource(R.string.l10n_settings_screen_couldn_t_check_try_again_b3c885d9)
-                    null -> ""
+                    else -> ""
                 },
-                style = Forge.type.caption, color = Forge.colors.textSecondary, modifier = Modifier.weight(1f),
+                style = Forge.type.footnote, modifier = Modifier.weight(1f),
+                color = if (result == UpdateCheck.Result.Failed) ForgeTokens.StrandPalette.statusWarningForeground.resolve()
+                        else colors.textSecondary,
             )
         }
+        // #1659: the automatic half.
+        ToggleRow(stringResource(R.string.l10n_settings_screen_check_automatically_7cd229d2),
+                  stringResource(R.string.l10n_settings_screen_once_a_day_noop_asks_github_5683aad3), automatic) {
+            automatic = it; UpdateWatch.setEnabled(context, it)
+        }
+        // An update is available: what is new, with a download straight to the release.
         (result as? UpdateCheck.Result.Available)?.let { available ->
-            TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(available.url))) }) {
-                Text(stringResource(R.string.forge_settings_update_open), color = Forge.colors.accent)
+            Column(Modifier.fillMaxWidth().background(colors.inset, RoundedCornerShape(10.dp)).padding(ForgeMetrics.space3),
+                   verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.forge_settings_update_available, available.version), style = Forge.type.body,
+                         color = colors.text, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { open(available.url) }) {
+                        Text(stringResource(R.string.l10n_settings_screen_download_a479c9c3), color = colors.accent)
+                    }
+                }
+                if (available.notes.isNotEmpty()) {
+                    Column(Modifier.fillMaxWidth().heightIn(max = 150.dp).verticalScroll(rememberScrollState())) {
+                        Text(available.notes, style = Forge.type.footnote, color = colors.textSecondary)
+                    }
+                }
             }
         }
+        Text(stringResource(R.string.fsp6_about_check_note), style = Forge.type.footnote, color = colors.textSecondary)
         RowDivider()
-        TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(SOURCE_URL))) }) {
-            Text(stringResource(R.string.forge_settings_source), color = Forge.colors.accent)
-        }
-    }
-    SettingsCard(title = null, blurb = null) {
-        LinkRow(stringResource(R.string.forge_provider_acknowledgements),
-                stringResource(R.string.forge_provider_acknowledgements_detail)) { onOpen(ForgeSettingsSub.Acknowledgements) }
+        LinkRow(stringResource(R.string.l10n_settings_screen_project_home_source_994627c1),
+                stringResource(R.string.l10n_settings_screen_github_code_releases_issues_and_the_50b41e25)) { open(SOURCE_URL) }
         RowDivider()
-        LinkRow(stringResource(R.string.l10n_settings_screen_what_s_new_4d8dc5fe),
-                stringResource(R.string.l10n_settings_screen_recent_changes_and_what_to_expect_3ceb660b)) {
-            onOpen(ForgeSettingsSub.WhatsNew)
+        // Optional donation link (Ko-fi): a plain browser link, no request from the app (iOS `ProjectLinks.support`).
+        LinkRow(stringResource(R.string.fsp6_about_support), stringResource(R.string.fsp6_about_support_detail)) { open(SUPPORT_URL) }
+        Text(stringResource(R.string.fsp6_about_intro), style = Forge.type.subhead, color = colors.textSecondary)
+        // The medical disclaimer, on the inset with a warning mark as iOS draws it.
+        Row(Modifier.fillMaxWidth().background(colors.inset, RoundedCornerShape(10.dp)).padding(ForgeMetrics.space3),
+            horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+            Icon(Icons.Rounded.Warning, contentDescription = null, modifier = Modifier.size(16.dp),
+                 tint = ForgeTokens.StrandPalette.statusWarningForeground.resolve())
+            Text(stringResource(R.string.l10n_settings_screen_noop_is_not_a_medical_device_ab32ef7e),
+                 style = Forge.type.footnote, color = colors.textSecondary)
         }
+        RowDivider()
+        Text(stringResource(R.string.fsp6_about_built_on).uppercase(), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold),
+             color = colors.textSecondary)
+        Text(stringResource(R.string.fsp6_about_proto4),
+             style = Forge.type.footnote, color = colors.text)
+        Text(stringResource(R.string.fsp6_about_proto5),
+             style = Forge.type.footnote, color = colors.text)
+        Text(stringResource(R.string.l10n_settings_screen_open_source_ble_reverse_engineering_work_40062271),
+             style = Forge.type.footnote, color = colors.textSecondary)
     }
     SettingsCard(title = null, blurb = null) {
         // The classic screens stay one switch away for what the Forge screens do not cover; their Settings switch back.
