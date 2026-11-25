@@ -641,7 +641,7 @@ private struct SettingsPageContent: View, Equatable {
             blurb: "These power your heart-rate zones, calorie estimates and recovery baselines. Keep them accurate.",
             headerAction: (profileEditing ? "Done" : "Edit", { profileEditing.toggle() })
         ) {
-            VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                 // The new design changes the photo on the head above; the row stays in the shipped one.
                 if NoopVisualStyle.skin != .forge {
                     profilePhotoRow
@@ -1346,7 +1346,7 @@ private struct SettingsPageContent: View, Equatable {
     private var trainingCard: some View {
         SettingsSection(icon: "dumbbell.fill", title: "Training",
                         blurb: "Logging sets, rest timers and the workout screen.") {
-            VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                 trainingGroupLabel("Logging sets")
                 FormRow(label: "Set effort") {
                     Picker("Set effort", selection: $trainingEffortRaw) {
@@ -1477,7 +1477,7 @@ private struct SettingsPageContent: View, Equatable {
             title: "Units",
             blurb: "Only changes what you see. NOOP always stores the same values."
         ) {
-            VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                 FormRow(label: "Body") {
                     Picker("Body", selection: $unitSystemRaw) {
                         Text("Metric").tag(UnitSystem.metric.rawValue)
@@ -1583,7 +1583,7 @@ private struct SettingsPageContent: View, Equatable {
             title: "Language",
             blurb: "Language, clock and the first day of the week."
         ) {
-            VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                 // App-owned copy language. Apple binds a bundle localization at process launch, so this
                 // takes effect after the user reopens NOOP (the note below says so). Sits above the theme
                 // controls because it re-words everything under it.
@@ -1645,7 +1645,7 @@ private struct SettingsPageContent: View, Equatable {
             title: "Style",
             blurb: "Light, dark or your system setting, plus accent and icons."
         ) {
-            VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                 // Theme presets — one-tap bundles coordinating accent + chart world + backdrop + card
                 // opacity. Derived (no stored value): tweaking any control below flips this to Custom.
                 FormRow(label: "Preset") {
@@ -1770,7 +1770,7 @@ private struct SettingsPageContent: View, Equatable {
             title: "Charts",
             blurb: "How charts look. The data stays the same."
         ) {
-            VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                 FormRow(label: "Chart colours") {
                     // Default = NOOP's clean metric ramps; Classic = the throwback red→amber→green
                     // readiness scale (cool→hot zones, green→red stress); Apple Health = Apple's own
@@ -1824,7 +1824,7 @@ private struct SettingsPageContent: View, Equatable {
             title: "Motion",
             blurb: "Animations and movement on screen."
         ) {
-            VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                 // MARK: Reduce motion in NOOP — pose every looping animation still and stop the tilt
                 // sensor, WITHOUT requiring system Low Power Mode. Off by default; system Reduce Motion
                 // and Low Power Mode already force the same behaviour, this is the third, in-app signal.
@@ -1905,7 +1905,7 @@ private struct SettingsPageContent: View, Equatable {
             title: "Background",
             blurb: "What sits behind the cards."
         ) {
-            VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                 // MARK: Day-cycle background — the time-of-day scene behind Today (#698). On by default.
                 // Off swaps it for the plain dark canvas for people who find the moving scene distracting.
                 Toggle(isOn: $showDayCycleBackground) {
@@ -3419,6 +3419,8 @@ private struct SettingsPageContent: View, Equatable {
         Text(title)
             .font(StrandFont.overline)
             .tracking(StrandFont.overlineTracking)
+            // Upper case like every other group name in the new design (Android draws it the same way).
+            .textCase(NoopVisualStyle.skin == .forge ? .uppercase : nil)
             .foregroundStyle(StrandPalette.textTertiary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, NoopMetrics.space2)
@@ -3437,7 +3439,7 @@ private struct SettingsPageContent: View, Equatable {
             title: "Steps",
             blurb: "Only needed when your step count looks wrong."
         ) {
-            VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                 // Step calibration (#139/#132): daily steps = @57 counter ticks ÷ this divisor.
                 // 1.0 = raw pass-through until the true 5/MG tick rate is known. The divisor goes
                 // up to 30 because a 5/MG motion counter can overcount by ~24×; the stepper uses a
@@ -3708,7 +3710,7 @@ private struct SettingsPageContent: View, Equatable {
             title: "How NOOP calculates",
             blurb: "Changes here can recompute past days. Your recorded data stays."
         ) {
-            VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 0) {
                 FormRow(label: "Day start") {
                     Picker("Day start", selection: Binding(
                         get: { DayCycleMode.persisted(dayCycleModeRaw) },
