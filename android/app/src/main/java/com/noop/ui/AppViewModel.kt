@@ -2062,7 +2062,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val strain = if (samples.size >= 2)
             StrainScorer.strain(samples, maxHR = profileStore.hrMax.toDouble(),
                 restingHR = restingHR, method = NoopPrefs.effortMethod(appContext),
-                sex = profileStore.sex) else null
+                sex = profileStore.sex, workout = true) else null
         // Estimate calories from the captured HR window (same Keytel/Harris–Benedict model the
         // auto-detector uses) so a manual session shows energy too, not just duration/strain. (#117)
         val energyKcal = if (samples.size >= 2)
@@ -2142,7 +2142,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val s = w.samples + HrSample(deviceId = deviceId, ts = ts, bpm = bpm)
         val strain = StrainScorer.strain(
             s, maxHR = profileStore.hrMax.toDouble(),
-            method = NoopPrefs.effortMethod(appContext), sex = profileStore.sex) ?: 0.0
+            method = NoopPrefs.effortMethod(appContext), sex = profileStore.sex, workout = true) ?: 0.0
         val updated = w.copy(
             // Grown by comparison, not recomputed from `s`, so a peak folded in from a repeated second is kept.
             samples = s, avgHr = s.sumOf { it.bpm } / s.size, peakHr = maxOf(w.peakHr, bpm), liveStrain = strain,

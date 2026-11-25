@@ -1552,7 +1552,7 @@ class WhoopRepository(
             val filledStrain = if (needsStrainFill && strainMaxHR != null) {
                 val samples = dao.hrSamples(hrIds[0], row.startTs, row.endTs, 8000)
                 com.noop.analytics.StrainScorer.strain(
-                    samples, maxHR = strainMaxHR, method = effortMethod, sex = strainSex)
+                    samples, maxHR = strainMaxHR, method = effortMethod, sex = strainSex, workout = true)
             } else null
             if (strapNative) {
                 // True mean / peak of the very samples the graph + zones + effort use; FILL a null Effort
