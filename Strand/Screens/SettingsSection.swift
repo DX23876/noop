@@ -22,7 +22,7 @@ struct SettingsSection<Content: View>: View {
                     HStack(alignment: .firstTextBaseline) {
                         if !headerHidden {
                             Text(title)
-                                .font(.footnote.weight(.semibold))
+                                .font(StrandFont.footnote.weight(.semibold))
                                 .textCase(.uppercase)
                                 .foregroundStyle(StrandPalette.textSecondary)
                                 .accessibilityAddTraits(.isHeader)
@@ -30,7 +30,7 @@ struct SettingsSection<Content: View>: View {
                         if let headerAction {
                             Spacer(minLength: NoopMetrics.space2)
                             Button(headerAction.label, action: headerAction.perform)
-                                .font(.callout.weight(.semibold))
+                                .font(StrandFont.body.weight(.semibold))
                                 .foregroundStyle(StrandPalette.accent)
                                 .buttonStyle(.plain)
                         }
@@ -99,19 +99,19 @@ extension EnvironmentValues {
     }
 }
 
-/// The text size of a setting's label in the new design: the size of the rows in the Settings index, so
-/// a page and the index it opens from read at one size.
+/// The text size of a setting's label in the new design: the app's body token, which Android's Forge
+/// Settings read from the same generated scale, so both platforms label a setting at one size.
 enum SettingsRowFont {
-    static var value: Font { NoopVisualStyle.skin == .forge ? .callout : StrandFont.subhead }
+    static var value: Font { NoopVisualStyle.skin == .forge ? StrandFont.body : StrandFont.subhead }
     /// The same size where the classic look used its larger body text for a label.
-    static var title: Font { NoopVisualStyle.skin == .forge ? .callout : StrandFont.body }
+    static var title: Font { StrandFont.body }
 }
 
 /// The explanation that sits under a setting or a group: secondary text that wraps instead of clipping.
 private struct SettingsCaptionStyle: ViewModifier {
     func body(content: Content) -> some View {
         content
-            .font(NoopVisualStyle.skin == .forge ? .footnote : StrandFont.caption)
+            .font(NoopVisualStyle.skin == .forge ? StrandFont.footnote : StrandFont.caption)
             .foregroundStyle(StrandPalette.textSecondary)
             .fixedSize(horizontal: false, vertical: true)
     }

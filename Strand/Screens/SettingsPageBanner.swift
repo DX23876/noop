@@ -16,7 +16,7 @@ struct SettingsPageBanner: View {
                 .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(page.forgeTint))
                 .accessibilityHidden(true)
             Text(page.subtitle)
-                .font(.callout)
+                .font(StrandFont.body)
                 .foregroundStyle(StrandPalette.textSecondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)

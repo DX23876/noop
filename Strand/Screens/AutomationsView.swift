@@ -744,7 +744,7 @@ private struct Section2<Content: View>: View {
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                 HStack(spacing: NoopMetrics.space2) {
                     Text(title)
-                        .font(.footnote.weight(.semibold))
+                        .font(StrandFont.footnote.weight(.semibold))
                         .textCase(.uppercase)
                         .foregroundStyle(StrandPalette.textSecondary)
                         .accessibilityAddTraits(.isHeader)

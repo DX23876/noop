@@ -1,5 +1,7 @@
 package com.noop.ui.forge
 
+import androidx.compose.ui.semantics.heading
+
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import com.noop.ingest.WhoopCsvExporter
@@ -215,29 +217,48 @@ internal fun HubDivider() {
 @Composable
 internal fun SettingsCard(title: String?, blurb: String?, icon: ImageVector? = null, tint: Color? = null,
                           active: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
-    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = ForgeMetrics.space5) {
-        // `Section2` on iOS: an active automation says ON above its title.
-        if (active) {
-            Text(stringResource(R.string.forge_sp_on).uppercase(), style = Forge.type.overline, color = Forge.colors.accent)
-        }
+    // iOS `SettingsSection` in the new design, built as iOS Settings builds a group: a small upper-case header
+    // above the card, the controls on the card, and the plain explanation as a footer under it. The icon and
+    // tint stay in the signature for the callers; the header carries no icon, as on iOS.
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
         if (title != null) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (icon != null) {
-                    Box(Modifier.size(26.dp).background(tint ?: Forge.colors.accent, RoundedCornerShape(7.dp)),
-                        contentAlignment = Alignment.Center) {
-                        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
-                    }
+            Row(Modifier.padding(horizontal = ForgeMetrics.space4), verticalAlignment = Alignment.CenterVertically) {
+                Text(title.uppercase(), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold),
+                     color = Forge.colors.textSecondary, modifier = Modifier.semantics { heading() })
+                // `Section2` on iOS: an active automation shows a small dot beside its name.
+                if (active) {
+                    val on = stringResource(R.string.forge_sp_on)
                     Spacer(Modifier.width(ForgeMetrics.space2))
+                    Box(Modifier.size(6.dp).background(Forge.colors.charge, CircleShape)
+                        .semantics { contentDescription = on })
                 }
-                Text(title, style = Forge.type.title2, color = Forge.colors.text)
             }
+        }
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = ForgeMetrics.space4) {
+            content()
         }
         if (blurb != null) {
             Text(blurb, style = Forge.type.footnote, color = Forge.colors.textSecondary,
-                 modifier = Modifier.padding(top = if (title != null) ForgeMetrics.space1 else 0.dp))
+                 modifier = Modifier.padding(horizontal = ForgeMetrics.space4))
         }
-        if (title != null || blurb != null) Spacer(Modifier.height(ForgeMetrics.space3))
-        content()
+    }
+}
+
+/**
+ * The head of a Settings page (iOS `SettingsPageBanner`), as iOS Settings opens its own pages: the page's symbol
+ * on a tile in the colour of its row in the index, centred, with one plain line on what the page is for.
+ */
+@Composable
+internal fun SettingsPageHead(page: ForgeSettingsPage) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space4).padding(bottom = ForgeMetrics.space2)
+               .semantics(mergeDescendants = true) {},
+           horizontalAlignment = Alignment.CenterHorizontally,
+           verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
+        Box(Modifier.size(60.dp).background(page.tint(), RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
+            Icon(page.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(32.dp))
+        }
+        Text(stringResource(page.subtitleRes), style = Forge.type.body, color = Forge.colors.textSecondary,
+             textAlign = TextAlign.Center)
     }
 }
 
@@ -261,7 +282,7 @@ internal fun LinkRow(title: String, detail: String?, busy: Boolean = false, onCl
         verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = Forge.type.body, color = colors.text)
-            if (detail != null) Text(detail, style = Forge.type.caption, color = colors.textSecondary)
+            if (detail != null) Text(detail, style = Forge.type.footnote, color = colors.textSecondary)
         }
         Spacer(Modifier.width(ForgeMetrics.space2))
         if (busy) {
@@ -284,7 +305,7 @@ internal fun ToggleRow(title: String, detail: String?, checked: Boolean, enabled
         verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f).padding(end = ForgeMetrics.space2), verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(title, style = Forge.type.body, color = Forge.colors.text)
-            if (detail != null) Text(detail, style = Forge.type.caption, color = Forge.colors.textTertiary)
+            if (detail != null) Text(detail, style = Forge.type.footnote, color = Forge.colors.textSecondary)
         }
         Switch(checked = checked, onCheckedChange = null, enabled = enabled, colors = forgeSwitchColors())
     }

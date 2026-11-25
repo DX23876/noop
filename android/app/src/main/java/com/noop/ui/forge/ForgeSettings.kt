@@ -296,18 +296,15 @@ private fun decodeRoutes(raw: String): List<Route> = raw.split(",").mapNotNull {
 /** The tile colour of a page's icon, the iOS system colour `AppleInspiredColors` gives its colour key. */
 @Composable
 internal fun ForgeSettingsPage.tint(): Color {
+    // iOS `SettingsPage.forgeTint`: four system colours, one per kind of page, the same on the index row and
+    // on the page's own head, so no area shouts louder than another; alerts keep red.
     val token = when (this) {
-        ForgeSettingsPage.Profile, ForgeSettingsPage.DataBackup -> ForgeTokens.Color.systemBlue
-        ForgeSettingsPage.Goals, ForgeSettingsPage.Training -> ForgeTokens.Color.systemOrange
-        ForgeSettingsPage.Strap -> ForgeTokens.Color.systemGreen
-        ForgeSettingsPage.BatteryRecording -> ForgeTokens.Color.systemYellow
-        ForgeSettingsPage.StrapActions, ForgeSettingsPage.Notifications, ForgeSettingsPage.Coach,
-        ForgeSettingsPage.Appearance -> ForgeTokens.Color.systemPurple
-        ForgeSettingsPage.LanguageUnits -> ForgeTokens.Color.systemOrange
-        ForgeSettingsPage.Roadmap, ForgeSettingsPage.Calculations, ForgeSettingsPage.Lab -> ForgeTokens.Color.systemIndigo
-        ForgeSettingsPage.Help -> ForgeTokens.Color.systemTeal
-        ForgeSettingsPage.TodayTrends -> ForgeTokens.Color.systemCyan
-        ForgeSettingsPage.About -> ForgeTokens.Color.systemGray
+        ForgeSettingsPage.Profile, ForgeSettingsPage.Goals, ForgeSettingsPage.Strap, ForgeSettingsPage.BatteryRecording,
+        ForgeSettingsPage.TodayTrends, ForgeSettingsPage.Calculations -> ForgeTokens.Color.systemGreen
+        ForgeSettingsPage.StrapActions, ForgeSettingsPage.Help, ForgeSettingsPage.Training -> ForgeTokens.Color.systemOrange
+        ForgeSettingsPage.Notifications -> ForgeTokens.Color.systemRed
+        ForgeSettingsPage.Roadmap, ForgeSettingsPage.Coach, ForgeSettingsPage.Appearance, ForgeSettingsPage.LanguageUnits,
+        ForgeSettingsPage.DataBackup, ForgeSettingsPage.Lab, ForgeSettingsPage.About -> ForgeTokens.Color.systemIndigo
     }
     return token.resolve()
 }
@@ -494,6 +491,8 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
     var profileEditing by remember { mutableStateOf(false) }
     SettingsColumn {
         PageTitle(stringResource(page.titleRes), onBack)
+        // The profile opens on the wearer, every other page on its head (iOS `SettingsPageBanner`).
+        if (page != ForgeSettingsPage.Profile) SettingsPageHead(page)
         key(revision) {
             when (page) {
                 ForgeSettingsPage.Roadmap -> ProjectHubSection(
@@ -533,21 +532,24 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
 
 /** A classic screen under a Forge back bar. Screens that carry their own title get the bar without one. */
 @Composable
-internal fun Hosted(title: String?, onBack: () -> Unit, content: @Composable () -> Unit) {
+internal fun Hosted(title: String?, onBack: () -> Unit, head: ForgeSettingsPage? = null, content: @Composable () -> Unit) {
     // Every Settings page has one look, as on iOS: the classic screen takes the Forge colours (no beige canvas),
     // draws nothing behind itself so the backdrop runs through, and puts the Forge title at the top of its own
     // scroll instead of under a fixed bar.
     val colors = Forge.colors
     val ink = Forge.sceneInk
     val tokens = remember(colors) { hostedTokens(colors) }
-    val chrome = remember(title, onBack, ink) {
+    val chrome = remember(title, onBack, ink, head) {
         HostedChrome(
             horizontalPadding = ForgeMetrics.screenPadding, maxContentWidth = ForgeMetrics.maxContentWidth,
             rowSpacing = ForgeMetrics.gap, cardRadius = ForgeMetrics.groupedRadius,
         ) { pageTitle, subtitle, trailing ->
             Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space1)) {
                 PageTitle(title ?: pageTitle, onBack, trailing)
-                if (subtitle != null) {
+                // A Settings page says what it is for in its head, which replaces the classic subtitle.
+                if (head != null) {
+                    SettingsPageHead(head)
+                } else if (subtitle != null) {
                     Text(subtitle, style = Forge.type.subhead, color = ink.secondary,
                          modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
                 }
@@ -659,12 +661,12 @@ internal fun hostedTokens(c: ForgeColors): PaletteTokens {
 @Composable
 private fun HostedPage(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () -> Unit) {
     when (page) {
-        ForgeSettingsPage.Strap -> Hosted(stringResource(page.titleRes), onBack) {
+        ForgeSettingsPage.Strap -> Hosted(stringResource(page.titleRes), onBack, head = page) {
             SettingsScreen(viewModel, cards = setOf(ClassicSettingsCard.Strap))
         }
-        ForgeSettingsPage.BatteryRecording -> Hosted(stringResource(page.titleRes), onBack) { PowerSavingScreen(viewModel) }
-        ForgeSettingsPage.StrapActions -> Hosted(stringResource(page.titleRes), onBack) { AutomationsScreen(viewModel) }
-        ForgeSettingsPage.Notifications -> Hosted(stringResource(page.titleRes), onBack) { NotificationsSettingsScreen(viewModel) }
+        ForgeSettingsPage.BatteryRecording -> Hosted(stringResource(page.titleRes), onBack, head = page) { PowerSavingScreen(viewModel) }
+        ForgeSettingsPage.StrapActions -> Hosted(stringResource(page.titleRes), onBack, head = page) { AutomationsScreen(viewModel) }
+        ForgeSettingsPage.Notifications -> Hosted(stringResource(page.titleRes), onBack, head = page) { NotificationsSettingsScreen(viewModel) }
         ForgeSettingsPage.Coach -> {
             val vm = viewModel<CoachViewModel>()
             var sub by remember { mutableStateOf<String?>(null) }
@@ -675,7 +677,7 @@ private fun HostedPage(page: ForgeSettingsPage, viewModel: AppViewModel, onBack:
                 "info" -> Hosted(vm.info.collectAsStateWithLifecycle().value?.infoTitle.orEmpty(), { sub = null }) {
                     com.noop.ui.CoachInfoPage(vm)
                 }
-                else -> Hosted(stringResource(page.titleRes), onBack) {
+                else -> Hosted(stringResource(page.titleRes), onBack, head = page) {
                     CoachSettingsScreen(vm, onOpenIdentity = { sub = "identity" }, onOpenMemory = { sub = "memory" },
                                         onOpenInfo = { sub = "info" })
                 }
