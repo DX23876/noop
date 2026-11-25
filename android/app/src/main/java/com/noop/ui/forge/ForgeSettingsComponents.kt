@@ -330,7 +330,7 @@ internal fun ToggleRow(title: String, detail: String?, checked: Boolean, enabled
             Text(title, style = Forge.type.body, color = Forge.colors.text)
             if (detail != null) Text(detail, style = Forge.type.footnote, color = Forge.colors.textSecondary)
         }
-        Switch(checked = checked, onCheckedChange = null, enabled = enabled, colors = forgeSwitchColors())
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled, colors = settingsSwitchColors())
     }
 }
 
@@ -355,6 +355,19 @@ internal fun forgeFieldColors(container: androidx.compose.ui.graphics.Color = Fo
     focusedContainerColor = container,
     unfocusedContainerColor = container,
     disabledContainerColor = container,
+)
+
+/**
+ * The Settings switch: on in the wearer's accent, as iOS tints its settings controls (`appleInspiredTint`
+ * "settings.controls"), so a switch reads the same on both phones. The Training area keeps its own green
+ * (`forgeSwitchColors`).
+ */
+@Composable
+internal fun settingsSwitchColors() = SwitchDefaults.colors(
+    checkedTrackColor = Forge.colors.accent, checkedThumbColor = androidx.compose.ui.graphics.Color.White,
+    checkedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
+    uncheckedTrackColor = Forge.colors.textTertiary.copy(alpha = 0.35f), uncheckedThumbColor = androidx.compose.ui.graphics.Color.White,
+    uncheckedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
 )
 
 /** The switch as iOS draws it: green when on, a quiet grey track when off, a white thumb and no outline. */
