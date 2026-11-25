@@ -7535,6 +7535,68 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <!-- settings-parity spacer 1b -->
     <!-- settings-parity spacer 1c -->
     <!-- settings-parity:p2:begin -->
+    <string name="fsp2_strap_conn_title">Подключение, шаги и трансляция</string>
+    <string name="fsp2_strap_conn_detail">Имя, переподключение, оценка шагов, трансляция пульса</string>
+    <string name="fsp2_strap_rec_title">Запись и батарея</string>
+    <string name="fsp2_strap_rec_detail">Непрерывная ВСР и энергосбережение</string>
+    <string name="fsp2_strap_actions_title">Двойное касание и вибрация</string>
+    <string name="fsp2_strap_actions_detail">Двойное касание, вибрация и предупреждения о пульсе</string>
+    <string name="fsp2_devices_detail">Подключить, найти или перезапустить браслет, другие устройства</string>
+    <string name="fsp2_strap_blurb">NOOP сопрягается с вашим WHOOP напрямую по Bluetooth: без приложения WHOOP и без облака.</string>
+    <string name="fsp2_status_streaming">Привязано · передача данных</string>
+    <string name="fsp2_status_idle">Сопряжён · ожидание</string>
+    <string name="fsp2_status_live_only">Пульс в реальном времени (сопряжение не завершено)</string>
+    <string name="fsp2_status_connected">Подключено</string>
+    <string name="fsp2_status_disconnected">Отключено</string>
+    <string name="fsp2_detail_paired">Ваш браслет сопряжён и передаёт данные. Откройте Live, чтобы увидеть пульс в реальном времени.</string>
+    <string name="fsp2_detail_live_only">Движение от Live частоты сердца прогрузит, но ремень не полностью подключен. Защищенная связь передает движение, температуру кожи, SpO₂ и частоту дыхания — без нее сон формируется только по частоте сердца. Для сигнала, оповещений и синхронизации истории также требуется.</string>
+    <string name="fsp2_detail_finishing">Подключено. Завершение защищённого рукопожатия сопряжения…</string>
+    <string name="fsp2_detail_previous">Ранее сопряжено, но сейчас не подключено. Просканируйте заново, чтобы переподключиться.</string>
+    <string name="fsp2_detail_none">Браслет не подключён. Поднесите WHOOP поближе и нажмите «Повторить поиск», чтобы сопрячь.</string>
+    <string name="fsp2_diag_title">Диагностика подключения</string>
+    <string name="fsp2_diag_detail">Журнал браслета, показатели подключения и экспорт</string>
+    <string name="fsp2_name_field">Новое имя браслета</string>
+    <string name="fsp2_name_note">Меняет Bluetooth-имя, которое транслирует ваш WHOOP 4.0 (то, что вы видите при сопряжении). Браслет перезагрузится, чтобы применить изменение, поэтому новое имя появится при следующем подключении. Только для WHOOP 4.0.</string>
+    <string name="fsp2_name_current">Текущее: %1$s</string>
+    <string name="fsp2_steps_title">Шаги</string>
+    <string name="fsp2_steps_blurb">Нужно, только если число шагов выглядит неверным.</string>
+    <string name="fsp2_step_correction">Коррекция шагов</string>
+    <string name="fsp2_step_correction_note">Оставьте 1,0, если шаги считаются верно. Если после 1000 подсчитанных шагов NOOP показывает 10 000, установите 10,0.</string>
+    <string name="fsp2_step_estimate">Оценка шагов</string>
+    <string name="fsp2_step_manual">Вручную</string>
+    <string name="fsp2_step_none">Не откалибровано</string>
+    <string name="fsp2_step_auto">Авто · уверенность %1$s</string>
+    <string name="fsp2_step_estimate_note">Только WHOOP 4.0. Он не передаёт число шагов, поэтому NOOP оценивает шаги по движению и калибрует их по телефону.</string>
+    <string name="fsp2_confidence_low">Низкий</string>
+    <string name="fsp2_confidence_medium">Средний</string>
+    <string name="fsp2_confidence_high">Высокий</string>
+    <string name="fsp2_hrs_title">Передача пульса</string>
+    <string name="fsp2_hrs_blurb">Позвольте беговой дорожке, велокомпьютеру, Zwift или спортивным часам читать ваш пульс.</string>
+    <string name="fsp2_hrs_strap_title">Через браслет</string>
+    <string name="fsp2_hrs_one_device">1 устройство считывает ваш пульс</string>
+    <string name="fsp2_hrs_n_devices">Устройств, читающих ваш пульс: %1$d</string>
+    <string name="fsp2_hrs_waiting">Транслируется %1$d уд/мин. Ожидание сопряжения устройства.</string>
+    <string name="fsp2_hrs_no_hr">Пульса в реальном времени пока нет. Откройте Live, чтобы сопрячь браслет.</string>
+    <string name="fsp2_hrs_starting">Запуск…</string>
+    <string name="fsp2_chrv_title">Непрерывная ВСР</string>
+    <string name="fsp2_chrv_nights">Только ночью</string>
+    <string name="fsp2_chrv_blurb">Держит поток данных от удара к удару включённым, а не только при открытом экране «В реальном времени». Больше деталей для ночной ВСР, восстановления и сна. Расходует больше заряда браслета.</string>
+    <string name="fsp2_chrv_nights_note">Записывает только в тихие часы (по умолчанию с 22:00 до 07:00), что примерно вдвое снижает расход заряда. Дневной стресс и дневной сон получают меньше замеров. Для замера днём используйте «Сделать измерение ВСР» на экране «В реальном времени».</string>
+    <string name="fsp2_power_blurb">Браслет продолжает копить данные сам, поэтому ничего не теряется — NOOP просто обращается к нему реже, чтобы его хватило до зарядки.</string>
+    <string name="fsp2_values_title">Значения по источникам</string>
+    <string name="fsp2_values_detail">С какого устройства каждое значение за сегодня</string>
+    <string name="fsp2_ds_title">Источники данных</string>
+    <string name="fsp2_ds_detail">Импорт, экспорт и подключённые приложения</string>
+    <string name="fsp2_battery_pill">Батарея %1$d%%</string>
+    <string name="fsp2_battery_pill_charging">Батарея %1$d%% · Зарядка</string>
+    <string name="fsp2_detail_searching">Поиск вашего WHOOP… убедитесь, что он заряжен, надет на запястье и официальное приложение WHOOP к нему не подключено.</string>
+    <string name="fsp2_keep_title">Поддержание связи</string>
+    <string name="fsp2_hrs_phone_title">Через этот телефон</string>
+    <string name="fsp2_hrs_phone_blurb">Работает как обычный Bluetooth-датчик пульса. Подходит для любого браслета. Передаёт, пока вы не выключите.</string>
+    <string name="fsp2_hrs_strap_blurb">Только WHOOP 5.0 и MG. Браслет сам передаёт пульс по Bluetooth, даже без телефона рядом. Расходует больше заряда браслета.</string>
+    <string name="fsp2_hrs_strap_note">Применяется при следующем подключении или сразу, если подключено. Записывает на браслет настройку, которую отключение отменяет.</string>
+    <string name="fsp2_chrv_needs_background">Работает, только если включено «Оставаться подключённым в фоне».</string>
+    <string name="fsp2_dev_row_detail">Браслет, нагрудный датчик, кольцо и другие носимые устройства</string>
     <!-- settings-parity:p2:end -->
     <!-- settings-parity spacer 2a -->
     <!-- settings-parity spacer 2b -->

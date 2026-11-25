@@ -7579,6 +7579,68 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <!-- settings-parity spacer 1b -->
     <!-- settings-parity spacer 1c -->
     <!-- settings-parity:p2:begin -->
+    <string name="fsp2_strap_conn_title">Połączenie, kroki i udostępnianie</string>
+    <string name="fsp2_strap_conn_detail">Nazwa, ponowne łączenie, szacowanie kroków, udostępnianie tętna</string>
+    <string name="fsp2_strap_rec_title">Zapis i bateria</string>
+    <string name="fsp2_strap_rec_detail">Ciągłe HRV i oszczędzanie energii</string>
+    <string name="fsp2_strap_actions_title">Podwójne stuknięcie i wibracja</string>
+    <string name="fsp2_strap_actions_detail">Działanie podwójnego stuknięcia, wibracja i alerty tętna</string>
+    <string name="fsp2_devices_detail">Paruj, znajdź lub uruchom ponownie opaskę, inne urządzenia</string>
+    <string name="fsp2_strap_blurb">NOOP łączy się bezpośrednio z WHOOP poprzez Bluetooth: bez aplikacji WHOOP, bez chmury.</string>
+    <string name="fsp2_status_streaming">Powiązane · przesyłanie strumieniowe</string>
+    <string name="fsp2_status_idle">Sparowano · bezczynny</string>
+    <string name="fsp2_status_live_only">Tętno na żywo (nie w pełni sparowane)</string>
+    <string name="fsp2_status_connected">Połączono</string>
+    <string name="fsp2_status_disconnected">Rozłączono</string>
+    <string name="fsp2_detail_paired">Twój pasek jest sparowany i wysyła dane. Otwórz Live, aby sprawdzić tętno w czasie rzeczywistym.</string>
+    <string name="fsp2_detail_live_only">Live puls jest strumieniowany, ale pasek nie jest całkowicie sparowany. Szyfrowane połączenie jest tym, co przenosi ruch, temperaturę skóry, SpO₂ i częstotliwość oddychania — bez niego sen jest symulowany na podstawie pulsu. Sygnały, alerty i historia synchronizacji również wymagają tego.</string>
+    <string name="fsp2_detail_finishing">Połączony. Kończę uzgadnianie bezpiecznego parowania…</string>
+    <string name="fsp2_detail_previous">Poprzednio sparowane, ale obecnie nie połączone. Przeskanuj ponownie, aby ponownie połączyć.</string>
+    <string name="fsp2_detail_none">Brak podłączonego paska. Umieść urządzenie WHOOP w pobliżu i dotknij opcji Skanuj ponownie, aby sparować.</string>
+    <string name="fsp2_diag_title">Diagnostyka połączenia</string>
+    <string name="fsp2_diag_detail">Dziennik opaski, odczyty połączenia i eksporty</string>
+    <string name="fsp2_name_field">Nowa nazwa paska</string>
+    <string name="fsp2_name_note">Zmienia nazwę Bluetooth reklamowaną przez WHOOP 4.0 (którą widzisz podczas parowania). Pasek uruchamia się ponownie, aby zastosować, więc nowa nazwa pojawi się przy następnym połączeniu. Tylko WHOOP 4.0.</string>
+    <string name="fsp2_name_current">Obecne: %1$s</string>
+    <string name="fsp2_steps_title">Kroki</string>
+    <string name="fsp2_steps_blurb">Potrzebne tylko, gdy liczba kroków wygląda źle.</string>
+    <string name="fsp2_step_correction">Korekta kroków</string>
+    <string name="fsp2_step_correction_note">Pozostaw 1,0, jeśli liczba kroków jest prawidłowa. Jeśli po przejściu 1000 policzonych kroków NOOP pokazuje 10 000, ustaw 10,0.</string>
+    <string name="fsp2_step_estimate">Szacowanie kroków</string>
+    <string name="fsp2_step_manual">Podręcznik</string>
+    <string name="fsp2_step_none">Nie skalibrowany</string>
+    <string name="fsp2_step_auto">Auto · %1$s pewność</string>
+    <string name="fsp2_step_estimate_note">Tylko WHOOP 4.0. Nie wysyła liczby kroków, więc NOOP szacuje je z ruchu i kalibruje względem telefonu.</string>
+    <string name="fsp2_confidence_low">Niski</string>
+    <string name="fsp2_confidence_medium">Średni</string>
+    <string name="fsp2_confidence_high">Wysoki</string>
+    <string name="fsp2_hrs_title">Udostępnianie tętna</string>
+    <string name="fsp2_hrs_blurb">Pozwól bieżni, licznikowi rowerowemu, Zwift lub zegarkowi sportowemu odczytać tętno.</string>
+    <string name="fsp2_hrs_strap_title">Przez pasek</string>
+    <string name="fsp2_hrs_one_device">1 urządzenie odczytujące tętno</string>
+    <string name="fsp2_hrs_n_devices">Urządzenia %1$d odczytują Twoje tętno</string>
+    <string name="fsp2_hrs_waiting">Udostępnianie %1$d bpm. Oczekiwanie na sparowanie urządzenia.</string>
+    <string name="fsp2_hrs_no_hr">Nie ma jeszcze tętna na żywo. Otwórz opcję Live, aby sparować pasek.</string>
+    <string name="fsp2_hrs_starting">Startowy…</string>
+    <string name="fsp2_chrv_title">Ciągła HRV</string>
+    <string name="fsp2_chrv_nights">Tylko w nocy</string>
+    <string name="fsp2_chrv_blurb">Utrzymuje strumień uderzeń serca, nie tylko przy otwartym ekranie Na żywo. Więcej szczegółów dla nocnej HRV, regeneracji i snu. Zużywa więcej baterii paska.</string>
+    <string name="fsp2_chrv_nights_note">Zapisuje tylko w godzinach ciszy (domyślnie od 22:00 do 07:00), co mniej więcej o połowę zmniejsza zużycie baterii. Stres w dzień i drzemki mają mniej pomiarów. Do pomiaru w dzień użyj „Wykonaj odczyt HRV” na ekranie Na żywo.</string>
+    <string name="fsp2_power_blurb">Opaska nadal zapisuje dane samodzielnie, więc nic nie ginie — NOOP po prostu rzadziej się z nią komunikuje, aby wystarczyła do naładowania.</string>
+    <string name="fsp2_values_title">Wartości według źródła</string>
+    <string name="fsp2_values_detail">Z którego urządzenia pochodzi każda dzisiejsza wartość</string>
+    <string name="fsp2_ds_title">Źródła danych</string>
+    <string name="fsp2_ds_detail">Importy, eksporty i połączone aplikacje</string>
+    <string name="fsp2_battery_pill">Bateria %1$d%%</string>
+    <string name="fsp2_battery_pill_charging">Bateria %1$d%% · Ładowanie</string>
+    <string name="fsp2_detail_searching">Szukam Twojego WHOOP… upewnij się, że jest naładowany, na nadgarstku i że oficjalna aplikacja WHOOP nie jest z nim połączona.</string>
+    <string name="fsp2_keep_title">Utrzymanie połączenia</string>
+    <string name="fsp2_hrs_phone_title">Przez ten telefon</string>
+    <string name="fsp2_hrs_phone_blurb">Działa jak zwykły czujnik tętna Bluetooth. Działa z każdym paskiem. Udostępnia, dopóki tego nie wyłączysz.</string>
+    <string name="fsp2_hrs_strap_blurb">Tylko WHOOP 5.0 i MG. Pasek sam wysyła tętno przez Bluetooth, nawet bez telefonu w pobliżu. Zużywa więcej baterii paska.</string>
+    <string name="fsp2_hrs_strap_note">Działa od następnego połączenia lub od razu, gdy połączony. Zapisuje na pasku ustawienie, które wyłączenie cofa.</string>
+    <string name="fsp2_chrv_needs_background">Działa tylko przy włączonym „Utrzymuj połączenie w tle”.</string>
+    <string name="fsp2_dev_row_detail">Opaska, pas piersiowy, pierścień i inne urządzenia noszone</string>
     <!-- settings-parity:p2:end -->
     <!-- settings-parity spacer 2a -->
     <!-- settings-parity spacer 2b -->

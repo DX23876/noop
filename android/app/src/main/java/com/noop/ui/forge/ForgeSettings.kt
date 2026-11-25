@@ -140,7 +140,6 @@ import com.noop.ui.HrvWindow
 import com.noop.ui.NoopLimitationsScreen
 import com.noop.ui.NotificationsSettingsScreen
 import com.noop.ui.Palette
-import com.noop.ui.PowerSavingScreen
 import com.noop.ui.ScoringGuideScreen
 import com.noop.ui.SettingsScreen
 import com.noop.ui.StepsCalibrationScreen
@@ -178,8 +177,8 @@ enum class ForgeSettingsPage(val titleRes: Int, val subtitleRes: Int, val icon: 
     Roadmap(R.string.project_page_title, R.string.project_page_subtitle, Icons.Rounded.Map),
     Profile(R.string.l10n_settings_screen_profile_ff4fc027, R.string.forge_settings_profile_subtitle, Icons.Rounded.AccountCircle),
     Goals(R.string.forge_goals_more_title, R.string.forge_sg_goals_subtitle, Icons.Rounded.TrackChanges),
-    Strap(R.string.l10n_settings_screen_strap_02b88eeb, R.string.forge_settings_strap_subtitle, Icons.Rounded.SettingsInputAntenna, hosted = true),
-    BatteryRecording(R.string.forge_settings_battery, R.string.forge_settings_battery_subtitle, Icons.Rounded.Battery5Bar, hosted = true),
+    Strap(R.string.l10n_settings_screen_strap_02b88eeb, R.string.forge_settings_strap_subtitle, Icons.Rounded.SettingsInputAntenna),
+    BatteryRecording(R.string.forge_settings_battery, R.string.forge_settings_battery_subtitle, Icons.Rounded.Battery5Bar),
     StrapActions(R.string.forge_settings_actions, R.string.forge_settings_actions_subtitle, Icons.Rounded.TouchApp, hosted = true),
     Training(R.string.forge_training, R.string.forge_st_subtitle, Icons.Rounded.FitnessCenter),
     TodayTrends(R.string.forge_settings_today_trends, R.string.forge_settings_today_cards, Icons.Rounded.Dashboard),
@@ -249,6 +248,11 @@ internal val HUB_GROUPS = listOf(
  */
 enum class ForgeSettingsSub(val titleRes: Int, val cards: Set<ClassicSettingsCard>? = null, val closes: Boolean = false) {
     StepsCalibration(R.string.l10n_settings_screen_steps_estimate_ce7a604d, closes = true),
+    StrapConnection(R.string.l10n_settings_screen_strap_02b88eeb),
+    HeartRateSharing(R.string.fsp2_hrs_title),
+    Devices(R.string.nav_devices),
+    DevicesSources(R.string.forge_set_devices_sources),
+    FusedRecord(R.string.fsp2_values_title),
     Charge(R.string.l10n_settings_screen_charge_d4e1aee4, cards = setOf(ClassicSettingsCard.Charge)),
     BackupSync(R.string.l10n_settings_screen_automatic_backups_8a772f3c),
     DataSources(R.string.nav_data_sources),
@@ -355,7 +359,8 @@ fun ForgeSettings(viewModel: AppViewModel, onClose: () -> Unit, initialPage: For
                         else Hub(onClose, onOpen = { push(Route.Page(it)) }, onAll = { push(Route.Sub(ForgeSettingsSub.AllSettings)) })
                 is Route.Page ->
                     if (top.page.hosted) HostedPage(top.page, viewModel, onBack = ::pop)
-                    else Page(top.page, viewModel, onBack = ::pop, onOpen = { push(Route.Sub(it)) })
+                    else Page(top.page, viewModel, onBack = ::pop, onOpen = { push(Route.Sub(it)) },
+                              onOpenPage = { push(Route.Page(it)) })
                 is Route.Sub -> SubScreen(top.sub, viewModel, onBack = ::pop, onOpen = { push(Route.Sub(it)) })
             }
             }
@@ -444,10 +449,12 @@ private fun NewDesignHub(onClose: () -> Unit, onOpen: (ForgeSettingsPage) -> Uni
         // someone who does not care never notices it.
         group(null, listOf(page(ForgeSettingsPage.Roadmap)))
         group(R.string.forge_settings_group_you, listOf(page(ForgeSettingsPage.Goals)))
+        // As iOS `ForgeSettingsView`: the Strap page (which holds the connection, recording and battery and double-tap
+        // pages) and Devices and data sources.
         group(R.string.forge_set_strap_devices, listOf(
-            page(ForgeSettingsPage.Strap), page(ForgeSettingsPage.BatteryRecording), page(ForgeSettingsPage.StrapActions),
+            page(ForgeSettingsPage.Strap),
             { HubRow(Icons.Rounded.DeviceHub, ForgeTokens.Color.systemIndigo.resolve(), stringResource(R.string.forge_set_devices_sources),
-                     stringResource(R.string.forge_set_devices_sources_detail)) { onSub(ForgeSettingsSub.DataSources) } },
+                     stringResource(R.string.forge_set_devices_sources_detail)) { onSub(ForgeSettingsSub.DevicesSources) } },
         ))
         group(R.string.forge_set_alerts, listOf(page(ForgeSettingsPage.Notifications)))
         group(R.string.forge_set_app, listOf(page(ForgeSettingsPage.Appearance), page(ForgeSettingsPage.LanguageUnits),
@@ -484,7 +491,8 @@ internal fun PageTitle(title: String?, onBack: () -> Unit, trailing: (@Composabl
 }
 
 @Composable
-private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () -> Unit, onOpen: (ForgeSettingsSub) -> Unit) {
+private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () -> Unit, onOpen: (ForgeSettingsSub) -> Unit,
+                 onOpenPage: (ForgeSettingsPage) -> Unit) {
     val context = LocalContext.current
     val profile = remember { ProfileStore.from(context) }
     // The stores are plain preferences; one counter re-reads them after a change, as the classic screen does.
@@ -495,7 +503,8 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
     SettingsColumn {
         PageTitle(stringResource(page.titleRes), onBack)
         // The profile opens on the wearer, every other page on its head (iOS `SettingsPageBanner`).
-        if (page != ForgeSettingsPage.Profile) SettingsPageHead(page)
+        // The Strap page opens on the device row, as iOS's grouped Strap page does.
+        if (page != ForgeSettingsPage.Profile && page != ForgeSettingsPage.Strap) SettingsPageHead(page)
         key(revision) {
             when (page) {
                 ForgeSettingsPage.Roadmap -> ProjectHubSection(
@@ -506,6 +515,8 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
                 )
                 ForgeSettingsPage.Profile -> ProfileSection(profile, viewModel, ::change, onOpen, profileEditing) { profileEditing = it }
                 ForgeSettingsPage.Goals -> GoalsSettingsSection(viewModel)
+                ForgeSettingsPage.Strap -> StrapSettingsPage(viewModel, onOpenPage, onOpen)
+                ForgeSettingsPage.BatteryRecording -> BatteryRecordingSettings(viewModel)
                 ForgeSettingsPage.Training -> {
                     TrainingSettingsSection(onOpenMedia = { onOpen(ForgeSettingsSub.ExerciseMedia) },
                                             onOpenEquipment = { onOpen(ForgeSettingsSub.Equipment) },
@@ -659,10 +670,6 @@ internal fun hostedTokens(c: ForgeColors): PaletteTokens {
 @Composable
 private fun HostedPage(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () -> Unit) {
     when (page) {
-        ForgeSettingsPage.Strap -> Hosted(stringResource(page.titleRes), onBack, head = page) {
-            SettingsScreen(viewModel, cards = setOf(ClassicSettingsCard.Strap))
-        }
-        ForgeSettingsPage.BatteryRecording -> Hosted(stringResource(page.titleRes), onBack, head = page) { PowerSavingScreen(viewModel) }
         ForgeSettingsPage.StrapActions -> Hosted(stringResource(page.titleRes), onBack, head = page) { AutomationsScreen(viewModel) }
         ForgeSettingsPage.Notifications -> Hosted(stringResource(page.titleRes), onBack, head = page) { NotificationsSettingsScreen(viewModel) }
         ForgeSettingsPage.Coach -> {
@@ -696,6 +703,21 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
                 StepsCalibrationScreen(vm = viewModel, profile = profile, onProfileChanged = { revision++ }, onClose = onBack)
             }
         }
+        ForgeSettingsSub.StrapConnection -> SettingsColumn {
+            PageTitle(stringResource(sub.titleRes), onBack)
+            SettingsPageHead(ForgeSettingsPage.Strap)
+            StrapConnectionSettings(viewModel, onOpen)
+        }
+        ForgeSettingsSub.HeartRateSharing -> SettingsColumn {
+            PageTitle(stringResource(sub.titleRes), onBack)
+            HeartRateSharingSettings(viewModel)
+        }
+        ForgeSettingsSub.Devices -> DevicesSettingsPage(viewModel, onBack, stringResource(sub.titleRes))
+        ForgeSettingsSub.DevicesSources -> SettingsColumn {
+            PageTitle(stringResource(sub.titleRes), onBack)
+            DevicesSourcesSettings(onOpen)
+        }
+        ForgeSettingsSub.FusedRecord -> ValuesBySourcePage(viewModel, onBack, stringResource(sub.titleRes))
         ForgeSettingsSub.HowNoopWorks -> Hosted(stringResource(sub.titleRes), onBack) { HowNoopWorksScreen(onClose = onBack) }
         ForgeSettingsSub.ScoringGuide -> Hosted(stringResource(sub.titleRes), onBack) { ScoringGuideScreen(onClose = onBack) }
         ForgeSettingsSub.ModelComparison -> Hosted(stringResource(sub.titleRes), onBack) { WhoopModelComparisonScreen(onClose = onBack) }

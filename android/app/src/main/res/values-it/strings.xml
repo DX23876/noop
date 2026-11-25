@@ -7493,6 +7493,68 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <!-- settings-parity spacer 1b -->
     <!-- settings-parity spacer 1c -->
     <!-- settings-parity:p2:begin -->
+    <string name="fsp2_strap_conn_title">Connessione, passi e condivisione</string>
+    <string name="fsp2_strap_conn_detail">Nome, riconnessione, stima dei passi, condivisione del battito</string>
+    <string name="fsp2_strap_rec_title">Registrazione e batteria</string>
+    <string name="fsp2_strap_rec_detail">HRV continua e risparmio energetico</string>
+    <string name="fsp2_strap_actions_title">Doppio tocco e vibrazione</string>
+    <string name="fsp2_strap_actions_detail">Cosa fa il doppio tocco, vibrazione e avvisi del battito</string>
+    <string name="fsp2_devices_detail">Associa, trova o riavvia la fascia, altri dispositivi</string>
+    <string name="fsp2_strap_blurb">NOOP si abbina direttamente al tuo WHOOP via Bluetooth, niente app WHOOP, niente cloud.</string>
+    <string name="fsp2_status_streaming">Associata · flusso attivo</string>
+    <string name="fsp2_status_idle">Associata · inattiva</string>
+    <string name="fsp2_status_live_only">FC in diretta (associazione non completa)</string>
+    <string name="fsp2_status_connected">Collegata</string>
+    <string name="fsp2_status_disconnected">Disconnesso</string>
+    <string name="fsp2_detail_paired">La tua fascia è associata e sta inviando dati. Apri In diretta per la frequenza cardiaca in tempo reale.</string>
+    <string name="fsp2_detail_live_only">La frequenza cardiaca in tempo reale è attiva, ma l’orologio non è completamente collegato. La connessione crittografata trasmette movimento, temperatura della pelle, ossigeno nel sangue e frequenza respiratoria — senza di essa, il sonno viene stimolato solo dalla frequenza cardiaca. Anche i segnali, gli allarmi e il sincronismo della cronologia ne hanno bisogno.</string>
+    <string name="fsp2_detail_finishing">Connessa. Completamento dell\'handshake di associazione sicura…</string>
+    <string name="fsp2_detail_previous">Abbinata in precedenza ma non connessa al momento. Riesegui la scansione per riconnetterla.</string>
+    <string name="fsp2_detail_none">Nessuna fascia connessa. Metti il tuo WHOOP nelle vicinanze e tocca Riscansiona per abbinarlo.</string>
+    <string name="fsp2_diag_title">Diagnostica connessione</string>
+    <string name="fsp2_diag_detail">Log della fascia, letture di connessione ed esportazioni</string>
+    <string name="fsp2_name_field">Nuovo nome della fascia</string>
+    <string name="fsp2_name_note">Cambia il nome Bluetooth diffuso dal tuo WHOOP 4.0, quello che vedi durante l\'associazione. La fascia si riavvia per applicarlo, quindi il nuovo nome appare alla connessione successiva. Solo WHOOP 4.0.</string>
+    <string name="fsp2_name_current">Attuale: %1$s</string>
+    <string name="fsp2_steps_title">Passi</string>
+    <string name="fsp2_steps_blurb">Serve solo se il conteggio dei passi sembra sbagliato.</string>
+    <string name="fsp2_step_correction">Correzione passi</string>
+    <string name="fsp2_step_correction_note">Lascia 1,0 se il conteggio è corretto. Se NOOP mostra 10.000 passi dopo una camminata di 1.000 passi contati, imposta 10,0.</string>
+    <string name="fsp2_step_estimate">Stima dei passi</string>
+    <string name="fsp2_step_manual">Manuale</string>
+    <string name="fsp2_step_none">Non calibrato</string>
+    <string name="fsp2_step_auto">Auto · affidabilità %1$s</string>
+    <string name="fsp2_step_estimate_note">Solo WHOOP 4.0. Non invia il conteggio dei passi, quindi NOOP li stima dal movimento e li calibra sul telefono.</string>
+    <string name="fsp2_confidence_low">Bassa</string>
+    <string name="fsp2_confidence_medium">Medio</string>
+    <string name="fsp2_confidence_high">Alto</string>
+    <string name="fsp2_hrs_title">Condivisione del battito</string>
+    <string name="fsp2_hrs_blurb">Fai leggere il battito a un tapis roulant, un ciclocomputer, Zwift o un orologio sportivo.</string>
+    <string name="fsp2_hrs_strap_title">Tramite la fascia</string>
+    <string name="fsp2_hrs_one_device">1 dispositivo che legge la tua frequenza cardiaca</string>
+    <string name="fsp2_hrs_n_devices">%1$d dispositivi che leggono la tua frequenza cardiaca</string>
+    <string name="fsp2_hrs_waiting">Condivisione di %1$d bpm. In attesa che un dispositivo si accoppi.</string>
+    <string name="fsp2_hrs_no_hr">Ancora nessuna frequenza cardiaca in diretta. Apri In diretta per abbinare la tua fascia.</string>
+    <string name="fsp2_hrs_starting">Avvio…</string>
+    <string name="fsp2_chrv_title">HRV continua</string>
+    <string name="fsp2_chrv_nights">Solo di notte</string>
+    <string name="fsp2_chrv_blurb">Mantiene attivo il flusso battito per battito, non solo con In diretta aperto. Più dettagli per HRV notturna, recupero e sonno. Consuma più batteria della fascia.</string>
+    <string name="fsp2_chrv_nights_note">Registra solo nelle ore di quiete (dalle 22:00 alle 07:00 per impostazione predefinita), dimezzando circa il consumo. Stress diurno e pisolini hanno meno letture. Per una lettura di giorno usa \"Fai una lettura HRV\" in In diretta.</string>
+    <string name="fsp2_power_blurb">La fascia continua a memorizzare i dati da sola, quindi non si perde nulla — NOOP comunica con lei meno spesso per farla durare finché non puoi caricarla.</string>
+    <string name="fsp2_values_title">Valori per fonte</string>
+    <string name="fsp2_values_detail">Da quale dispositivo arriva ogni valore di oggi</string>
+    <string name="fsp2_ds_title">Sorgenti dati</string>
+    <string name="fsp2_ds_detail">Importazioni, esportazioni e app collegate</string>
+    <string name="fsp2_battery_pill">Batteria %1$d%%</string>
+    <string name="fsp2_battery_pill_charging">Batteria %1$d%% · In carica</string>
+    <string name="fsp2_detail_searching">Ricerca del tuo WHOOP… assicurati che sia carica, al polso e che l\'app WHOOP ufficiale non sia connessa.</string>
+    <string name="fsp2_keep_title">Restare connessi</string>
+    <string name="fsp2_hrs_phone_title">Tramite questo telefono</string>
+    <string name="fsp2_hrs_phone_blurb">Funziona come un normale sensore di battito Bluetooth. Va con ogni fascia. Continua a condividere finché non lo disattivi.</string>
+    <string name="fsp2_hrs_strap_blurb">Solo WHOOP 5.0 e MG. La fascia invia da sola il battito via Bluetooth, anche senza telefono vicino. Consuma più batteria della fascia.</string>
+    <string name="fsp2_hrs_strap_note">Vale alla prossima connessione, o subito se già connessa. Scrive un\'impostazione sulla fascia che si annulla disattivando.</string>
+    <string name="fsp2_chrv_needs_background">Funziona solo se «Resta collegato in background» è attivo.</string>
+    <string name="fsp2_dev_row_detail">Fascia, fascia toracica, anello e altri wearable</string>
     <!-- settings-parity:p2:end -->
     <!-- settings-parity spacer 2a -->
     <!-- settings-parity spacer 2b -->
