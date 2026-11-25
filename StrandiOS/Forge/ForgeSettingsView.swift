@@ -74,7 +74,7 @@ struct ForgeSettingsView<DeviceRow: View>: View {
                 }
                 section("Alerts") {
                     NavigationLink(value: MoreDestination.settingsPage(.notifications)) {
-                        ForgeRow(systemImage: "bell.badge.fill", tint: .red, title: String(localized: "Alerts and reminders"),
+                        ForgeRow(systemImage: "bell.badge.fill", tint: SettingsPage.notifications.forgeTint, title: String(localized: "Alerts and reminders"),
                                  subtitle: String(localized: "Lock Screen, wrist alerts and reminders"), compact: true)
                     }
                 }
@@ -122,7 +122,7 @@ struct ForgeSettingsView<DeviceRow: View>: View {
 
     private func pageRow(_ page: SettingsPage) -> some View {
         NavigationLink(value: MoreDestination.settingsPage(page)) {
-            ForgeRow(systemImage: page.icon, tint: Self.tint(page),
+            ForgeRow(systemImage: page.icon, tint: page.forgeTint,
                      title: String(localized: page.title), subtitle: String(localized: page.subtitle), compact: true)
         }
     }
@@ -142,15 +142,6 @@ struct ForgeSettingsView<DeviceRow: View>: View {
             }
             ForgeGroup { rows }
                 .buttonStyle(.plain)
-        }
-    }
-
-    /// The prototype keeps the settings tiles to three system colours, so no area shouts louder than another.
-    private static func tint(_ page: SettingsPage) -> Color {
-        switch page {
-        case .profile, .goals, .batteryRecording, .todayTrends, .calculations: return .green
-        case .strapActions, .notifications, .siri, .help, .training: return .orange
-        case .roadmap, .coach, .strap, .appearance, .languageUnits, .dataBackup, .lab, .about: return .indigo
         }
     }
 }

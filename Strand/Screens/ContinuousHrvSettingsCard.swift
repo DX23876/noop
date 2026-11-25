@@ -21,7 +21,7 @@ struct ContinuousHrvSettingsCard: View {
             VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
                 Toggle(isOn: $continuousHrvEnabled) {
                     Text("Continuous HRV")
-                        .font(StrandFont.subhead)
+                        .font(SettingsRowFont.value)
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
@@ -32,7 +32,7 @@ struct ContinuousHrvSettingsCard: View {
                 if continuousHrvEnabled {
                     Toggle(isOn: $continuousHrvOvernightOnly) {
                         Text("Nights only")
-                            .font(StrandFont.subhead)
+                            .font(SettingsRowFont.value)
                             .foregroundStyle(StrandPalette.textPrimary)
                     }
                     .toggleStyle(.switch)

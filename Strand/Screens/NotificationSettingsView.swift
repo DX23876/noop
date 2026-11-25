@@ -45,7 +45,7 @@ struct NotificationSettingsView: View {
             VStack(alignment: .leading, spacing: NoopMetrics.space4) {
                 Toggle(isOn: $store.masterEnabled) {
                     Text("Enable wrist alerts")
-                        .font(StrandFont.body)
+                        .font(SettingsRowFont.title)
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
@@ -134,7 +134,7 @@ struct NotificationSettingsView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(app.name)
-                    .font(StrandFont.body)
+                    .font(SettingsRowFont.title)
                     .foregroundStyle(StrandPalette.textPrimary)
                 Text(enabled ? "Buzzes your wrist" : "Off")
                     .font(StrandFont.footnote)
@@ -250,7 +250,7 @@ struct NotificationSettingsView: View {
                     rowDivider
                     HStack(spacing: 12) {
                         Text("From")
-                            .font(StrandFont.body)
+                            .font(SettingsRowFont.title)
                             .foregroundStyle(StrandPalette.textPrimary)
                         DatePicker("", selection: quietStartBinding, displayedComponents: .hourAndMinute)
                             .labelsHidden()
@@ -347,7 +347,7 @@ private struct FormToggleRow: View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
-                    .font(StrandFont.body)
+                    .font(SettingsRowFont.title)
                     .foregroundStyle(StrandPalette.textPrimary)
                 Text(help)
                     .font(StrandFont.footnote)

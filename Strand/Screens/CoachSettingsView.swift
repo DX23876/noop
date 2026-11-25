@@ -178,6 +178,7 @@ struct CoachSettingsView: View {
             } else {
                 ScrollView {
                     VStack(spacing: 16) {
+                        if showsPageBanner { SettingsPageBanner(page: .coach) }
                         coachFeatureBar
                         setupCard
                         privacyFootnote
@@ -207,9 +208,11 @@ struct CoachSettingsView: View {
             // too; withdraw them rather than leave them on display after the switch went off. (#2269)
             CoachBriefScheduler.applyMasterSwitch(enabled)
         }
-        .navigationTitle("Coach settings")
+        .navigationTitle(showsPageBanner ? Text(SettingsPage.coach.title) : Text("Coach settings"))
         #if !os(macOS)
-        .navigationBarTitleDisplayMode(.inline)
+        // Opened as a Settings page in the new design it reads like the other pages: large title, then the
+        // page's head. Opened on its own it keeps the compact title of a sheet.
+        .navigationBarTitleDisplayMode(showsPageBanner ? .large : .inline)
         #endif
         .toolbar {
             if !usesHostNavigation {
@@ -244,7 +247,7 @@ struct CoachSettingsView: View {
                             .fixedSize(horizontal: false, vertical: true)
                         TextField("Fact", text: $newFactText, axis: .vertical)
                             .textFieldStyle(.plain)
-                            .font(StrandFont.body)
+                            .font(SettingsRowFont.title)
                             .foregroundStyle(StrandPalette.textPrimary)
                             .lineLimit(1...4)
                             .padding(8)
@@ -299,6 +302,9 @@ struct CoachSettingsView: View {
         Binding(get: { editingFactID != nil }, set: { if !$0 { editingFactID = nil } })
     }
 
+    /// True when this screen is a page of the new design's Settings, which opens every page on its head.
+    private var showsPageBanner: Bool { usesHostNavigation && NoopVisualStyle.skin == .forge }
+
     // MARK: - Hub
 
     /// The configured-state landing page: the status pill, then five rows drilling into their own
@@ -311,6 +317,7 @@ struct CoachSettingsView: View {
     private var hub: some View {
         ScrollView {
             VStack(spacing: 16) {
+                if showsPageBanner { SettingsPageBanner(page: .coach) }
                 coachFeatureBar
                 connectedHeader
 
@@ -658,7 +665,7 @@ struct CoachSettingsView: View {
                     HStack(spacing: 8) {
                         TextField("Enter a model id", text: customDraft)
                             .textFieldStyle(.plain)
-                            .font(StrandFont.body)
+                            .font(SettingsRowFont.title)
                             .foregroundStyle(StrandPalette.textPrimary)
                             .disableAutocorrection(true)
                             #if os(iOS)
@@ -941,7 +948,7 @@ struct CoachSettingsView: View {
                         .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Semantic memory")
-                            .font(StrandFont.subhead)
+                            .font(SettingsRowFont.value)
                             .foregroundStyle(StrandPalette.textPrimary)
                         Text("Nomic finds related local text without uploading it. Health measurements still use exact local queries.")
                             .font(StrandFont.footnote)
@@ -1044,9 +1051,7 @@ struct CoachSettingsView: View {
                 .disabled(!semanticMemory.isEnabled)
                 if let summary = semanticMemory.selfTestSummary {
                     Text(summary)
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .settingsCaption()
                 }
             }
         }
@@ -1120,7 +1125,7 @@ struct CoachSettingsView: View {
         NoopCard(padding: 14, cornerRadius: NoopMetrics.groupedRadius) {
             VStack(alignment: .leading, spacing: 8) {
                 Label("How this access is used", systemImage: "lock.shield")
-                    .font(StrandFont.subhead)
+                    .font(SettingsRowFont.value)
                     .foregroundStyle(StrandPalette.textPrimary)
                 Text("Before each answer, NOOP checks your question and the privacy level below on this device. It selects only the relevant local summary, permitted tool result or approved text-memory match — for example a recent recovery trend for a recovery question.")
                     .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
@@ -2634,7 +2639,7 @@ struct CoachSettingsView: View {
 
                 if promptExpanded {
                     TextEditor(text: $promptDraft)
-                        .font(StrandFont.body)
+                        .font(SettingsRowFont.title)
                         .foregroundStyle(StrandPalette.textPrimary)
                         .scrollContentBackground(.hidden)
                         .frame(minHeight: 140, maxHeight: 240)
@@ -2732,7 +2737,7 @@ struct CoachSettingsView: View {
                 Text("Server URL").strandOverline()
                 TextField("http://localhost:11434/v1", text: $coach.customBaseURL)
                     .textFieldStyle(.plain)
-                    .font(StrandFont.body)
+                    .font(SettingsRowFont.title)
                     .foregroundStyle(StrandPalette.textPrimary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 9)
@@ -2778,7 +2783,7 @@ struct CoachSettingsView: View {
                     }
                 }
                 .textFieldStyle(.plain)
-                .font(StrandFont.body)
+                .font(SettingsRowFont.title)
                 .foregroundStyle(StrandPalette.textPrimary)
                 .onSubmit { coach.provider == .custom ? connectCustom() : saveKey() }
                 .accessibilityLabel("API key")
@@ -2891,7 +2896,7 @@ struct CoachSettingsView: View {
                     HStack(spacing: 8) {
                         TextField("Enter a model id", text: $customModelDraft)
                             .textFieldStyle(.plain)
-                            .font(StrandFont.body)
+                            .font(SettingsRowFont.title)
                             .foregroundStyle(StrandPalette.textPrimary)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 9)

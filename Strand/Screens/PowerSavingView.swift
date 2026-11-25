@@ -35,7 +35,7 @@ struct PowerSavingView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         Toggle(isOn: $powerSavingEnabled) {
                             Text("Power saving mode")
-                                .font(StrandFont.subhead)
+                                .font(SettingsRowFont.value)
                                 .foregroundStyle(StrandPalette.textPrimary)
                         }
                         .toggleStyle(.switch)
@@ -50,7 +50,7 @@ struct PowerSavingView: View {
                             rowDivider
                             HStack {
                                 Text("Kick in at (strap battery)")
-                                    .font(StrandFont.subhead)
+                                    .font(SettingsRowFont.value)
                                     .foregroundStyle(StrandPalette.textPrimary)
                                 Spacer()
                                 Text(verbatim: "\(powerSavingPct)%")
@@ -71,7 +71,7 @@ struct PowerSavingView: View {
                             // HRV pause: a sub-option, ON by default when the master is on (stored inverted).
                             Toggle(isOn: Binding(get: { !pauseHrvDisabled }, set: { pauseHrvDisabled = !$0 })) {
                                 Text("Pause HRV capture")
-                                    .font(StrandFont.subhead)
+                                    .font(SettingsRowFont.value)
                                     .foregroundStyle(StrandPalette.textPrimary)
                             }
                             .toggleStyle(.switch)
@@ -86,7 +86,7 @@ struct PowerSavingView: View {
                             // Low refresh: a sub-option that applies at ANY charge, not just below the threshold.
                             Toggle(isOn: $lowRefreshEnabled) {
                                 Text("Low refresh")
-                                    .font(StrandFont.subhead)
+                                    .font(SettingsRowFont.value)
                                     .foregroundStyle(StrandPalette.textPrimary)
                             }
                             .toggleStyle(.switch)

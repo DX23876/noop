@@ -14,35 +14,38 @@ struct SettingsSection<Content: View>: View {
 
     var body: some View {
         if NoopVisualStyle.skin == .forge {
-            // The new design's settings group: its name on the page, a short note and the controls on the card.
+            // The new design's settings group, built as iOS Settings builds one: a small header above the
+            // card, the controls on the card, and the plain explanation as a footer under it, so a page
+            // reads as one list of groups instead of a stack of text boxes.
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                 if !headerHidden || headerAction != nil {
-                    HStack {
+                    HStack(alignment: .firstTextBaseline) {
                         if !headerHidden {
                             Text(title)
-                                .font(StrandFont.subhead.weight(.semibold))
+                                .font(.footnote.weight(.semibold))
+                                .textCase(.uppercase)
                                 .foregroundStyle(StrandPalette.textSecondary)
                                 .accessibilityAddTraits(.isHeader)
                         }
                         if let headerAction {
                             Spacer(minLength: NoopMetrics.space2)
                             Button(headerAction.label, action: headerAction.perform)
-                                .font(StrandFont.subhead.weight(.semibold))
+                                .font(.callout.weight(.semibold))
                                 .foregroundStyle(StrandPalette.accent)
                                 .buttonStyle(.plain)
                         }
                     }
-                    .padding(.horizontal, NoopMetrics.space1)
+                    .padding(.horizontal, NoopMetrics.space4)
                 }
                 NoopCard {
                     VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                        Text(blurb)
-                            .font(StrandFont.footnote)
-                            .foregroundStyle(StrandPalette.textSecondary)
-                            .fixedSize(horizontal: false, vertical: true)
                         content
                     }
+                    .font(SettingsRowFont.value)
                 }
+                Text(blurb)
+                    .settingsCaption()
+                    .padding(.horizontal, NoopMetrics.space4)
             }
         } else {
             standardBody
@@ -94,4 +97,27 @@ extension EnvironmentValues {
         get { self[SettingsSectionHeaderHiddenKey.self] }
         set { self[SettingsSectionHeaderHiddenKey.self] = newValue }
     }
+}
+
+/// The text size of a setting's label in the new design: the size of the rows in the Settings index, so
+/// a page and the index it opens from read at one size.
+enum SettingsRowFont {
+    static var value: Font { NoopVisualStyle.skin == .forge ? .callout : StrandFont.subhead }
+    /// The same size where the classic look used its larger body text for a label.
+    static var title: Font { NoopVisualStyle.skin == .forge ? .callout : StrandFont.body }
+}
+
+/// The explanation that sits under a setting or a group: secondary text that wraps instead of clipping.
+private struct SettingsCaptionStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(NoopVisualStyle.skin == .forge ? .footnote : StrandFont.caption)
+            .foregroundStyle(StrandPalette.textSecondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+}
+
+extension View {
+    /// Styles a line of explanation under a setting (see `SettingsCaptionStyle`).
+    func settingsCaption() -> some View { modifier(SettingsCaptionStyle()) }
 }
