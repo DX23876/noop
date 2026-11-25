@@ -25,6 +25,7 @@ struct NOOPWidgetBundle: WidgetBundle {
         NOOPRingsWidget()
         ForgeTodayWidget()
         NOOPEnergyWidget()
+        NOOPFoodWidget()
         NOOPLiveActivity()
         HeartRateWidget()
         StressWidget()

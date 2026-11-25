@@ -498,6 +498,13 @@ struct RootTabView: View {
                 openMoreArea()
                 tabPaths[4].append(MoreDestination.backupSync)
                 router.requestedDestination = nil
+            case .food:
+                // The Nutrition widget: the Nutrition tab under the new design, else the Food page on Today.
+                withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) {
+                    selectedTab = forgeDesign ? Self.forgeNutritionTag : 0
+                }
+                if !forgeDesign { tabPaths[0] = NavigationPath([ForgeRoute.food]) }
+                router.requestedDestination = nil
             case .energy:
                 // Widget deep link: land on Today and push the same detail route the in-app card uses.
                 withAnimation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.24)) { selectedTab = 0 }

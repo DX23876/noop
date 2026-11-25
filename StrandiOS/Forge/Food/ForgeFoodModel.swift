@@ -1,5 +1,6 @@
 #if os(iOS)
 import Foundation
+import WidgetKit
 import Observation
 import StrandCore
 import StrandAnalytics
@@ -516,6 +517,7 @@ final class ForgeFoodModel {
 
     private func reload(store: WhoopStore) async {
         summary = await FoodLog.day(store: store, day)
+        publishWidget()
         dayComplete = ((try? await store.foodCompleteDays(from: day, to: day)) ?? []).contains(day)
         await resolveGroups(store: store)
         await findHabit(store: store)
@@ -527,6 +529,21 @@ final class ForgeFoodModel {
             nutrients = await FoodNutrientReport.report(store: store, to: day, references: references)
             dayNutrients = FoodNutrientReport.report(entries: summary?.entries ?? [], from: day, to: day, references: references)
         }
+    }
+
+    /// Today's eating for the Nutrition widget, written whenever today is read here, so a logged meal reaches the
+    /// home screen without waiting for the score publisher.
+    private func publishWidget() {
+        guard isToday else { return }
+        let totals = summary?.totals ?? NutrientAmounts()
+        func whole(_ value: Double?) -> Int? { value.map { Int($0.rounded()) } }
+        let macros = macroGoals(for: day)
+        let snapshot = WidgetFoodSnapshot(day: day, eatenKcal: whole(totals[.energyKcal]) ?? 0,
+                                          goalKcal: whole(calories(for: day)?.kcal),
+                                          proteinG: whole(totals[.proteinG]) ?? 0, carbsG: whole(totals[.carbsG]) ?? 0,
+                                          fatG: whole(totals[.fatG]) ?? 0, proteinGoal: whole(macros?.proteinG),
+                                          carbsGoal: whole(macros?.carbsG), fatGoal: whole(macros?.fatG))
+        if snapshot.save() { WidgetCenter.shared.reloadTimelines(ofKind: WidgetFoodSnapshot.widgetKind) }
     }
 
     /// Looks up the group of foods whose id does not carry it (products, own foods), once per food.
