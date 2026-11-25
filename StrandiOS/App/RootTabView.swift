@@ -165,6 +165,23 @@ struct RootTabView: View {
                 _tabPaths = State(initialValue: paths)
                 _showAllFeatures = State(initialValue: true)
             case "log": _quickAction = State(initialValue: .forgeLog)
+            case let key where key.hasPrefix("sub-"):
+                // A Settings subpage by its name ("sub-storage"), opened over the page that links to it.
+                let subs: [String: (SettingsPage, SettingsSubpage)] = [
+                    "sub-backupsync": (.dataBackup, .backupSync), "sub-storage": (.dataBackup, .storage),
+                    "sub-applehealth": (.dataBackup, .appleHealth), "sub-datasources": (.dataBackup, .dataSources),
+                    "sub-testcentre": (.help, .testCentre), "sub-limitations": (.help, .noopLimitations),
+                    "sub-equipment": (.training, .equipment), "sub-exercisemedia": (.training, .exerciseMedia),
+                    "sub-heartratesharing": (.strap, .heartRateSharing), "sub-bodymeasurements": (.profile, .bodyMeasurements),
+                    "sub-applewatch": (.help, .appleWatchData), "sub-shortcuts": (.siri, .shortcutsExport),
+                ]
+                var paths = Array(repeating: NavigationPath(), count: Self.tabPathCount)
+                if let (page, sub) = subs[key] {
+                    paths[4].append(MoreDestination.settingsPage(page))
+                    paths[4].append(sub)
+                }
+                _tabPaths = State(initialValue: paths)
+                _showAllFeatures = State(initialValue: true)
             case let key where key.hasPrefix("page-"):
                 // A Settings page by its name ("page-notifications"), opened over the settings hub.
                 var paths = Array(repeating: NavigationPath(), count: Self.tabPathCount)
