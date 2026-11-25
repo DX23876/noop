@@ -56,7 +56,6 @@ internal fun GoalsSettingsSection(viewModel: com.noop.ui.AppViewModel) {
     }
     fun save(key: String, value: Any) = CorePrefs.write(context, key, value)
 
-    Text(stringResource(R.string.forge_sg_goals_subtitle), style = Forge.type.subhead, color = Forge.sceneInk.secondary)
     SettingsCard(stringResource(R.string.forge_sg_how_many), null) {
         SettingRow(stringResource(R.string.forge_sg_long_term_limit, longTerm)) {
             Stepper("", onMinus = { if (longTerm > 1 && save(CorePrefs.LONG_TERM_LIMIT, longTerm - 1)) longTerm-- },
@@ -164,7 +163,6 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit, onOpenEquipment: (
     var level by remember { mutableStateOf(activityPrefs.getString(com.noop.core.CoreActivity.KEY_LEVEL, "balanced") ?: "balanced") }
     var notify by remember { mutableStateOf(activityPrefs.getBoolean(com.noop.core.CoreActivity.KEY_NOTIFY, true)) }
 
-    Text(stringResource(R.string.forge_st_subtitle), style = Forge.type.subhead, color = Forge.sceneInk.secondary)
     SettingsCard(stringResource(R.string.forge_training), stringResource(R.string.forge_st_blurb)) {
         Overline(stringResource(R.string.forge_st_logging))
         val effortIds = listOf("off", "rir", "rpe")
