@@ -137,7 +137,11 @@ public enum CoreBackup {
         case .copyFailedKept: return "copyFailedKept"
         case .postRestoreRolledBack: return "postRestoreRolledBack"
         case .postRestoreRemoved: return "postRestoreRemoved"
-        case .importFailed: return "importFailed"
+        // The cause travels with the code, as an export failure's does ("write:…"): a tester's screenshot of
+        // a bare "importFailed" left nothing to diagnose (tester report, 2026-11-25).
+        case .importFailed(let detail):
+            let cause = detail.trimmingCharacters(in: .whitespacesAndNewlines)
+            return cause.isEmpty ? "importFailed" : "importFailed: \(cause)"
         }
     }
 }
