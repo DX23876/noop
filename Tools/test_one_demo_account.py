@@ -80,6 +80,7 @@ class OneDemoPersonTests(unittest.TestCase):
         self.assertIn('static let saidKeys = ["profile.heightCm", "profile.sex"]', apple)
         android = (ANDROID / "ui/DemoPerson.kt").read_text(encoding="utf-8")
         self.assertIn("if (!profile.isUnset()) return false", android)
+        # `ProfileStore` moved out of `SettingsScreen.kt` into its own file (Settings parity, P0).
         settings = (ANDROID / "ui/ProfileStore.kt").read_text(encoding="utf-8")
         self.assertRegex(settings, r"fun isUnset\(\): Boolean = !prefs\.contains\(KEY_HEIGHT\) && !prefs\.contains\(KEY_SEX\)")
 

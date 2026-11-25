@@ -7510,6 +7510,70 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="import_depth_three_years">3 lata</string>
     <string name="import_depth_ten_years">10 lat</string>
     <!-- settings-parity:p1:begin -->
+    <string name="fsp1_profile_blurb">Umożliwiają one określenie stref tętna, szacunkowych kalorii i bazowych wartości regeneracji. Zachowaj ich dokładność.</string>
+    <string name="fsp1_sex_nonbinary">Niebinarny</string>
+    <string name="fsp1_body_formula">Formuła składu ciała</string>
+    <string name="fsp1_formula_male">Równanie męskie</string>
+    <string name="fsp1_formula_female">Równanie żeńskie</string>
+    <string name="fsp1_formula_note">Którego opublikowanego równania ma używać oszacowanie tkanki tłuszczowej. To pytanie o skład ciała, a nie o tożsamość, i NOOP nie ma jak tego wywnioskować — więc pyta, zamiast zakładać.</string>
+    <string name="fsp1_maxhr_manual">Ręczne obejście</string>
+    <string name="fsp1_maxhr_measured">Zmierzono podczas Twoich treningów, potwierdzono %1$s</string>
+    <string name="fsp1_maxhr_age">Oszacowano na podstawie wieku</string>
+    <string name="fsp1_maxhr_auto">Automatyczny</string>
+    <string name="fsp1_hz_bpm_unit">bpm</string>
+    <string name="fsp1_vo2max">VO₂maks</string>
+    <string name="fsp1_auto">Automatyczny</string>
+    <string name="fsp1_vo2_unit">ml/kg/min</string>
+    <string name="fsp1_vo2_entered">Wpisano %1$s</string>
+    <string name="fsp1_vo2_hint">Oszacowane wzorem, który nie jest zweryfikowany powyżej BMI 40, więc może być wyraźnie wyższe od twojej rzeczywistej wartości. Pomiar jest dokładniejszy: spacer na zewnątrz z Apple Watch albo wynik z badania wpisany tutaj.</string>
+    <string name="fsp1_activity">Poziom aktywności</string>
+    <string name="fsp1_activity_level">Poziom %1$d</string>
+    <string name="fsp1_activity_note">Kalorie z treningów są skalowane do twojej wydolności tlenowej. Wpisane VO₂max lub odczyt z Apple Watch obowiązuje przez sześć miesięcy, przeliczony na twoją obecną wagę. W przeciwnym razie jest szacowane na podstawie tętna spoczynkowego, budowy ciała i poziomu aktywności. Zmiany obowiązują od następnej synchronizacji opaski.</string>
+    <string name="fsp1_zones_row">Strefy tętna</string>
+    <string name="fsp1_zones_standard">Standardowe zakresy</string>
+    <string name="fsp1_zones_custom">Własne · %1$s</string>
+    <string name="fsp1_zones_note">Gdzie zaczyna się każda strefa, jako udział Twojego maksymalnego tętna. Zmienia strefy, które widzisz, i te, które zaleca trener — nie zmienia Twojego wyniku Wysiłku.</string>
+    <string name="fsp1_hz_title">Ustaw własne zakresy</string>
+    <string name="fsp1_hz_max">Maksymalne tętno %1$d bpm</string>
+    <string name="fsp1_hz_what">Czym one są</string>
+    <string name="fsp1_hz_what_body" formatted="false">Każda strefa zaczyna się przy określonym tętnie. Standardowe zakresy ustawiają te progi na 50, 60, 70, 80 i 90 % Twojego maksimum, co odpowiada większości osób. Jeśli masz za sobą test progowy lub mleczanowy albo trenujesz według schematu trenera, ustaw tutaj własne.</string>
+    <string name="fsp1_hz_what_note">Strefa 5 zawsze kończy się na Twoim maksymalnym tętnie, więc przesuwać możesz jedynie pięć punktów początkowych.</string>
+    <string name="fsp1_hz_mode">Jak zdefiniowane są Twoje strefy</string>
+    <string name="fsp1_hz_standard">Standardowe</string>
+    <string name="fsp1_hz_percent" formatted="false">% maks.</string>
+    <string name="fsp1_hz_beats">Bije</string>
+    <string name="fsp1_hz_blurb_auto" formatted="false">Zwykłe 50/60/70/80/90 % Twojego maksymalnego tętna.</string>
+    <string name="fsp1_hz_blurb_percent">Ustawiasz wartości procentowe. Idą one za Twoim maksymalnym tętnem, więc ponowne jego oszacowanie przesuwa każdy zakres.</string>
+    <string name="fsp1_hz_blurb_bpm">Ustawiasz same wartości tętna — takie, jakie daje test progowy lub mleczanowy. Pozostają na miejscu, gdy zmienia się Twoje maksimum.</string>
+    <string name="fsp1_hz_zone">Strefa %1$d</string>
+    <string name="fsp1_hz_percent_range">%1$s–%2$s %% maksimum</string>
+    <string name="fsp1_hz_bpm_range">%1$d–%2$d bpm</string>
+    <string name="fsp1_hz_invalid_bpm">Każda strefa musi zaczynać się powyżej poprzedniej, a Strefa 5 musi zaczynać się poniżej Twojego maksimum %1$d bpm.</string>
+    <string name="fsp1_hz_invalid_percent">Każda strefa musi zaczynać się powyżej poprzedniej. Popraw zakresy tak, by rosły po kolei.</string>
+    <string name="fsp1_hz_use_standard">Użyj standardowych zakresów</string>
+    <string name="fsp1_hz_save">Zapisz</string>
+    <string name="fsp1_hz_changes">Co to zmienia</string>
+    <string name="fsp1_hz_changes_body">Twoje zakresy wyznaczają odczyt strefy na żywo, podział na strefy w treningu oraz strefy, w których zaleca trener.</string>
+    <string name="fsp1_hz_changes_note">Nie zmieniają Twojego wyniku Wysiłku, który liczony jest względem rezerwy tętna według opublikowanej metody z własnymi stałymi progami — dzięki temu Twoja historia pozostaje porównywalna. Nie zmieniają też słupków stref pochodzących z eksportu WHOOP, które niosą własne zakresy WHOOP.</string>
+    <string name="fsp1_equipment_title">Dostępny sprzęt</string>
+    <string name="fsp1_equipment_note">Wybierz sprzęt, z którego możesz korzystać. Biblioteka ćwiczeń pokaże wtedy pasujące ćwiczenia. Jeśli nic nie wybierzesz, wszystkie ćwiczenia pozostaną dostępne.</string>
+    <string name="fsp1_weight_step">Skok ciężaru</string>
+    <string name="fsp1_weight_step_note">Dotyczy przycisków − i + dla hantli, maszyn i wyciągów. Ćwiczenia ze sztangą zmieniają się o dwa najmniejsze talerze zapisane w kalkulatorze talerzy. Każdy ciężar możesz też wpisać bezpośrednio.</string>
+    <string name="fsp1_rest_pause">Rest-pause: %1$d s</string>
+    <string name="fsp1_guided_switch">Trening z prowadzeniem</string>
+    <string name="fsp1_guided_note">Pokazuje przycisk startu na Dzisiaj, w Coachu i w Więcej. Podczas sesji pasek wibruje tylko, gdy wyjdziesz poza swój zakres tętna. Beta.</string>
+    <string name="fsp1_help_teach">Pomóż nauczyć aplikację</string>
+    <string name="fsp1_help_teach_note">Nagrywaj krótkie fragmenty tego, jak się poruszasz podczas treningu, i wysyłaj je, by NOOP nauczył się sam rozpoznawać sporty. Wyłączone, dopóki nie zaznaczysz sportu.</string>
+    <string name="fsp1_gn_week_start">Początek tygodnia</string>
+    <string name="fsp1_gn_mid_week">W połowie tygodnia, gdy cel się wymyka</string>
+    <string name="fsp1_gn_review">Podsumowanie tygodnia i miesiąca</string>
+    <string name="fsp1_hz_percent_unit" formatted="false">%</string>
+    <plurals name="fsp1_profile_years">
+        <item quantity="one">%1$d rok</item>
+        <item quantity="few">%1$d lata</item>
+        <item quantity="many">%1$d lat</item>
+        <item quantity="other">%1$d lat</item>
+    </plurals>
     <!-- settings-parity:p1:end -->
     <!-- settings-parity spacer 1a -->
     <!-- settings-parity spacer 1b -->

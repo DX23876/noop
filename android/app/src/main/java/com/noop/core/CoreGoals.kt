@@ -181,19 +181,25 @@ object CoreGoals {
     /** One goal notification the core decided on (`GoalEventPlan`), and the state to keep for the next run. */
     data class Notice(val id: String, val title: String, val body: String, val evening: Boolean = false,
                       val tickGoalId: String? = null, val tickDay: String? = null)
-    data class Notices(val messages: List<Notice>, val state: String)
+    /** A weekly-goal notice the core planned (`PeriodGoalNoticePlan`) and the moment to show it, unix seconds. */
+    data class PeriodNotice(val id: String, val title: String, val body: String, val atEpoch: Long)
+    data class Notices(val messages: List<Notice>, val state: String, val periodNotices: List<PeriodNotice> = emptyList())
 
     /**
      * What to tell now: the kinds the wearer switched on, whether it is quiet hours, the minute the evening
      * reminder may go from, whether a workout runs or the app is open, and the state the last run returned.
      */
     fun notices(context: Context, dismissedWorkouts: List<String>, kinds: List<String>, quiet: Boolean,
-                eveningMinute: Int, workoutInProgress: Boolean, appIsActive: Boolean, state: String?): Notices? {
+                eveningMinute: Int, workoutInProgress: Boolean, appIsActive: Boolean, state: String?,
+                periodKinds: List<String> = emptyList(), firstWeekday: Int = 2, quietWindow: Triple<Boolean, Int, Int>? = null): Notices? {
         if (!SwiftCore.available) return null
         if (!CoreUserInputs.ensure(context)) return null
         val args = JSONObject(settings(context, dismissedWorkouts)).put("kinds", JSONArray(kinds)).put("quiet", quiet)
             .put("eveningMinute", eveningMinute).put("workoutInProgress", workoutInProgress)
             .put("appIsActive", appIsActive).apply { if (state != null) put("noticeState", state) }
+            // The weekly-goal notices: the kinds switched on, the week's first day and the quiet hours none may fall in.
+            .put("periodKinds", JSONArray(periodKinds)).put("firstWeekday", firstWeekday)
+            .apply { quietWindow?.let { put("quietEnabled", it.first).put("quietStartMinutes", it.second).put("quietEndMinutes", it.third) } }
         return SwiftCore.call("goals.notices", args.toString())?.let(::parseNotices)
     }
 
@@ -203,7 +209,9 @@ object CoreGoals {
         return Notices(o.optJSONArray("messages").objects().map {
             Notice(it.getString("id"), it.getString("title"), it.optString("body"), it.optBoolean("evening"),
                    it.optString("tickGoalId").takeIf { id -> id.isNotEmpty() }, it.optString("tickDay").takeIf { d -> d.isNotEmpty() })
-        }, o.optString("state", "{}"))
+        }, o.optString("state", "{}"), o.optJSONArray("periodNotices").objects().map {
+            PeriodNotice(it.getString("id"), it.getString("title"), it.optString("body"), it.getLong("at"))
+        })
     }
 
     internal fun settings(context: Context, dismissedWorkouts: List<String>): String {

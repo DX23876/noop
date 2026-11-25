@@ -7402,6 +7402,67 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="import_depth_three_years">3 年</string>
     <string name="import_depth_ten_years">10 年</string>
     <!-- settings-parity:p1:begin -->
+    <string name="fsp1_profile_blurb">这些数据为你的心率区间、卡路里估算和恢复基线提供支撑。请保持它们准确。</string>
+    <string name="fsp1_sex_nonbinary">非二元性别</string>
+    <string name="fsp1_body_formula">身体成分公式</string>
+    <string name="fsp1_formula_male">男性公式</string>
+    <string name="fsp1_formula_female">女性公式</string>
+    <string name="fsp1_formula_note">体脂估算应采用哪个已发表的公式。这是关于身体成分而非身份认同的问题，NOOP 无法推断——因此它选择询问而不是假定。</string>
+    <string name="fsp1_maxhr_manual">手动覆盖</string>
+    <string name="fsp1_maxhr_measured">根据你的训练测得，确认于 %1$s</string>
+    <string name="fsp1_maxhr_age">根据年龄估算</string>
+    <string name="fsp1_maxhr_auto">自动</string>
+    <string name="fsp1_hz_bpm_unit">bpm</string>
+    <string name="fsp1_vo2max">最大摄氧量</string>
+    <string name="fsp1_auto">自动</string>
+    <string name="fsp1_vo2_unit">L/kg/min</string>
+    <string name="fsp1_vo2_entered">输入于 %1$s</string>
+    <string name="fsp1_vo2_hint">此数值由一个未在 BMI 40 以上验证过的公式估算，可能明显高于你的真实数值。实际测量更准确：佩戴 Apple Watch 在户外步行，或在此输入实验室测得的数值。</string>
+    <string name="fsp1_activity">活动水平</string>
+    <string name="fsp1_activity_level">等级 %1$d</string>
+    <string name="fsp1_activity_note">训练消耗按你的有氧能力换算。手动输入的最大摄氧量或 Apple Watch 读数有效六个月，并按你当前的体重换算。否则将根据静息心率、体型和活动水平估算。更改将在下次手环同步后生效。</string>
+    <string name="fsp1_zones_row">心率区间</string>
+    <string name="fsp1_zones_standard">标准区间</string>
+    <string name="fsp1_zones_custom">自定义 · %1$s</string>
+    <string name="fsp1_zones_note">每个区间从最大心率的多大比例开始。会改变你看到的区间和教练安排的区间，但不影响 Effort 分数。</string>
+    <string name="fsp1_hz_title">自定义你的区间</string>
+    <string name="fsp1_hz_max">最大心率 %1$d bpm</string>
+    <string name="fsp1_hz_what">这是什么</string>
+    <string name="fsp1_hz_what_body" formatted="false">每个区间都从某个心率开始。标准区间把这些起点设在最大心率的 50、60、70、80 和 90 %，适合大多数人。如果你做过阈值或乳酸测试，或按教练的方案训练，可以在这里自定义。</string>
+    <string name="fsp1_hz_what_note">区间 5 始终以你的最大心率结束，因此你只能移动五个起点。</string>
+    <string name="fsp1_hz_mode">你的区间如何定义</string>
+    <string name="fsp1_hz_standard">标准</string>
+    <string name="fsp1_hz_percent" formatted="false">占最大值的 %</string>
+    <string name="fsp1_hz_beats">心搏</string>
+    <string name="fsp1_hz_blurb_auto" formatted="false">最大心率的 50/60/70/80/90 %，即通常的设定。</string>
+    <string name="fsp1_hz_blurb_percent">由你设定百分比。它们随最大心率变化，因此重新估算最大心率会移动所有区间。</string>
+    <string name="fsp1_hz_blurb_bpm">由你直接设定心率——阈值或乳酸测试给出的数值。最大心率变化时它们保持不变。</string>
+    <string name="fsp1_hz_zone">区间 %1$d</string>
+    <string name="fsp1_hz_percent_range">最大值的 %1$s–%2$s %%</string>
+    <string name="fsp1_hz_bpm_range">%1$d–%2$d 步/分钟</string>
+    <string name="fsp1_hz_invalid_bpm">每个区间都必须高于前一个，且区间 5 必须低于你的最大值 %1$d bpm。</string>
+    <string name="fsp1_hz_invalid_percent">每个区间都必须高于前一个。请调整区间，使其依次递增。</string>
+    <string name="fsp1_hz_use_standard">使用标准区间</string>
+    <string name="fsp1_hz_save">保存</string>
+    <string name="fsp1_hz_changes">这会改变什么</string>
+    <string name="fsp1_hz_changes_body">你的区间决定实时区间显示、训练的区间分布，以及教练给你安排的区间。</string>
+    <string name="fsp1_hz_changes_note">它们不会改变你的 Effort 分数——该分数按已发表的方法以心率储备计算，有自己固定的阈值，因此你的历史数据保持可比。它们也不会改变来自 WHOOP 导出的区间条形图，那些使用 WHOOP 自己的区间。</string>
+    <string name="fsp1_equipment_title">可用器械</string>
+    <string name="fsp1_equipment_note">选择你可以使用的器械，动作库即可显示匹配的动作。如果未选择任何器械，所有动作都保持可用。</string>
+    <string name="fsp1_weight_step">重量步进</string>
+    <string name="fsp1_weight_step_note">用于哑铃、器械和拉索的 − 和 + 按钮。杠铃动作按配重计算器中保存的两片最小杠铃片递增。你也可以直接输入任意重量。</string>
+    <string name="fsp1_rest_pause">暂停休息组：%1$d 秒</string>
+    <string name="fsp1_guided_switch">引导训练</string>
+    <string name="fsp1_guided_note">在今天、Coach 和更多中显示开始按钮。训练期间，只有当你超出心率范围时手环才会振动。测试版。</string>
+    <string name="fsp1_help_teach">帮应用学会识别</string>
+    <string name="fsp1_help_teach_note">在训练中录制几段你的动作并发送，让 NOOP 学会自己识别运动。在你勾选运动之前都是关闭的。</string>
+    <string name="fsp1_gn_week_start">每周开始</string>
+    <string name="fsp1_gn_mid_week">周中，目标落后时</string>
+    <string name="fsp1_gn_review">每周和每月回顾</string>
+    <string name="fsp1_hz_percent_unit" formatted="false">%</string>
+    <plurals name="fsp1_profile_years">
+        <item quantity="other">%1$d 岁</item>
+    </plurals>
     <!-- settings-parity:p1:end -->
     <!-- settings-parity spacer 1a -->
     <!-- settings-parity spacer 1b -->

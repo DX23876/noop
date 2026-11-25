@@ -260,6 +260,44 @@ class ProfileStore(private val prefs: SharedPreferences) {
             .apply()
 
     /**
+     * Which published equation the body-fat estimate uses when [sex] cannot choose one by itself (iOS
+     * `bodyFormulaSex`): "" (not set), "male" or "female". Only a non-binary profile is asked.
+     */
+    var bodyFormulaSex: String
+        get() = prefs.getString(KEY_BODY_FORMULA_SEX, "")?.takeIf { it == "male" || it == "female" } ?: ""
+        set(v) = prefs.edit().putString(KEY_BODY_FORMULA_SEX, if (v == "male" || v == "female") v else "").apply()
+
+    /** The Navy equation for the body-fat estimate: the sex when it is male or female, else the profile's own answer. */
+    val bodyEquation: String get() = when (sex.lowercase()) { "male" -> "male"; "female" -> "female"; else -> bodyFormulaSex }
+
+    // ── The aerobic ceiling the energy model scales workouts to (iOS `FitnessPreferences`) ────────
+    /** A VO₂max the wearer entered, ml/kg/min; 0 = none. Set only through [setManualVO2max], which also records the day and weight. */
+    val vo2maxManual: Double get() = prefs.getFloat(KEY_VO2_MANUAL, 0f).toDouble().coerceAtLeast(0.0)
+
+    /** Local day (`yyyy-MM-dd`) the value was entered; "" = none. */
+    val vo2maxManualDay: String get() = prefs.getString(KEY_VO2_DAY, "") ?: ""
+
+    /** The weight in kg the entered value was per kilogram of; 0 = unknown. */
+    val vo2maxManualWeightKg: Double get() = prefs.getFloat(KEY_VO2_WEIGHT, 0f).toDouble().coerceAtLeast(0.0)
+
+    /** Stores an entered VO₂max with today's date and weight, or clears it with null (the energy model rescales a value as the body changes). */
+    fun setManualVO2max(value: Double?) {
+        prefs.edit().apply {
+            if (value != null && value.isFinite() && value > 0) {
+                putFloat(KEY_VO2_MANUAL, value.toFloat()).putString(KEY_VO2_DAY, java.time.LocalDate.now().toString())
+                    .putFloat(KEY_VO2_WEIGHT, weightKg.toFloat())
+            } else {
+                remove(KEY_VO2_MANUAL).remove(KEY_VO2_DAY).remove(KEY_VO2_WEIGHT)
+            }
+        }.apply()
+    }
+
+    /** The activity category chosen by hand, 1 to 5; 0 = measured from the strap. */
+    var activityLevelOverride: Int
+        get() = prefs.getInt(KEY_ACTIVITY_LEVEL, 0).coerceIn(0, 5)
+        set(v) = prefs.edit().putInt(KEY_ACTIVITY_LEVEL, v.coerceIn(0, 5)).apply()
+
+    /**
      * The analytics [UserProfile] for this store — the ONE place the mapping lives.
      *
      * Every field matters somewhere and a missing one fails silently rather than loudly. Dropping
@@ -326,40 +364,87 @@ class ProfileStore(private val prefs: SharedPreferences) {
         get() = prefs.getBoolean(KEY_STEPS_HAS_MOTION, false)
         set(v) = prefs.edit().putBoolean(KEY_STEPS_HAS_MOTION, v).apply()
 
-    /** The auto (Tanaka) HR-max for the current age. */
-    val hrMaxAuto: Int get() = Zones.hrMaxTanaka(age)
+    /**
+     * The automatic HR-max for the current age: what the shared core resolves (the level measured in workouts
+     * when one is confirmed, else the age formula), cached here by [cacheCoreMaxHeartRate] because the core must
+     * not be asked from the UI thread. Until the core has answered for this age it is the Tanaka estimate.
+     */
+    val hrMaxAuto: Int
+        get() = if (prefs.getInt(KEY_HRMAX_CORE_AGE, -1) == age) prefs.getInt(KEY_HRMAX_CORE, 0).takeIf { it > 0 }
+            ?: Zones.hrMaxTanaka(age) else Zones.hrMaxTanaka(age)
+
+    /** Where the automatic HR-max came from, as the core named it: `measured`, `gellish` or `default`; "" before it answered. */
+    val hrMaxAutoSource: String
+        get() = if (prefs.getInt(KEY_HRMAX_CORE_AGE, -1) == age) prefs.getString(KEY_HRMAX_CORE_SOURCE, "") ?: "" else ""
+
+    /** The day a measured HR-max was last confirmed (`yyyy-MM-dd`); "" when it is not a measured one. */
+    val hrMaxMeasuredOn: String
+        get() = if (prefs.getInt(KEY_HRMAX_CORE_AGE, -1) == age) prefs.getString(KEY_HRMAX_CORE_ON, "") ?: "" else ""
+
+    /** Stores the core's answer for the automatic HR-max at this [age] (`profile.maxHeartRate`). */
+    fun cacheCoreMaxHeartRate(forAge: Int, bpm: Int, source: String, confirmedOn: String?) {
+        prefs.edit().putInt(KEY_HRMAX_CORE_AGE, forAge).putInt(KEY_HRMAX_CORE, bpm)
+            .putString(KEY_HRMAX_CORE_SOURCE, source).putString(KEY_HRMAX_CORE_ON, confirmedOn ?: "").apply()
+    }
 
     /** Effective HR-max: the manual override if set, else the Tanaka estimate. */
     val hrMax: Int get() = if (hrMaxOverride > 0) hrMaxOverride else hrMaxAuto
 
     /**
-     * Five personalized inclusive zone starts in BPM, or null for the conventional %HRmax zones.
-     * Persisted under [KEY_HR_ZONE_THRESHOLDS]; a stored value failing the shared invariant is treated
-     * as absent. Mirrors macOS `Profile.hrZoneThresholds`.
+     * How the heart-rate zones are defined (iOS `HRZoneConfig.Mode`): `auto` (the conventional 50/60/70/80/90 % of the
+     * maximum), `percent` (the wearer's own percentages, which move with the maximum) or `bpm` (the wearer's own
+     * beats, which stay put). A zone set saved before the modes existed (`hr_zone_thresholds`) reads as `bpm`.
      */
-    var hrZoneThresholds: List<Int>?
-        get() {
-            val values = prefs.getString(KEY_HR_ZONE_THRESHOLDS, null)
-                ?.split(",")?.mapNotNull(String::toIntOrNull) ?: return null
-            return values.takeIf { validZoneThresholds(it) }
-        }
-        set(values) {
-            if (values == null || !validZoneThresholds(values)) {
-                prefs.edit().remove(KEY_HR_ZONE_THRESHOLDS).apply()
-            } else {
-                prefs.edit().putString(KEY_HR_ZONE_THRESHOLDS, values.joinToString(",")).apply()
+    var hrZoneMode: String
+        get() = prefs.getString(KEY_ZONE_MODE, null)?.takeIf { it in ZONE_MODES }
+            ?: if (legacyZoneBpms() != null) "bpm" else "auto"
+        set(v) = prefs.edit().putString(KEY_ZONE_MODE, if (v in ZONE_MODES) v else "auto").apply()
+
+    /** The five lower bounds as percents of the maximum, as stored for the percent mode; empty when unset. */
+    val hrZonePercents: List<Double> get() = parseBounds(prefs.getString(KEY_ZONE_PERCENTS, null))
+
+    /** The five lower bounds in bpm, as stored for the bpm mode; empty when unset. */
+    val hrZoneBpms: List<Double>
+        get() = parseBounds(prefs.getString(KEY_ZONE_BPMS, null)).ifEmpty { legacyZoneBpms()?.map(Int::toDouble).orEmpty() }
+
+    /**
+     * Stores the editor's result. Writes only the chosen mode's own bounds and leaves the other mode's set as it
+     * was, so a switch percent, beats, percent never loses the numbers typed first (the Apple store does the same).
+     */
+    fun setHrZoneConfig(mode: String, percents: List<Double>, bpms: List<Double>) {
+        prefs.edit().apply {
+            when (mode) {
+                "percent" -> putString(KEY_ZONE_PERCENTS, joinBounds(percents))
+                "bpm" -> putString(KEY_ZONE_BPMS, joinBounds(bpms))
             }
-        }
+            putString(KEY_ZONE_MODE, if (mode in ZONE_MODES) mode else "auto")
+        }.apply()
+    }
+
+    /**
+     * The five lower bounds the zones are cut at in bpm, or null for the conventional bands. In the percent mode
+     * they follow the maximum; a stored set that is not strictly increasing counts as absent.
+     */
+    val hrZoneLowerBounds: List<Double>?
+        get() = when (hrZoneMode) {
+            "bpm" -> hrZoneBpms.takeIf { it.size == 5 }
+            "percent" -> hrZonePercents.takeIf { it.size == 5 }?.map { it / 100.0 * hrMax }
+            else -> null
+        }?.let(HrZones::validCustomLowerBounds)
+
+    /** [hrZoneLowerBounds] rounded to whole beats: what a change of the zones puts in a remember key. */
+    val hrZoneThresholds: List<Int>? get() = hrZoneLowerBounds?.map { Math.round(it).toInt() }
 
     /** The single display-zone model used by live HR, workout splits, and haptic coaching. */
     val hrZoneSet: HrZoneSet
-        get() = HrZones.zones(maxHR = hrMax.toDouble(), customLowerBounds = hrZoneThresholds?.map(Int::toDouble))
+        get() = HrZones.zones(maxHR = hrMax.toDouble(), customLowerBounds = hrZoneLowerBounds)
 
-    val hasCustomHrZones: Boolean get() = hrZoneThresholds != null
+    val hasCustomHrZones: Boolean get() = hrZoneLowerBounds != null
 
     /** Enable by seeding the editor with conventional boundaries; disabling restores the defaults. */
     fun setCustomHrZonesEnabled(enabled: Boolean) {
-        hrZoneThresholds = if (enabled) HrZones.defaultLowerBounds(hrMax.toDouble()) else null
+        if (enabled) setHrZoneConfig("bpm", emptyList(), HrZones.defaultLowerBounds(hrMax.toDouble()).map(Int::toDouble))
+        else hrZoneMode = "auto"
     }
 
     /** Move one boundary while preserving strict ordering, with neighbour-aware clamps. */
@@ -370,8 +455,12 @@ class ProfileStore(private val prefs: SharedPreferences) {
         val ceiling = if (index == current.lastIndex) HrZones.customBPMRange.last else current[index + 1] - 1
         if (floor > ceiling) return   // no room between neighbours -> no-op (coerceIn throws on empty range)
         current[index] = (current[index] + if (up) 1 else -1).coerceIn(floor, ceiling)
-        hrZoneThresholds = current
+        setHrZoneConfig("bpm", emptyList(), current.map(Int::toDouble))
     }
+
+    private fun legacyZoneBpms(): List<Int>? =
+        prefs.getString(KEY_HR_ZONE_THRESHOLDS, null)?.split(",")?.mapNotNull(String::toIntOrNull)
+            ?.takeIf { validZoneThresholds(it) }
 
     // ── Backup settings snapshot/apply (#1000) ──────────────────────────────────────────────────
     // The profile half of a `.noopbak`'s `settings.json`. Canonical key strings mirror
@@ -392,9 +481,19 @@ class ProfileStore(private val prefs: SharedPreferences) {
         if (prefs.contains(KEY_HEIGHT)) out["profile.heightCm"] = heightCm
         if (prefs.contains(KEY_WAIST)) out["profile.waistCm"] = waistCm
         if (prefs.contains(KEY_HRMAX)) out["profile.hrMax"] = hrMaxOverride
-        if (prefs.contains(KEY_HR_ZONE_THRESHOLDS)) {
-            hrZoneThresholds?.let { out["profile.hrZoneThresholds"] = it.joinToString(",") }
+        // The zones: the mode and both bound sets, and the legacy one-key bpm form beside them so a build that
+        // only knows that key still restores the bands.
+        if (prefs.contains(KEY_ZONE_MODE)) out["profile.zoneMode"] = hrZoneMode
+        prefs.getString(KEY_ZONE_PERCENTS, null)?.takeIf { it.isNotEmpty() }?.let { out["profile.zonePercentEdges"] = it }
+        prefs.getString(KEY_ZONE_BPMS, null)?.takeIf { it.isNotEmpty() }?.let { out["profile.zoneBpmEdges"] = it }
+        if (hrZoneMode == "bpm") hrZoneBpms.takeIf { it.size == 5 }?.let { out["profile.hrZoneThresholds"] = it.joinToString(",") { v -> Math.round(v).toString() } }
+        else if (prefs.contains(KEY_HR_ZONE_THRESHOLDS)) prefs.getString(KEY_HR_ZONE_THRESHOLDS, null)?.let { out["profile.hrZoneThresholds"] = it }
+        if (vo2maxManual > 0 && vo2maxManualDay.length == 10) {
+            out["profile.vo2maxManual"] = vo2maxManual
+            out["profile.vo2maxManualDay"] = vo2maxManualDay
+            if (vo2maxManualWeightKg > 0) out["profile.vo2maxManualWeightKg"] = vo2maxManualWeightKg
         }
+        if (prefs.contains(KEY_ACTIVITY_LEVEL)) out["profile.activityLevelOverride"] = activityLevelOverride
         return out
     }
 
@@ -413,9 +512,26 @@ class ProfileStore(private val prefs: SharedPreferences) {
         (values["profile.heightCm"] as? Number)?.let { heightCm = it.toDouble() }
         (values["profile.waistCm"] as? Number)?.let { waistCm = it.toDouble() }
         (values["profile.hrMax"] as? Number)?.let { hrMaxOverride = it.toInt() }
-        (values["profile.hrZoneThresholds"] as? String)?.let {
-            hrZoneThresholds = it.split(",").mapNotNull(String::toIntOrNull)
+        // The legacy one-key form is read only while this device has no zone mode of its own (the wearer's own edits win).
+        (values["profile.hrZoneThresholds"] as? String)?.let { raw ->
+            val bpms = raw.split(",").mapNotNull(String::toIntOrNull)
+            if (validZoneThresholds(bpms) && !prefs.contains(KEY_ZONE_MODE)) {
+                prefs.edit().putString(KEY_HR_ZONE_THRESHOLDS, bpms.joinToString(",")).apply()
+            }
         }
+        (values["profile.zoneMode"] as? String)?.takeIf { it in ZONE_MODES }?.let { hrZoneMode = it }
+        (values["profile.zonePercentEdges"] as? String)?.takeIf { parseBounds(it).size == 5 }
+            ?.let { prefs.edit().putString(KEY_ZONE_PERCENTS, it).apply() }
+        (values["profile.zoneBpmEdges"] as? String)?.takeIf { parseBounds(it).size == 5 }
+            ?.let { prefs.edit().putString(KEY_ZONE_BPMS, it).apply() }
+        (values["profile.vo2maxManual"] as? Number)?.toDouble()?.takeIf { it > 0 && it.isFinite() }?.let { value ->
+            val day = values["profile.vo2maxManualDay"] as? String
+            if (day != null && day.length == 10) {
+                prefs.edit().putFloat(KEY_VO2_MANUAL, value.toFloat()).putString(KEY_VO2_DAY, day)
+                    .putFloat(KEY_VO2_WEIGHT, ((values["profile.vo2maxManualWeightKg"] as? Number)?.toFloat() ?: 0f).coerceAtLeast(0f)).apply()
+            }
+        }
+        (values["profile.activityLevelOverride"] as? Number)?.let { activityLevelOverride = it.toInt() }
     }
 
     /** Whether nobody has said who this is yet. The demo seed asks before it writes a synthetic person,
@@ -445,6 +561,29 @@ class ProfileStore(private val prefs: SharedPreferences) {
         private const val KEY_WAIST = "waist_cm"
         private const val KEY_HRMAX = "hr_max_override"
         private const val KEY_HR_ZONE_THRESHOLDS = "hr_zone_thresholds"
+        private const val KEY_ZONE_MODE = "zone_mode"
+        private const val KEY_ZONE_PERCENTS = "zone_percent_edges"
+        private const val KEY_ZONE_BPMS = "zone_bpm_edges"
+        private val ZONE_MODES = setOf("auto", "percent", "bpm")
+        private const val KEY_BODY_FORMULA_SEX = "profile_body_formula_sex"
+        private const val KEY_VO2_MANUAL = "vo2max_manual"
+        private const val KEY_VO2_DAY = "vo2max_manual_day"
+        private const val KEY_VO2_WEIGHT = "vo2max_manual_weight_kg"
+        private const val KEY_ACTIVITY_LEVEL = "activity_level_override"
+        private const val KEY_HRMAX_CORE = "hr_max_core"
+        private const val KEY_HRMAX_CORE_AGE = "hr_max_core_age"
+        private const val KEY_HRMAX_CORE_SOURCE = "hr_max_core_source"
+        private const val KEY_HRMAX_CORE_ON = "hr_max_core_on"
+
+        /** Five comma-separated numbers (POSIX form, so a backup written under one locale restores under another); empty when it is not five. */
+        internal fun parseBounds(raw: String?): List<Double> =
+            raw?.split(",")?.mapNotNull { it.trim().toDoubleOrNull() }?.takeIf { it.size == 5 }.orEmpty()
+
+        /** The bounds as the shortest exact text per value: "60", "62.5". */
+        internal fun joinBounds(values: List<Double>): String = values.joinToString(",") {
+            val tenth = Math.round(it * 10) / 10.0
+            if (tenth == Math.rint(tenth)) tenth.toLong().toString() else tenth.toString()
+        }
 
         /** The shared five-boundary invariant (parity with `HRZones.validCustomLowerBounds`). */
         fun validZoneThresholds(values: List<Int>): Boolean =

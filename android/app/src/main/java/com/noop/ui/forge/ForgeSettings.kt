@@ -263,6 +263,8 @@ enum class ForgeSettingsSub(val titleRes: Int, val cards: Set<ClassicSettingsCar
     WhatsNew(R.string.l10n_settings_screen_what_s_new_4d8dc5fe, closes = true),
     Acknowledgements(R.string.forge_provider_acknowledgements),
     ExerciseMedia(R.string.forge_st_manage_media),
+    HrZones(R.string.fsp1_hz_title),
+    Equipment(R.string.fsp1_equipment_title),
     ProjectRoadmap(R.string.forge_roadmap_title),
     ProjectProblems(R.string.project_card_problems_title),
     ProjectWishes(R.string.project_card_wishes_title),
@@ -504,14 +506,9 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
                 ForgeSettingsPage.Profile -> ProfileSection(profile, viewModel, ::change, onOpen, profileEditing) { profileEditing = it }
                 ForgeSettingsPage.Goals -> GoalsSettingsSection(viewModel)
                 ForgeSettingsPage.Training -> {
-                    TrainingSettingsSection(onOpenMedia = { onOpen(ForgeSettingsSub.ExerciseMedia) })
-                    // The donation page, reached from the sport settings because that is where the
-                    // ticks apply. Named for what it does for the wearer, not for the data it moves.
-                    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
-                        HubRow(Icons.Rounded.School, ForgeTokens.Color.systemTeal.resolve(),
-                               stringResource(R.string.donation_title),
-                               stringResource(R.string.donation_subtitle)) { onOpen(ForgeSettingsSub.RawDonation) }
-                    }
+                    TrainingSettingsSection(onOpenMedia = { onOpen(ForgeSettingsSub.ExerciseMedia) },
+                                            onOpenEquipment = { onOpen(ForgeSettingsSub.Equipment) },
+                                            onOpenDonation = { onOpen(ForgeSettingsSub.RawDonation) })
                 }
                 ForgeSettingsPage.LanguageUnits -> LanguageUnitsSection(context, ::change)
                 ForgeSettingsPage.Appearance -> AppearanceSection(::change)
@@ -709,6 +706,8 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
         ForgeSettingsSub.TestCentre -> Hosted(stringResource(sub.titleRes), onBack) { TestCentreScreen(viewModel) }
         ForgeSettingsSub.Acknowledgements -> ForgeExerciseProviderAcknowledgements(onBack)
         ForgeSettingsSub.ExerciseMedia -> ForgeExerciseMediaSettings(onBack)
+        ForgeSettingsSub.HrZones -> HrZonesSettingsPage(onBack)
+        ForgeSettingsSub.Equipment -> EquipmentSettingsPage(onBack)
         ForgeSettingsSub.ProjectRoadmap -> SettingsColumn {
             PageTitle(stringResource(R.string.forge_roadmap_title), onBack)
             RoadmapPlanSection()
