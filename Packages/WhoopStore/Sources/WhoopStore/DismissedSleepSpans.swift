@@ -49,12 +49,25 @@ public enum DismissedSleepSpans {
         return tokens.filter { $0 != t }
     }
 
-    /// True when `[sessionStart, sessionEnd)` time-overlaps ANY dismissed window: the engine's
-    /// re-detection guard predicate. Overlap (not exact startTs) because a re-detected onset drifts as
-    /// more raw data arrives. Uses the same half-open `<` test the engine and the Android twin use.
+    /// True when at least half of `[sessionStart, sessionEnd)` lies inside one dismissed window: the
+    /// engine's re-detection guard predicate. Overlap rather than an exact startTs, because a re-detected
+    /// onset drifts as more raw data arrives; the deleted night found again keeps nearly all of itself
+    /// inside its old window.
+    ///
+    /// Half, not any overlap (tester report, 2026-11-24): a wearer deleted a false "sleep" from 2 to 4 am
+    /// spent awake in bed, then slept. The detector saw one night from 2 am onwards, which touched the
+    /// tombstone, and the real night was dropped whole. A night that only shares its first hours with a
+    /// deleted window is a different night. Half-open intervals, as the Android twin uses.
     public static func isSuppressed(sessionStart: Int, sessionEnd: Int,
                                     windows: [(start: Int, end: Int)]) -> Bool {
-        windows.contains { sessionStart < $0.end && $0.start < sessionEnd }
+        let length = sessionEnd - sessionStart
+        guard length > 0 else {
+            return windows.contains { sessionStart < $0.end && $0.start < sessionEnd }
+        }
+        return windows.contains { window in
+            let overlap = min(sessionEnd, window.end) - max(sessionStart, window.start)
+            return overlap > 0 && overlap * 2 >= length
+        }
     }
 
     /// Whether deleting a night writes a suppression tombstone (#65). A DETECTED night is tombstoned so

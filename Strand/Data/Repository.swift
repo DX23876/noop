@@ -1998,7 +1998,11 @@ final class Repository: ObservableObject {
                        outcome: removed == nil ? "refused: notFound" : "saved",
                        retired: removed == nil ? 0 : 1)
         guard var snapshot = removed.map(SleepDeletionSnapshot.init(retired:)) else { return nil }
-        if suppressesWakeDay {
+        // Only an imported night hides its whole wake day: it has no raw data to be detected from again, and a
+        // re-import would bring it back. A detected night is kept out by its tombstone alone. Hiding the day
+        // for it as well hid the real night a wearer slept after deleting a false one (tester report,
+        // 2026-11-24).
+        if suppressesWakeDay, !snapshot.ownerDeviceId.hasSuffix("-noop") {
             let wakeDay = Self.sleepEndDayKey(endTs)
             suppressedSleepWakeDays.insert(wakeDay)
             snapshot.suppressedWakeDay = wakeDay

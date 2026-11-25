@@ -4016,10 +4016,14 @@ public final class DailyAnalysis {
         // #68: also drop any re-detected night the user has DELETED , a dismissedSleep tombstone keeps it
         // from regenerating, mirroring the dismissed-WORKOUT guard above. Overlap (not exact startTs)
         // because a re-detected onset drifts as more raw data arrives. (Android twin: dismissedWindows.)
+        // An edited night blocks any overlap (its detected twin would double-count); a deleted one blocks
+        // only a night that mostly lies inside it (`DismissedSleepSpans.isSuppressed`), so a real night that
+        // merely starts in a deleted window is kept.
         let dismissedWindows = repo.dismissedSleepWindows()
-        let skipWindows = editedWindows + dismissedWindows
         let cachedSleepKept = cachedSleep.filter { s in
-            !skipWindows.contains { s.startTs < $0.end && $0.start < s.endTs }   // time-overlap test
+            !editedWindows.contains { s.startTs < $0.end && $0.start < s.endTs }   // time-overlap test
+                && !DismissedSleepSpans.isSuppressed(sessionStart: s.startTs, sessionEnd: s.endTs,
+                                                     windows: dismissedWindows)
         }
         do {
             if !cachedSleepKept.isEmpty {
