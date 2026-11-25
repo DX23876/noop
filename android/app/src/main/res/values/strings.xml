@@ -7500,6 +7500,20 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="import_depth_one_year">1 year</string>
     <string name="import_depth_three_years">3 years</string>
     <string name="import_depth_ten_years">10 years</string>
+    <!-- settings-parity:w3:begin -->
+    <string name="fsw3_tc_blurb">Turn on a test for the thing that\'s wrong, wear the strap, then tap Report. Everything stays on this phone.</string>
+    <string name="fsw3_report_footer">Builds a redacted .zip and shows you what it contains before anything is shared.</string>
+    <string name="fsw3_report_detail">Redacted .zip you review first, and the daily export</string>
+    <string name="fsw3_group_testing">Testing</string>
+    <string name="fsw3_modes_detail">Per area: strap, sleep, workouts and more</string>
+    <string name="fsw3_collector">Raw-data collector</string>
+    <string name="fsw3_for_5mg">5.0 and MG</string>
+    <string name="fsw3_collector_40">4.0, unconfirmed on real hardware</string>
+    <string name="fsw3_group_maintenance">Maintenance</string>
+    <string name="fsw3_diag_detail">Strap log, Charge recalibration, skin-temp backfill, debug logging</string>
+    <string name="fsw3_experimental_footer">Experimental writes to a device ask before they run and can be undone.</string>
+    <string name="fsw3_experimental_detail">Opt-in, off by default</string>
+    <!-- settings-parity:w3:end -->
     <!-- settings-parity:w2:begin -->
     <string name="fsw2_bk_blurb">Save a full backup to a folder you choose - point it at Google Drive / Dropbox for off-device sync.</string>
     <string name="fsw2_bk_saving_to">Saving to: %1$s</string>

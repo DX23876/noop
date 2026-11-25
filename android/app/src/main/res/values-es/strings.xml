@@ -7458,6 +7458,20 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="import_depth_one_year">1 año</string>
     <string name="import_depth_three_years">3 años</string>
     <string name="import_depth_ten_years">10 años</string>
+    <!-- settings-parity:w3:begin -->
+    <string name="fsw3_tc_blurb">Activa una prueba para lo que falla, ponte la banda y pulsa Informar. Todo se queda en este teléfono.</string>
+    <string name="fsw3_report_footer">Crea un .zip con datos ocultos y te muestra lo que contiene antes de compartir nada.</string>
+    <string name="fsw3_report_detail">Un .zip con datos ocultos que revisas antes, y la exportación diaria</string>
+    <string name="fsw3_group_testing">Pruebas</string>
+    <string name="fsw3_modes_detail">Por área: banda, sueño, entrenamientos y más</string>
+    <string name="fsw3_collector">Recolector de datos sin procesar</string>
+    <string name="fsw3_for_5mg">5.0 y MG</string>
+    <string name="fsw3_collector_40">4.0, sin confirmar en hardware real</string>
+    <string name="fsw3_group_maintenance">Mantenimiento</string>
+    <string name="fsw3_diag_detail">Registro de la banda, recalibrar Carga, relleno de temperatura de la piel, registro de depuración</string>
+    <string name="fsw3_experimental_footer">Las escrituras experimentales en un dispositivo piden permiso antes de ejecutarse y se pueden deshacer.</string>
+    <string name="fsw3_experimental_detail">Opcional, desactivado por defecto</string>
+    <!-- settings-parity:w3:end -->
     <!-- settings-parity:w2:begin -->
     <string name="fsw2_bk_blurb">Guarda una copia de seguridad completa en la carpeta que elijas. Apúntala a Google Drive o Dropbox para sincronizar fuera del dispositivo.</string>
     <string name="fsw2_bk_saving_to">Se guarda en: %1$s</string>

@@ -7450,6 +7450,20 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="import_depth_one_year">1 ano</string>
     <string name="import_depth_three_years">3 anos</string>
     <string name="import_depth_ten_years">10 anos</string>
+    <!-- settings-parity:w3:begin -->
+    <string name="fsw3_tc_blurb">Ative um teste para o que está errado, use a pulseira e toque em Reportar. Tudo fica neste telemóvel.</string>
+    <string name="fsw3_report_footer">Cria um .zip com dados ocultados e mostra o que contém antes de partilhar seja o que for.</string>
+    <string name="fsw3_report_detail">Um .zip ocultado que revê primeiro, e a exportação diária</string>
+    <string name="fsw3_group_testing">Testes</string>
+    <string name="fsw3_modes_detail">Por área: pulseira, sono, treinos e mais</string>
+    <string name="fsw3_collector">Recolha de dados em bruto</string>
+    <string name="fsw3_for_5mg">5.0 e MG</string>
+    <string name="fsw3_collector_40">4.0, por confirmar em hardware real</string>
+    <string name="fsw3_group_maintenance">Manutenção</string>
+    <string name="fsw3_diag_detail">Registo da pulseira, recalibração da Carga, preenchimento da temperatura da pele, registo de depuração</string>
+    <string name="fsw3_experimental_footer">As escritas experimentais num dispositivo pedem confirmação antes de correr e podem ser desfeitas.</string>
+    <string name="fsw3_experimental_detail">Opcional, desligado por predefinição</string>
+    <!-- settings-parity:w3:end -->
     <!-- settings-parity:w2:begin -->
     <string name="fsw2_bk_blurb">Guarda uma cópia de segurança completa numa pasta à tua escolha. Aponta-a para o Google Drive ou Dropbox para sincronizar fora do dispositivo.</string>
     <string name="fsw2_bk_saving_to">A guardar em: %1$s</string>
