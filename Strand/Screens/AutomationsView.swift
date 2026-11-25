@@ -113,7 +113,8 @@ struct AutomationsView: View {
         switch scope {
         case .all: return "Automations"
         case .strapActions: return "Strap Actions"
-        case .notifications: return "Notifications"
+        // The page's name in the Settings index, so the row and the page it opens say the same thing.
+        case .notifications: return "Alerts and reminders"
         }
     }
 

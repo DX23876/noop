@@ -455,8 +455,9 @@ internal fun PageTitle(title: String?, onBack: () -> Unit, trailing: (@Composabl
                  tint = Forge.sceneInk.text)
         }
         if (title != null) {
+            // Two lines before an ellipsis: German page names ("Hinweise und Erinnerungen") outgrow one.
             Text(title, style = Forge.type.title1, color = Forge.sceneInk.text,
-                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                 maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         } else {
             Spacer(Modifier.weight(1f))
         }
