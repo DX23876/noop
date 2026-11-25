@@ -582,8 +582,10 @@ private struct SettingsPageContent: View, Equatable {
     private func settingsPageContent(_ page: SettingsPage) -> some View {
         let ids = page.sectionIDs
         ForEach(ids, id: \.self) { id in
+            // A section named like its page (Training on Training, Lab on Lab) would only repeat the page's title
+            // under its head, so it goes without a header, as a page's only section does.
             sectionCard(id)
-                .environment(\.settingsSectionHeaderHidden, ids.count == 1)
+                .environment(\.settingsSectionHeaderHidden, ids.count == 1 || id.rawValue == page.rawValue)
         }
     }
 

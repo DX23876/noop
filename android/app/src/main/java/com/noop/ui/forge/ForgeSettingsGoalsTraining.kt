@@ -163,7 +163,8 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit, onOpenEquipment: (
     var level by remember { mutableStateOf(activityPrefs.getString(com.noop.core.CoreActivity.KEY_LEVEL, "balanced") ?: "balanced") }
     var notify by remember { mutableStateOf(activityPrefs.getBoolean(com.noop.core.CoreActivity.KEY_NOTIFY, true)) }
 
-    SettingsCard(stringResource(R.string.forge_training), stringResource(R.string.forge_st_blurb)) {
+    // No header: it would only repeat the page title "Training" under the page head (iOS hides it the same way).
+    SettingsCard(null, stringResource(R.string.forge_st_blurb)) {
         Overline(stringResource(R.string.forge_st_logging))
         val effortIds = listOf("off", "rir", "rpe")
         val effortLabels = listOf(stringResource(R.string.forge_st_off), "RIR", stringResource(R.string.forge_ef_rpe))

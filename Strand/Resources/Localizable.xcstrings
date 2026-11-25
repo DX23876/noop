@@ -359027,7 +359027,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kein Strap verbunden. Leg dein WHOOP in die Nähe und tippe auf „Neu scannen“ zum Koppeln."
+            "value" : "Kein Strap verbunden. Leg dein WHOOP in die Nähe und tippe auf „Erneut suchen“, um ihn zu koppeln."
           }
         },
         "es" : {
@@ -416009,7 +416009,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lies deine Herzfrequenz, HRV, Blutsauerstoff, Atemfrequenz, Schlaf, Schritte und Energie direkt von Apple Health und schreibe NOOP's Banddaten zurück: Schlafe mit vollen Stadien, kontinuierlicher Herzfrequenz, Workouts und nächtlichen Vitalen. Alles bleibt auf %1$@."
+            "value" : "Lies deine Herzfrequenz, HRV, Blutsauerstoff, Atemfrequenz, Schlaf, Schritte und Energie direkt aus Apple Health und schreibe die Strap-Daten von NOOP zurück: Schlaf mit allen Phasen, durchgehende Herzfrequenz, Workouts und nächtliche Vitalwerte. Alles bleibt auf %1$@."
           }
         },
         "es" : {
@@ -416067,7 +416067,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lesen Sie Ihre Herzfrequenz, HRV, Blutsauerstoff, Atemfrequenz, Schlaf, Schritte und Energie direkt von Apple Health und schreiben Sie NOOP's Banddaten zurück: Schlafen Sie mit vollen Stadien, kontinuierlicher Herzfrequenz, Workouts, nächtlichen Vitalen und Ihrem Profilgewicht. Alles bleibt auf %1$@."
+            "value" : "Lies deine Herzfrequenz, HRV, Blutsauerstoff, Atemfrequenz, Schlaf, Schritte und Energie direkt aus Apple Health und schreibe die Strap-Daten von NOOP zurück: Schlaf mit allen Phasen, durchgehende Herzfrequenz, Workouts, nächtliche Vitalwerte und dein Profilgewicht. Alles bleibt auf %1$@."
           }
         },
         "en" : {
@@ -423752,7 +423752,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zeichnet bereits eintreffende Frames auf, startet keine Sensoren und kann große Dateien erzeugen. Der Export unten fügt das Bandprotokoll hinzu."
+            "value" : "Zeichnet bereits eintreffende Frames auf, startet keine Sensoren und kann große Dateien erzeugen. Der Export unten fügt das Strap-Log hinzu."
           }
         },
         "es" : {
@@ -490174,7 +490174,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bandprotokoll, Verbindungswerte und Exporte"
+            "value" : "Strap-Log, Verbindungswerte und Exporte"
           }
         },
         "es" : {
@@ -567718,7 +567718,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "WHOOP 5.0/MG unterstützt Live-Daten und Bandverlauf. Protokollwerkzeuge sind separat im Testcenter."
+            "value" : "WHOOP 5.0/MG unterstützt Live-Daten und den Strap-Verlauf. Werkzeuge zur Protokollforschung findest du separat im Testzentrum."
           }
         },
         "es" : {

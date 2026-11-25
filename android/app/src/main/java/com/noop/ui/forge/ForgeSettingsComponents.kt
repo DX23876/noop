@@ -221,7 +221,10 @@ internal fun SettingsCard(title: String?, blurb: String?, icon: ImageVector? = n
     // iOS `SettingsSection` in the new design, built as iOS Settings builds a group: a small upper-case header
     // above the card, the controls on the card, and the plain explanation as a footer under it. The icon and
     // tint stay in the signature for the callers; the header carries no icon, as on iOS.
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+    // iOS spaces its settings groups by the section gap; the column around them uses the card gap, so the
+    // difference goes above each group, keeping a footer clear of the next group's header.
+    Column(Modifier.fillMaxWidth().padding(top = ForgeMetrics.sectionGap - ForgeMetrics.gap),
+           verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
         if (title != null || headerAction != null) {
             Row(Modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space4), verticalAlignment = Alignment.CenterVertically) {
                 if (title != null) {
