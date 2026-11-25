@@ -934,21 +934,19 @@ struct DataSourcesView: View {
                               subtitle: String,
                               @ViewBuilder content: @escaping () -> C) -> some View {
         if NoopVisualStyle.skin == .forge {
-            // The new design's settings group: the source's name as a small header above the card (its
-            // connection state at the header's end), the actions on the card, the explanation as the footer.
+            // The new design's settings group: the source's name as a small header above the card, its
+            // connection state first on the card (a long state no longer squeezes the header), the actions
+            // under it, the explanation as the footer.
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space2) {
-                    Text(title)
-                        .font(StrandFont.footnote.weight(.semibold))
-                        .textCase(.uppercase)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                        .accessibilityAddTraits(.isHeader)
-                    Spacer(minLength: NoopMetrics.space2)
-                    status
-                }
-                .padding(.horizontal, NoopMetrics.space4)
+                Text(title)
+                    .font(StrandFont.footnote.weight(.semibold))
+                    .textCase(.uppercase)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .accessibilityAddTraits(.isHeader)
+                    .padding(.horizontal, NoopMetrics.space4)
                 NoopCard {
                     VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                        status
                         content()
                     }
                     .font(SettingsRowFont.value)
