@@ -140,7 +140,13 @@ internal fun ForgeTodayMomentum(viewModel: com.noop.ui.AppViewModel) {
             }
             Spacer(Modifier.height(ForgeMetrics.space3))
             if (top == null) {
-                Text(stringResource(R.string.forge_mw_none), style = Forge.type.caption, color = Forge.colors.textSecondary)
+                // "Nothing stands out" only for a feed that was read; not yet read or not readable says so.
+                val line = when {
+                    !state.loaded -> R.string.forge_momentum_loading
+                    state.messages == null -> R.string.forge_momentum_unavailable
+                    else -> R.string.forge_mw_none
+                }
+                Text(stringResource(line), style = Forge.type.caption, color = Forge.colors.textSecondary)
             } else {
                 Row(verticalAlignment = Alignment.Top) {
                     Box(Modifier.size(40.dp).background(tint.copy(alpha = 0.15f), RoundedCornerShape(10.dp)),

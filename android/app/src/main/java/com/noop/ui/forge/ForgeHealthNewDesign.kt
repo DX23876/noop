@@ -112,8 +112,10 @@ internal fun HealthFocusGrid(onOpen: (FocusArea) -> Unit) {
                 pair.forEach { area ->
                     val tint = area.tint()
                     ForgeCard(Modifier.weight(1f).heightIn(min = 112.dp).clickable(role = Role.Button) { onOpen(area) }) {
-                        Box(Modifier.size(36.dp).background(tint.copy(alpha = 0.16f), CircleShape), contentAlignment = Alignment.Center) {
-                            Icon(area.icon, contentDescription = null, tint = tint, modifier = Modifier.size(19.dp))
+                        // The symbol on its colour, as iOS's focus tiles and Apple Health's categories (owner, 2026-11-25).
+                        Box(Modifier.size(40.dp).background(tint, androidx.compose.foundation.shape.RoundedCornerShape(10.dp)),
+                            contentAlignment = Alignment.Center) {
+                            Icon(area.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
                         }
                         Spacer(Modifier.height(ForgeMetrics.space3))
                         Text(stringResource(area.titleRes), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),

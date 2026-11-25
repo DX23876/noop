@@ -1034,7 +1034,10 @@ struct ForgeMomentumWidget: View {
                     }
                 }
             } else {
-                Text("Nothing stands out today.").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                // "Nothing stands out" is a finding; it is only said once the feed was read with days behind it.
+                // Before that, or with no days at all, the card says which it is (owner, 2026-11-25).
+                Text(store.updatedAt == nil ? "Checking…" : store.recentDays.isEmpty ? "No data yet" : "Nothing stands out today.")
+                    .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
             }
         }
     }
