@@ -4040,6 +4040,29 @@ public final class DailyAnalysis {
             unfinishedPasses += 1
             return
         }
+        // ── The wearer's own sleep marks bound the night they fall in (owner, 2026-11-25) ────────────────────
+        // A "going to sleep" tap in a night's first half moves its start, an "I'm awake" tap in its second half
+        // its end (`SleepMarkBounds`). Applied as a correction of the night's times is, through the shared edit
+        // (`SleepNightEdit.editTimes`): only narrowing, so the stages are clipped, not invented; the row is
+        // marked edited, so later passes keep the wearer's bounds and do not detect the old ones again.
+        if !cachedSleepKept.isEmpty {
+            let firstDay = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(
+                (cachedSleepKept.map(\.startTs).min() ?? now) - 86_400)))
+            let lastDay = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(now)))
+            let marks = await SleepMarkBounds.marks(store: store, fromDay: firstDay, toDay: lastDay)
+            if !marks.bedtimes.isEmpty || !marks.wakes.isEmpty {
+                for session in cachedSleepKept where !session.userEdited {
+                    guard let bounds = SleepMarkBounds.bounds(start: session.effectiveStartTs, end: session.endTs,
+                                                              bedtimes: marks.bedtimes, wakes: marks.wakes) else { continue }
+                    let result = await SleepNightEdit.editTimes(store: store, ownerIds: [computedId], group: [session],
+                                                                newStartTs: bounds.start, newEndTs: bounds.end, now: now)
+                    if case .success = result {
+                        host.diagnostic("sleep marks: night \(session.startTs) bounded to \(bounds.start)..\(bounds.end)",
+                                        domain: nil)
+                    }
+                }
+            }
+        }
         // ── Persist per-epoch motion (H8) beside each kept session's stagesJSON ──────────────────────────
         // The sleepSession rows exist now (just upserted), so the targeted motion UPDATE lands. Persist ONLY
         // for the sessions actually kept (not edited/dismissed), keyed by the detected start `analyzeDay`

@@ -266,7 +266,9 @@ public enum AnalysisRecipe {
     // deleted false one (awake in bed from 2 to 4 am, asleep after) was dropped whole (tester report,
     // 2026-11-24). Its own number because AI-37 has shipped: the testing build of 2026-11-23 (`3f392132f`)
     // carries it. The full rebuild detects every night again under the new rule; nothing the wearer entered
-    // is rewritten, and a tombstone stays where it was.
+    // is rewritten, and a tombstone stays where it was. The same unshipped recipe carries the wearer's sleep
+    // marks bounding the night they fall in (`SleepMarkBounds`, 2026-11-25): only taps stored with their time
+    // from now on bound anything, so the rebuild changes no night from before.
     public static let currentVersion = 38
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy

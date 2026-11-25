@@ -2209,7 +2209,7 @@ struct SleepMarkCard: View {
         Task {
             let stored: Bool
             if let store = await repo.storeHandle() {
-                stored = (try? await store.upsertMetricSeries([mark.metricPoint],
+                stored = (try? await store.upsertMetricSeries([mark.metricPoint, mark.instantPoint],
                                                               deviceId: repo.deviceId)) != nil
             } else {
                 stored = false

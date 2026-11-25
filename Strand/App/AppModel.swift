@@ -2782,7 +2782,7 @@ final class AppModel: ObservableObject {
         // change. The UserDefaults timestamp list and confirming buzz above retain the existing path.
         Task { [weak self] in
             guard let self, let store = await self.repo.storeHandle() else { return }
-            _ = try? await store.upsertMetricSeries([mark.metricPoint], deviceId: self.repo.deviceId)
+            _ = try? await store.upsertMetricSeries([mark.metricPoint, mark.instantPoint], deviceId: self.repo.deviceId)
         }
     }
 

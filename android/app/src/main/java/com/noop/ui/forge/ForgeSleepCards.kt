@@ -188,7 +188,7 @@ internal fun ForgeSleepMarkCard(viewModel: com.noop.ui.AppViewModel) {
     fun mark(type: com.noop.analytics.SleepMarkType) {
         val mark = com.noop.analytics.SleepMark.now(type)
         viewModel.ble.externalLog(mark.logLine())
-        scope.launch { runCatching { viewModel.repo.upsertMetricSeries(listOf(mark.metricPoint("my-whoop"))) } }
+        scope.launch { runCatching { viewModel.repo.upsertMetricSeries(listOf(mark.metricPoint("my-whoop"), mark.instantRow("my-whoop"))) } }
         android.widget.Toast.makeText(context, mark.confirmation(), android.widget.Toast.LENGTH_SHORT).show()
     }
     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {

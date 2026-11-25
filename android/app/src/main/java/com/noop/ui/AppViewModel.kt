@@ -3837,7 +3837,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             // Use the SAME "my-whoop" series source the Sleep screen's mark card writes (SleepScreen.kt)
             // and reads back from, so a double-tap mark lands in the same place a tapped one does.
-            runCatching { repository.upsertMetricSeries(listOf(mark.metricPoint("my-whoop"))) }
+            runCatching { repository.upsertMetricSeries(listOf(mark.metricPoint("my-whoop"), mark.instantRow("my-whoop"))) }
         }
     }
 

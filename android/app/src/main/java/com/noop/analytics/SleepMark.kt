@@ -59,6 +59,13 @@ data class SleepMark(
     fun metricPoint(deviceId: String): MetricSeriesRow =
         MetricSeriesRow(deviceId = deviceId, day = dayKey, key = SERIES_KEY, value = type.seriesValue.toDouble())
 
+    /** The tap's instant, which the core bounds the night with (Swift `SleepMarkBounds`, 2026-11-25): Unix
+     *  seconds under "sleep_bedtime_ts" or "sleep_wake_ts", one per type and day. */
+    fun instantRow(deviceId: String): MetricSeriesRow =
+        MetricSeriesRow(deviceId = deviceId, day = dayKey,
+                        key = if (type == SleepMarkType.BEDTIME) "sleep_bedtime_ts" else "sleep_wake_ts",
+                        value = Math.round(tsMs / 1000.0).toDouble())
+
     /** The human-readable strap-log line, e.g. "Sleep mark · bedtime (going to sleep) @ 23:42".
      *  Appended to the shared strap log so the mark appears in a debug export. Carries no PII. */
     fun logLine(): String {
