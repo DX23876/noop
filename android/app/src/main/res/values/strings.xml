@@ -7568,6 +7568,68 @@ Plotting each series as change from its own first reading puts them on one scale
     <!-- settings-parity spacer 1b -->
     <!-- settings-parity spacer 1c -->
     <!-- settings-parity:p2:begin -->
+    <string name="fsp2_strap_conn_title">Connection, steps and sharing</string>
+    <string name="fsp2_strap_conn_detail">Name, reconnecting, step estimate, heart-rate sharing</string>
+    <string name="fsp2_strap_rec_title">Recording and battery</string>
+    <string name="fsp2_strap_rec_detail">Continuous HRV and power saving</string>
+    <string name="fsp2_strap_actions_title">Double-tap and buzz</string>
+    <string name="fsp2_strap_actions_detail">What a double-tap does, vibration and heart-rate alerts</string>
+    <string name="fsp2_devices_detail">Pair, find or restart the strap, other devices</string>
+    <string name="fsp2_strap_blurb">NOOP pairs directly with your WHOOP over Bluetooth: no WHOOP app, no cloud.</string>
+    <string name="fsp2_status_streaming">Bonded · streaming</string>
+    <string name="fsp2_status_idle">Bonded · idle</string>
+    <string name="fsp2_status_live_only">Live HR (not fully paired)</string>
+    <string name="fsp2_status_connected">Connected</string>
+    <string name="fsp2_status_disconnected">Disconnected</string>
+    <string name="fsp2_detail_paired">Your strap is paired and sending data. Open Live for a real-time heart rate.</string>
+    <string name="fsp2_detail_live_only">Live heart rate is streaming, but your strap is not fully paired. The encrypted pairing is what carries motion, skin temperature, SpO₂ and respiratory rate — without it, sleep is staged from heart rate alone. Buzz, alarms and history sync need it too.</string>
+    <string name="fsp2_detail_finishing">Connected. Finishing the secure pairing handshake…</string>
+    <string name="fsp2_detail_previous">Previously paired but not currently connected. Re-scan to reconnect.</string>
+    <string name="fsp2_detail_none">No strap connected. Put your WHOOP nearby and tap Re-scan to pair.</string>
+    <string name="fsp2_diag_title">Connection diagnostics</string>
+    <string name="fsp2_diag_detail">Strap log, connection readouts and exports</string>
+    <string name="fsp2_name_field">New strap name</string>
+    <string name="fsp2_name_note">Changes the Bluetooth name your WHOOP 4.0 advertises (what you see when pairing). The strap reboots to apply, so the new name appears the next time it connects. WHOOP 4.0 only.</string>
+    <string name="fsp2_name_current">Current: %1$s</string>
+    <string name="fsp2_steps_title">Steps</string>
+    <string name="fsp2_steps_blurb">Only needed when your step count looks wrong.</string>
+    <string name="fsp2_step_correction">Step correction</string>
+    <string name="fsp2_step_correction_note">Leave this at 1.0 if your step count looks right. If NOOP shows 10,000 steps after a counted 1,000-step walk, set it to 10.0.</string>
+    <string name="fsp2_step_estimate">Step estimate</string>
+    <string name="fsp2_step_manual">Manual</string>
+    <string name="fsp2_step_none">Not calibrated</string>
+    <string name="fsp2_step_auto">Auto · %1$s confidence</string>
+    <string name="fsp2_step_estimate_note">WHOOP 4.0 only. It sends no step count, so NOOP estimates steps from motion and calibrates them to your phone.</string>
+    <string name="fsp2_confidence_low">Low</string>
+    <string name="fsp2_confidence_medium">Medium</string>
+    <string name="fsp2_confidence_high">High</string>
+    <string name="fsp2_hrs_title">Heart rate sharing</string>
+    <string name="fsp2_hrs_blurb">Let a treadmill, bike computer, Zwift or a sports watch read your heart rate.</string>
+    <string name="fsp2_hrs_strap_title">Via strap</string>
+    <string name="fsp2_hrs_one_device">1 device reading your heart rate</string>
+    <string name="fsp2_hrs_n_devices">%1$d devices reading your heart rate</string>
+    <string name="fsp2_hrs_waiting">Sharing %1$d bpm. Waiting for a device to pair.</string>
+    <string name="fsp2_hrs_no_hr">No live heart rate yet. Open Live to pair your strap.</string>
+    <string name="fsp2_hrs_starting">Starting…</string>
+    <string name="fsp2_chrv_title">Continuous HRV</string>
+    <string name="fsp2_chrv_nights">Nights only</string>
+    <string name="fsp2_chrv_blurb">Keeps the beat-to-beat heart-rate stream running, not only while Live is open. More detail for night HRV, recovery and sleep. Uses more strap battery.</string>
+    <string name="fsp2_chrv_nights_note">Records only in your quiet hours (22:00 to 07:00 by default), which roughly halves the battery cost. Daytime stress and naps get fewer readings. For a daytime reading, use \"Take an HRV reading\" on Live.</string>
+    <string name="fsp2_power_blurb">The strap keeps banking data on its own, so nothing is lost — NOOP just talks to it less often to help it last until you can charge it.</string>
+    <string name="fsp2_values_title">Values by source</string>
+    <string name="fsp2_values_detail">Which device each of today\'s values comes from</string>
+    <string name="fsp2_ds_title">Data sources</string>
+    <string name="fsp2_ds_detail">Imports, exports and connected apps</string>
+    <string name="fsp2_battery_pill">Battery %1$d%%</string>
+    <string name="fsp2_battery_pill_charging">Battery %1$d%% · Charging</string>
+    <string name="fsp2_detail_searching">Searching for your WHOOP… make sure it\'s charged, on your wrist, and the official WHOOP app isn\'t connected to it.</string>
+    <string name="fsp2_keep_title">Staying connected</string>
+    <string name="fsp2_hrs_phone_title">Via this phone</string>
+    <string name="fsp2_hrs_phone_blurb">Acts as a standard Bluetooth heart-rate sensor. Works with every strap. Keeps sharing until you turn it off.</string>
+    <string name="fsp2_hrs_strap_blurb">WHOOP 5.0 and MG only. The strap sends its heart rate itself over Bluetooth, even without your phone nearby. Uses more strap battery.</string>
+    <string name="fsp2_hrs_strap_note">Applies on the next connection, or right away when connected. Writes a setting on the strap that turning this off reverses.</string>
+    <string name="fsp2_chrv_needs_background">Works only while “Keep connected in the background” is on.</string>
+    <string name="fsp2_dev_row_detail">Strap, chest strap, ring and other wearables</string>
     <!-- settings-parity:p2:end -->
     <!-- settings-parity spacer 2a -->
     <!-- settings-parity spacer 2b -->

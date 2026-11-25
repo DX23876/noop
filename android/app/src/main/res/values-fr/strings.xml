@@ -7523,6 +7523,68 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <!-- settings-parity spacer 1b -->
     <!-- settings-parity spacer 1c -->
     <!-- settings-parity:p2:begin -->
+    <string name="fsp2_strap_conn_title">Connexion, pas et partage</string>
+    <string name="fsp2_strap_conn_detail">Nom, reconnexion, estimation des pas, partage du pouls</string>
+    <string name="fsp2_strap_rec_title">Enregistrement et batterie</string>
+    <string name="fsp2_strap_rec_detail">VFC continue et économie d\'énergie</string>
+    <string name="fsp2_strap_actions_title">Double tape et vibration</string>
+    <string name="fsp2_strap_actions_detail">Action du double tape, vibration et alertes de pouls</string>
+    <string name="fsp2_devices_detail">Associer, trouver ou redémarrer le bracelet, autres appareils</string>
+    <string name="fsp2_strap_blurb">NOOP s\'associe directement à votre WHOOP par Bluetooth : pas d\'app WHOOP, pas de cloud.</string>
+    <string name="fsp2_status_streaming">Associé · diffusion en cours</string>
+    <string name="fsp2_status_idle">Appairé · inactif</string>
+    <string name="fsp2_status_live_only">FC en direct (association incomplète)</string>
+    <string name="fsp2_status_connected">Connecté</string>
+    <string name="fsp2_status_disconnected">Déconnecté</string>
+    <string name="fsp2_detail_paired">Votre bracelet est associé et envoie des données. Ouvrez En direct pour une fréquence cardiaque en temps réel.</string>
+    <string name="fsp2_detail_live_only">La fréquence cardiaque en direct est transmise, mais votre montre n’est pas complètement connectée. La connexion cryptée transmet l’activité, la température de la peau, la saturation en oxygène et le rythme respiratoire — sans elle, le sommeil est estimé uniquement à partir de la fréquence cardiaque. Les notifications, les alarmes et le syncrétisme des données nécessitent cette connexion.</string>
+    <string name="fsp2_detail_finishing">Connecté. Finalisation de la poignée de main d\'appairage sécurisée…</string>
+    <string name="fsp2_detail_previous">Précédemment associé mais non connecté actuellement. Relancez un scan pour vous reconnecter.</string>
+    <string name="fsp2_detail_none">Aucun bracelet connecté. Placez votre WHOOP à proximité et touchez Nouveau scan pour l\'associer.</string>
+    <string name="fsp2_diag_title">Diagnostic de connexion</string>
+    <string name="fsp2_diag_detail">Journal du bracelet, relevés de connexion et exports</string>
+    <string name="fsp2_name_field">Nouveau nom du bracelet</string>
+    <string name="fsp2_name_note">Modifie le nom Bluetooth annoncé par votre WHOOP 4.0 (celui que vous voyez lors de l\'appairage). Le bracelet redémarre pour appliquer le changement, le nouveau nom apparaît donc à la prochaine connexion. WHOOP 4.0 uniquement.</string>
+    <string name="fsp2_name_current">Actuel : %1$s</string>
+    <string name="fsp2_steps_title">Pas</string>
+    <string name="fsp2_steps_blurb">Utile seulement si votre nombre de pas semble faux.</string>
+    <string name="fsp2_step_correction">Correction des pas</string>
+    <string name="fsp2_step_correction_note">Laissez 1,0 si le nombre de pas semble correct. Si NOOP affiche 10 000 pas après une marche de 1 000 pas comptés, réglez sur 10,0.</string>
+    <string name="fsp2_step_estimate">Estimation des pas</string>
+    <string name="fsp2_step_manual">Manuel</string>
+    <string name="fsp2_step_none">Non calibré</string>
+    <string name="fsp2_step_auto">Auto · confiance %1$s</string>
+    <string name="fsp2_step_estimate_note">WHOOP 4.0 uniquement. Il n\'envoie pas de nombre de pas : NOOP les estime à partir du mouvement et les calibre sur votre téléphone.</string>
+    <string name="fsp2_confidence_low">Faible</string>
+    <string name="fsp2_confidence_medium">Moyen</string>
+    <string name="fsp2_confidence_high">Élevé</string>
+    <string name="fsp2_hrs_title">Partage du pouls</string>
+    <string name="fsp2_hrs_blurb">Laissez un tapis de course, un compteur vélo, Zwift ou une montre de sport lire votre pouls.</string>
+    <string name="fsp2_hrs_strap_title">Via le bracelet</string>
+    <string name="fsp2_hrs_one_device">1 appareil lit votre fréquence cardiaque</string>
+    <string name="fsp2_hrs_n_devices">%1$d appareils lisent votre fréquence cardiaque</string>
+    <string name="fsp2_hrs_waiting">Partage de %1$d bpm. En attente d\'un appareil à associer.</string>
+    <string name="fsp2_hrs_no_hr">Aucune fréquence cardiaque en direct pour l\'instant. Ouvrez En direct pour associer votre bracelet.</string>
+    <string name="fsp2_hrs_starting">Démarrage…</string>
+    <string name="fsp2_chrv_title">VFC continue</string>
+    <string name="fsp2_chrv_nights">La nuit seulement</string>
+    <string name="fsp2_chrv_blurb">Garde le flux battement par battement actif, pas seulement quand En direct est ouvert. Plus de détails pour la VFC de nuit, la récupération et le sommeil. Consomme plus de batterie du bracelet.</string>
+    <string name="fsp2_chrv_nights_note">N\'enregistre que pendant vos heures calmes (22:00 à 07:00 par défaut), ce qui divise environ par deux la consommation. Le stress de jour et les siestes ont moins de mesures. Pour une mesure de jour, utilisez « Effectuer une lecture de VFC » dans En direct.</string>
+    <string name="fsp2_power_blurb">Le bracelet continue d’enregistrer ses données de son côté, donc rien n’est perdu — NOOP lui parle simplement moins souvent pour qu’il tienne jusqu’à la recharge.</string>
+    <string name="fsp2_values_title">Valeurs par source</string>
+    <string name="fsp2_values_detail">De quel appareil vient chaque valeur du jour</string>
+    <string name="fsp2_ds_title">Sources de données</string>
+    <string name="fsp2_ds_detail">Imports, exports et apps connectées</string>
+    <string name="fsp2_battery_pill">Batterie %1$d%%</string>
+    <string name="fsp2_battery_pill_charging">Batterie %1$d%% · En charge</string>
+    <string name="fsp2_detail_searching">Recherche de votre WHOOP… vérifiez qu\'il est chargé, à votre poignet et que l\'application WHOOP officielle ne lui est pas connectée.</string>
+    <string name="fsp2_keep_title">Rester connecté</string>
+    <string name="fsp2_hrs_phone_title">Via ce téléphone</string>
+    <string name="fsp2_hrs_phone_blurb">Agit comme un capteur cardiaque Bluetooth standard. Fonctionne avec tous les bracelets. Continue de partager jusqu\'à ce que vous le désactiviez.</string>
+    <string name="fsp2_hrs_strap_blurb">WHOOP 5.0 et MG uniquement. Le bracelet envoie lui-même son pouls en Bluetooth, même sans téléphone à proximité. Consomme plus de batterie du bracelet.</string>
+    <string name="fsp2_hrs_strap_note">S\'applique à la prochaine connexion, ou tout de suite si connecté. Écrit un réglage sur le bracelet, annulé en désactivant.</string>
+    <string name="fsp2_chrv_needs_background">Ne fonctionne que si « Rester connecté en arrière-plan » est activé.</string>
+    <string name="fsp2_dev_row_detail">Bracelet, ceinture thoracique, bague et autres wearables</string>
     <!-- settings-parity:p2:end -->
     <!-- settings-parity spacer 2a -->
     <!-- settings-parity spacer 2b -->

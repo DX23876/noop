@@ -7468,6 +7468,68 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <!-- settings-parity spacer 1b -->
     <!-- settings-parity spacer 1c -->
     <!-- settings-parity:p2:begin -->
+    <string name="fsp2_strap_conn_title">连接、步数与共享</string>
+    <string name="fsp2_strap_conn_detail">名称、重新连接、步数估算、心率共享</string>
+    <string name="fsp2_strap_rec_title">记录与电量</string>
+    <string name="fsp2_strap_rec_detail">持续 HRV 与省电</string>
+    <string name="fsp2_strap_actions_title">双击与振动</string>
+    <string name="fsp2_strap_actions_detail">双击的作用、振动与心率提醒</string>
+    <string name="fsp2_devices_detail">配对、查找或重启手环，其他设备</string>
+    <string name="fsp2_strap_blurb">NOOP 通过蓝牙直接与你的 WHOOP 配对，无需 WHOOP 应用，无需云端。</string>
+    <string name="fsp2_status_streaming">已配对 · 传输中</string>
+    <string name="fsp2_status_idle">已配对 · 空闲</string>
+    <string name="fsp2_status_live_only">实时心率（未完全配对）</string>
+    <string name="fsp2_status_connected">已连接</string>
+    <string name="fsp2_status_disconnected">已断开</string>
+    <string name="fsp2_detail_paired">你的手环已配对并正在发送数据。打开「实时」查看实时心率。</string>
+    <string name="fsp2_detail_live_only">实时心率正在流式传输，但您的带子尚未完全配对。加密配对负责传输运动、皮肤温度、SpO₂ 和呼吸率——没有它，睡眠将仅基于心率进行阶段化。震动、警报和历史同步也需要它。</string>
+    <string name="fsp2_detail_finishing">已连接。正在完成安全配对握手…</string>
+    <string name="fsp2_detail_previous">曾经配对但当前未连接。重新扫描以重新连接。</string>
+    <string name="fsp2_detail_none">未连接手环。把你的 WHOOP 放在附近，点按「重新扫描」进行配对。</string>
+    <string name="fsp2_diag_title">连接诊断</string>
+    <string name="fsp2_diag_detail">手环日志、连接读数和导出</string>
+    <string name="fsp2_name_field">新的手环名称</string>
+    <string name="fsp2_name_note">更改你的 WHOOP 4.0 广播的蓝牙名称，即你配对时看到的名称。手环会重启以应用更改，因此新名称会在它下次连接时出现。仅限 WHOOP 4.0。</string>
+    <string name="fsp2_name_current">当前：%1$s</string>
+    <string name="fsp2_steps_title">步数</string>
+    <string name="fsp2_steps_blurb">仅在步数看起来不对时需要。</string>
+    <string name="fsp2_step_correction">步数校正</string>
+    <string name="fsp2_step_correction_note">如果步数看起来正确，请保留 1.0。如果走了 1,000 个已计数步数后 NOOP 显示 10,000 步，请设为 10.0。</string>
+    <string name="fsp2_step_estimate">步数估算</string>
+    <string name="fsp2_step_manual">手动</string>
+    <string name="fsp2_step_none">未校准</string>
+    <string name="fsp2_step_auto">自动 · 置信度 %1$s</string>
+    <string name="fsp2_step_estimate_note">仅限 WHOOP 4.0。它不发送步数，因此 NOOP 会根据动作估算步数并以你的手机校准。</string>
+    <string name="fsp2_confidence_low">低</string>
+    <string name="fsp2_confidence_medium">中等</string>
+    <string name="fsp2_confidence_high">高</string>
+    <string name="fsp2_hrs_title">心率共享</string>
+    <string name="fsp2_hrs_blurb">让跑步机、码表、Zwift 或运动手表读取你的心率。</string>
+    <string name="fsp2_hrs_strap_title">通过手环</string>
+    <string name="fsp2_hrs_one_device">1 台设备正在读取你的心率</string>
+    <string name="fsp2_hrs_n_devices">%1$d 台设备正在读取你的心率</string>
+    <string name="fsp2_hrs_waiting">正在分享 %1$d bpm。正在等待设备配对。</string>
+    <string name="fsp2_hrs_no_hr">尚无实时心率。打开「实时」以配对你的手环。</string>
+    <string name="fsp2_hrs_starting">开始中…</string>
+    <string name="fsp2_chrv_title">连续 HRV</string>
+    <string name="fsp2_chrv_nights">仅夜间</string>
+    <string name="fsp2_chrv_blurb">让逐搏心率数据流持续运行，而不仅在实时页面打开时。为夜间 HRV、恢复和睡眠提供更多细节。会消耗更多手环电量。</string>
+    <string name="fsp2_chrv_nights_note">仅在安静时段记录（默认 22:00 至 07:00），电量消耗大约减半。白天压力和小睡的读数会减少。如需白天读数，请在实时页面使用“进行一次 HRV 测量”。</string>
+    <string name="fsp2_power_blurb">手环会自行继续存储数据，因此不会丢失任何内容 — NOOP 只是减少与它通信的频率，帮它撑到你能充电为止。</string>
+    <string name="fsp2_values_title">按来源查看数值</string>
+    <string name="fsp2_values_detail">今天每个数值来自哪台设备</string>
+    <string name="fsp2_ds_title">数据来源</string>
+    <string name="fsp2_ds_detail">导入、导出与已连接的应用</string>
+    <string name="fsp2_battery_pill">电量 %1$d%%</string>
+    <string name="fsp2_battery_pill_charging">电量 %1$d%% · 充电中</string>
+    <string name="fsp2_detail_searching">正在搜索你的 WHOOP…请确认它已充电、戴在手腕上，且官方 WHOOP 应用没有连接它。</string>
+    <string name="fsp2_keep_title">保持连接</string>
+    <string name="fsp2_hrs_phone_title">通过这部手机</string>
+    <string name="fsp2_hrs_phone_blurb">作为标准蓝牙心率传感器工作。适用于所有手环。会一直共享，直到你关闭。</string>
+    <string name="fsp2_hrs_strap_blurb">仅限 WHOOP 5.0 和 MG。手环会自行通过蓝牙发送心率，即使手机不在附近。会消耗更多手环电量。</string>
+    <string name="fsp2_hrs_strap_note">下次连接时生效，已连接则立即生效。会在手环上写入一项设置，关闭即可撤销。</string>
+    <string name="fsp2_chrv_needs_background">仅在开启“允许后台保持连接”时有效。</string>
+    <string name="fsp2_dev_row_detail">手环、胸带、戒指及其他可穿戴设备</string>
     <!-- settings-parity:p2:end -->
     <!-- settings-parity spacer 2a -->
     <!-- settings-parity spacer 2b -->
