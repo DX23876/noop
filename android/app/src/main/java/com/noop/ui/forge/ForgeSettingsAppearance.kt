@@ -316,7 +316,7 @@ internal fun <T> MenuPicker(current: String, options: List<T>, label: @Composabl
 @Composable
 internal fun AppearanceSection(change: (() -> Unit) -> Unit) {
     val context = LocalContext.current
-    SettingsCard(title = null, blurb = null) {
+    SettingsCard(title = stringResource(R.string.fsw4_style), blurb = stringResource(R.string.fsw4_style_blurb)) {
         // The preset first, as iOS: recipes of accent, chart colours, sky and card transparency, derived from the live
         // settings, so changing any of them below turns the name into Custom.
         val matching = ThemePresetChoice.matching(ForgeAccent.raw, ChartStylePrefs.style, ForgeBackground.dayCycle,
@@ -335,27 +335,27 @@ internal fun AppearanceSection(change: (() -> Unit) -> Unit) {
         }
         RowDivider()
         SettingRow(stringResource(R.string.l10n_settings_screen_theme_a797e309)) {
-            Segmented(listOf(AppearanceMode.SYSTEM, AppearanceMode.LIGHT, AppearanceMode.DARK), AppearancePrefs.mode,
-                      label = {
-                          when (it) {
-                              AppearanceMode.LIGHT -> stringResource(R.string.settings_theme_light)
-                              AppearanceMode.DARK -> stringResource(R.string.settings_theme_dark)
-                              AppearanceMode.SYSTEM -> stringResource(R.string.settings_language_system)
-                          }
-                      },
-                      onSelect = { change { AppearancePrefs.set(context, it) } })
+            val themeLabel: @Composable (AppearanceMode) -> String = {
+                when (it) {
+                    AppearanceMode.LIGHT -> stringResource(R.string.settings_theme_light)
+                    AppearanceMode.DARK -> stringResource(R.string.settings_theme_dark)
+                    AppearanceMode.SYSTEM -> stringResource(R.string.fsw4_system)
+                }
+            }
+            MenuPicker(themeLabel(AppearancePrefs.mode), listOf(AppearanceMode.SYSTEM, AppearanceMode.LIGHT, AppearanceMode.DARK),
+                       label = themeLabel, onSelect = { change { AppearancePrefs.set(context, it) } })
         }
         // The new design's colour profiles, as iOS's Design card: colourful by default, Stone, Slate and Sage calm.
         if (ForgeDesign.preview) {
             RowDivider()
             SettingRow(stringResource(R.string.forge_ap_color_profile)) {
-                Segmented(ForgeColorProfile.entries.toList(), ForgeColorProfile.current,
-                          label = { stringResource(when (it) {
-                              ForgeColorProfile.Colorful -> R.string.forge_ap_colorful
-                              ForgeColorProfile.Stone -> R.string.forge_ap_stone
-                              ForgeColorProfile.Slate -> R.string.forge_ap_slate
-                              ForgeColorProfile.Sage -> R.string.forge_ap_sage
-                          }) },
+                val profileLabel: @Composable (ForgeColorProfile) -> String = { stringResource(when (it) {
+                    ForgeColorProfile.Colorful -> R.string.forge_ap_colorful
+                    ForgeColorProfile.Stone -> R.string.forge_ap_stone
+                    ForgeColorProfile.Slate -> R.string.forge_ap_slate
+                    ForgeColorProfile.Sage -> R.string.forge_ap_sage
+                }) }
+                MenuPicker(profileLabel(ForgeColorProfile.current), ForgeColorProfile.entries.toList(), label = profileLabel,
                           onSelect = { profile ->
                               change {
                                   // The profile brings its backdrop along, as on iOS: the sky under Colorful, none under
@@ -393,9 +393,11 @@ internal fun AppearanceSection(change: (() -> Unit) -> Unit) {
         RowDivider()
         // The launcher icon swaps manifest aliases through the classic helper; the launcher may take a moment.
         SettingRow(stringResource(R.string.l10n_settings_screen_app_icon_abde7a74)) {
-            Segmented(listOf(false, true), NoopPrefs.appIconNavy(context),
-                      label = { stringResource(if (it) R.string.forge_settings_icon_blue else R.string.forge_settings_icon_titanium) },
-                      onSelect = { navy -> change { setAppIcon(context, navy) } })
+            val iconLabel: @Composable (Boolean) -> String = {
+                stringResource(if (it) R.string.forge_settings_icon_blue else R.string.forge_settings_icon_titanium)
+            }
+            MenuPicker(iconLabel(NoopPrefs.appIconNavy(context)), listOf(false, true), label = iconLabel,
+                       onSelect = { navy -> change { setAppIcon(context, navy) } })
         }
     }
     BackgroundCard()

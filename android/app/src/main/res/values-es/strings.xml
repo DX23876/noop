@@ -7458,6 +7458,34 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="import_depth_one_year">1 año</string>
     <string name="import_depth_three_years">3 años</string>
     <string name="import_depth_ten_years">10 años</string>
+    <!-- settings-parity:w4:begin -->
+    <string name="fsw4_calc_title">Cómo calcula NOOP</string>
+    <string name="fsw4_calc_blurb">Los cambios aquí pueden recalcular días pasados. Tus datos registrados se conservan.</string>
+    <string name="fsw4_day_start">Inicio del día</string>
+    <string name="fsw4_falling_asleep">Al dormirse</string>
+    <string name="fsw4_midnight">Medianoche</string>
+    <string name="fsw4_day_sleep_note">Por defecto: los pasos y el esfuerzo en curso reinician al inicio del sueño principal detectado. Las siestas no iniciarán un nuevo día; la falta de sueño se ajustará a medianoche local.</string>
+    <string name="fsw4_day_midnight_note">Utiliza un día calendario local convencional de 00:00 a 00:00.</string>
+    <string name="fsw4_hrv_window">Ventana HRV</string>
+    <string name="fsw4_hrv_note">El sueño profundo da valores más bajos. Cambiar recalcula tus noches recientes.</string>
+    <string name="fsw4_wake_check">Comprobación de despertares</string>
+    <string name="fsw4_wake_note">Cuenta un despertar solo si caminaste o cambiaste de postura. Una subida de pulso por sí sola sigue siendo sueño ligero. Se omite en noches con pocos datos de movimiento. Se aplica desde la próxima noche.</string>
+    <string name="fsw4_style">Estilo</string>
+    <string name="fsw4_style_blurb">Claro, oscuro o según el sistema, además de acento e iconos.</string>
+    <string name="fsw4_system">Sistema</string>
+    <string name="fsw4_backup_group">Copia de seguridad y restauración</string>
+    <string name="fsw4_imports_blurb">Otras fuentes que lee NOOP y el espacio que ocupa.</string>
+    <string name="fsw4_export">Exportar…</string>
+    <string name="fsw4_import">Importar…</string>
+    <string name="fsw4_csv">Exportar CSV…</string>
+    <string name="fsw4_backup_sync">Copia y sincronización a una carpeta…</string>
+    <string name="fsw4_tc_strap_log">Registro del strap</string>
+    <string name="fsw4_tc_strap_log_hint">Copia esto cuando reportes un error. Me dice lo que vio la app.</string>
+    <string name="fsw4_tc_report_hint">Crea un .zip censurado y te muestra su contenido.</string>
+    <string name="fsw4_tc_daily_auto">Exportación automática diaria del registro de la pulsera</string>
+    <string name="fsw4_tc_clear">Borrar exportaciones programadas</string>
+    <string name="fsw4_imports_group">Health Connect e importaciones</string>
+    <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
     <string name="fsw3_tc_blurb">Activa una prueba para lo que falla, ponte la banda y pulsa Informar. Todo se queda en este teléfono.</string>
     <string name="fsw3_report_footer">Crea un .zip con datos ocultos y te muestra lo que contiene antes de compartir nada.</string>

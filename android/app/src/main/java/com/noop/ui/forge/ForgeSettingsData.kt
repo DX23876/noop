@@ -68,6 +68,12 @@ import androidx.compose.material.icons.rounded.SettingsInputAntenna
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.CloudSync
+import androidx.compose.material.icons.rounded.Dns
+import androidx.compose.material.icons.rounded.Download
+import androidx.compose.material.icons.rounded.IosShare
+import androidx.compose.material.icons.rounded.TableChart
+import androidx.compose.material.icons.rounded.Upload
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Contrast
@@ -175,50 +181,48 @@ internal fun CalculationsSection(viewModel: AppViewModel, change: (() -> Unit) -
     val experiment = remember { PuffinExperiment.from(context) }
     // Day start rescores at once through the view model, as the classic row does.
     val dayCycle = NoopPrefs.dayCycleMode(context)
-    SettingsCard(title = stringResource(R.string.settings_day_cycle_title), blurb = stringResource(R.string.settings_day_cycle_description)) {
-        SettingRow(stringResource(R.string.settings_day_cycle_starts)) {
-            Segmented(listOf(DayCycleMode.SLEEP_ONSET, DayCycleMode.MIDNIGHT), dayCycle,
-                      label = {
-                          stringResource(if (it == DayCycleMode.SLEEP_ONSET) R.string.settings_day_cycle_sleep
-                                         else R.string.settings_day_cycle_midnight)
-                      },
-                      onSelect = { change { viewModel.setDayCycleMode(it) } })
+    // One group in iOS order (`calculationCard`): Day start, HRV window, Sleep stage method, Wake check, each a menu
+    // or a switch with its note under it.
+    SettingsCard(title = stringResource(R.string.fsw4_calc_title), blurb = stringResource(R.string.fsw4_calc_blurb)) {
+        val dayLabel: @Composable (DayCycleMode) -> String = {
+            stringResource(if (it == DayCycleMode.SLEEP_ONSET) R.string.fsw4_falling_asleep else R.string.fsw4_midnight)
         }
-        Text(stringResource(if (dayCycle == DayCycleMode.SLEEP_ONSET) R.string.settings_day_cycle_sleep_description
-                            else R.string.settings_day_cycle_midnight_description),
-             style = Forge.type.caption, color = Forge.colors.textTertiary)
-    }
-    SettingsCard(title = stringResource(R.string.forge_settings_scores), blurb = null) {
+        SettingRow(stringResource(R.string.fsw4_day_start)) {
+            MenuPicker(dayLabel(dayCycle), listOf(DayCycleMode.SLEEP_ONSET, DayCycleMode.MIDNIGHT), label = dayLabel,
+                       onSelect = { change { viewModel.setDayCycleMode(it) } })
+        }
+        Text(stringResource(if (dayCycle == DayCycleMode.SLEEP_ONSET) R.string.fsw4_day_sleep_note else R.string.fsw4_day_midnight_note),
+             style = Forge.type.footnote, color = Forge.colors.textTertiary)
+        RowDivider()
         // No Effort-model switch: the shared core scores Effort with one fitted curve since #2438 and ignores the
         // former Banister preference (`CoreAnalysis.Settings.effortBanister`), as iOS removed its row.
-        SettingRow(stringResource(R.string.l10n_settings_screen_hrv_window_e74320b8)) {
-            Segmented(listOf(HrvWindow.WHOLE_NIGHT, HrvWindow.DEEP_SLEEP), UnitPrefs.hrvWindow(context),
-                      label = { stringResource(if (it == HrvWindow.DEEP_SLEEP) R.string.forge_settings_hrv_deep else R.string.forge_settings_hrv_night) },
-                      onSelect = {
-                          // The classic row clears the analysis watermark and syncs, so recent nights are scored again.
-                          change {
-                              UnitPrefs.setHrvWindow(context, it)
-                              NoopPrefs.setAnalyzeWatermark(context, "")
-                              viewModel.syncNow()
-                          }
-                          Toast.makeText(context, context.getString(R.string.forge_settings_hrv_rescoring), Toast.LENGTH_LONG).show()
-                      })
+        val hrvLabel: @Composable (HrvWindow) -> String = {
+            stringResource(if (it == HrvWindow.DEEP_SLEEP) R.string.forge_settings_hrv_deep else R.string.forge_settings_hrv_night)
         }
-        Text(stringResource(R.string.l10n_settings_screen_whole_night_is_noop_s_default_fbfff434),
-             style = Forge.type.caption, color = Forge.colors.textTertiary)
-    }
-    SettingsCard(title = stringResource(R.string.forge_settings_sleep), blurb = null) {
+        SettingRow(stringResource(R.string.fsw4_hrv_window)) {
+            MenuPicker(hrvLabel(UnitPrefs.hrvWindow(context)), listOf(HrvWindow.WHOLE_NIGHT, HrvWindow.DEEP_SLEEP), label = hrvLabel,
+                       onSelect = {
+                           // The classic row clears the analysis watermark and syncs, so recent nights are scored again.
+                           change {
+                               UnitPrefs.setHrvWindow(context, it)
+                               NoopPrefs.setAnalyzeWatermark(context, "")
+                               viewModel.syncNow()
+                           }
+                           Toast.makeText(context, context.getString(R.string.forge_settings_hrv_rescoring), Toast.LENGTH_LONG).show()
+                       })
+        }
+        Text(stringResource(R.string.fsw4_hrv_note), style = Forge.type.caption, color = Forge.colors.textTertiary)
+        RowDivider()
         // V3 runs in the shared Swift core; the optional legacy Kotlin screen keeps its V1/V2 choice.
         if (com.noop.core.CoreDailyRows.coreReads(context)) {
-            Text(stringResource(R.string.sleep_stager_method), style = Forge.type.body,
-                 color = Forge.colors.text)
-            Segmented(com.noop.ble.PuffinExperiment.SLEEP_METHODS, experiment.sleepStagerMethod,
-                      label = { it.uppercase(java.util.Locale.ROOT) }, onSelect = { method ->
-                          change {
-                              viewModel.setSleepStagerMethod(method)
-                          }
-                      })
-            Text(stringResource(R.string.sleep_stager_method_detail), style = Forge.type.caption,
+            SettingRow(stringResource(R.string.sleep_stager_method)) {
+                MenuPicker(experiment.sleepStagerMethod.uppercase(java.util.Locale.ROOT),
+                           com.noop.ble.PuffinExperiment.SLEEP_METHODS,
+                           label = { it.uppercase(java.util.Locale.ROOT) }, onSelect = { method ->
+                               change { viewModel.setSleepStagerMethod(method) }
+                           })
+            }
+            Text(stringResource(R.string.sleep_stager_method_detail), style = Forge.type.footnote,
                  color = Forge.colors.textTertiary)
         } else {
             ToggleRow(stringResource(R.string.l10n_settings_screen_sleep_staging_v2_a4176770),
@@ -226,8 +230,7 @@ internal fun CalculationsSection(viewModel: AppViewModel, change: (() -> Unit) -
                       experiment.experimentalSleepV2) { on -> change { viewModel.setSleepStagerMethod(if (on) "v2" else "v1") } }
         }
         RowDivider()
-        ToggleRow(stringResource(R.string.l10n_settings_screen_motion_aware_wake_refinement_67a91e47),
-                  stringResource(R.string.l10n_settings_screen_reviews_each_scored_wake_block_for_537924ea),
+        ToggleRow(stringResource(R.string.fsw4_wake_check), stringResource(R.string.fsw4_wake_note),
                   experiment.motionAwareWake) { on -> change { experiment.motionAwareWake = on } }
     }
     // "If scores look wrong" (iOS `AnalysisMaintenanceSettingsCard`): the status of the engine, Refresh today,
@@ -258,36 +261,34 @@ internal fun DataBackupSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSu
             )
         }
     }
-    SettingsCard(title = stringResource(R.string.forge_backup_section), blurb = null) {
-        LinkRow(stringResource(R.string.forge_backup_export), stringResource(R.string.forge_backup_export_detail), onClick = backup.export)
+    // The group headers and the three actions as iOS `backupCard` draws them: each action a row with its symbol in the
+    // accent colour, then the two notes (what an import does, the archive is not encrypted) with their marks.
+    SettingsCard(title = stringResource(R.string.fsw4_backup_group), blurb = null) {
+        ActionRow(Icons.Rounded.IosShare, stringResource(R.string.fsw4_export), onClick = backup.export)
         RowDivider()
-        LinkRow(stringResource(R.string.forge_backup_import), stringResource(R.string.forge_backup_import_detail), onClick = backup.import)
+        ActionRow(Icons.Rounded.Download, stringResource(R.string.fsw4_import), onClick = backup.import)
         RowDivider()
-        LinkRow(stringResource(R.string.l10n_settings_screen_export_csv_6bce63a3), null) {
+        ActionRow(Icons.Rounded.TableChart, stringResource(R.string.fsw4_csv)) {
             csvExport.launch("noop-export-${java.time.LocalDate.now()}.zip")
         }
-        // The two notes the iOS card carries under its buttons: what an import does and that the file is not
-        // encrypted (#644). Both sentences are the classic Backup card's strings, which iOS shares word for word.
-        Text(stringResource(R.string.l10n_settings_screen_importing_overwrites_everything_currently_on_this_297b76ae),
-             style = Forge.type.caption, color = Forge.colors.textSecondary)
-        Text(stringResource(R.string.l10n_settings_screen_this_is_a_plain_unencrypted_archive_b0dfe63d),
-             style = Forge.type.caption, color = ForgeTokens.StrandPalette.statusWarningForeground.resolve())
+        Spacer(Modifier.height(ForgeMetrics.space2))
+        MarkedNote(stringResource(R.string.l10n_settings_screen_importing_overwrites_everything_currently_on_this_297b76ae),
+                   warning = false)
+        Spacer(Modifier.height(ForgeMetrics.space3))
+        MarkedNote(stringResource(R.string.l10n_settings_screen_this_is_a_plain_unencrypted_archive_b0dfe63d), warning = true)
         RowDivider()
-        LinkRow(stringResource(R.string.l10n_settings_screen_automatic_backups_8a772f3c),
-                stringResource(R.string.forge_settings_auto_backup_detail)) { onOpen(ForgeSettingsSub.BackupSync) }
+        TileLinkRow(Icons.Rounded.CloudSync, ForgeTokens.Color.systemIndigo.resolve(), stringResource(R.string.fsw4_backup_sync),
+                    stringResource(R.string.forge_settings_auto_backup_detail)) { onOpen(ForgeSettingsSub.BackupSync) }
     }
-    SettingsCard(title = stringResource(R.string.forge_settings_imports), blurb = null) {
-        LinkRow(stringResource(R.string.nav_data_sources), stringResource(R.string.forge_settings_data_sources_detail)) {
-            onOpen(ForgeSettingsSub.DataSources)
-        }
-        RowDivider()
+    SettingsCard(title = stringResource(R.string.fsw4_imports_group), blurb = stringResource(R.string.fsw4_imports_blurb)) {
         // Where the space goes and a one-tap clean-up (iOS `StorageView`), after Data sources as on iOS.
-        LinkRow(stringResource(R.string.fsp5_storage_title), stringResource(R.string.fsp5_storage_subtitle)) {
-            onOpen(ForgeSettingsSub.Storage)
-        }
+        TileLinkRow(Icons.Rounded.Storage, ForgeTokens.Color.systemIndigo.resolve(), stringResource(R.string.nav_data_sources),
+                    stringResource(R.string.forge_settings_data_sources_detail)) { onOpen(ForgeSettingsSub.DataSources) }
         RowDivider()
-        LinkRow(stringResource(R.string.nav_self_hosted_push), stringResource(R.string.push_settings_row_detail)) {
-            onOpen(ForgeSettingsSub.SelfHostedPush)
-        }
+        TileLinkRow(Icons.Rounded.Dns, ForgeTokens.Color.systemGray.resolve(), stringResource(R.string.fsp5_storage_title),
+                    stringResource(R.string.fsp5_storage_subtitle)) { onOpen(ForgeSettingsSub.Storage) }
+        RowDivider()
+        TileLinkRow(Icons.Rounded.Upload, ForgeTokens.Color.systemGray.resolve(), stringResource(R.string.nav_self_hosted_push),
+                    stringResource(R.string.push_settings_row_detail)) { onOpen(ForgeSettingsSub.SelfHostedPush) }
     }
 }

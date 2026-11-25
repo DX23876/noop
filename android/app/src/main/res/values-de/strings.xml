@@ -2665,7 +2665,7 @@
     <string name="ground_truth_title">5/MG-Rohdaten-Collector</string>
     <string name="ground_truth_subtitle">Zeichnet eine begrenzte Bewegungssession mit 100 Hz auf, ergänzt Bluetooth-Lücken aus dem Strap-Verlauf und exportiert die vollständige Zeitachse.</string>
     <string name="ground_truth_test_centre_desc">Zeichne eine begrenzte 5/MG-Bewegungsaufnahme mit 100 Hz auf, markiere, vervollständige und exportiere sie.</string>
-    <string name="ground_truth_open">Rohdaten-Collector öffnen</string>
+    <string name="ground_truth_open">Rohdaten-Sammler öffnen</string>
     <string name="ground_truth_start">Rohdaten-Session starten</string>
     <string name="ground_truth_add_historical">Vergangenes Zeitfenster hinzufügen</string>
     <string name="ground_truth_stop">Session beenden</string>
@@ -6744,7 +6744,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_ap_accent">Akzent</string>
     <string name="forge_ap_mint">Mint</string>
     <string name="forge_ap_whoop_blue">WHOOP Blue</string>
-    <string name="forge_ap_custom">Benutzerdefiniert</string>
+    <string name="forge_ap_custom">Eigene</string>
     <string name="body_edit_title">Messung bearbeiten</string>
     <string name="body_edit_taken">Aufgenommen</string>
     <string name="body_edit_note">Ein geändertes Datum verschiebt diese Messung im Verlauf. Eine nachgetragene Messung gehört zum Tag, an dem sie genommen wurde — nicht zu dem, an dem sie eingetippt wurde.</string>
@@ -7474,13 +7474,41 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="import_depth_one_year">1 Jahr</string>
     <string name="import_depth_three_years">3 Jahre</string>
     <string name="import_depth_ten_years">10 Jahre</string>
+    <!-- settings-parity:w4:begin -->
+    <string name="fsw4_calc_title">So rechnet NOOP</string>
+    <string name="fsw4_calc_blurb">Änderungen hier können vergangene Tage neu berechnen. Deine aufgezeichneten Daten bleiben.</string>
+    <string name="fsw4_day_start">Tagesbeginn</string>
+    <string name="fsw4_falling_asleep">Einschlafen</string>
+    <string name="fsw4_midnight">Mitternacht</string>
+    <string name="fsw4_day_sleep_note">Standard: Schritte und laufende Effort starten am Anfang des erkannten Hauptschlafs. Nickerchen starten keinen neuen Tag; fehlende Schlafdauer wird auf Mitternacht vor Ort zurückgesetzt.</string>
+    <string name="fsw4_day_midnight_note">Verwendet einen konventionellen lokalen Kalendertag von 00:00 bis 00:00.</string>
+    <string name="fsw4_hrv_window">HRV-Zeitraum</string>
+    <string name="fsw4_hrv_note">Tiefschlaf ergibt niedrigere Werte. Ein Wechsel berechnet deine letzten Nächte neu.</string>
+    <string name="fsw4_wake_check">Wachphasen-Prüfung</string>
+    <string name="fsw4_wake_note">Zählt eine Wachphase nur, wenn du gegangen bist oder die Lage gewechselt hast. Ein Pulsanstieg allein bleibt leichter Schlaf. Entfällt in Nächten mit zu wenig Bewegungsdaten. Gilt ab der nächsten Nacht.</string>
+    <string name="fsw4_style">Stil</string>
+    <string name="fsw4_style_blurb">Hell, dunkel oder wie im System, dazu Akzentfarbe und Symbole.</string>
+    <string name="fsw4_system">System</string>
+    <string name="fsw4_backup_group">Sicherung &amp; Wiederherstellung</string>
+    <string name="fsw4_imports_blurb">Weitere Quellen, die NOOP liest, und der Speicher, den es belegt.</string>
+    <string name="fsw4_export">Exportieren…</string>
+    <string name="fsw4_import">Importieren…</string>
+    <string name="fsw4_csv">CSV exportieren…</string>
+    <string name="fsw4_backup_sync">Sicherung &amp; Sync in einen Ordner…</string>
+    <string name="fsw4_tc_strap_log">Strap-Log</string>
+    <string name="fsw4_tc_strap_log_hint">Nimm das mit, wenn du einen Fehler meldest. Es zeigt mir, was die App gesehen hat.</string>
+    <string name="fsw4_tc_report_hint">Erstellt eine bereinigte .zip und zeigt dir, was drin ist.</string>
+    <string name="fsw4_tc_daily_auto">Täglicher Auto-Export des Strap-Logs</string>
+    <string name="fsw4_tc_clear">Geplante Exporte löschen</string>
+    <string name="fsw4_imports_group">Health Connect &amp; Importe</string>
+    <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
     <string name="fsw3_tc_blurb">Schalte einen Test für das ein, was nicht stimmt, trag den Strap und tippe dann auf Melden. Alles bleibt auf diesem Telefon.</string>
     <string name="fsw3_report_footer">Erstellt eine geschwärzte .zip und zeigt dir den Inhalt, bevor etwas geteilt wird.</string>
     <string name="fsw3_report_detail">Geschwärzte .zip zur Prüfung vorab, und der tägliche Export</string>
     <string name="fsw3_group_testing">Tests</string>
     <string name="fsw3_modes_detail">Pro Bereich: Strap, Schlaf, Workouts und mehr</string>
-    <string name="fsw3_collector">Rohdaten-Collector</string>
+    <string name="fsw3_collector">Rohdaten-Sammler</string>
     <string name="fsw3_for_5mg">5.0 und MG</string>
     <string name="fsw3_collector_40">4.0, auf echter Hardware unbestätigt</string>
     <string name="fsw3_group_maintenance">Wartung</string>
