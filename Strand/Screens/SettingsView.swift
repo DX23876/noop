@@ -1109,7 +1109,7 @@ private struct SettingsPageContent: View, Equatable {
                               format: String, accessibility: String) -> some View {
         HStack(spacing: NoopMetrics.space2) {
             HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space1) {
-                Text(String(format: format, value.wrappedValue))
+                Text(String(format: format, locale: .current, value.wrappedValue))
                     .font(StrandFont.bodyNumber)
                     .foregroundStyle(StrandPalette.textPrimary)
                     .frame(width: NoopMetrics.formValueColumnWidth, alignment: .center)
@@ -1254,7 +1254,7 @@ private struct SettingsPageContent: View, Equatable {
         let set = profile.vo2maxManual > 0
         return HStack(spacing: NoopMetrics.space2) {
             HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space1) {
-                Text(set ? String(format: "%.1f", profile.vo2maxManual) : String(localized: "Auto"))
+                Text(set ? String(format: "%.1f", locale: .current, profile.vo2maxManual) : String(localized: "Auto"))
                     .font(StrandFont.bodyNumber)
                     .foregroundStyle(set ? StrandPalette.textPrimary : StrandPalette.textTertiary)
                     .frame(minWidth: NoopMetrics.formValueColumnWidth, alignment: .center)
@@ -4580,7 +4580,7 @@ struct StepsCalibrationSheet: View {
                     let coeff = profile.stepsManualCoefficient > 0
                         ? profile.stepsManualCoefficient : profile.stepsCalibrationCoefficient
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        Text(String(format: "%.1f", coeff))
+                        Text(String(format: "%.1f", locale: .current, coeff))
                             .font(StrandFont.number(30))
                             .foregroundStyle(StrandPalette.accent)
                         Text("steps per motion unit")
@@ -4698,7 +4698,7 @@ struct StepsCalibrationSheet: View {
                     .fixedSize(horizontal: false, vertical: true)
 
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(draftManual > 0 ? String(format: "%.1f", draftManual) : String(localized: "Auto"))
+                    Text(draftManual > 0 ? String(format: "%.1f", locale: .current, draftManual) : String(localized: "Auto"))
                         .font(StrandFont.number(24))
                         .foregroundStyle(draftManual > 0 ? StrandPalette.accent : StrandPalette.textSecondary)
                     Text(draftManual > 0 ? "steps / motion unit" : "fit from your phone")
