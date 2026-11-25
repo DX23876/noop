@@ -192,7 +192,7 @@ public enum CoreAnalysis {
                 try? await Task.sleep(for: .milliseconds(500))
             }
         }
-        defer { watcher.cancel(); AnalysisMaintenanceState.finish() }
+        defer { watcher.cancel(); AnalysisMaintenanceState.finish(unless: .today) }
         if settings.historyRescore {
             await engine.reanalyzeHistoryReusingUnchangedDays()
         } else {

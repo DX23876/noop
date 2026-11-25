@@ -1083,6 +1083,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // export can answer "what ran when". Idempotent — the stored last-seen version only advances
         // once the transition is recorded, so a background-only launch is caught on the next UI open.
         viewModelScope.launch { recordAppVersionChange() }
+        // The automatic max heart rate is the core's (measured, else Gellish), cached per age. Fill it once at
+        // launch, before the first live sample reads zones or the ceiling, so they do not move mid-session when
+        // the first daily pass would otherwise fill it.
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { com.noop.core.CoreProfile.refreshMaxHeartRate(profileStore) }
+        }
         // #1121: re-arm the opt-in detailed-capture rolling log on launch, so a capture the user started
         // keeps going across the process being killed (this phone class is not battery-exempt and Android
         // kills the background BLE overnight — the very window a battery capture needs to span).

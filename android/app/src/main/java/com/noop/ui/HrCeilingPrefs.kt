@@ -6,7 +6,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
@@ -65,7 +64,7 @@ object HrCeilingPrefs {
  */
 internal class HrCeilingMonitor(private val appContext: Context) {
     private val lock = Mutex()
-    private var state: CoreAlerts.CeilingState? = null
+    @Volatile private var state: CoreAlerts.CeilingState? = null
 
     /** Whether a ceiling episode is running, as of the last sample the core answered. */
     @Volatile var episodeActive: Boolean = false
@@ -82,16 +81,30 @@ internal class HrCeilingMonitor(private val appContext: Context) {
         val reminder = HrCeilingPrefs.reminderMode(appContext)
         val inScope = HrCeilingPrefs.scope(appContext) == HrCeilingPrefs.ALWAYS || workoutRunning
         val gate = switchOn && linked && inScope
+        // Closed gate: no alert can fire, so the core is not asked once a second for nothing, and a running episode
+        // ends here (switching the alert off or leaving its scope is silence, as on the iPhone).
+        if (!gate) {
+            state = null
+            episodeActive = false
+            return
+        }
         val lower = profile.hrZoneSet.zones.map { it.lower }
         val maxHr = profile.hrMax
         scope.launch(Dispatchers.Default) {
-            val loops = lock.withLock {
+            // One question at a time, newest sample only: a core call waits while a daily pass holds the core, and
+            // queued samples would replay minutes later with their old clocks. A sample that finds a call in flight
+            // is dropped; the next one, a second later, carries the current heart rate.
+            if (!lock.tryLock()) return@launch
+            val loops = try {
                 val answer = CoreAlerts.hrCeiling(mode, zone, fixed, lower, maxHr, nowSec, bpm, gate, reminder, state)
-                    ?: return@withLock 0
-                state = answer.state
-                episodeActive = answer.episodeActive
-                // The iPhone always confirms a recovery; "Recovery buzz" is the Android switch that was there before.
-                if (answer.cue == "recovered" && !confirmRecovery) 0 else answer.loops
+                if (answer == null) 0 else {
+                    state = answer.state
+                    episodeActive = answer.episodeActive
+                    // The iPhone always confirms a recovery; "Recovery buzz" is the Android switch that was there before.
+                    if (answer.cue == "recovered" && !confirmRecovery) 0 else answer.loops
+                }
+            } finally {
+                lock.unlock()
             }
             if (loops > 0) withContext(Dispatchers.Main) { buzz(loops) }
         }

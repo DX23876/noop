@@ -69,10 +69,13 @@ public enum AnalysisMaintenanceState {
         box.snapshot.progress = progress
     }
 
-    /// The tracked run ended. A repair that succeeded is the "last completed" moment.
-    static func finish(failure: String? = nil, now: Date = Date()) {
+    /// The tracked run ended. A repair that succeeded is the "last completed" moment. A daily pass that ends
+    /// while "Refresh today" is still running (`unless: .today`) leaves that slot alone, so the page keeps its
+    /// button disabled until the refresh itself finishes.
+    static func finish(failure: String? = nil, now: Date = Date(), unless running: Kind? = nil) {
         box.lock.lock()
         let task = box.snapshot.task
+        if let running, task == running { box.lock.unlock(); return }
         box.snapshot.task = nil
         box.snapshot.progress = nil
         box.snapshot.failure = failure
@@ -196,6 +199,9 @@ enum CoreAnalysisMaintenance {
             guard AnalysisMaintenanceState.begin(.today) else { return #"{"started":false,"reason":"busy"}"# }
             let deviceId = ShadowSession.activeDeviceId
             Task { @MainActor in
+                // Outside the pass queue, so it waits as a queued pass does while the strap hands history over:
+                // running the engine then holds this actor past the time the client waits for a chunk ack.
+                while ShadowSession.holdsAnalysis { try? await Task.sleep(for: .milliseconds(500)) }
                 let ok = await CoreAnalysis.refreshToday(store: store, deviceId: deviceId, profile: profile,
                                                          settings: settings)
                 AnalysisMaintenanceState.finish(failure: ok ? nil : "noCurrentDayActivity")
