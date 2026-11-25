@@ -234,7 +234,8 @@ internal fun HelpSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> 
 @Composable
 internal fun LabSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Unit) {
     val context = LocalContext.current
-    SettingsCard(title = stringResource(R.string.forge_settings_lab), blurb = stringResource(R.string.fsp6_lab_blurb)) {
+    // No header: "Labor" under the Labor page head would only repeat it (iOS hides it the same way).
+    SettingsCard(title = null, blurb = stringResource(R.string.fsp6_lab_blurb)) {
         // The redesign's switch stood here until 2026-11-20. It is gone, not hidden: the design ships to
         // everyone and the screens under it are not maintained any more, so a way back only produces
         // reports from pages nobody is looking at (`ForgeDesign.retireTheOldDesign`).
