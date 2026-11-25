@@ -75,12 +75,14 @@ struct RootTabView: View {
         [0: ForgeTab.today, 1: .health, 2: .training, 3: .sleep, Self.forgeNutritionTag: .nutrition][selectedTab]
     }
     @State private var customizeTodayAfterDismissal = false
+    /// How many tab stacks the shell keeps: the four classic tabs, More, and Nutrition at tag 5.
+    private static let tabPathCount = 6
     /// One `NavigationPath` per tab, indexed by tab tag. Re-tapping the already-active tab pops
     /// that tab's stack to its root (#135) by clearing its path — an animated pop that leaves the
     /// root view alive, so an at-root re-tap keeps scroll position and never re-runs `.task`
     /// (#198; the #197 resetID/`.id()` rebuild reset both). Requires the tab roots' first-hop
     /// links to push `TabRoute`/`MoreDestination` VALUES — closure-destination links bypass the path.
-    @State private var tabPaths: [NavigationPath] = Array(repeating: NavigationPath(), count: 6)
+    @State private var tabPaths: [NavigationPath] = Array(repeating: NavigationPath(), count: Self.tabPathCount)
     /// One scroll-to-top token per tab. Bumped when the user re-taps the active tab while it's ALREADY
     /// at its root — the other half of the iOS convention #197/#198 left unserved (an at-root re-tap was
     /// a no-op). Threaded into each tab's root via `\.scrollToTopSignal`; ScreenScaffold / LiquidTodayView
@@ -158,14 +160,14 @@ struct RootTabView: View {
             case "settings": _showAllFeatures = State(initialValue: true)
             case "settings-strap", "settings-devices", "settings-scores":
                 let sub: [String: ForgeSettingsRoute] = ["settings-strap": .strap, "settings-devices": .devicesSources, "settings-scores": .scoringGuide]
-                var paths = Array(repeating: NavigationPath(), count: 5)
+                var paths = Array(repeating: NavigationPath(), count: Self.tabPathCount)
                 if let route = sub[args[i + 1].lowercased()] { paths[4].append(route) }
                 _tabPaths = State(initialValue: paths)
                 _showAllFeatures = State(initialValue: true)
             case "log": _quickAction = State(initialValue: .forgeLog)
             case let key where key.hasPrefix("page-"):
                 // A Settings page by its name ("page-notifications"), opened over the settings hub.
-                var paths = Array(repeating: NavigationPath(), count: 5)
+                var paths = Array(repeating: NavigationPath(), count: Self.tabPathCount)
                 if let page = SettingsPage.allCases.first(where: { "page-" + $0.rawValue.lowercased() == key }) {
                     paths[4].append(MoreDestination.settingsPage(page))
                 }
@@ -191,7 +193,7 @@ struct RootTabView: View {
                     "focus-mind": (1, { $0.append(ForgeRoute.focus(.mind)) }), "focus-more": (1, { $0.append(ForgeRoute.focus(.more)) }), "fullday": (1, { $0.append(TabRoute.fullDayChart) }), "food": (1, { $0.append(ForgeRoute.food) }),
                     "alarms": (3, { $0.append(MoreDestination.alarms) }), "devices": (0, { $0.append(MoreDestination.devices) }), "backup": (0, { $0.append(MoreDestination.backupSync) }),
                     "datasources": (0, { $0.append(MoreDestination.dataSources) }), "automations": (0, { $0.append(MoreDestination.automations) })]
-                var paths = Array(repeating: NavigationPath(), count: 5)
+                var paths = Array(repeating: NavigationPath(), count: Self.tabPathCount)
                 if let route = routes[key] {
                     paths[0].append(route)
                     _tabPaths = State(initialValue: paths)
