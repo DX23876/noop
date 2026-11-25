@@ -102,7 +102,11 @@ private fun momentumFeed(retry: Int, live: CoreMomentum.Live = CoreMomentum.Live
     }
     var state by remember { mutableStateOf(MomentumFeedState()) }
     LaunchedEffect(revision, retry, foregroundRefresh, live) {
-        state = state.copy(loaded = false)
+        // Only a retry after a failed read goes back to "loading". Every other reload keeps what is on
+        // screen until the new answer is in: the data revision ticks with each synced batch, and
+        // resetting here blanked the Momentum page every few seconds while a strap synced (tester
+        // report, 2026-11-23).
+        if (state.messages == null) state = state.copy(loaded = false)
         val messages = withContext(Dispatchers.IO) {
             CoreRead.open(context)
             CoreMomentum.feed(context, dismissedTrainingWorkouts(context), live)
