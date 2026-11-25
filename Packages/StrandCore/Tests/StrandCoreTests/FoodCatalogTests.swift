@@ -73,6 +73,26 @@ final class FoodCatalogTests: XCTestCase {
         XCTAssertEqual(FoodOnline.fields(language: "de-DE"), FoodOnline.fields)
     }
 
+    func testSeveralCountriesAreNotAllRequiredAtOnce() throws {
+        func query(_ url: URL?) throws -> [String: String] {
+            let items = try XCTUnwrap(url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false)?.queryItems })
+            return Dictionary(items.map { ($0.name, $0.value ?? "") }, uniquingKeysWith: { a, _ in a })
+        }
+        let one = try query(FoodOnline.searchURL("haferflocken", countries: ["germany"], language: "de"))
+        XCTAssertEqual(one["tag_0"], "germany", "one country is still a filter")
+        let two = try query(FoodOnline.searchURL("haferflocken", countries: ["germany", "portugal"], language: "de"))
+        XCTAssertNil(two["tag_0"], "several countries would be ANDed, so they are not sent as filters")
+        XCTAssertNil(two["tag_1"])
+        XCTAssertTrue(two["fields"]?.hasSuffix(",countries_tags") == true)
+        XCTAssertNil(FoodOnline.searchURL("ha", countries: [], language: "de"), "too short to search")
+
+        let products: [[String: Any]] = [["code": "1", "countries_tags": ["en:france"]],
+                                         ["code": "2", "countries_tags": ["en:portugal"]],
+                                         ["code": "3", "countries_tags": ["en:germany", "en:austria"]]]
+        let order = FoodOnline.ranked(products, countries: ["germany", "portugal"]).compactMap { $0["code"] as? String }
+        XCTAssertEqual(order, ["2", "3", "1"], "products from a chosen country first, each group in search order")
+    }
+
     func testLoggedBlsFoodsAreNamedInTheAppLanguage() async throws {
         let catalog = FoodCatalog(directory: directory)
         try await catalog.prepareBundled()
