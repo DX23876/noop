@@ -2097,3 +2097,40 @@ The service records nothing about who called, by design, so the first real evide
 from a build that carries this.
 
 Analysis migration required: no
+
+## 2026-11-25 — Effort's day and its resting heart rate, after a wearer who wears both apps
+
+@pilleuspulcher-blip wears a WHOOP with WHOOP's own app beside a WHOOP 4.0 with NOOP Forge. On
+2026-11-22, a day with two half-hour walks and no workout, WHOOP's Day Strain read 2.0 and NOOP's Effort
+9.8 on the 0-21 scale; on other days NOOP ran two and a half to three points higher whatever he did. The
+#2438 calibration fitted the curve on WHOOP's workout Strain and nothing checked the day. Two causes,
+both decided with the owner in one round (grilling, 2026-11-25):
+
+**The day summed what WHOOP keeps apart.** Since AI-32 time below 50 % HRR counted toward the day inside
+any workout or detected bout. In his WHOOP export walks logged as workouts score about 4 whatever their
+length (13 to 47 minutes), a walking day without one scored 2.0, and his day sits a median 0.8 above its
+strongest workout; across his and the owner's exports a day falls below its strongest workout on 1 of 368
+days. So a day now counts nothing below 50 % HRR, inside a workout or not, and is lifted to its strongest
+workout, each scored from its own readings with its light minutes (`StrainScorer.LowIntensity.day`). A
+workout's own Effort is unchanged. Step 2 of #2438 (a small day weight below zone 1) stays open; it is
+taken up only if the day reads too low afterwards.
+
+**The resting heart rate was on another yardstick.** The fit converted WHOOP's zones with WHOOP's resting
+heart rate, an average weighted towards the last deep sleep; NOOP scored with the night's lowest five
+minutes. On the owner's nights since 2026-10-20 the main night's mean ran a median 10 bpm above that
+floor and the last deep block's mean 11; on the paired wearer WHOOP's value ran 4 to 6 above NOOP's floor.
+Effort now reads the main night's mean (`EffortRestingHR`, the `rhr_primary_session` definition), else
+the median of the last seven nights, else a device's value, else 60, stored per day as `rhr_effort` so
+every reader takes the same one. Collecting more paired nights to pick between the mean, the last deep
+block and a fixed offset was considered and dropped by the owner; the mean is the one that needs no
+staging and is already stored. Known risk: for the paired wearer it may sit a few beats above WHOOP's
+value, which would put his Effort up to about half a point below WHOOP's.
+
+Detection keeps the day's shown resting heart rate, so the walk rule under test does not move; only the
+scoring of a found bout uses Effort's. The shown resting heart rate, energy, training load, AgeLess and
+VO2max keep theirs (the 2026-10-12 decisions stand).
+
+On the owner's November days, both together lower light days by two to three and a half points and hard
+days by about one; the issue's example values for workouts are unchanged.
+
+Analysis migration required: yes, riding on AI-38, which had not shipped.
