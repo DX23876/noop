@@ -7543,6 +7543,52 @@ Plotting each series as change from its own first reading puts them on one scale
     <!-- settings-parity spacer 4b -->
     <!-- settings-parity spacer 4c -->
     <!-- settings-parity:p5:begin -->
+    <string name="fsp5_repair_title">If scores look wrong</string>
+    <string name="fsp5_repair_blurb">NOOP updates new data on its own. Use these only when a score looks out of date or off.</string>
+    <string name="fsp5_repair_ready">Ready when a recent insight looks out of date.</string>
+    <string name="fsp5_repair_last_completed">Last completed %1$s</string>
+    <string name="fsp5_repair_recalculating">Recalculating the last 21 days…</string>
+    <string name="fsp5_repair_refreshing">Refreshing today\'s activity…</string>
+    <string name="fsp5_repair_no_activity">No current-day activity data was available.</string>
+    <string name="fsp5_repair_preparing">Reading history and folding baselines…</string>
+    <string name="fsp5_repair_saving">Saving scores…</string>
+    <string name="fsp5_repair_saving_reused">Saving scores — re-derived %1$d of %2$d days</string>
+    <string name="fsp5_repair_day">Day %1$d of %2$d</string>
+    <string name="fsp5_repair_day_unchanged">Day %1$d of %2$d · %3$d unchanged</string>
+    <string name="fsp5_repair_estimating">%1$s · estimating…</string>
+    <string name="fsp5_repair_eta">%1$s · about %2$s left</string>
+    <string name="fsp5_repair_no_progress">No progress for %1$s</string>
+    <string name="fsp5_repair_last_step">Last step %1$s ago</string>
+    <string name="fsp5_repair_seconds">%1$d s</string>
+    <string name="fsp5_repair_minutes">%1$d min</string>
+    <string name="fsp5_repair_refresh_today">Refresh today</string>
+    <string name="fsp5_repair_recalculate">Recalculate the last 21 days</string>
+    <string name="fsp5_repair_recalculate_note">This updates calculated scores only. Raw data and your sleep or workout corrections stay unchanged.</string>
+    <string name="fsp5_repair_reset">Reset Charge baseline</string>
+    <string name="fsp5_repair_reset_note">Restarts the roughly 4-night build-up for Charge and your HRV baseline from tonight. Use it if a bad first week, like wearing it while sick, set your baseline off. Your history stays.</string>
+    <string name="fsp5_repair_confirm_title">Recalculate the last 21 days?</string>
+    <string name="fsp5_repair_confirm_body">This can take several minutes. NOOP keeps all raw data and manual corrections and recalculates only derived scores.</string>
+    <string name="fsp5_repair_confirm_action">Recalculate</string>
+    <string name="fsp5_repair_reset_done_title">Charge baseline recalibrating</string>
+    <string name="fsp5_repair_reset_done_body">NOOP will re-learn your baseline from tonight\'s data onward. Your history is kept, and it takes a few nights to settle.</string>
+    <string name="fsp5_storage_title">Storage</string>
+    <string name="fsp5_storage_subtitle">Where NOOP\'s on-device space is going, and a one-tap clean-up.</string>
+    <string name="fsp5_storage_measuring">Measuring…</string>
+    <string name="fsp5_storage_unavailable_title">Storage unavailable</string>
+    <string name="fsp5_storage_unavailable_body">Couldn\'t read the local store right now. Try again in a moment.</string>
+    <string name="fsp5_storage_footprint">On-device footprint</string>
+    <string name="fsp5_storage_database">Health database</string>
+    <string name="fsp5_storage_scratch">Import temp files</string>
+    <string name="fsp5_storage_reclaimable">Reclaimable</string>
+    <string name="fsp5_storage_cleanup_title">Clean up</string>
+    <string name="fsp5_storage_cleanup_some">There\'s about %1$s of leftover import scratch space to reclaim. This never removes your imported data.</string>
+    <string name="fsp5_storage_cleanup_none">Nothing to reclaim right now. NOOP already cleans up import scratch space automatically.</string>
+    <string name="fsp5_storage_cleanup_now">Clean up now</string>
+    <string name="fsp5_storage_cleaning">Cleaning up…</string>
+    <string name="fsp5_storage_reclaimed">Reclaimed %1$s.</string>
+    <string name="fsp5_storage_already_clean">Already clean.</string>
+    <string name="fsp5_storage_why_title">Why does this grow?</string>
+    <string name="fsp5_storage_why_body">When you import an export, NOOP works from a temporary copy of the file, saves your data into the health database, then deletes the copy. If an import is interrupted, a copy can be left behind. This screen reclaims anything left behind.</string>
     <!-- settings-parity:p5:end -->
     <!-- settings-parity spacer 5a -->
     <!-- settings-parity spacer 5b -->

@@ -7444,6 +7444,52 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <!-- settings-parity spacer 4b -->
     <!-- settings-parity spacer 4c -->
     <!-- settings-parity:p5:begin -->
+    <string name="fsp5_repair_title">如果分数看起来不对</string>
+    <string name="fsp5_repair_blurb">NOOP 会自动更新新数据。仅在分数看起来过时或不对时使用这些工具。</string>
+    <string name="fsp5_repair_ready">若最近的分析看起来已过时，可随时更新。</string>
+    <string name="fsp5_repair_last_completed">上次完成：%1$s</string>
+    <string name="fsp5_repair_recalculating">正在重新计算过去 21 天…</string>
+    <string name="fsp5_repair_refreshing">正在刷新今日活动…</string>
+    <string name="fsp5_repair_no_activity">没有可用的今日活动数据。</string>
+    <string name="fsp5_repair_preparing">正在读取历史记录并计算基线…</string>
+    <string name="fsp5_repair_saving">正在保存分数…</string>
+    <string name="fsp5_repair_saving_reused">正在保存分数——已重新计算 %2$d 天中的 %1$d 天</string>
+    <string name="fsp5_repair_day">第 %1$d 天，共 %2$d 天</string>
+    <string name="fsp5_repair_day_unchanged">第 %1$d 天，共 %2$d 天 · %3$d 天未变</string>
+    <string name="fsp5_repair_estimating">%1$s · 正在估算…</string>
+    <string name="fsp5_repair_eta">%1$s · 还剩约 %2$s</string>
+    <string name="fsp5_repair_no_progress">已 %1$s 没有进展</string>
+    <string name="fsp5_repair_last_step">%1$s 前完成上一步</string>
+    <string name="fsp5_repair_seconds">%1$d 秒</string>
+    <string name="fsp5_repair_minutes">%1$d 分钟</string>
+    <string name="fsp5_repair_refresh_today">刷新今天</string>
+    <string name="fsp5_repair_recalculate">重新计算最近 21 天</string>
+    <string name="fsp5_repair_recalculate_note">这只会更新计算得分。原始数据以及你的睡眠或训练修正不会改变。</string>
+    <string name="fsp5_repair_reset">重置充能(Charge)基线</string>
+    <string name="fsp5_repair_reset_note">从今晚起重新建立充能(Charge)和 HRV 基线，大约需要 4 晚。如果第一周状态不佳（例如生病时佩戴）导致基线偏差，可使用此功能。你的历史会保留。</string>
+    <string name="fsp5_repair_confirm_title">重新计算过去 21 天？</string>
+    <string name="fsp5_repair_confirm_body">这可能需要几分钟。NOOP 会保留所有原始数据和手动修正，只重新计算派生分数。</string>
+    <string name="fsp5_repair_confirm_action">重新计算</string>
+    <string name="fsp5_repair_reset_done_title">充能(Charge)基线重新校准中</string>
+    <string name="fsp5_repair_reset_done_body">NOOP 会从今晚的数据开始重新学习你的基线。历史记录会保留，稳定下来需要几个晚上。</string>
+    <string name="fsp5_storage_title">存储</string>
+    <string name="fsp5_storage_subtitle">NOOP 的设备本地空间用在了哪里，以及一键清理。</string>
+    <string name="fsp5_storage_measuring">测量中…</string>
+    <string name="fsp5_storage_unavailable_title">存储不可用</string>
+    <string name="fsp5_storage_unavailable_body">目前无法读取本地存储。请稍后重试。</string>
+    <string name="fsp5_storage_footprint">设备本地占用</string>
+    <string name="fsp5_storage_database">健康数据库</string>
+    <string name="fsp5_storage_scratch">导入临时文件</string>
+    <string name="fsp5_storage_reclaimable">可回收</string>
+    <string name="fsp5_storage_cleanup_title">清理</string>
+    <string name="fsp5_storage_cleanup_some">大约有 %1$s 的遗留导入临时空间可回收。此操作绝不会移除你导入的数据。</string>
+    <string name="fsp5_storage_cleanup_none">目前没有可回收的空间，NOOP 已自动清理导入的临时空间。</string>
+    <string name="fsp5_storage_cleanup_now">立即清理</string>
+    <string name="fsp5_storage_cleaning">清理中…</string>
+    <string name="fsp5_storage_reclaimed">已回收 %1$s。</string>
+    <string name="fsp5_storage_already_clean">已经是干净的。</string>
+    <string name="fsp5_storage_why_title">这为什么会增长？</string>
+    <string name="fsp5_storage_why_body">当你导入导出文件时，NOOP 会使用该文件的一份临时副本，将你的数据保存到健康数据库中，然后删除该副本。如果导入被中断，副本可能会被遗留下来。此界面会回收任何被遗留下来的副本。</string>
     <!-- settings-parity:p5:end -->
     <!-- settings-parity spacer 5a -->
     <!-- settings-parity spacer 5b -->

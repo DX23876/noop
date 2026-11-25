@@ -236,11 +236,10 @@ internal fun CalculationsSection(viewModel: AppViewModel, change: (() -> Unit) -
         ToggleRow(stringResource(R.string.forge_lab_stress_baseline), stringResource(R.string.forge_lab_stress_baseline_note),
                   stressBaseline) { on -> stressBaseline = on; com.noop.ui.NoopPrefs.setStressPersonalBaseline(stressContext, on) }
     }
-    SettingsCard(title = null, blurb = null) {
-        LinkRow(stringResource(R.string.l10n_settings_screen_charge_d4e1aee4), stringResource(R.string.forge_settings_charge_detail)) {
-            onOpen(ForgeSettingsSub.Charge)
-        }
-    }
+    // "If scores look wrong" (iOS `AnalysisMaintenanceSettingsCard`): the status of the engine, Refresh today,
+    // Recalculate the last 21 days and Reset Charge baseline, in `ForgeSettingsScoreRepair.kt`. The Charge row that
+    // opened the classic card is gone: its one button lives here, with the confirmation, as on iOS.
+    ScoreRepairSection(viewModel)
 }
 
 @Composable
@@ -273,6 +272,12 @@ internal fun DataBackupSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSu
         LinkRow(stringResource(R.string.l10n_settings_screen_export_csv_6bce63a3), null) {
             csvExport.launch("noop-export-${java.time.LocalDate.now()}.zip")
         }
+        // The two notes the iOS card carries under its buttons: what an import does and that the file is not
+        // encrypted (#644). Both sentences are the classic Backup card's strings, which iOS shares word for word.
+        Text(stringResource(R.string.l10n_settings_screen_importing_overwrites_everything_currently_on_this_297b76ae),
+             style = Forge.type.caption, color = Forge.colors.textSecondary)
+        Text(stringResource(R.string.l10n_settings_screen_this_is_a_plain_unencrypted_archive_b0dfe63d),
+             style = Forge.type.caption, color = ForgeTokens.StrandPalette.statusWarningForeground.resolve())
         RowDivider()
         LinkRow(stringResource(R.string.l10n_settings_screen_automatic_backups_8a772f3c),
                 stringResource(R.string.forge_settings_auto_backup_detail)) { onOpen(ForgeSettingsSub.BackupSync) }
@@ -280,6 +285,11 @@ internal fun DataBackupSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSu
     SettingsCard(title = stringResource(R.string.forge_settings_imports), blurb = null) {
         LinkRow(stringResource(R.string.nav_data_sources), stringResource(R.string.forge_settings_data_sources_detail)) {
             onOpen(ForgeSettingsSub.DataSources)
+        }
+        RowDivider()
+        // Where the space goes and a one-tap clean-up (iOS `StorageView`), after Data sources as on iOS.
+        LinkRow(stringResource(R.string.fsp5_storage_title), stringResource(R.string.fsp5_storage_subtitle)) {
+            onOpen(ForgeSettingsSub.Storage)
         }
         RowDivider()
         LinkRow(stringResource(R.string.nav_self_hosted_push), stringResource(R.string.push_settings_row_detail)) {
@@ -295,7 +305,7 @@ internal fun DataBackupSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSu
  * in the core follows it, so the Today tile, the steps page and AgeLess show the same count.
  */
 @Composable
-private fun StepsSourceCard() {
+internal fun StepsSourceCard() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var chosen by remember { mutableStateOf("automatic") }

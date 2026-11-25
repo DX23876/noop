@@ -7493,6 +7493,52 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <!-- settings-parity spacer 4b -->
     <!-- settings-parity spacer 4c -->
     <!-- settings-parity:p5:begin -->
+    <string name="fsp5_repair_title">Se as pontuações parecerem erradas</string>
+    <string name="fsp5_repair_blurb">O NOOP atualiza os novos dados sozinho. Usa isto apenas quando uma pontuação parecer desatualizada ou errada.</string>
+    <string name="fsp5_repair_ready">Pronto caso uma análise recente pareça desatualizada.</string>
+    <string name="fsp5_repair_last_completed">Última conclusão: %1$s</string>
+    <string name="fsp5_repair_recalculating">A recalcular os últimos 21 dias…</string>
+    <string name="fsp5_repair_refreshing">A atualizar a atividade de hoje…</string>
+    <string name="fsp5_repair_no_activity">Não estavam disponíveis dados de atividade de hoje.</string>
+    <string name="fsp5_repair_preparing">A ler o histórico e a calcular as linhas de base…</string>
+    <string name="fsp5_repair_saving">A guardar as pontuações…</string>
+    <string name="fsp5_repair_saving_reused">A guardar as pontuações — %1$d de %2$d dias recalculados</string>
+    <string name="fsp5_repair_day">Dia %1$d de %2$d</string>
+    <string name="fsp5_repair_day_unchanged">Dia %1$d de %2$d · %3$d sem alterações</string>
+    <string name="fsp5_repair_estimating">%1$s · a estimar…</string>
+    <string name="fsp5_repair_eta">%1$s · faltam cerca de %2$s</string>
+    <string name="fsp5_repair_no_progress">Sem progresso há %1$s</string>
+    <string name="fsp5_repair_last_step">Último passo há %1$s</string>
+    <string name="fsp5_repair_seconds">%1$d s</string>
+    <string name="fsp5_repair_minutes">%1$d min</string>
+    <string name="fsp5_repair_refresh_today">Atualizar hoje</string>
+    <string name="fsp5_repair_recalculate">Recalcular os últimos 21 dias</string>
+    <string name="fsp5_repair_recalculate_note">Isto atualiza apenas as pontuações calculadas. Os dados brutos e as correções de sono ou treino permanecem inalterados.</string>
+    <string name="fsp5_repair_reset">Repor a linha de base da Carga</string>
+    <string name="fsp5_repair_reset_note">Reinicia a partir desta noite a construção de cerca de 4 noites da Carga e da tua linha de base de VFC. Usa se uma má primeira semana, como usá-la doente, desajustou a linha de base. O histórico mantém-se.</string>
+    <string name="fsp5_repair_confirm_title">Recalcular os últimos 21 dias?</string>
+    <string name="fsp5_repair_confirm_body">Isto pode demorar vários minutos. O NOOP mantém todos os dados brutos e correções manuais e recalcula apenas as pontuações derivadas.</string>
+    <string name="fsp5_repair_confirm_action">Recalcular</string>
+    <string name="fsp5_repair_reset_done_title">Recalibração da linha de base de carga</string>
+    <string name="fsp5_repair_reset_done_body">O NOOP reaprenderá a tua linha de base a partir dos dados desta noite. O teu histórico é mantido e demora algumas noites a estabilizar.</string>
+    <string name="fsp5_storage_title">Armazenamento</string>
+    <string name="fsp5_storage_subtitle">Para onde está a ir o espaço no dispositivo do NOOP e uma limpeza com um toque.</string>
+    <string name="fsp5_storage_measuring">A medir…</string>
+    <string name="fsp5_storage_unavailable_title">Armazenamento indisponível</string>
+    <string name="fsp5_storage_unavailable_body">Não foi possível ler o armazenamento local agora. Tenta novamente dentro de alguns instantes.</string>
+    <string name="fsp5_storage_footprint">Pegada no dispositivo</string>
+    <string name="fsp5_storage_database">Base de dados de saúde</string>
+    <string name="fsp5_storage_scratch">Ficheiros temporários de importação</string>
+    <string name="fsp5_storage_reclaimable">Recuperável</string>
+    <string name="fsp5_storage_cleanup_title">Limpar</string>
+    <string name="fsp5_storage_cleanup_some">Há cerca de %1$s de espaço residual de importação para recuperar. Isto nunca remove os teus dados importados.</string>
+    <string name="fsp5_storage_cleanup_none">Nada a recuperar agora. O NOOP já limpa o espaço de trabalho de importação automaticamente.</string>
+    <string name="fsp5_storage_cleanup_now">Limpar agora</string>
+    <string name="fsp5_storage_cleaning">A limpar…</string>
+    <string name="fsp5_storage_reclaimed">Recuperado %1$s.</string>
+    <string name="fsp5_storage_already_clean">Já limpo.</string>
+    <string name="fsp5_storage_why_title">Por que razão cresce?</string>
+    <string name="fsp5_storage_why_body">Quando importa uma exportação, o NOOP trabalha com uma cópia temporária do ficheiro, guarda os teus dados na base de dados de saúde e elimina a cópia. Se uma importação for interrompida, pode ficar uma cópia para trás. Este ecrã recupera tudo o que foi deixado para trás.</string>
     <!-- settings-parity:p5:end -->
     <!-- settings-parity spacer 5a -->
     <!-- settings-parity spacer 5b -->
