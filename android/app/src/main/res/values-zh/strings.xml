@@ -5110,6 +5110,7 @@
     <string name="forge_ew_active">活跃</string>
     <string name="forge_mw_title">Momentum</string>
     <string name="forge_mw_none">今天没有突出的事项。</string>
+    <string name="forge_momentum_more">另有 %1$d 条</string>
     <string name="forge_health_what_works">什么有效</string>
     <string name="forge_health_what_works_sub">什么对你有益，什么对你有害</string>
     <string name="forge_lw_title">最近一次训练</string>

@@ -262,10 +262,9 @@ struct ForgeFocusTile: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // The area's picture, the same one its page carries, so the tile and the page match.
-            CoachPicture(main: area.symbol, accentA: "sparkle", accentB: "star.fill", tint: area.tint)
-                .frame(width: CoachPictureSize.small, height: CoachPictureSize.small)
-                .padding(.leading, -4)
+            // The area's symbol on its colour, as Apple Health marks a category (owner, 2026-11-25): the sparkles
+            // and glow around it read as generated art.
+            TrendsChangeSummary.categoryMark(area.symbol, tint: area.tint, size: 40)
             Text(area.title).font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text)
                 .lineLimit(2).multilineTextAlignment(.leading)
             Text(area.subtitle).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)

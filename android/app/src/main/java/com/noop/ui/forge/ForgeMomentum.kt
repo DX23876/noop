@@ -154,6 +154,9 @@ internal fun ForgeTodayMomentum(viewModel: com.noop.ui.AppViewModel) {
                                                           maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     }
                 }
+                val more = (state.messages?.size ?: 0) - 1
+                if (more > 0) Text(stringResource(R.string.forge_momentum_more, more), style = Forge.type.caption,
+                                   color = Forge.colors.textTertiary, modifier = Modifier.padding(top = 4.dp))
                 top.progress?.let { p ->
                     Spacer(Modifier.height(ForgeMetrics.space3))
                     Box(Modifier.fillMaxWidth().height(4.dp).background(Forge.colors.inset, RoundedCornerShape(2.dp))) {

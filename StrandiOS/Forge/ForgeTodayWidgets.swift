@@ -1022,6 +1022,10 @@ struct ForgeMomentumWidget: View {
                     }
                     Spacer(minLength: 0)
                 }
+                // The card shows one message; say that there are more behind it, so the page is worth opening.
+                if store.messages.count > 1 {
+                    Text("\(store.messages.count - 1) more").font(ForgeFont.caption).foregroundStyle(ForgeColor.tertiary)
+                }
                 // A goal-type message carries its progress: draw it.
                 if let progress = first.progress {
                     VStack(alignment: .leading, spacing: 4) {

@@ -148,14 +148,16 @@ private fun MacroBars(r: NutritionReading) {
     val protein = stringResource(R.string.food_protein)
     val carbs = stringResource(R.string.food_carbs)
     val fat = stringResource(R.string.food_fat)
-    val rows = listOf(Triple(protein, r.proteinG, r.proteinGoal),
-                      Triple(carbs, r.carbsG, r.carbsGoal),
-                      Triple(fat, r.fatG, r.fatGoal))
-    val tint = ForgeTokens.StrandPalette.energyHighlight.resolve()
+    // Each in its own colour, as the Food page's plate (iOS `ForgeNutritionWidget`, owner 2026-11-25).
+    val colors = Forge.colors
+    val rows = listOf(Triple(protein, r.proteinG, r.proteinGoal) to colors.protein,
+                      Triple(carbs, r.carbsG, r.carbsGoal) to colors.carbs,
+                      Triple(fat, r.fatG, r.fatGoal) to colors.fat)
     val track = Forge.colors.textTertiary.copy(alpha = 0.25f)
     Column(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space2),
            verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space1)) {
-        rows.forEach { (label, value, goal) ->
+        rows.forEach { (row, tint) ->
+            val (label, value, goal) = row
             if (value == null) return@forEach
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 Text(label, style = Forge.type.caption, color = Forge.colors.textSecondary,
