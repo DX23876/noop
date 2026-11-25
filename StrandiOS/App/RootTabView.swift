@@ -657,6 +657,8 @@ struct RootTabView: View {
                 // .energy is pushed onto Today's own stack (handled above); this fallback keeps the
                 // sheet host exhaustive if the destination is ever presented here directly.
                 case .energy: if NoopVisualStyle.skin == .forge { ForgeEnergyView() } else { EnergyDetailView() }
+                // .food switches to the Nutrition tab or pushes the Food page (handled above); exhaustive fallback.
+                case .food: ForgeFoodView()
                 // #1862: Coach IS presented here — the launcher sheet routes to it as a pillar, so unlike
                 // the fallbacks above this arm is the real destination, not a safety net.
                 case .coach: CoachView()
