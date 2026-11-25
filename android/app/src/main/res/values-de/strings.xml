@@ -7474,6 +7474,37 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="import_depth_one_year">1 Jahr</string>
     <string name="import_depth_three_years">3 Jahre</string>
     <string name="import_depth_ten_years">10 Jahre</string>
+    <!-- settings-parity:w2:begin -->
+    <string name="fsw2_bk_blurb">Speichere ein vollständiges Backup in einem Ordner deiner Wahl. Zeig ihn auf Google Drive oder Dropbox, um außerhalb des Geräts zu sichern.</string>
+    <string name="fsw2_bk_saving_to">Speichert in: %1$s</string>
+    <string name="fsw2_bk_no_folder">Noch kein Ordner gewählt. Nimm einen, den deine Cloud-App schon synchronisiert, oder irgendeinen lokalen Ordner.</string>
+    <string name="fsw2_bk_automatic">Automatisch</string>
+    <string name="fsw2_bk_last">Letztes Backup: %1$s</string>
+    <string name="fsw2_bk_selected_file">die ausgewählte Datei</string>
+    <string name="fsw2_bk_from_date">das Backup von %1$s</string>
+    <string name="fsw2_bk_time_a11y">Zeit des täglichen Backups</string>
+    <string name="fsw2_bk_done">In deinem Ordner gesichert.</string>
+    <string name="fsw2_bk_failed">Backup fehlgeschlagen. Wähle den Ordner neu und versuche es noch einmal.</string>
+    <string name="fsw2_bk_restored">Backup wiederhergestellt. NOOP startet neu…</string>
+    <string name="fsw2_bk_selected_folder">gewählter Ordner</string>
+    <string name="fsw2_lim_title">Was NOOP liest</string>
+    <string name="fsw2_lim_col_mg">5.0/MG</string>
+    <string name="fsw2_lim_blurb">Was NOOP von jedem Strap liest, auf diesem Telefon berechnet, ohne Konto.</string>
+    <string name="fsw2_lim_hrv">HRV (rMSSD)</string>
+    <string name="fsw2_lim_sleep">Schlafphasen</string>
+    <string name="fsw2_lim_recovery">Erholung &amp; Belastung</string>
+    <string name="fsw2_lim_stress">Stress (auf dem Gerät)</string>
+    <string name="fsw2_lim_workouts">Training erkennen</string>
+    <string name="fsw2_lim_spo2">Blutsauerstoff (SpO₂ %)</string>
+    <string name="fsw2_lim_legend">Legende</string>
+    <string name="fsw2_lim_legend_full">Live vom Strap gelesen</string>
+    <string name="fsw2_lim_legend_partial">Schätzung auf dem Gerät oder experimentell / von der Firmware abhängig</string>
+    <string name="fsw2_lim_legend_none">Nicht vom Strap. SpO₂ lässt sich durch den Import eines WHOOP- oder Health-Exports füllen.</string>
+    <string name="fsw2_lim_yes">ja</string>
+    <string name="fsw2_lim_partly">teilweise</string>
+    <string name="fsw2_lim_no">nein</string>
+    <string name="fsw2_lim_a11y">%1$s: WHOOP 4.0 %2$s, 5.0/MG %3$s</string>
+    <!-- settings-parity:w2:end -->
     <!-- settings-parity:p1:begin -->
     <string name="fsp1_profile_blurb">Diese steuern deine Herzfrequenzzonen, Kalorienschätzungen und Erholungs-Basislinien. Halte sie genau.</string>
     <string name="fsp1_sex_nonbinary">Nichtbinär</string>
