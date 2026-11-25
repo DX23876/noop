@@ -96,6 +96,12 @@ final class CoreProfileTests: XCTestCase {
         XCTAssertEqual(percent["bounds"] as? String, "55/62.5/72/82/91%")
     }
 
+    func testTheEquipmentChoicesAreTheOnesSettingsOffersOnApple() async {
+        let answer = object(await CoreCall.run("profile.equipmentChoices", "{}"))
+        XCTAssertEqual(answer["ids"] as? [String], TrainingPreferences.knownEquipment)
+        XCTAssertEqual((answer["ids"] as? [String])?.count, 11)
+    }
+
     // MARK: - The weekly-goal notices
 
     func testWeeklyGoalNoticesComeOnlyForTheKindsSwitchedOn() async throws {

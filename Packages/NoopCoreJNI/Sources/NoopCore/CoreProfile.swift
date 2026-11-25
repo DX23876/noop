@@ -3,8 +3,9 @@ import StrandAnalytics
 import StrandCore
 import WhoopStore
 
-/// What the Android Profile page needs from the shared code (Android parity, Settings): the maximum heart rate
-/// and where it came from, the hint under an entered VO₂max, and the heart-rate zone editor. The rules are the
+/// What the Android Profile and Training pages need from the shared code (Android parity, Settings): the maximum
+/// heart rate and where it came from, the hint under an entered VO₂max, the heart-rate zone editor and the equipment
+/// a wearer can pick from. The rules are the
 /// ones the Apple Profile page reads (`MaxHeartRate`, `PeakMETResolver`, `HRZones`); Kotlin keeps the screen.
 enum CoreProfile {
 
@@ -13,6 +14,7 @@ enum CoreProfile {
         case "profile.maxHeartRate": return await maxHeartRate(args)
         case "profile.vo2Hint": return await vo2Hint(args)
         case "profile.zones": return zones(args)
+        case "profile.equipmentChoices": return CoreRead.json(["ids": TrainingPreferences.knownEquipment])
         default: return nil
         }
     }
