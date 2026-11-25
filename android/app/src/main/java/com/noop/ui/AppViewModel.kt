@@ -782,10 +782,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _zoneCoachRecovery = MutableStateFlow(NoopPrefs.zoneCoachRecovery(appContext))
     /** Whether to also buzz on recovering to Zone 1 (the macOS default; some users want only the top-zone buzz). */
     val zoneCoachRecovery: StateFlow<Boolean> = _zoneCoachRecovery.asStateFlow()
-    /** Last HR zone the coach saw (1..5, 0 = below Zone 1); -1 until the first sample. Mirrors macOS lastCoachZone. */
-    private var lastZone = -1
-    /** Memoizes the HR-zone set so [coachZone] doesn't rebuild it on every live-HR sample (only on maxHR change). */
-    private val zoneSetCache = com.noop.analytics.HrZoneSetCache()
+    /** Carries the heart-rate ceiling engine's memory between samples ([coachZone]). */
+    private val hrCeilingMonitor = HrCeilingMonitor(appContext)
 
     // Double-tap action (parity since 4.2.8) — persisted in SharedPreferences (NoopPrefs). Default NONE,
     // manual-first. The Automations screen edits this; the live double-tap dispatch (init collector below)
@@ -3817,13 +3815,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Record a "moment" (a double-tap marker) with a confirming buzz. Android has no separate moments
-     *  store yet, so — matching the iOS markMoment's user-visible effect (a buzz + a greppable log line)
-     *  — this writes a timestamped line into the shareable strap log and buzzes once. Additive: no new
-     *  persistence, no change to any existing path. */
+    /** Record a "moment" (a double-tap marker) with a confirming buzz. The time also goes to [MomentsStore]
+     *  (the "Recent moments" list in Settings); matching the iOS markMoment's user-visible effect (a buzz + a greppable log line)
+     *  — this writes a timestamped line into the shareable strap log and buzzes once. */
     private fun markMoment() {
         val clock = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date())
         ble.externalLog("Moment marked @ $clock")
+        MomentsStore.add(appContext, System.currentTimeMillis())
         ble.buzz(1)
     }
 
@@ -3850,13 +3848,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return !pattern.contains('a', ignoreCase = true)
     }
 
-    // --- HR-zone haptic coaching setters + behaviour. State (_zoneCoaching/_zoneCoachRecovery/lastZone)
+    // --- HR-zone haptic coaching setters + behaviour. State (_zoneCoaching/_zoneCoachRecovery/hrCeilingMonitor)
     // is declared ABOVE the init block (see the note there) so the synchronous first emission is safe. ---
 
     fun setZoneCoaching(enabled: Boolean) {
         _zoneCoaching.value = enabled
         NoopPrefs.setZoneCoaching(appContext, enabled)
-        if (enabled) lastZone = -1   // a fresh enable shouldn't buzz on the first sample
     }
 
     fun setZoneCoachRecovery(enabled: Boolean) {
@@ -3864,24 +3861,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         NoopPrefs.setZoneCoachRecovery(appContext, enabled)
     }
 
-    /** HR-zone coaching: buzz on climbing into the top zone (ease off) or back to Zone 1 (recovered).
-     *  Fires once per zone change; mirrors macOS AppModel.coachZone. The buzz decision is the pure
-     *  [zoneCoachBuzzLoops] so it can be unit-tested without a strap. */
+    /**
+     * The heart-rate ceiling (Strap Actions › Haptic coaching): each smoothed live sample goes to the core's
+     * `alerts.hrCeiling`, which decides whether the strap buzzes a warning or confirms the recovery; the buzz itself is
+     * the unchanged [ble]`.buzz`. Before the Settings parity work this was a triple buzz on entering Zone 5; the default
+     * ceiling (the start of Zone 5) fires at the same place. Unverified without a strap.
+     */
     private fun coachZone(state: LiveState) {
-        if (!_zoneCoaching.value || !state.bonded || !state.worn) return
-        val hr = _bpm.value ?: return
-        if (hr < 30) return
-        val maxHR = profileStore.hrMax.toDouble()
-        if (maxHR <= 0) return
-        // Memoized on maxHR + personalized bounds: this runs every ~1 Hz live-HR sample while zone
-        // coaching is active, but the zone set only changes when the user edits their max HR or custom
-        // zones — so don't rebuild it per tick.
-        val zone = zoneSetCache.zones(maxHR, profileStore.hrZoneLowerBounds)
-            .zoneNumber(hr.toDouble())
-        val previous = lastZone
-        lastZone = zone
-        val loops = zoneCoachBuzzLoops(previous, zone, _zoneCoachRecovery.value)
-        if (loops > 0) ble.buzz(loops)
+        val hr = _bpm.value?.takeIf { state.bonded && state.worn }
+        hrCeilingMonitor.onSample(
+            scope = viewModelScope, profile = profileStore, bpm = hr, nowSec = System.currentTimeMillis() / 1000L,
+            switchOn = _zoneCoaching.value, linked = state.bonded && state.worn,
+            // The first LiveState emission can arrive before `_activeWorkout` is declared (the #84 class), so a
+            // read that finds it missing counts as no workout.
+            workoutRunning = runCatching { _activeWorkout.value != null }.getOrDefault(false) ||
+                LiveSessionRunner.active.value != null,
+            confirmRecovery = _zoneCoachRecovery.value, buzz = { loops -> ble.buzz(loops) },
+        )
     }
 
     override fun onCleared() {

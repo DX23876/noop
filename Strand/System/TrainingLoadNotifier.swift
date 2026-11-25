@@ -16,8 +16,7 @@ enum TrainingLoadNotifier {
         /// Whether to post for a lane, and the lane's new episode state. An episode opens when the band
         /// reaches "well above" and closes as soon as it reads anything else, including no band at all.
         static func decide(enabled: Bool, band: RelativeLoadBand?, episodeOpen: Bool) -> (notify: Bool, episodeOpen: Bool) {
-            guard band == .muchHigher else { return (false, false) }
-            return (enabled && !episodeOpen, true)
+            TrainingLoadAlert.decide(enabled: enabled, band: band, episodeOpen: episodeOpen)
         }
 
         static func copy(_ lane: TrainingLaneKind) -> (title: String, body: String) {

@@ -293,7 +293,7 @@ private fun CycleFooter(showFertile: Boolean) {
 
 /** iOS `ForgeFertileReminderToggles`; Android 13 and later ask for the notification permission when it is turned on. */
 @Composable
-private fun FertileReminderToggles() {
+internal fun FertileReminderToggles() {
     val context = LocalContext.current
     var enabled by remember { mutableStateOf(CyclePagePrefs.reminder(context)) }
     var discreet by remember { mutableStateOf(CyclePagePrefs.discreet(context)) }

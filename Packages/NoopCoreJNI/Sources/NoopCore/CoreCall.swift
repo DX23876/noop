@@ -360,6 +360,8 @@ public enum CoreCall {
         if let answer = CoreSourceRefresh.run(op, args) { return answer }
         // The Profile page's facts (maximum heart rate, the VO₂max hint, the zone editor) need no open session.
         if op.hasPrefix("profile."), let answer = await CoreProfile.run(op, args) { return answer }
+        // The alert settings' decisions (Training Load alert, heart-rate ceiling) are pure too.
+        if op.hasPrefix("alerts."), let answer = CoreAlerts.run(op, args) { return answer }
         guard let (store, _) = ShadowSession.storeAndPath, let reader = ShadowSession.reader else {
             return #"{"error":"noStore"}"#
         }

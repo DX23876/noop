@@ -127,6 +127,7 @@ import com.noop.ble.PuffinExperiment
 import com.noop.core.CoreShadow
 import com.noop.push.SelfHostedPushScreen
 import com.noop.ui.AppViewModel
+import com.noop.ui.AutomationsScope
 import com.noop.ui.AutomationsScreen
 import com.noop.ui.CardAppearance
 import com.noop.ui.BackupSyncScreen
@@ -179,10 +180,10 @@ enum class ForgeSettingsPage(val titleRes: Int, val subtitleRes: Int, val icon: 
     Goals(R.string.forge_goals_more_title, R.string.forge_sg_goals_subtitle, Icons.Rounded.TrackChanges),
     Strap(R.string.l10n_settings_screen_strap_02b88eeb, R.string.forge_settings_strap_subtitle, Icons.Rounded.SettingsInputAntenna),
     BatteryRecording(R.string.forge_settings_battery, R.string.forge_settings_battery_subtitle, Icons.Rounded.Battery5Bar),
-    StrapActions(R.string.forge_settings_actions, R.string.forge_settings_actions_subtitle, Icons.Rounded.TouchApp, hosted = true),
+    StrapActions(R.string.forge_settings_actions, R.string.forge_settings_actions_subtitle, Icons.Rounded.TouchApp),
     Training(R.string.forge_training, R.string.forge_st_subtitle, Icons.Rounded.FitnessCenter),
     TodayTrends(R.string.forge_settings_today_trends, R.string.forge_settings_today_cards, Icons.Rounded.Dashboard),
-    Notifications(R.string.forge_settings_notifications, R.string.forge_settings_notifications_subtitle, Icons.Rounded.NotificationsActive, hosted = true),
+    Notifications(R.string.forge_settings_notifications, R.string.forge_settings_notifications_subtitle, Icons.Rounded.NotificationsActive),
     Coach(R.string.forge_settings_coach, R.string.forge_settings_coach_subtitle, Icons.Rounded.AutoAwesome, hosted = true),
     LanguageUnits(R.string.forge_settings_language_units, R.string.forge_settings_language_units_subtitle, Icons.Rounded.Language),
     Appearance(R.string.l10n_settings_screen_appearance_41def7a0, R.string.forge_settings_appearance_subtitle, Icons.Rounded.Contrast),
@@ -275,6 +276,10 @@ enum class ForgeSettingsSub(val titleRes: Int, val cards: Set<ClassicSettingsCar
     ProjectWishes(R.string.project_card_wishes_title),
     RawDonation(R.string.donation_title, closes = false),
     AllSettings(R.string.forge_settings_all),
+    // Settings parity, package 3: the screens the Strap Actions and Notifications pages open one level down.
+    WristAlerts(R.string.fsp3_wrist_apps, closes = false),
+    NapDetection(R.string.l10n_automations_screen_nap_detection_ca2dedf5),
+    Rhythm(R.string.forge_more_heart_rhythm),
 }
 
 /** One step of the Settings stack: a hub page or a screen below it. */
@@ -517,6 +522,8 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
                 ForgeSettingsPage.Goals -> GoalsSettingsSection(viewModel)
                 ForgeSettingsPage.Strap -> StrapSettingsPage(viewModel, onOpenPage, onOpen)
                 ForgeSettingsPage.BatteryRecording -> BatteryRecordingSettings(viewModel)
+                ForgeSettingsPage.StrapActions -> StrapActionsSection(viewModel, onOpen)
+                ForgeSettingsPage.Notifications -> NotificationsSection(viewModel, onOpen)
                 ForgeSettingsPage.Training -> {
                     TrainingSettingsSection(onOpenMedia = { onOpen(ForgeSettingsSub.ExerciseMedia) },
                                             onOpenEquipment = { onOpen(ForgeSettingsSub.Equipment) },
@@ -670,8 +677,6 @@ internal fun hostedTokens(c: ForgeColors): PaletteTokens {
 @Composable
 private fun HostedPage(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () -> Unit) {
     when (page) {
-        ForgeSettingsPage.StrapActions -> Hosted(stringResource(page.titleRes), onBack, head = page) { AutomationsScreen(viewModel) }
-        ForgeSettingsPage.Notifications -> Hosted(stringResource(page.titleRes), onBack, head = page) { NotificationsSettingsScreen(viewModel) }
         ForgeSettingsPage.Coach -> {
             val vm = viewModel<CoachViewModel>()
             var sub by remember { mutableStateOf<String?>(null) }
@@ -752,6 +757,9 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
             PageTitle(stringResource(R.string.donation_title), onBack)
             RawDonationSection()
         }
+        ForgeSettingsSub.WristAlerts -> Hosted(stringResource(sub.titleRes), onBack) { NotificationsSettingsScreen(viewModel) }
+        ForgeSettingsSub.NapDetection -> Hosted(stringResource(sub.titleRes), onBack) { AutomationsScreen(viewModel, AutomationsScope.NapDetection) }
+        ForgeSettingsSub.Rhythm -> Hosted(stringResource(sub.titleRes), onBack) { com.noop.ui.RhythmRoute(viewModel) }
         ForgeSettingsSub.AllSettings -> Hosted(stringResource(sub.titleRes), onBack) {
             SettingsScreen(
                 viewModel,
