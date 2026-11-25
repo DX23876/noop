@@ -308,15 +308,15 @@ internal fun AboutSection(onOpen: (ForgeSettingsSub) -> Unit) {
     val colors = Forge.colors
     fun open(url: String) = context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
     SettingsCard(title = null, blurb = stringResource(R.string.fsp6_about_blurb)) {
-        // iOS `aboutCard`: the name, the version pill and the What's new button on one line.
+        // iOS `aboutCard`: the name with the version pill, then What's new. The flavour names (a testing build is
+        // "NOOP Forge Staging") are too long to share one line with the button, which a Row squeezed to nothing.
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
-            Text(stringResource(R.string.app_name), style = Forge.type.title2, color = colors.text)
+            Text(stringResource(R.string.app_name), style = Forge.type.title2, color = colors.text,
+                 modifier = Modifier.weight(1f, fill = false))
             ForgeBadgePill(stringResource(R.string.fsp6_about_pill, BuildConfig.VERSION_NAME), ForgeBadgeTone.Neutral)
-            Spacer(Modifier.weight(1f))
-            TextButton(onClick = { onOpen(ForgeSettingsSub.WhatsNew) }) {
-                Text(stringResource(R.string.l10n_settings_screen_what_s_new_4d8dc5fe), color = colors.accent)
-            }
         }
+        RowDivider()
+        LinkRow(stringResource(R.string.l10n_settings_screen_what_s_new_4d8dc5fe), null) { onOpen(ForgeSettingsSub.WhatsNew) }
         // Which build this is (#47): the commit and date of the testing build, to read back beside a strap log.
         BuildIdentity.stamp?.let { stamp ->
             androidx.compose.foundation.text.selection.SelectionContainer {
