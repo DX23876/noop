@@ -18,6 +18,10 @@ struct RootTabView: View {
     /// root can pop and re-scroll. So this may well be inert on our structure, and defaulting ON would
     /// advertise a behaviour that never happens. Off until someone confirms it on an iOS 26 device.
     @AppStorage("noop.bottomBarAutoHide") private var bottomBarAutoHide = false
+    /// Swiping sideways anywhere to change tabs. Off unless the wearer turns it on (2026-11-25): the swipe
+    /// rides beside every gesture underneath it, so a sideways scroll through routines or a chart also
+    /// moved the whole app to the next tab. The tab bar already does this job without the conflict.
+    @AppStorage("noop.tabSwipe") private var tabSwipeEnabled = false
 
     /// External entry points must wait until the mandatory first-run gates have completed. The root owns
     /// that state; keeping it explicit here prevents this shell's window-level sheet from covering a gate.
@@ -324,7 +328,7 @@ struct RootTabView: View {
             // interactive-pop itself: far worse than the bug being fixed.
             .simultaneousGesture(
                 tabSwipeGesture,
-                including: selectedTab != 0 && tabPaths.indices.contains(selectedTab) && tabPaths[selectedTab].isEmpty ? .all : .subviews
+                including: tabSwipeEnabled && selectedTab != 0 && tabPaths.indices.contains(selectedTab) && tabPaths[selectedTab].isEmpty ? .all : .subviews
             )
             // The minimized running workout, above the tab bar on every tab.
             .activeSessionMiniBar()

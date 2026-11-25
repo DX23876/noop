@@ -238,6 +238,7 @@ private struct SettingsPageContent: View, Equatable {
     /// on Apple (Android defaults true) because the system behaviour may not fire on our
     /// `NavigationStack(path:)` tabs — see RootTabView.
     @AppStorage("noop.bottomBarAutoHide") private var bottomBarAutoHide = false
+    @AppStorage("noop.tabSwipe") private var tabSwipeEnabled = false
     @AppStorage(ClockFormatPreference.defaultsKey)
     private var clockFormatRaw = ClockFormatPreference.system.rawValue
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
@@ -1765,6 +1766,15 @@ private struct SettingsPageContent: View, Equatable {
                             .tint(StrandPalette.accent)
                             .accessibilityLabel("Hide tab bar when scrolling")
                     }
+                }
+                rowDivider
+                // Off by default: a sideways swipe inside routines, charts or a carousel also changed the
+                // tab (tester report, 2026-11-25). For those who want it back, at the risk of that.
+                FormRow(label: "Swipe between tabs") {
+                    Toggle("", isOn: $tabSwipeEnabled)
+                        .labelsHidden()
+                        .tint(StrandPalette.accent)
+                        .accessibilityLabel("Swipe between tabs")
                 }
                 #endif
             }
