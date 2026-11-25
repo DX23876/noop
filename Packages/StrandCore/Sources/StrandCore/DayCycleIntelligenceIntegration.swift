@@ -296,7 +296,7 @@ public actor DayCycleIntelligenceIntegration {
                         hrWitness.append("\(owner)=\(fp.map { "\($0.count):\($0.maxTs)" } ?? "unread")")
                     }
                 }
-                // Below 50 % HRR only workout time counts toward Effort (#2438): the stored workouts (the
+                // The cycle's Effort never falls below its workouts (#2438): the stored workouts (the
                 // pass's own `effortWorkoutSpans` when given, so the cycle reads the calendar day's funnel) and
                 // the bouts detected for these nights less the dismissed ones, clipped to the cycle.
                 let effortSpans = AnalyticsEngine.effortSpans(
@@ -328,7 +328,7 @@ public actor DayCycleIntelligenceIntegration {
                     load = CachedLoad(
                         key: loadKey,
                         strain: StrainScorer.strain(cycleHR, maxHR: effectiveMaxHR, restingHR: restingHR,
-                                                    lowIntensity: .countedIn(effortSpans), strengthLoad: strengthLoad),
+                                                    lowIntensity: .day(workouts: effortSpans), strengthLoad: strengthLoad),
                         calories: cycleHR.isEmpty ? nil : Calories.estimateDayCalories(
                             cycleHR, profile: profile, hrmax: effectiveMaxHR, restingHR: restingHR))
                     cache.loads[window.sleepId] = load

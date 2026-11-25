@@ -2,8 +2,8 @@ import XCTest
 @testable import StrandAnalytics
 import WhoopProtocol
 
-/// Effort's workout time (#2438): below 50 % HRR a reading counts only inside a recorded workout or a detected
-/// bout, and a detected bout the wearer dismissed is not one (`AnalyticsEngine.effortSpans`).
+/// Effort's workouts (#2438): a day never scores below a recorded workout or a detected bout, and a detected bout
+/// the wearer dismissed is not one (`AnalyticsEngine.effortSpans`).
 final class EffortSpansTests: XCTestCase {
 
     private func bout(_ start: Int, _ end: Int) -> ExerciseSession {
@@ -21,8 +21,8 @@ final class EffortSpansTests: XCTestCase {
         XCTAssertEqual(spans, [1_000 ..< 2_000, 5_000 ..< 6_000, 7_000 ..< 8_000])
     }
 
-    /// A walk whose warm-up runs below 50 % HRR: inside the detected bout that warm-up is workout time and
-    /// raises the day's Effort; once the bout is dismissed it no longer does.
+    /// A walk whose warm-up runs below 50 % HRR: as a detected bout, warm-up included, it lifts the day's
+    /// Effort to its own; once the bout is dismissed it no longer does.
     func testDismissingADetectedBoutTakesItsLowIntensityTimeOutOfEffort() throws {
         let start = 20_000_000
         var hr: [HRSample] = []
@@ -41,14 +41,14 @@ final class EffortSpansTests: XCTestCase {
         XCTAssertLessThanOrEqual(detected.start, start + 120, "the bout covers the warm-up")
 
         func effort(dismissed: [Range<Int>]) -> Double? {
-            StrainScorer.strain(hr, maxHR: 185, restingHR: 52, lowIntensity: .countedIn(
+            StrainScorer.strain(hr, maxHR: 185, restingHR: 52, lowIntensity: .day(workouts:
                 AnalyticsEngine.effortSpans(workouts: [], detected: bouts, dismissed: dismissed)))
         }
         let kept = try XCTUnwrap(effort(dismissed: []))
         let dismissed = try XCTUnwrap(effort(dismissed: [detected.start ..< detected.start + 60]))
         XCTAssertGreaterThan(kept, dismissed)
         XCTAssertEqual(dismissed, try XCTUnwrap(StrainScorer.strain(hr, maxHR: 185, restingHR: 52,
-                                                                    lowIntensity: .countedIn([]))),
+                                                                    lowIntensity: .day(workouts: []))),
                        accuracy: 1e-9, "a dismissed bout counts exactly like no workout")
     }
 }

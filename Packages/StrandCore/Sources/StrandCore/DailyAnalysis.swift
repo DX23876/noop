@@ -1424,8 +1424,8 @@ public final class DailyAnalysis {
         MaxHeartRate.resolve(overrideBpm: profile.hrMaxOverride, age: Double(profile.age), measured: measuredMaxHeartRate)
     }
 
-    /// Recorded and imported workouts `[start, end)` in `[from, to]`: inside them heart rate below 50 % HRR
-    /// counts toward the day's Effort (#2438). Every row the Workouts list shows, read through the one union
+    /// Recorded and imported workouts `[start, end)` in `[from, to]`: a day's Effort never falls below any of
+    /// them (#2438). Every row the Workouts list shows, read through the one union
     /// (`AnalysisDataServices.rawWorkoutRows`: every registered and retired strap, NOOP's own sessions, Apple
     /// Health, lifting and activity files, Oura; dismissed detected rows left out).
     ///
@@ -1469,7 +1469,7 @@ public final class DailyAnalysis {
         let bouts = AnalyticsEngine.detectDayBouts(hr: hr, gravity: gravity, restingHR: restingHR.map(Double.init),
                                                    maxHR: maxHR, profile: profile)
         return StrainScorer.strain(hr, maxHR: maxHR, restingHR: restingHR.map(Double.init) ?? StrainScorer.defaultRestingHR,
-                                   lowIntensity: .countedIn(AnalyticsEngine.effortSpans(
+                                   lowIntensity: .day(workouts: AnalyticsEngine.effortSpans(
                                     workouts: workoutSpans, detected: bouts, dismissed: dismissedBouts)),
                                    strengthLoad: strengthLoad)
     }
@@ -1990,8 +1990,8 @@ public final class DailyAnalysis {
         }
         // Today's level for the readers outside the pass (profile, zones, live Effort, coach, Settings).
         host.store(measuredByDay[newestScanDay]?.stored, forKey: MaxHeartRate.measuredLevelKey)
-        // #2438 step 1: the recorded and imported workouts of the window, read once. Each day's Effort
-        // counts heart rate below 50 % HRR only inside them and inside the bouts that day detects.
+        // #2438: the recorded and imported workouts of the window, read once. Each day's Effort never falls
+        // below any of them or of the bouts that day detects.
         let effortWorkoutSpans = await Self.effortWorkoutSpans(
             services: repo, from: nowLocalMidnight - (maxDays + 2) * 86_400, to: nowLocalMidnight + 2 * 86_400)
         // Detected bouts the wearer dismissed are not workout time (`AnalyticsEngine.effortSpans`).

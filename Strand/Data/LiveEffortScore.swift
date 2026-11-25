@@ -54,12 +54,12 @@ public enum LiveEffortScore {
     /// score — callers then fall back to the stored row rather than to a fabricated number.
     ///
     /// [restingHr] is the shown day's own resting rate, the daily pass's input; nil falls back to the
-    /// scorer's default, exactly as the pass does. Below 50 % of heart-rate reserve only workout time
-    /// counts, and those spans come from the same resolver the stored day reads.
+    /// scorer's default, exactly as the pass does. The day never falls below its workouts, and those come
+    /// from the same resolver the stored day reads.
     public static func score(hr: [HRSample], workoutRows: [WorkoutRow],
                              maxHR: Double?, restingHr: Int?) -> Double? {
         StrainScorer.strain(hr, maxHR: maxHR,
                             restingHR: restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR,
-                            lowIntensity: .countedIn(DailyAnalysis.effortWorkoutSpans(workoutRows)))
+                            lowIntensity: .day(workouts: DailyAnalysis.effortWorkoutSpans(workoutRows)))
     }
 }

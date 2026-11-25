@@ -19,7 +19,7 @@ enum CoreMath {
             let value = StrainScorer.strain(
                 hr, maxHR: (args["maxHR"] as? NSNumber)?.doubleValue,
                 restingHR: (args["restingHR"] as? NSNumber)?.doubleValue ?? StrainScorer.defaultRestingHR,
-                lowIntensity: .countedIn(spans),
+                lowIntensity: .day(workouts: spans),
                 strengthLoad: (args["strengthLoad"] as? NSNumber)?.doubleValue ?? 0)
             return CoreRead.json(["value": value])
         case "math.boutCalories":
