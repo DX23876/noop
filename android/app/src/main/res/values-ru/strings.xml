@@ -7481,6 +7481,28 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <!-- settings-parity spacer 3b -->
     <!-- settings-parity spacer 3c -->
     <!-- settings-parity:p4:begin -->
+    <string name="fsp4_week_start">Начало недели</string>
+    <string name="fsp4_monday">Понедельник</string>
+    <string name="fsp4_sunday">Воскресенье</string>
+    <string name="fsp4_week_start_note">Используется в тренировках, обзоре недели, трендах и календаре целей.</string>
+    <string name="fsp4_preset">Пресет</string>
+    <string name="fsp4_preset_health">Apple Здоровье</string>
+    <string name="fsp4_preset_ocean">Ocean</string>
+    <string name="fsp4_preset_midnight">Полночь</string>
+    <string name="fsp4_preset_frosted">Frosted</string>
+    <string name="fsp4_custom_colour">Свой цвет</string>
+    <string name="fsp4_today_transparency">Прозрачность на экране «Сегодня»</string>
+    <string name="fsp4_today_transparency_note">Насколько картинка дня просвечивает сквозь плитки и заметки на экране «Сегодня». Слева — непрозрачно, справа — прозрачно.</string>
+    <string name="fsp4_bg_fill">Заливка</string>
+    <string name="fsp4_bg_fit">Вписать</string>
+    <string name="fsp4_bg_stretch">Растянуть</string>
+    <string name="fsp4_bg_tile">Замостить</string>
+    <string name="fsp4_bg_fit_label">Вписать</string>
+    <string name="fsp4_bg_custom_photo">Своё фото</string>
+    <string name="fsp4_bg_problem">NOOP не удалось прочитать изображение. Попробуйте другое фото или файл JPEG либо PNG.</string>
+    <string name="fsp4_bg_photo_note">Ваше фото за каждым экраном вместо неба. Остаётся на этом телефоне и никуда не загружается. Включите «Прозрачные карточки», чтобы оно просвечивало.</string>
+    <string name="fsp4_coach_animation">Анимация Coach</string>
+    <string name="fsp4_coach_animation_note">Кнопка Coach на «Сегодня» мягко пульсирует. Выключено: остаётся неподвижной.</string>
     <!-- settings-parity:p4:end -->
     <!-- settings-parity spacer 4a -->
     <!-- settings-parity spacer 4b -->

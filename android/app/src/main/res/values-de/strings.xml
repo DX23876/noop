@@ -7490,6 +7490,28 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <!-- settings-parity spacer 3b -->
     <!-- settings-parity spacer 3c -->
     <!-- settings-parity:p4:begin -->
+    <string name="fsp4_week_start">Wochenbeginn</string>
+    <string name="fsp4_monday">Montag</string>
+    <string name="fsp4_sunday">Sonntag</string>
+    <string name="fsp4_week_start_note">Gilt für Training, Wochenrückblick, Trends und den Zielkalender.</string>
+    <string name="fsp4_preset">Vorlage</string>
+    <string name="fsp4_preset_health">Apple Health</string>
+    <string name="fsp4_preset_ocean">Ocean</string>
+    <string name="fsp4_preset_midnight">Mitternacht</string>
+    <string name="fsp4_preset_frosted">Frosted</string>
+    <string name="fsp4_custom_colour">Eigene Farbe</string>
+    <string name="fsp4_today_transparency">Transparenz auf Heute</string>
+    <string name="fsp4_today_transparency_note">Wie viel vom Tagesbild auf Heute durch Kacheln und Notizen scheint. Links = deckend, rechts = klar.</string>
+    <string name="fsp4_bg_fill">Gefüllt</string>
+    <string name="fsp4_bg_fit">Einpassen</string>
+    <string name="fsp4_bg_stretch">Strecken</string>
+    <string name="fsp4_bg_tile">Kacheln</string>
+    <string name="fsp4_bg_fit_label">Einpassen</string>
+    <string name="fsp4_bg_custom_photo">Eigenes Foto</string>
+    <string name="fsp4_bg_problem">NOOP konnte dieses Bild nicht lesen. Versuche ein anderes Foto oder eine JPEG- bzw. PNG-Datei.</string>
+    <string name="fsp4_bg_photo_note">Dein eigenes Foto hinter jeder Seite statt des Himmels. Es bleibt auf diesem Telefon und wird nie hochgeladen. Schalte Transparente Karten ein, damit es durchscheint.</string>
+    <string name="fsp4_coach_animation">Coach-Animation</string>
+    <string name="fsp4_coach_animation_note">Der Coach-Button auf Heute pulsiert sanft. Aus lässt ihn still stehen.</string>
     <!-- settings-parity:p4:end -->
     <!-- settings-parity spacer 4a -->
     <!-- settings-parity spacer 4b -->

@@ -7474,6 +7474,28 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <!-- settings-parity spacer 3b -->
     <!-- settings-parity spacer 3c -->
     <!-- settings-parity:p4:begin -->
+    <string name="fsp4_week_start">Inicio de semana</string>
+    <string name="fsp4_monday">Lunes</string>
+    <string name="fsp4_sunday">Domingo</string>
+    <string name="fsp4_week_start_note">Se usa en entrenamiento, el resumen semanal, Tendencias y el calendario de objetivos.</string>
+    <string name="fsp4_preset">Preajuste</string>
+    <string name="fsp4_preset_health">Apple Health</string>
+    <string name="fsp4_preset_ocean">Ocean</string>
+    <string name="fsp4_preset_midnight">Medianoche</string>
+    <string name="fsp4_preset_frosted">Frosted</string>
+    <string name="fsp4_custom_colour">Color personalizado</string>
+    <string name="fsp4_today_transparency">Transparencia en Hoy</string>
+    <string name="fsp4_today_transparency_note">Cuánto de la imagen del día se ve a través de los mosaicos y notas en Hoy. Izquierda = opaco, derecha = transparente.</string>
+    <string name="fsp4_bg_fill">Relleno</string>
+    <string name="fsp4_bg_fit">Ajustar</string>
+    <string name="fsp4_bg_stretch">Estirar</string>
+    <string name="fsp4_bg_tile">Mosaico</string>
+    <string name="fsp4_bg_fit_label">Ajustar</string>
+    <string name="fsp4_bg_custom_photo">Foto propia</string>
+    <string name="fsp4_bg_problem">NOOP no pudo leer esa imagen. Prueba con otra foto o con un archivo JPEG o PNG.</string>
+    <string name="fsp4_bg_photo_note">Tu propia foto detrás de cada pantalla, en lugar del cielo. Se queda en este teléfono y nunca se sube. Activa Tarjetas transparentes para que se vea.</string>
+    <string name="fsp4_coach_animation">Animación del Coach</string>
+    <string name="fsp4_coach_animation_note">El botón del Coach en Hoy late suavemente. Desactivado lo deja quieto.</string>
     <!-- settings-parity:p4:end -->
     <!-- settings-parity spacer 4a -->
     <!-- settings-parity spacer 4b -->

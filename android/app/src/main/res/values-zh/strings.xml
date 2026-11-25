@@ -7417,6 +7417,28 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <!-- settings-parity spacer 3b -->
     <!-- settings-parity spacer 3c -->
     <!-- settings-parity:p4:begin -->
+    <string name="fsp4_week_start">每周开始日</string>
+    <string name="fsp4_monday">星期一</string>
+    <string name="fsp4_sunday">星期日</string>
+    <string name="fsp4_week_start_note">用于训练、每周回顾、趋势和目标日历。</string>
+    <string name="fsp4_preset">预设</string>
+    <string name="fsp4_preset_health">Apple 健康</string>
+    <string name="fsp4_preset_ocean">Ocean</string>
+    <string name="fsp4_preset_midnight">午夜</string>
+    <string name="fsp4_preset_frosted">Frosted</string>
+    <string name="fsp4_custom_colour">自定义颜色</string>
+    <string name="fsp4_today_transparency">“今日”页透明度</string>
+    <string name="fsp4_today_transparency_note">“今日”页上当日图片透过卡片和笔记显现的程度。左 = 不透明，右 = 透明。</string>
+    <string name="fsp4_bg_fill">填充</string>
+    <string name="fsp4_bg_fit">适应</string>
+    <string name="fsp4_bg_stretch">拉伸</string>
+    <string name="fsp4_bg_tile">平铺</string>
+    <string name="fsp4_bg_fit_label">适应</string>
+    <string name="fsp4_bg_custom_photo">自定义照片</string>
+    <string name="fsp4_bg_problem">NOOP 无法读取该图像。请尝试其他照片或 JPEG、PNG 文件。</string>
+    <string name="fsp4_bg_photo_note">用你自己的照片替代天空，显示在每个页面后方。照片保留在这部手机上，从不上传。开启“透明卡片”即可透出照片。</string>
+    <string name="fsp4_coach_animation">Coach 动画</string>
+    <string name="fsp4_coach_animation_note">今天页上的 Coach 按钮会轻轻跳动。关闭后保持静止。</string>
     <!-- settings-parity:p4:end -->
     <!-- settings-parity spacer 4a -->
     <!-- settings-parity spacer 4b -->

@@ -7441,6 +7441,28 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <!-- settings-parity spacer 3b -->
     <!-- settings-parity spacer 3c -->
     <!-- settings-parity:p4:begin -->
+    <string name="fsp4_week_start">Inizio settimana</string>
+    <string name="fsp4_monday">Lunedì</string>
+    <string name="fsp4_sunday">Domenica</string>
+    <string name="fsp4_week_start_note">Usato da allenamento, riepilogo settimanale, Andamenti e calendario degli obiettivi.</string>
+    <string name="fsp4_preset">Preset</string>
+    <string name="fsp4_preset_health">Apple Health</string>
+    <string name="fsp4_preset_ocean">Ocean</string>
+    <string name="fsp4_preset_midnight">Mezzanotte</string>
+    <string name="fsp4_preset_frosted">Frosted</string>
+    <string name="fsp4_custom_colour">Colore personalizzato</string>
+    <string name="fsp4_today_transparency">Trasparenza su Oggi</string>
+    <string name="fsp4_today_transparency_note">Quanto dell\'immagine del giorno traspare da riquadri e note su Oggi. Sinistra = opaco, destra = trasparente.</string>
+    <string name="fsp4_bg_fill">Pieno</string>
+    <string name="fsp4_bg_fit">Adatta</string>
+    <string name="fsp4_bg_stretch">Estendi</string>
+    <string name="fsp4_bg_tile">Affianca</string>
+    <string name="fsp4_bg_fit_label">Adatta</string>
+    <string name="fsp4_bg_custom_photo">Foto personale</string>
+    <string name="fsp4_bg_problem">NOOP non è riuscito a leggere l’immagine. Prova un’altra foto o un file JPEG o PNG.</string>
+    <string name="fsp4_bg_photo_note">La tua foto dietro ogni schermata, al posto del cielo. Resta su questo telefono e non viene mai caricata. Attiva Schede trasparenti per lasciarla vedere.</string>
+    <string name="fsp4_coach_animation">Animazione del Coach</string>
+    <string name="fsp4_coach_animation_note">Il pulsante del Coach in Oggi pulsa leggermente. Disattivato, resta fermo.</string>
     <!-- settings-parity:p4:end -->
     <!-- settings-parity spacer 4a -->
     <!-- settings-parity spacer 4b -->
