@@ -954,6 +954,16 @@ public final class DailyAnalysis {
         case .workoutHeartRate:
             _ = try await repo.fillAppleWorkoutHeartRate(from: 0, to: endTs)
             _ = try await repo.fillRecordedWorkoutHeartRate(from: 0, to: endTs)
+            // The Effort stored on recorded and confirmed sessions when they were saved, scored again on the
+            // current rules (2026-11-25), after the daily step has stored each day's Effort resting rate.
+            let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
+            let reader = StoreReader(store: store, activeDeviceId: (try? registry.activeDeviceId()) ?? deviceId,
+                                     registeredWhoopIds: ((try? registry.all()) ?? []).compactMap {
+                                         $0.brand.caseInsensitiveCompare("WHOOP") == .orderedSame ? $0.id : nil
+                                     })
+            _ = try await WorkoutHeartRateFills.rescoreRecordedEffort(
+                reader: reader, from: 0, to: endTs,
+                maxHR: maxHeartRateToday.bpm ?? Double(StrainScorer.defaultMaxHR()))
         case .cardioLoad:
             await repo.recomputeCardioLoadHistory()
         case .energyHistory:

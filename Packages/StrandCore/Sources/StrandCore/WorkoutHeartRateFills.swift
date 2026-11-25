@@ -259,6 +259,57 @@ public enum WorkoutHeartRateFills {
         return Outcome(filled: fills.count, wrote: true)
     }
 
+    /// Scores the Effort stored on each recorded or confirmed strap workout starting in `[from, to]` again from
+    /// the band's trace, against its day's Effort resting heart rate (`EffortRestingHR`), under the fills' own
+    /// coverage rule (`WorkoutHeartRateFill.resolve`). Such a value is stored when the session is saved (a live
+    /// recording, a confirmed suggestion) and so followed no later change to how Effort is scored; the wearer
+    /// never types one. A row the band does not cover well enough keeps its value, and an import keeps what its
+    /// source gave it. The rebuild's workout heart-rate step runs it over the whole history (2026-11-25).
+    /// Returns the number of rows whose Effort changed.
+    public static func rescoreRecordedEffort(reader: StoreReader, from: Int, to: Int, maxHR: Double) async throws -> Int {
+        let store = reader.store
+        var changed = 0
+        for id in StoreReader.rawWhoopSourceIds(activeDeviceId: reader.activeDeviceId, registeredWhoopIds: []) {
+            var rows: [WorkoutRow] = []
+            var offset = 0
+            while true {
+                let page = try await store.workouts(deviceId: id, from: from, to: to, limit: 500, offset: offset)
+                rows += page
+                if page.count < 500 { break }
+                offset += page.count
+            }
+            let candidates = rows.filter {
+                WorkoutSource.classify($0.source).isWearerLogged && $0.strain != nil && $0.endTs > $0.startTs
+            }
+            guard let first = candidates.map(\.startTs).min(), let last = candidates.map(\.startTs).max() else {
+                continue
+            }
+            let resting = await reader.storedEffortRestingHRByDay(
+                fromDay: StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(first))),
+                toDay: StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(last))))
+            var updated: [WorkoutRow] = []
+            for row in candidates {
+                try Task.checkCancellation()
+                let day = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.startTs)))
+                let band = await reader.hrSamples(from: row.startTs, to: row.endTs, limit: 20_000)
+                guard let strain = WorkoutHeartRateFill.resolve(
+                        band: band, watchMinutes: [], start: row.startTs, end: row.endTs, maxHR: maxHR,
+                        restingHR: resting[day] ?? StrainScorer.defaultRestingHR)?.strain,
+                      strain != row.strain else { continue }
+                updated.append(WorkoutRow(
+                    startTs: row.startTs, endTs: row.endTs, sport: row.sport, source: row.source,
+                    durationS: row.durationS, energyKcal: row.energyKcal, avgHr: row.avgHr, maxHr: row.maxHr,
+                    strain: strain, distanceM: row.distanceM, zonesJSON: row.zonesJSON, notes: row.notes,
+                    steps: row.steps))
+            }
+            if !updated.isEmpty {
+                _ = try await store.upsertWorkouts(updated, deviceId: id)
+                changed += updated.count
+            }
+        }
+        return changed
+    }
+
     /// One candidate per fill key, keeping the first. The key is start and sport, and a native session can
     /// still have the legacy manual recording of the same session beside it; the native row is passed in
     /// first because that is the row the list shows (`StoreReader.hidingLegacyStrengthRecordings`), and so
