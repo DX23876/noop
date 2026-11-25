@@ -279,10 +279,9 @@ fun MoreIndexSections(nav: MoreNavigator, onOpenSettings: () -> Unit,
         }
         // Metrics first, then screens, then settings pages, as iOS's one search lists them.
         val metrics = com.noop.ui.exploreMetricHits(q)
-        val pages = HUB_GROUPS.flatMap { it.second }.filter { p ->
-            (listOf(context.getString(p.titleRes), context.getString(p.subtitleRes)) + SETTINGS_SEARCH_WORDS[p].orEmpty())
-                .any { it.contains(q, ignoreCase = true) }
-        }
+        // iOS lists up to six Settings sections, each by its own name with "Settings" under it; here the page it
+        // lives on is the caption, since a tap opens that page.
+        val pages = matchingSettingsEntries(q) { context.getString(it) }.take(6)
         if (hits.isEmpty() && pages.isEmpty() && metrics.isEmpty()) {
             Text(stringResource(R.string.forge_more_no_results), style = Forge.type.subhead,
                  color = Forge.sceneInk.secondary, modifier = Modifier.padding(ForgeMetrics.space2))
@@ -308,11 +307,11 @@ fun MoreIndexSections(nav: MoreNavigator, onOpenSettings: () -> Unit,
         if (pages.isNotEmpty()) {
             SectionHeader(stringResource(R.string.nav_settings))
             ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
-                pages.forEachIndexed { i, p ->
-                    HubRow(p.icon, p.tint(), stringResource(p.titleRes), stringResource(p.subtitleRes)) {
+                pages.forEachIndexed { i, e ->
+                    HubRow(e.page.icon, e.page.tint(), stringResource(e.titleRes), stringResource(e.page.titleRes)) {
                         dismissKeyboard()
                         SearchRecents.remember(context, q)
-                        onOpenSettingsPage(p)
+                        onOpenSettingsPage(e.page)
                     }
                     if (i < pages.lastIndex) HubDivider()
                 }
@@ -576,7 +575,7 @@ internal fun ForgeCoachDestination(title: String, onBack: () -> Unit, onOpen: (M
     val vm = viewModel<CoachViewModel>()
     var sub by remember { mutableStateOf<String?>(null) }
     var draftId by remember { mutableStateOf<String?>(null) }
-    androidx.activity.compose.BackHandler(enabled = sub != null) { sub = if (sub == "identity" || sub == "memory" || sub == "info") "settings" else null }
+    androidx.activity.compose.BackHandler(enabled = sub != null) { sub = null }
     when (sub) {
         "history" -> ForgeCoachHistoryPage(onBack = { sub = null }, onPicked = { vm.showCoreConversation(); sub = null })
         "plan" -> ForgeCoachPlanPage(onBack = { sub = null })
@@ -585,15 +584,7 @@ internal fun ForgeCoachDestination(title: String, onBack: () -> Unit, onOpen: (M
         "reviewRoutine" -> RoutineReviewPage(onClose = { sub = null })
         "reviewWorkout" -> WorkoutReviewPage(onClose = { sub = null })
         "reviewGoal" -> draftId?.let { GoalDraftReviewPage(it, onClose = { sub = null }) }
-        "settings" -> Hosted(stringResource(R.string.coach_settings), { sub = null }) {
-            CoachSettingsScreen(vm, onOpenIdentity = { sub = "identity" }, onOpenMemory = { sub = "memory" },
-                                onOpenInfo = { sub = "info" }, onOpenGoals = { sub = "goals" })
-        }
-        "identity" -> Hosted(stringResource(R.string.coach_identity), { sub = "settings" }) { CoachIdentityEditor(vm) }
-        "memory" -> Hosted(stringResource(R.string.coach_memory), { sub = "settings" }) { com.noop.ui.CoachMemoryPage() }
-        "info" -> Hosted(vm.info.collectAsStateWithLifecycle().value?.infoTitle.orEmpty(), { sub = "settings" }) {
-            com.noop.ui.CoachInfoPage(vm)
-        }
+        "settings" -> CoachSettingsPages(stringResource(R.string.coach_settings), { sub = null }, headPage = null)
         // As the iOS chat: only a way back up here; the plan book sits in the chat's own header row and the
         // history in its overflow menu.
         else -> Hosted("", onBack) {

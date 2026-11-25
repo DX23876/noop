@@ -175,56 +175,24 @@ private const val ISSUES_URL = "https://github.com/DX23876/noop/issues"
  * card, which keeps its Bluetooth controls in one place).
  */
 enum class ForgeSettingsPage(val titleRes: Int, val subtitleRes: Int, val icon: ImageVector, val hosted: Boolean = false) {
-    Roadmap(R.string.project_page_title, R.string.project_page_subtitle, Icons.Rounded.Map),
+    Roadmap(R.string.project_page_title, R.string.fsp6_sub_roadmap, Icons.Rounded.Map),
     Profile(R.string.l10n_settings_screen_profile_ff4fc027, R.string.forge_settings_profile_subtitle, Icons.Rounded.AccountCircle),
     Goals(R.string.forge_goals_more_title, R.string.forge_sg_goals_subtitle, Icons.Rounded.TrackChanges),
-    Strap(R.string.l10n_settings_screen_strap_02b88eeb, R.string.forge_settings_strap_subtitle, Icons.Rounded.SettingsInputAntenna),
-    BatteryRecording(R.string.forge_settings_battery, R.string.forge_settings_battery_subtitle, Icons.Rounded.Battery5Bar),
-    StrapActions(R.string.forge_settings_actions, R.string.forge_settings_actions_subtitle, Icons.Rounded.TouchApp),
+    Strap(R.string.l10n_settings_screen_strap_02b88eeb, R.string.fsp6_sub_strap, Icons.Rounded.SettingsInputAntenna),
+    BatteryRecording(R.string.forge_settings_battery, R.string.fsp6_sub_battery, Icons.Rounded.Battery5Bar),
+    StrapActions(R.string.forge_settings_actions, R.string.fsp6_sub_actions, Icons.Rounded.TouchApp),
     Training(R.string.forge_training, R.string.forge_st_subtitle, Icons.Rounded.FitnessCenter),
-    TodayTrends(R.string.forge_settings_today_trends, R.string.forge_settings_today_cards, Icons.Rounded.Dashboard),
-    Notifications(R.string.forge_settings_notifications, R.string.forge_settings_notifications_subtitle, Icons.Rounded.NotificationsActive),
-    Coach(R.string.forge_settings_coach, R.string.forge_settings_coach_subtitle, Icons.Rounded.AutoAwesome, hosted = true),
-    LanguageUnits(R.string.forge_settings_language_units, R.string.forge_settings_language_units_subtitle, Icons.Rounded.Language),
-    Appearance(R.string.l10n_settings_screen_appearance_41def7a0, R.string.forge_settings_appearance_subtitle, Icons.Rounded.Contrast),
+    TodayTrends(R.string.forge_settings_today_trends, R.string.fsp6_sub_today, Icons.Rounded.Dashboard),
+    Notifications(R.string.fsp6_alerts_title, R.string.fsp6_alerts_subtitle, Icons.Rounded.NotificationsActive),
+    Coach(R.string.forge_settings_coach, R.string.fsp6_sub_coach, Icons.Rounded.AutoAwesome, hosted = true),
+    LanguageUnits(R.string.forge_settings_language_units, R.string.fsp6_sub_language, Icons.Rounded.Language),
+    Appearance(R.string.l10n_settings_screen_appearance_41def7a0, R.string.fsp6_sub_appearance, Icons.Rounded.Contrast),
     Calculations(R.string.forge_settings_calculations, R.string.forge_settings_calculations_subtitle, Icons.Rounded.Functions),
-    DataBackup(R.string.forge_settings_data_backup, R.string.forge_settings_data_backup_subtitle, Icons.Rounded.Storage),
+    DataBackup(R.string.forge_settings_data_backup, R.string.fsp6_sub_data, Icons.Rounded.Storage),
     Help(R.string.forge_settings_help, R.string.forge_settings_help_subtitle, Icons.AutoMirrored.Rounded.Help),
     Lab(R.string.forge_settings_lab, R.string.forge_settings_lab_subtitle, Icons.Rounded.Science),
     About(R.string.l10n_settings_screen_about_6b21fb79, R.string.forge_settings_about_subtitle, Icons.Rounded.Info),
 }
-
-/** Search words for each page, after iOS `SettingsSearchCatalog.entries` (English, as iOS keeps them). */
-internal val SETTINGS_SEARCH_WORDS: Map<ForgeSettingsPage, List<String>> = mapOf(
-    ForgeSettingsPage.Roadmap to listOf("roadmap", "plan", "planned", "what's next", "coming", "issues", "bugs",
-                                        "known problems", "reported", "fixed", "project"),
-    ForgeSettingsPage.Profile to listOf("photo", "picture", "avatar", "name", "date of birth", "age", "sex", "weight",
-                                        "height", "waist", "max heart rate", "heart-rate zones"),
-    ForgeSettingsPage.Goals to listOf("goal", "rest days", "step goal", "daily steps", "streak", "badges", "records",
-                                      "motivation", "goal notifications"),
-    ForgeSettingsPage.Strap to listOf("bluetooth", "pairing", "connection", "re-scan", "disconnect", "strap log", "steps",
-                                      "step count", "calibration", "heart rate sharing", "broadcast"),
-    ForgeSettingsPage.BatteryRecording to listOf("battery", "power saving", "low power", "strap battery", "continuous HRV"),
-    ForgeSettingsPage.StrapActions to listOf("double-tap", "haptics", "buzz", "vibration", "heart-rate ceiling"),
-    ForgeSettingsPage.Training to listOf("strength", "workout", "session rating", "rest timer", "weight unit", "sets",
-                                         "exercise media", "workout suggestions", "auto-detect workouts"),
-    ForgeSettingsPage.TodayTrends to listOf("dashboard", "today cards", "water", "hydration", "journal", "journal card"),
-    ForgeSettingsPage.Notifications to listOf("wrist alerts", "inactivity", "reminders", "daily report", "calls"),
-    ForgeSettingsPage.Coach to listOf("chat", "API key", "provider", "model", "memory", "coach"),
-    ForgeSettingsPage.LanguageUnits to listOf("language", "clock", "12-hour", "24-hour", "week start", "Monday", "Sunday",
-                                              "metric", "imperial", "distance", "pace", "temperature"),
-    ForgeSettingsPage.Appearance to listOf("theme", "dark mode", "light mode", "accent colour", "background", "sky",
-                                           "charts", "motion", "animation"),
-    ForgeSettingsPage.Calculations to listOf("day start", "day cycle", "midnight", "recalibrate",
-                                             "reset baseline", "charge baseline"),
-    ForgeSettingsPage.DataBackup to listOf("export", "import", "backup file", "noopbak", "restore", "Health Connect",
-                                           "data sources", "WHOOP export", "CSV"),
-    ForgeSettingsPage.Help to listOf("how NOOP works", "how your scores work", "limitations", "test centre", "diagnostics",
-                                     "bug report", "strap log"),
-    ForgeSettingsPage.Lab to listOf("experimental", "beta", "stress baseline", "training-based VO2max", "AgeLess",
-                                    "daily rhythm"),
-    ForgeSettingsPage.About to listOf("version", "what's new", "update check", "source code", "GitHub", "licence"),
-)
 
 /**
  * The hub's groups in iOS order (`SettingsHubLayout`). Siri has no Android counterpart, so its row is left out;
@@ -261,6 +229,7 @@ enum class ForgeSettingsSub(val titleRes: Int, val cards: Set<ClassicSettingsCar
     Storage(R.string.fsp5_storage_title),
     HowNoopWorks(R.string.l10n_settings_screen_how_noop_works_3396b27a, closes = true),
     ScoringGuide(R.string.l10n_settings_screen_how_your_scores_work_21a0e2be, closes = true),
+    HowScores(R.string.forge_set_how_scores),
     ModelComparison(R.string.l10n_settings_screen_whoop_4_0_vs_5_0_2babb05a, closes = true),
     Limitations(R.string.nav_noop_limitations),
     TestCentre(R.string.nav_test_centre),
@@ -415,7 +384,7 @@ private fun NewDesignHub(onClose: () -> Unit, onOpen: (ForgeSettingsPage) -> Uni
     LaunchedEffect(Unit) { ForgeBackground.load(context) }
     @Composable
     fun group(title: Int?, rows: List<@Composable () -> Unit>) {
-        if (title != null) SectionHeader(stringResource(title))
+        if (title != null) SettingsGroupHeader(stringResource(title))
         ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
             rows.forEachIndexed { i, row -> row(); if (i < rows.lastIndex) HubDivider() }
         }
@@ -468,7 +437,7 @@ private fun NewDesignHub(onClose: () -> Unit, onOpen: (ForgeSettingsPage) -> Uni
         group(R.string.forge_set_data_help, listOf(
             page(ForgeSettingsPage.DataBackup), page(ForgeSettingsPage.Calculations),
             { HubRow(Icons.Rounded.Speed, ForgeTokens.Color.systemGreen.resolve(), stringResource(R.string.forge_set_how_scores),
-                     stringResource(R.string.forge_set_how_scores_detail)) { onSub(ForgeSettingsSub.ScoringGuide) } },
+                     stringResource(R.string.forge_set_how_scores_detail)) { onSub(ForgeSettingsSub.HowScores) } },
             page(ForgeSettingsPage.Help),
         ))
         group(null, listOf(page(ForgeSettingsPage.Lab), page(ForgeSettingsPage.About),
@@ -677,22 +646,7 @@ internal fun hostedTokens(c: ForgeColors): PaletteTokens {
 @Composable
 private fun HostedPage(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () -> Unit) {
     when (page) {
-        ForgeSettingsPage.Coach -> {
-            val vm = viewModel<CoachViewModel>()
-            var sub by remember { mutableStateOf<String?>(null) }
-            androidx.activity.compose.BackHandler(enabled = sub != null) { sub = null }
-            when (sub) {
-                "identity" -> Hosted(stringResource(R.string.coach_identity), { sub = null }) { com.noop.ui.CoachIdentityEditor(vm) }
-                "memory" -> Hosted(stringResource(R.string.coach_memory), { sub = null }) { com.noop.ui.CoachMemoryPage() }
-                "info" -> Hosted(vm.info.collectAsStateWithLifecycle().value?.infoTitle.orEmpty(), { sub = null }) {
-                    com.noop.ui.CoachInfoPage(vm)
-                }
-                else -> Hosted(stringResource(page.titleRes), onBack, head = page) {
-                    CoachSettingsScreen(vm, onOpenIdentity = { sub = "identity" }, onOpenMemory = { sub = "memory" },
-                                        onOpenInfo = { sub = "info" })
-                }
-            }
-        }
+        ForgeSettingsPage.Coach -> CoachSettingsPages(stringResource(page.titleRes), onBack, headPage = page)
         else -> Unit
     }
 }
@@ -725,6 +679,7 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
         ForgeSettingsSub.FusedRecord -> ValuesBySourcePage(viewModel, onBack, stringResource(sub.titleRes))
         ForgeSettingsSub.HowNoopWorks -> Hosted(stringResource(sub.titleRes), onBack) { HowNoopWorksScreen(onClose = onBack) }
         ForgeSettingsSub.ScoringGuide -> Hosted(stringResource(sub.titleRes), onBack) { ScoringGuideScreen(onClose = onBack) }
+        ForgeSettingsSub.HowScores -> HowScoresPage(viewModel, onBack, stringResource(sub.titleRes))
         ForgeSettingsSub.ModelComparison -> Hosted(stringResource(sub.titleRes), onBack) { WhoopModelComparisonScreen(onClose = onBack) }
         ForgeSettingsSub.WhatsNew -> Hosted(stringResource(sub.titleRes), onBack) { WhatsNewSheet(onClose = onBack) }
         ForgeSettingsSub.BackupSync -> Hosted(stringResource(sub.titleRes), onBack) { BackupSyncScreen() }
@@ -732,7 +687,7 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
         ForgeSettingsSub.SelfHostedPush -> Hosted(stringResource(sub.titleRes), onBack) { SelfHostedPushScreen() }
         ForgeSettingsSub.Limitations -> Hosted(stringResource(sub.titleRes), onBack) { NoopLimitationsScreen() }
         ForgeSettingsSub.TestCentre -> Hosted(stringResource(sub.titleRes), onBack) { TestCentreScreen(viewModel) }
-        ForgeSettingsSub.Acknowledgements -> ForgeExerciseProviderAcknowledgements(onBack)
+        ForgeSettingsSub.Acknowledgements -> AcknowledgementsPage(onBack)
         ForgeSettingsSub.ExerciseMedia -> ForgeExerciseMediaSettings(onBack)
         ForgeSettingsSub.HrZones -> HrZonesSettingsPage(onBack)
         ForgeSettingsSub.Equipment -> EquipmentSettingsPage(onBack)

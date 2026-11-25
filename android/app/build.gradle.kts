@@ -240,6 +240,9 @@ val buildCoreLocalization by tasks.registering {
         for ((file, table) in tables) dir.resolve("$file.l10n").writeText(json.toJson(table))
     }
 }
+// The licence texts of the third-party code, verbatim, from the folder the Apple apps ship them from; the
+// Acknowledgements page opens them (`<resource>.txt`, named by the core's credit list).
+android.sourceSets.getByName("main").assets.srcDir(rootProject.file("../Strand/Resources/ThirdParty"))
 if (forkSwiftCore) {
     android.sourceSets.getByName("main").jniLibs.srcDir(forkSwiftCoreLibs)
     android.sourceSets.getByName("main").assets.srcDir(forkCoreLocalization)

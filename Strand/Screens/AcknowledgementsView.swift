@@ -16,15 +16,9 @@ struct AcknowledgementsView: View {
                         .font(StrandFont.subhead)
                         .foregroundStyle(StrandPalette.textSecondary)
                 }
-                entry(title: "MuscleMap body geometry",
-                      detail: "Used for the Exercise Library's muscle picker. melihcolpan / repository contributors, MIT licence.",
-                      link: "https://github.com/melihcolpan/MuscleMap")
-                entry(title: "react-native-body-highlighter body geometry",
-                      detail: "Used for the Strength screen's muscle load map. Copyright (c) 2022 ELABBASSI Hicham, MIT licence.",
-                      link: "https://github.com/HichamELBSI/react-native-body-highlighter")
-                entry(title: "ExerciseDB v1 exercise data",
-                      detail: "Exercise names, body parts, equipment, targets, muscle groups and instructions via hasaneyldrm/exercises-dataset. MIT licence.",
-                      link: "https://github.com/hasaneyldrm/exercises-dataset")
+                ForEach(Acknowledgements.contentEntries, id: \.title) { item in
+                    entry(title: item.title, detail: item.detail, link: item.link)
+                }
                 entry(title: ExerciseDBProviderClient.defaultAttribution,
                       detail: String(localized: "Optional exercise metadata. Provider terms apply; media downloads are separate."),
                       link: ExerciseDBProviderClient.defaultDocumentation)
@@ -38,8 +32,7 @@ struct AcknowledgementsView: View {
                         }
                     }
                 }
-                entry(title: "Exercise media (images and animations)",
-                      detail: "© Gym visual — gymvisual.com. Not licensed to NOOP: cloning the exercises-dataset repository is not a licence to its media. NOOP never bundles these files; downloading them is an explicit, disclosed, opt-in action, and the credit line appears under every animation.")
+                entry(title: Acknowledgements.mediaEntry.title, detail: Acknowledgements.mediaEntry.detail)
                 Section {
                     Text("NOOP Forge builds on NOOP by ryanbr and its contributors. These people's fixes and features were taken into NOOP Forge directly, from their own forks or their pull requests. ATTRIBUTION.md lists the sources.")
                         .font(StrandFont.subhead)
@@ -59,57 +52,18 @@ struct AcknowledgementsView: View {
         }
     }
 
-    /// The people credited in ATTRIBUTION.md ("NOOP Forge: work adopted from other people"). Keep both in
-    /// sync by hand when the fork adopts someone's work. Handles and summaries are not translated, like the
-    /// third-party entries above.
-    static let contributors: [Contributor] = [
-        Contributor(handle: "@UtkuDenizAltiok", work: "Deleted-nights list, sync reminder, SDNN guard, wind-down sleep need, skin temperature once and in your unit, translations"),
-        Contributor(handle: "@ayiskakov", work: "Offload data-loss fixes, Bluetooth power-off teardown, deep-sleep onset hold, delete versus re-score"),
-        Contributor(handle: "@kavemang", work: "Sleep marks through Shortcuts, DST tests, gravity witness, workout edits shown before the rescore"),
-        Contributor(handle: "@Iskrata", work: "Absolute skin temperature on import, beat-to-beat intervals and nightly vitals in Apple Health"),
-        Contributor(handle: "@gdorgian", work: "Liquid clocks stand down when still, a short last sleep stretch is kept"),
-        Contributor(handle: "@mohamedchnafy-ds", work: "Weekly sets per muscle (idea), recent naps for the coach"),
-        Contributor(handle: "@JohanStefanes", work: "5/MG one-shot buzz without RUN_ALARM"),
-        Contributor(handle: "@christophersarmiento", work: "Strap model stamped only after a scan accepts it"),
-        Contributor(handle: "@goodgord", work: "No sleep merge across a data gap"),
-        Contributor(handle: "@spidervirus", work: "No startup zero heart rate"),
-        Contributor(handle: "@rome6", work: "One guarded runner for the Health Connect import, with a named outcome"),
-        Contributor(handle: "@fadkeprasad", work: "Power-saving cadence for automatic syncs"),
-        Contributor(handle: "@paradix86", work: "Italian WHOOP exports"),
-        Contributor(handle: "@msff", work: "Mac menu-bar redraws"),
-        Contributor(handle: "@andynilson", work: "Charge and Effort translations"),
-        Contributor(handle: "@shajidahmed", work: "Config read-back check"),
-        Contributor(handle: "@abhilashvadnala", work: "Day cycle on an early bedtime"),
-        Contributor(handle: "@reinmaker", work: "Split-night consistency"),
-        Contributor(handle: "@Billytheking954", work: "Restore rollback through the WAL"),
-        Contributor(handle: "@J-Gur", work: "Health Connect permissions"),
-        Contributor(handle: "@rntcruz23", work: "Connect failure message"),
-        Contributor(handle: "@bartmuskala", work: "Maximum heart rate resolver"),
-        Contributor(handle: "bogaczcyprien-svg, aansun, denismanulov", work: "Respiratory-rate grid, off-wrist sleep cut, an offload data-loss path"),
-        Contributor(handle: "Pilleus", work: "German wording corrected across both catalogues"),
-        Contributor(handle: "meta1971, OpenStrap", work: "5/MG SET_CLOCK sub-seconds, MG ECG reading"),
-    ]
+    /// The people credited in ATTRIBUTION.md ("NOOP Forge: work adopted from other people"). The list itself is
+    /// `Acknowledgements.contributors` in StrandCore, which the Android screen reads too: add new people there.
+    static let contributors: [Contributor] = Acknowledgements.contributors.map {
+        Contributor(handle: $0.handle, work: $0.work)
+    }
 
     /// Libraries, models and ported code inside the app whose licence asks for its text to travel with every
-    /// copy. Each text ships verbatim in `Strand/Resources/ThirdParty/` and opens from its row. Keep in step
-    /// with NOTICE and ATTRIBUTION.md.
-    static let bundledLicenses: [BundledLicense] = [
-        BundledLicense(title: "GRDB.swift", detail: "SQLite database layer. Copyright (C) 2015-2024 Gwendal Roué.",
-                       link: "https://github.com/groue/GRDB.swift", licenseName: "MIT", resource: "GRDB-LICENSE"),
-        BundledLicense(title: "ZIPFoundation", detail: "Reads export archives during import. Copyright (c) 2017-2025 Thomas Zoechling.",
-                       link: "https://github.com/weichsel/ZIPFoundation", licenseName: "MIT", resource: "ZIPFoundation-LICENSE"),
-        BundledLicense(title: "MarkdownUI", detail: "Renders the coach's replies. Copyright (c) 2020 Guillermo Gonzalez.",
-                       link: "https://github.com/gonzalezreal/swift-markdown-ui", licenseName: "MIT", resource: "MarkdownUI-LICENSE"),
-        BundledLicense(title: "Swift Crypto", detail: "Cryptographic primitives. Copyright Apple Inc. and the Swift project authors.",
-                       link: "https://github.com/apple/swift-crypto", licenseName: "Apache 2.0", resource: "SwiftCrypto-LICENSE"),
-        BundledLicense(title: "llama.cpp", detail: "On-device inference for the coach's memory index (iPhone). Copyright (c) 2023-2026 The ggml authors.",
-                       link: "https://github.com/ggml-org/llama.cpp", licenseName: "MIT", resource: "llama.cpp-LICENSE"),
-        BundledLicense(title: "nomic-embed-text-v2-moe", detail: "On-device text embedding model for the coach's memory index (iPhone). Nomic AI.",
-                       link: "https://huggingface.co/nomic-ai/nomic-embed-text-v2-moe", licenseName: "Apache 2.0",
-                       resource: "nomic-embed-text-v2-moe-LICENSE"),
-        BundledLicense(title: "OpenStrap", detail: "The WHOOP MG ECG reading flow, ported from release v0.10.0. Copyright (c) 2026 OpenStrap.",
-                       link: "https://github.com/OpenStrap/edge", licenseName: "MIT", resource: "OpenStrap-LICENSE"),
-    ]
+    /// copy (`Acknowledgements.bundledLicenses` in StrandCore). Each text ships verbatim in
+    /// `Strand/Resources/ThirdParty/` and opens from its row.
+    static let bundledLicenses: [BundledLicense] = Acknowledgements.bundledLicenses.map {
+        BundledLicense(title: $0.title, detail: $0.detail, link: $0.link, licenseName: $0.licenseName, resource: $0.resource)
+    }
 
     struct BundledLicense: Identifiable {
         let title: String
@@ -128,7 +82,7 @@ struct AcknowledgementsView: View {
         var id: String { handle }
     }
 
-    private static let attributionURL = URL(string: "https://github.com/DX23876/noop/blob/main/ATTRIBUTION.md")!
+    private static let attributionURL = URL(string: Acknowledgements.attributionURL)!
 
     private func entry(title: String, detail: String, link: String? = nil) -> some View {
         VStack(alignment: .leading, spacing: 4) {

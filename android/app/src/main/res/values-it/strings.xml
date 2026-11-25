@@ -7723,6 +7723,53 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <!-- settings-parity spacer 5b -->
     <!-- settings-parity spacer 5c -->
     <!-- settings-parity:p6:begin -->
+    <string name="fsp6_alerts_title">Avvisi e promemoria</string>
+    <string name="fsp6_alerts_subtitle">Schermo bloccato, avvisi al polso e promemoria</string>
+    <string name="fsp6_sub_roadmap">Il piano, i problemi segnalati, i desideri e come aiutare</string>
+    <string name="fsp6_sub_strap">Connessione, registrazione, batteria, doppio tocco, passi</string>
+    <string name="fsp6_sub_battery">Risparmio energetico e HRV continua</string>
+    <string name="fsp6_sub_actions">Doppio tocco, vibrazioni e avvisi del battito</string>
+    <string name="fsp6_sub_today">Schede, ordine e stile</string>
+    <string name="fsp6_sub_coach">Fornitore, modello e memoria</string>
+    <string name="fsp6_sub_language">Lingua, orologio, inizio settimana e unità</string>
+    <string name="fsp6_sub_appearance">Tema, sfondo, grafici e movimento</string>
+    <string name="fsp6_sub_data">Backup, Health Connect, importazioni e archiviazione</string>
+    <string name="fsp6_how_explained">Spiegato</string>
+    <string name="fsp6_how_model">Il tuo modello</string>
+    <string name="fsp6_ss_today_cards">Schede di Oggi</string>
+    <string name="fsp6_ss_style">Stile</string>
+    <string name="fsp6_ss_imports">Health Connect e importazioni</string>
+    <string name="fsp6_ss_whoop5">Laboratorio · WHOOP 5 / MG</string>
+    <string name="fsp6_about_blurb">NOOP, tutti i tuoi dati, niente cloud.</string>
+    <string name="fsp6_about_pill">v%1$s</string>
+    <string name="fsp6_about_check_note">Quando tocchi, verifica la pagina del progetto (GitHub) per l\'ultima versione, non viene inviato nient\'altro.</string>
+    <string name="fsp6_about_support">Sostieni il progetto</string>
+    <string name="fsp6_about_support_detail">Facoltativo: offri un caffè su Ko-fi. NOOP resta gratuito in ogni caso.</string>
+    <string name="fsp6_about_intro">Un compagno autonomo per il tuo WHOOP. Tutto resta su questo dispositivo, la tua cronologia, il tuo stream in diretta, i tuoi numeri. Niente viene caricato. NOOP è un progetto indipendente e sperimentale, non l\'app WHOOP.</string>
+    <string name="fsp6_about_built_on">Basato su</string>
+    <string name="fsp6_about_proto4">johnmiddleton12/my-whoop · Protocollo WHOOP 4.0</string>
+    <string name="fsp6_about_proto5">b-nnett/goose · Protocollo WHOOP 5.0</string>
+    <string name="fsp6_ack_intro">NOOP utilizza i seguenti contenuti di terze parti secondo la loro licenza. Una licenza in un ambito (codice, dati, media) non vale automaticamente anche per un altro.</string>
+    <string name="fsp6_ack_detail">Contenuti di terze parti che NOOP utilizza secondo la loro licenza.</string>
+    <string name="fsp6_ack_adopted_intro">NOOP Forge si basa su NOOP di ryanbr e sui suoi contributori. Le correzioni e le funzioni di queste persone sono state integrate direttamente in NOOP Forge, dai loro fork o dalle loro pull request. ATTRIBUTION.md elenca le fonti.</string>
+    <string name="fsp6_ack_adopted_header">Persone di cui NOOP Forge ha adottato il lavoro</string>
+    <string name="fsp6_ack_unavailable">Impossibile caricare i riconoscimenti.</string>
+    <string name="fsp6_ack_licence_missing">Il testo della licenza non è disponibile in questa versione.</string>
+    <string name="fsp6_help_tc_blurb">Attiva un test per ciò che non va, indossa la fascia, poi tocca Report. Anche il registro della fascia, la ricalibrazione, l\'esportazione pianificata e le sonde sperimentali si trovano qui.</string>
+    <string name="fsp6_help_open_tc">Apri il Centro test</string>
+    <string name="fsp6_help_diag_blurb">Un\'esportazione in sola lettura degli stream dei sensori decodificati che NOOP già memorizza. Funziona con qualsiasi fascia, niente viene scritto sul tuo dispositivo e niente viene caricato.</string>
+    <string name="fsp6_coach_conn">Connessione e modello</string>
+    <string name="fsp6_coach_conn_detail">Fornitore, chiave API e quale modello risponde.</string>
+    <string name="fsp6_coach_coaching">Coaching</string>
+    <string name="fsp6_coach_coaching_detail">Stile, come apri Coach e check-in giornalieri.</string>
+    <string name="fsp6_coach_privacy">Privacy e dati</string>
+    <string name="fsp6_coach_privacy_detail">Cosa viene condiviso e istruzioni dell\'allenatore.</string>
+    <string name="fsp6_coach_forget_key">Dimentica la chiave salvata</string>
+    <string name="fsp6_coach_forget_title">Dimenticare la chiave %1$s salvata?</string>
+    <string name="fsp6_coach_forget_confirm">Dimentica la chiave</string>
+    <string name="fsp6_coach_forget_message">Dovrai incollarlo di nuovo per riconnetterti. Questo è diverso da Disconnect, che mantiene la chiave.</string>
+    <string name="fsp6_lab_blurb">Funzioni non finite. Disattivate per impostazione predefinita; puoi spegnerle quando vuoi.</string>
+    <string name="fsp6_ss_motion">Movimento</string>
     <!-- settings-parity:p6:end -->
     <!-- settings-parity spacer 6a -->
     <!-- settings-parity spacer 6b -->
