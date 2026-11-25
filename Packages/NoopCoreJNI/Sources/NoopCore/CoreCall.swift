@@ -158,6 +158,7 @@ public enum CoreCall {
         if op.hasPrefix("donation."), let answer = await CoreDonation.run(op, args) { return answer }
         if op.hasPrefix("analysis."), let answer = await CoreAnalysisMaintenance.run(op, args) { return answer }
         if op.hasPrefix("storage."), let answer = await CoreStorage.run(op, args) { return answer }
+        if op.hasPrefix("about."), let answer = CoreAcknowledgements.run(op, args) { return answer }
         func string(_ k: String) -> String { args[k] as? String ?? "" }
         func int(_ k: String, _ fallback: Int) -> Int { (args[k] as? NSNumber)?.intValue ?? fallback }
         func ok(_ done: Bool) -> String { done ? #"{"ok":true}"# : #"{"ok":false}"# }
