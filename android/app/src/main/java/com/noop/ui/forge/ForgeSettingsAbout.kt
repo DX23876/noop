@@ -68,6 +68,12 @@ import androidx.compose.material.icons.rounded.SettingsInputAntenna
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material.icons.rounded.TouchApp
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Code
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.HelpOutline
+import androidx.compose.material.icons.rounded.ListAlt
+import androidx.compose.material.icons.rounded.LocalCafe
+import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Contrast
@@ -180,22 +186,26 @@ internal fun HelpSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> 
     val context = LocalContext.current
     val sharing by viewModel.strapLogSharing.collectAsStateWithLifecycle()
     SettingsCard(title = stringResource(R.string.forge_settings_guides), blurb = null) {
-        LinkRow(stringResource(R.string.l10n_settings_screen_how_noop_works_3396b27a),
+        TileLinkRow(Icons.Rounded.HelpOutline, ForgeTokens.Color.systemIndigo.resolve(),
+                stringResource(R.string.l10n_settings_screen_how_noop_works_3396b27a),
                 stringResource(R.string.l10n_settings_screen_sleep_sorting_scores_recording_and_where_832378b5)) {
             onOpen(ForgeSettingsSub.HowNoopWorks)
         }
         RowDivider()
-        LinkRow(stringResource(R.string.l10n_settings_screen_how_your_scores_work_21a0e2be),
+        TileLinkRow(Icons.Rounded.HelpOutline, ForgeTokens.Color.systemIndigo.resolve(),
+                stringResource(R.string.l10n_settings_screen_how_your_scores_work_21a0e2be),
                 stringResource(R.string.l10n_settings_screen_charge_effort_and_rest_and_how_d2c423a4)) {
             onOpen(ForgeSettingsSub.ScoringGuide)
         }
         RowDivider()
-        LinkRow(stringResource(R.string.l10n_settings_screen_whoop_4_0_vs_5_0_2babb05a),
+        TileLinkRow(Icons.Rounded.ListAlt, ForgeTokens.Color.systemGray.resolve(),
+                stringResource(R.string.l10n_settings_screen_whoop_4_0_vs_5_0_2babb05a),
                 stringResource(R.string.l10n_settings_screen_what_each_strap_can_read_and_51e7d3fc)) {
             onOpen(ForgeSettingsSub.ModelComparison)
         }
         RowDivider()
-        LinkRow(stringResource(R.string.nav_noop_limitations), null) { onOpen(ForgeSettingsSub.Limitations) }
+        TileLinkRow(Icons.Rounded.Info, ForgeTokens.Color.systemGray.resolve(), stringResource(R.string.nav_noop_limitations),
+                    null) { onOpen(ForgeSettingsSub.Limitations) }
     }
     // iOS `testCentreCard`: one row into the Test Centre. Sharing the strap log stays here too (Android-only, A-08).
     SettingsCard(title = stringResource(R.string.nav_test_centre), blurb = stringResource(R.string.fsp6_help_tc_blurb)) {
@@ -224,7 +234,7 @@ internal fun HelpSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> 
 @Composable
 internal fun LabSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Unit) {
     val context = LocalContext.current
-    SettingsCard(title = stringResource(R.string.forge_experimental_section), blurb = stringResource(R.string.fsp6_lab_blurb)) {
+    SettingsCard(title = stringResource(R.string.forge_settings_lab), blurb = stringResource(R.string.fsp6_lab_blurb)) {
         // The redesign's switch stood here until 2026-11-20. It is gone, not hidden: the design ships to
         // everyone and the screens under it are not maintained any more, so a way back only produces
         // reports from pages nobody is looking at (`ForgeDesign.retireTheOldDesign`).
@@ -315,8 +325,11 @@ internal fun AboutSection(onOpen: (ForgeSettingsSub) -> Unit) {
                  modifier = Modifier.weight(1f, fill = false))
             ForgeBadgePill(stringResource(R.string.fsp6_about_pill, BuildConfig.VERSION_NAME), ForgeBadgeTone.Neutral)
         }
-        RowDivider()
-        LinkRow(stringResource(R.string.l10n_settings_screen_what_s_new_4d8dc5fe), null) { onOpen(ForgeSettingsSub.WhatsNew) }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
+            PillButton(Icons.Rounded.AutoAwesome, stringResource(R.string.l10n_settings_screen_what_s_new_4d8dc5fe)) {
+                onOpen(ForgeSettingsSub.WhatsNew)
+            }
+        }
         // Which build this is (#47): the commit and date of the testing build, to read back beside a strap log.
         BuildIdentity.stamp?.let { stamp ->
             androidx.compose.foundation.text.selection.SelectionContainer {
@@ -324,20 +337,21 @@ internal fun AboutSection(onOpen: (ForgeSettingsSub) -> Unit) {
             }
         }
         RowDivider()
-        LinkRow(stringResource(R.string.forge_provider_acknowledgements), stringResource(R.string.fsp6_ack_detail)) {
+        TileLinkRow(Icons.Rounded.Description, ForgeTokens.Color.systemIndigo.resolve(),
+                    stringResource(R.string.forge_provider_acknowledgements), stringResource(R.string.fsp6_ack_detail)) {
             onOpen(ForgeSettingsSub.Acknowledgements)
         }
         RowDivider()
         // Check for updates: a single, user-initiated read of GitHub's public releases API.
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(enabled = !checking, onClick = {
+            PillButton(Icons.Rounded.Sync,
+                       stringResource(if (checking) R.string.l10n_settings_screen_checking_820d6004
+                                      else R.string.l10n_settings_screen_check_for_updates_736b9062),
+                       enabled = !checking) {
                 checking = true; result = null
                 scope.launch { result = UpdateCheck.check(BuildConfig.VERSION_NAME); checking = false }
-            }) {
-                Text(stringResource(if (checking) R.string.l10n_settings_screen_checking_820d6004
-                                    else R.string.l10n_settings_screen_check_for_updates_736b9062),
-                     color = colors.accent)
             }
+            Spacer(Modifier.width(ForgeMetrics.space3))
             Text(
                 when (val r = result) {
                     is UpdateCheck.Result.UpToDate -> stringResource(R.string.l10n_settings_screen_you_re_on_the_latest_r_027a82be, r.version)
@@ -374,11 +388,14 @@ internal fun AboutSection(onOpen: (ForgeSettingsSub) -> Unit) {
         }
         Text(stringResource(R.string.fsp6_about_check_note), style = Forge.type.footnote, color = colors.textSecondary)
         RowDivider()
-        LinkRow(stringResource(R.string.l10n_settings_screen_project_home_source_994627c1),
-                stringResource(R.string.l10n_settings_screen_github_code_releases_issues_and_the_50b41e25)) { open(SOURCE_URL) }
+        TileLinkRow(Icons.Rounded.Code, ForgeTokens.Color.systemGray.resolve(),
+                    stringResource(R.string.l10n_settings_screen_project_home_source_994627c1),
+                    stringResource(R.string.l10n_settings_screen_github_code_releases_issues_and_the_50b41e25),
+                    external = true) { open(SOURCE_URL) }
         RowDivider()
         // Optional donation link (Ko-fi): a plain browser link, no request from the app (iOS `ProjectLinks.support`).
-        LinkRow(stringResource(R.string.fsp6_about_support), stringResource(R.string.fsp6_about_support_detail)) { open(SUPPORT_URL) }
+        TileLinkRow(Icons.Rounded.LocalCafe, ForgeTokens.Color.systemGray.resolve(), stringResource(R.string.fsp6_about_support),
+                    stringResource(R.string.fsp6_about_support_detail), external = true) { open(SUPPORT_URL) }
         Text(stringResource(R.string.fsp6_about_intro), style = Forge.type.subhead, color = colors.textSecondary)
         // The medical disclaimer, on the inset with a warning mark as iOS draws it.
         Row(Modifier.fillMaxWidth().background(colors.inset, RoundedCornerShape(10.dp)).padding(ForgeMetrics.space3),

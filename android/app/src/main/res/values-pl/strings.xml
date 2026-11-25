@@ -6749,7 +6749,7 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_ap_accent">Akcent</string>
     <string name="forge_ap_mint">Mięta</string>
     <string name="forge_ap_whoop_blue">WHOOP Blue</string>
-    <string name="forge_ap_custom">Zwyczaj</string>
+    <string name="forge_ap_custom">Własne</string>
     <string name="body_edit_title">Edytuj pomiar</string>
     <string name="body_edit_taken">Zrobione</string>
     <string name="body_edit_note">Zmiana daty przesuwa ten pomiar na trendzie. Pomiar wprowadzony później należy do dnia, w którym go wykonano, a nie do dnia wpisania.</string>
@@ -7509,6 +7509,34 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="import_depth_one_year">1 rok</string>
     <string name="import_depth_three_years">3 lata</string>
     <string name="import_depth_ten_years">10 lat</string>
+    <!-- settings-parity:w4:begin -->
+    <string name="fsw4_calc_title">Jak liczy NOOP</string>
+    <string name="fsw4_calc_blurb">Zmiany tutaj mogą przeliczyć minione dni. Zapisane dane pozostają.</string>
+    <string name="fsw4_day_start">Początek dnia</string>
+    <string name="fsw4_falling_asleep">Zaśnięcie</string>
+    <string name="fsw4_midnight">Północ</string>
+    <string name="fsw4_day_sleep_note">Standardowo: kroki i bieżąca wysiłek od nowo rozpoczynają się od początku wykrytego głównego snu. Wakacje nie rozpoczynają nowego dnia; brak snu spada na lokalną północ.</string>
+    <string name="fsw4_day_midnight_note">Korzystane jest standardowe lokalne określenie dnia od 00:00 do 00:00.</string>
+    <string name="fsw4_hrv_window">Okno HRV</string>
+    <string name="fsw4_hrv_note">Sen głęboki daje niższe wartości. Zmiana przelicza ostatnie noce.</string>
+    <string name="fsw4_wake_check">Sprawdzanie przebudzeń</string>
+    <string name="fsw4_wake_note">Liczy przebudzenie tylko wtedy, gdy chodziłeś lub zmieniłeś pozycję. Sam wzrost tętna pozostaje snem płytkim. Pomijane w nocach ze zbyt małą ilością danych ruchu. Obowiązuje od następnej nocy.</string>
+    <string name="fsw4_style">Styl</string>
+    <string name="fsw4_style_blurb">Jasny, ciemny lub zgodnie z systemem, do tego akcent i ikony.</string>
+    <string name="fsw4_system">Systemowy</string>
+    <string name="fsw4_backup_group">Kopia zapasowa i przywracanie</string>
+    <string name="fsw4_imports_blurb">Inne źródła, które czyta NOOP, i miejsce, które zajmuje.</string>
+    <string name="fsw4_export">Eksport…</string>
+    <string name="fsw4_import">Import…</string>
+    <string name="fsw4_csv">Eksportuj CSV…</string>
+    <string name="fsw4_backup_sync">Kopia zapasowa i synchronizacja z folderem…</string>
+    <string name="fsw4_tc_strap_log">Log strapa</string>
+    <string name="fsw4_tc_strap_log_hint">Skorzystaj z tego, gdy zgłosisz błąd. Mówi mi, co zobaczyła aplikacja.</string>
+    <string name="fsw4_tc_report_hint">Tworzy ocenzurowany plik .zip i pokazuje jego zawartość.</string>
+    <string name="fsw4_tc_daily_auto">Codzienny automatyczny eksport dziennika taśm</string>
+    <string name="fsw4_tc_clear">Wyczyść zaplanowane eksporty</string>
+    <string name="fsw4_imports_group">Health Connect i importy</string>
+    <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
     <string name="fsw3_tc_blurb">Włącz test dla tego, co nie działa, załóż opaskę i dotknij Zgłoś. Wszystko zostaje na tym telefonie.</string>
     <string name="fsw3_report_footer">Tworzy zanonimizowany plik .zip i pokazuje jego zawartość, zanim cokolwiek zostanie udostępnione.</string>

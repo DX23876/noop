@@ -7401,6 +7401,34 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="import_depth_one_year">1 年</string>
     <string name="import_depth_three_years">3 年</string>
     <string name="import_depth_ten_years">10 年</string>
+    <!-- settings-parity:w4:begin -->
+    <string name="fsw4_calc_title">NOOP 如何计算</string>
+    <string name="fsw4_calc_blurb">此处的更改可能会重新计算过去的日子。你的记录数据会保留。</string>
+    <string name="fsw4_day_start">一天开始于</string>
+    <string name="fsw4_falling_asleep">入睡时</string>
+    <string name="fsw4_midnight">午夜</string>
+    <string name="fsw4_day_sleep_note">默认。步数和当前努力状态在检测到的主要睡眠开始时恢复。午睡不会开始新一天；缺觉会恢复到当地午夜。</string>
+    <string name="fsw4_day_midnight_note">使用常规本地日历日期，从00:00到00:00。</string>
+    <string name="fsw4_hrv_window">HRV 计算窗口</string>
+    <string name="fsw4_hrv_note">深睡数值更低。切换会重新计算最近几晚。</string>
+    <string name="fsw4_wake_check">清醒检查</string>
+    <string name="fsw4_wake_note">只有在你走动或改变姿势时才算作清醒。仅心率上升仍视为浅睡。运动数据过少的夜晚会跳过。从下一晚开始生效。</string>
+    <string name="fsw4_style">风格</string>
+    <string name="fsw4_style_blurb">浅色、深色或跟随系统，以及强调色和图标。</string>
+    <string name="fsw4_system">系统</string>
+    <string name="fsw4_backup_group">备份与还原</string>
+    <string name="fsw4_imports_blurb">NOOP 读取的其他来源及其占用的空间。</string>
+    <string name="fsw4_export">导出…</string>
+    <string name="fsw4_import">导入…</string>
+    <string name="fsw4_csv">导出 CSV…</string>
+    <string name="fsw4_backup_sync">备份并同步到文件夹…</string>
+    <string name="fsw4_tc_strap_log">腕带日志</string>
+    <string name="fsw4_tc_strap_log_hint">报告错误时抓取此内容。它会告诉我应用看到了什么。</string>
+    <string name="fsw4_tc_report_hint">生成已脱敏的 .zip 并显示其内容。</string>
+    <string name="fsw4_tc_daily_auto">每日自动导出手环日志</string>
+    <string name="fsw4_tc_clear">清除计划导出</string>
+    <string name="fsw4_imports_group">Health Connect 与导入</string>
+    <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
     <string name="fsw3_tc_blurb">为出问题的部分打开一个测试，佩戴手环，然后点按“报告”。一切都保留在这部手机上。</string>
     <string name="fsw3_report_footer">生成已脱敏的 .zip，并在分享任何内容之前先让你查看其内容。</string>

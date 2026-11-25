@@ -7500,6 +7500,34 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="import_depth_one_year">1 year</string>
     <string name="import_depth_three_years">3 years</string>
     <string name="import_depth_ten_years">10 years</string>
+    <!-- settings-parity:w4:begin -->
+    <string name="fsw4_calc_title">How NOOP calculates</string>
+    <string name="fsw4_calc_blurb">Changes here can recompute past days. Your recorded data stays.</string>
+    <string name="fsw4_day_start">Day start</string>
+    <string name="fsw4_falling_asleep">Falling asleep</string>
+    <string name="fsw4_midnight">Midnight</string>
+    <string name="fsw4_day_sleep_note">Default. Steps and in-progress Effort restart at the beginning of detected main sleep. Naps do not start a new day; missing sleep falls back to local midnight.</string>
+    <string name="fsw4_day_midnight_note">Uses a conventional local calendar day from 00:00 to 00:00.</string>
+    <string name="fsw4_hrv_window">HRV window</string>
+    <string name="fsw4_hrv_note">Deep sleep gives lower values. Switching recalculates your recent nights.</string>
+    <string name="fsw4_wake_check">Wake check</string>
+    <string name="fsw4_wake_note">Counts a wake-up only if you walked or changed position. A heart-rate rise alone stays light sleep. Skipped on nights with too little motion data. Applies from the next night.</string>
+    <string name="fsw4_style">Style</string>
+    <string name="fsw4_style_blurb">Light, dark or your system setting, plus accent and icons.</string>
+    <string name="fsw4_system">System</string>
+    <string name="fsw4_backup_group">Backup &amp; restore</string>
+    <string name="fsw4_imports_blurb">Other sources NOOP reads, and the space it uses.</string>
+    <string name="fsw4_export">Export…</string>
+    <string name="fsw4_import">Import…</string>
+    <string name="fsw4_csv">Export CSV…</string>
+    <string name="fsw4_backup_sync">Backup &amp; Sync to a folder…</string>
+    <string name="fsw4_tc_strap_log">Strap log</string>
+    <string name="fsw4_tc_strap_log_hint">Grab this when you report a bug. It tells me what the app saw.</string>
+    <string name="fsw4_tc_report_hint">Builds a redacted .zip and shows you what it contains.</string>
+    <string name="fsw4_tc_daily_auto">Daily auto-export of the strap log</string>
+    <string name="fsw4_tc_clear">Clear scheduled exports</string>
+    <string name="fsw4_imports_group">Health Connect &amp; imports</string>
+    <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
     <string name="fsw3_tc_blurb">Turn on a test for the thing that\'s wrong, wear the strap, then tap Report. Everything stays on this phone.</string>
     <string name="fsw3_report_footer">Builds a redacted .zip and shows you what it contains before anything is shared.</string>

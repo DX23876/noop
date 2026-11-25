@@ -1,11 +1,16 @@
 package com.noop.ui.forge
 
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MonitorHeart
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -13,6 +18,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.noop.R
 import com.noop.ble.WhoopModel
 import com.noop.ui.AppViewModel
+import com.noop.ui.DebugExportScheduler
+import com.noop.ui.DebugExportSettings
+import com.noop.ui.LogExport
 import com.noop.ui.NoopPrefs
 
 // Settings parity, wave 3 (SUB-01): the Test Centre as iOS `TestCentreView.forgeBody` draws it in the Forge skin, a
@@ -31,11 +39,45 @@ internal fun TestCentreSettingsPage(viewModel: AppViewModel, title: String, onBa
     val is5MG = selectedModelName == WhoopModel.WHOOP5_MG.name || live.whoop5Detected
     SettingsColumn {
         PageTitle(title, onBack)
-        Text(stringResource(R.string.fsw3_tc_blurb), style = Forge.type.subhead, color = Forge.sceneInk.secondary,
-             modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
-        SettingsCard(title = stringResource(R.string.forge_roadmap_report), blurb = stringResource(R.string.fsw3_report_footer)) {
+        // The same tile-and-line head as the index pages carry, with iOS's stethoscope on the Test Centre's own colour.
+        SettingsTileHead(Icons.Filled.MonitorHeart, ForgeTokens.Color.systemIndigo.resolve(), stringResource(R.string.fsw3_tc_blurb))
+        // iOS `forgeBody`, "Report a problem": the strap log, the report with it, the daily auto-export and clearing the
+        // scheduled files. The export's time of day and how many files to keep stay on the report page.
+        val sharing by viewModel.strapLogSharing.collectAsStateWithLifecycle()
+        val exportSettings = remember { DebugExportSettings.from(context) }
+        var dailyExport by remember { mutableStateOf(exportSettings.enabled) }
+        var confirmClear by remember { mutableStateOf(false) }
+        SettingsCard(title = stringResource(R.string.forge_roadmap_report), blurb = null) {
+            LinkRow(stringResource(R.string.fsw4_tc_strap_log), stringResource(R.string.fsw4_tc_strap_log_hint), busy = sharing) {
+                viewModel.shareStrapLog(context)
+            }
+            RowDivider()
             LinkRow(stringResource(R.string.l10n_test_centre_screen_report_a_bug_with_my_log_5101ee49),
-                    stringResource(R.string.fsw3_report_detail)) { onOpen(ForgeSettingsSub.TestCentreExport) }
+                    stringResource(R.string.fsw4_tc_report_hint)) { onOpen(ForgeSettingsSub.TestCentreExport) }
+            RowDivider()
+            ToggleRow(stringResource(R.string.fsw4_tc_daily_auto), null, dailyExport) { on ->
+                dailyExport = on
+                exportSettings.enabled = on
+                DebugExportScheduler.reschedule(context)
+            }
+            RowDivider()
+            ActionRow(null, stringResource(R.string.fsw4_tc_clear), destructive = true) { confirmClear = true }
+        }
+        if (confirmClear) {
+            AlertDialog(
+                onDismissRequest = { confirmClear = false },
+                title = { Text(stringResource(R.string.l10n_test_centre_screen_clear_scheduled_exports_36e93dd0)) },
+                text = { Text(stringResource(R.string.l10n_test_centre_screen_this_deletes_every_scheduled_strap_ea52c535)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        LogExport.clearScheduledExports(context)
+                        confirmClear = false
+                    }) { Text(stringResource(R.string.l10n_lab_book_screen_clear_719ea396)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.l10n_test_centre_screen_cancel_77dfd213)) }
+                },
+            )
         }
         SettingsCard(title = stringResource(R.string.fsw3_group_testing), blurb = null) {
             Column {

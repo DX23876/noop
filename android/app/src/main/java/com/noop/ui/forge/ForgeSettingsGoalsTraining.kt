@@ -119,7 +119,8 @@ private fun RestDaysPicker(context: Context, selected: Set<Int>, onChange: (Set<
             Box(Modifier.size(40.dp).background(if (on) colors.accent else colors.inset, CircleShape)
                     .clickable(role = Role.Checkbox) { onChange(if (on) selected - weekday else selected + weekday) },
                 contentAlignment = Alignment.Center) {
-                Text(day.getDisplayName(TextStyle.NARROW, Locale.getDefault()), style = Forge.type.footnote,
+                // Two letters as iOS draws them ("Mo Di Mi ..."), not the one-letter narrow names that repeat (M D M D F S S).
+                Text(day.getDisplayName(TextStyle.SHORT_STANDALONE, Locale.getDefault()).take(2), style = Forge.type.footnote,
                      color = if (on) androidx.compose.ui.graphics.Color.White else colors.text)
             }
         }
