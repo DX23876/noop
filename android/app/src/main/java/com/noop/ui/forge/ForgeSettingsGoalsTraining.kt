@@ -167,9 +167,8 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit, onOpenEquipment: (
         Overline(stringResource(R.string.forge_st_logging))
         val effortIds = listOf("off", "rir", "rpe")
         val effortLabels = listOf(stringResource(R.string.forge_st_off), "RIR", stringResource(R.string.forge_ef_rpe))
-        Text(stringResource(R.string.forge_st_set_effort), style = Forge.type.body, color = Forge.colors.text)
-        run {
-            ReportPicker(effortLabels[effortIds.indexOf(effort).coerceAtLeast(0)], effortLabels) { i ->
+        SettingRow(stringResource(R.string.forge_st_set_effort)) {
+            MenuPicker(effortLabels[effortIds.indexOf(effort).coerceAtLeast(0)], effortLabels.indices.toList(), label = { effortLabels[it] }) { i ->
                 if (CorePrefs.write(context, CorePrefs.EFFORT_SCALE, effortIds[i])) effort = effortIds[i]
             }
         }
@@ -178,9 +177,8 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit, onOpenEquipment: (
         val ratingIds = listOf("off", "whenUseful", "always")
         val ratingLabels = listOf(stringResource(R.string.forge_rating_reminder_off),
             stringResource(R.string.forge_rating_reminder_useful), stringResource(R.string.forge_rating_reminder_always))
-        Text(stringResource(R.string.forge_st_rating), style = Forge.type.body, color = Forge.colors.text)
-        run {
-            ReportPicker(ratingLabels[ratingIds.indexOf(rating).coerceAtLeast(0)], ratingLabels) { i ->
+        SettingRow(stringResource(R.string.forge_st_rating)) {
+            MenuPicker(ratingLabels[ratingIds.indexOf(rating).coerceAtLeast(0)], ratingLabels.indices.toList(), label = { ratingLabels[it] }) { i ->
                 rating = ratingIds[i]
                 prefs.edit().putString(CoreTrainingReminders.PREFERENCE, rating).apply()
                 scope.launch { withContext(Dispatchers.IO) { SessionRatingReminderWorker.synchronize(context) } }
@@ -190,9 +188,8 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit, onOpenEquipment: (
         RowDivider()
         val unitIds = listOf("kilograms", "pounds")
         val unitLabels = listOf(stringResource(R.string.forge_st_kg), stringResource(R.string.forge_st_lb))
-        Text(stringResource(R.string.forge_st_weight_unit), style = Forge.type.body, color = Forge.colors.text)
-        run {
-            ReportPicker(unitLabels[unitIds.indexOf(unit).coerceAtLeast(0)], unitLabels) { i ->
+        SettingRow(stringResource(R.string.forge_st_weight_unit)) {
+            MenuPicker(unitLabels[unitIds.indexOf(unit).coerceAtLeast(0)], unitLabels.indices.toList(), label = { unitLabels[it] }) { i ->
                 if (CorePrefs.write(context, CorePrefs.WEIGHT_UNIT, unitIds[i])) unit = unitIds[i]
             }
         }
@@ -204,10 +201,9 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit, onOpenEquipment: (
         val system = if (pounds) com.noop.ui.UnitSystem.IMPERIAL else com.noop.ui.UnitSystem.METRIC
         val stepChoices = if (pounds) TrainingStepPrefs.poundChoicesKg else TrainingStepPrefs.kilogramChoices
         val stepLabels = stepChoices.map { TrainingStepPrefs.label(it, system) }
-        Text(stringResource(R.string.fsp1_weight_step), style = Forge.type.body, color = Forge.colors.text)
-        run {
+        SettingRow(stringResource(R.string.fsp1_weight_step)) {
             val current = stepChoices.indexOfFirst { kotlin.math.abs(it - weightStepKg) < 1e-6 }.coerceAtLeast(0)
-            ReportPicker(stepLabels[current], stepLabels) { i ->
+            MenuPicker(stepLabels[current], stepLabels.indices.toList(), label = { stepLabels[it] }) { i ->
                 weightStepKg = stepChoices[i]
                 TrainingStepPrefs.setWeightIncrementKg(context, stepChoices[i], pounds)
             }
@@ -259,9 +255,8 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit, onOpenEquipment: (
         val viewIds = listOf("focus", "list", "compact")
         val viewLabels = listOf(stringResource(R.string.forge_wl_focus_short), stringResource(R.string.forge_wl_list_short),
                                 stringResource(R.string.forge_wl_compact))
-        Text(stringResource(R.string.forge_wl_view), style = Forge.type.body, color = Forge.colors.text)
-        run {
-            ReportPicker(viewLabels[viewIds.indexOf(workoutView).coerceAtLeast(0)], viewLabels) { i ->
+        SettingRow(stringResource(R.string.forge_wl_view)) {
+            MenuPicker(viewLabels[viewIds.indexOf(workoutView).coerceAtLeast(0)], viewLabels.indices.toList(), label = { viewLabels[it] }) { i ->
                 workoutView = viewIds[i]
                 prefs.edit().putString(WORKOUT_LAYOUT, workoutView).apply()
             }
@@ -270,9 +265,8 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit, onOpenEquipment: (
         val mediaIds = listOf("large", "small", "hidden")
         val mediaLabels = listOf(stringResource(R.string.forge_st_media_large), stringResource(R.string.forge_st_media_small),
                                  stringResource(R.string.forge_st_media_hidden))
-        Text(stringResource(R.string.forge_st_media), style = Forge.type.body, color = Forge.colors.text)
-        run {
-            ReportPicker(mediaLabels[mediaIds.indexOf(media).coerceAtLeast(0)], mediaLabels) { i ->
+        SettingRow(stringResource(R.string.forge_st_media)) {
+            MenuPicker(mediaLabels[mediaIds.indexOf(media).coerceAtLeast(0)], mediaLabels.indices.toList(), label = { mediaLabels[it] }) { i ->
                 media = mediaIds[i]
                 prefs.edit().putString("training.mediaPresentation", media).apply()
             }
@@ -317,10 +311,11 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit, onOpenEquipment: (
             val levelIds = listOf("more", "balanced", "onlyClear")
             val levelLabels = listOf(stringResource(R.string.forge_st_level_more),
                 stringResource(R.string.forge_st_level_balanced), stringResource(R.string.forge_st_level_clear))
-            Text(stringResource(R.string.forge_st_ask_level), style = Forge.type.body, color = Forge.colors.text)
-            ReportPicker(levelLabels[levelIds.indexOf(level).coerceAtLeast(0)], levelLabels) { i ->
-                level = levelIds[i]
-                activityPrefs.edit().putString(com.noop.core.CoreActivity.KEY_LEVEL, level).apply()
+            SettingRow(stringResource(R.string.forge_st_ask_level)) {
+                MenuPicker(levelLabels[levelIds.indexOf(level).coerceAtLeast(0)], levelLabels.indices.toList(), label = { levelLabels[it] }) { i ->
+                    level = levelIds[i]
+                    activityPrefs.edit().putString(com.noop.core.CoreActivity.KEY_LEVEL, level).apply()
+                }
             }
             RowDivider()
             ToggleRow(stringResource(R.string.forge_st_notify), stringResource(R.string.forge_st_notify_note), notify) { on ->
