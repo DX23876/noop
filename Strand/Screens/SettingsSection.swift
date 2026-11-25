@@ -121,3 +121,123 @@ extension View {
     /// Styles a line of explanation under a setting (see `SettingsCaptionStyle`).
     func settingsCaption() -> some View { modifier(SettingsCaptionStyle()) }
 }
+
+/// A group on a Settings subpage in the new design, built like `SettingsSection` but without its icon and
+/// blurb: an optional upper-case header above the card, the controls on the card and an optional plain
+/// explanation as the footer under it. Subpages draw this only in the forge skin and keep their own classic
+/// layout otherwise.
+struct SettingsSubGroup<Content: View>: View {
+    var title: LocalizedStringKey? = nil
+    var footer: Text? = nil
+    var spacing: CGFloat = NoopMetrics.space3
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            if let title {
+                Text(title)
+                    .font(StrandFont.footnote.weight(.semibold))
+                    .textCase(.uppercase)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .accessibilityAddTraits(.isHeader)
+                    .padding(.horizontal, NoopMetrics.space4)
+            }
+            NoopCard {
+                VStack(alignment: .leading, spacing: spacing) {
+                    content
+                }
+                .font(SettingsRowFont.value)
+            }
+            if let footer {
+                footer
+                    .settingsCaption()
+                    .padding(.horizontal, NoopMetrics.space4)
+            }
+        }
+    }
+}
+
+/// A switch row on a `SettingsSubGroup` card: the label at the setting size, with an optional hint under it.
+struct SettingsSubToggle: View {
+    let title: LocalizedStringKey
+    var hint: Text? = nil
+    @Binding var isOn: Bool
+
+    var body: some View {
+        Toggle(isOn: $isOn) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(SettingsRowFont.value).foregroundStyle(StrandPalette.textPrimary)
+                if let hint {
+                    hint.settingsCaption()
+                }
+            }
+        }
+        .tint(StrandPalette.chargeColor)
+        .frame(minHeight: 44)
+    }
+}
+
+/// The label of a tappable row on a `SettingsSubGroup` card: title at the setting size, an optional hint
+/// under it, an optional value and a chevron.
+struct SettingsSubRowLabel: View {
+    let title: LocalizedStringKey
+    var hint: Text? = nil
+    var value: String? = nil
+    var isDestructive = false
+
+    var body: some View {
+        HStack(spacing: NoopMetrics.space2) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(SettingsRowFont.value)
+                    .foregroundStyle(isDestructive ? StrandPalette.statusCritical : StrandPalette.textPrimary)
+                    .multilineTextAlignment(.leading)
+                if let hint {
+                    hint.settingsCaption().multilineTextAlignment(.leading)
+                }
+            }
+            Spacer(minLength: NoopMetrics.space2)
+            if let value {
+                Text(value).font(SettingsRowFont.value).foregroundStyle(StrandPalette.textSecondary).lineLimit(1)
+            }
+            Image(systemName: "chevron.right")
+                .font(StrandFont.caption.weight(.semibold))
+                .foregroundStyle(StrandPalette.textTertiary)
+                .accessibilityHidden(true)
+        }
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
+    }
+}
+
+/// A tappable row on a `SettingsSubGroup` card (see `SettingsSubRowLabel`).
+struct SettingsSubAction: View {
+    let title: LocalizedStringKey
+    var hint: Text? = nil
+    var value: String? = nil
+    var role: ButtonRole? = nil
+    let action: () -> Void
+
+    var body: some View {
+        Button(role: role, action: action) {
+            SettingsSubRowLabel(title: title, hint: hint, value: value, isDestructive: role == .destructive)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+/// A row on a `SettingsSubGroup` card that opens a page.
+struct SettingsSubLink<Destination: View>: View {
+    let title: LocalizedStringKey
+    var hint: Text? = nil
+    @ViewBuilder var destination: () -> Destination
+
+    var body: some View {
+        NavigationLink {
+            destination()
+        } label: {
+            SettingsSubRowLabel(title: title, hint: hint)
+        }
+        .buttonStyle(.plain)
+    }
+}

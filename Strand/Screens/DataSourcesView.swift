@@ -933,27 +933,48 @@ struct DataSourcesView: View {
                               status: S = EmptyView(),
                               subtitle: String,
                               @ViewBuilder content: @escaping () -> C) -> some View {
-        let forge = NoopVisualStyle.skin == .forge
-        return NoopCard(padding: 18, tint: forge ? nil : tint) {
-            VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
-                HStack(spacing: NoopMetrics.space2 + 2) {
-                    Image(systemName: icon)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(forge ? StrandPalette.forgeOnAccent : tint)
-                        .frame(width: forge ? 40 : 30, height: forge ? 40 : 30)
-                        .background(forge ? tint : tint.opacity(0.14), in: RoundedRectangle(cornerRadius: forge ? 11 : 9, style: .continuous))
-                        .accessibilityHidden(true)
-                    Text(title).font(forge ? StrandFont.subhead.weight(.semibold) : StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                    Spacer(minLength: 8)
+        if NoopVisualStyle.skin == .forge {
+            // The new design's settings group: the source's name as a small header above the card (its
+            // connection state at the header's end), the actions on the card, the explanation as the footer.
+            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space2) {
+                    Text(title)
+                        .font(StrandFont.footnote.weight(.semibold))
+                        .textCase(.uppercase)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .accessibilityAddTraits(.isHeader)
+                    Spacer(minLength: NoopMetrics.space2)
                     status
                 }
-                if forge {
-                    ForgeExpandableText(text: subtitle)
-                } else {
+                .padding(.horizontal, NoopMetrics.space4)
+                NoopCard {
+                    VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                        content()
+                    }
+                    .font(SettingsRowFont.value)
+                }
+                Text(subtitle)
+                    .settingsCaption()
+                    .padding(.horizontal, NoopMetrics.space4)
+            }
+        } else {
+            NoopCard(padding: 18, tint: tint) {
+                VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
+                    HStack(spacing: NoopMetrics.space2 + 2) {
+                        Image(systemName: icon)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(tint)
+                            .frame(width: 30, height: 30)
+                            .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                            .accessibilityHidden(true)
+                        Text(title).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                        Spacer(minLength: 8)
+                        status
+                    }
                     Text(subtitle).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    content()
                 }
-                content()
             }
         }
     }

@@ -17,7 +17,17 @@ struct ShortcutExportSettingsView: View {
         .pagePicture("square.and.arrow.up.fill", accent: "heart.fill", tint: .blue)
     }
 
+    @ViewBuilder
     private var exportCard: some View {
+        if NoopVisualStyle.skin == .forge {
+            // The new design's settings group: the switch on the card, the explanation as the footer.
+            SettingsSubGroup(
+                title: "Shortcuts file export",
+                footer: Text("When this is on, NOOP rewrites a plain-text file (On My iPhone › NOOP › noop_sync.txt) each time you leave the app: one line per 15 minutes of heart rate, HRV and steps, read straight from your strap. Pair it with the Siri Shortcut that reads the file and logs everything into Apple Health (no HealthKit entitlement needed), so it works on sideloaded installs. The setup guide and the pre-built Shortcut live in the project wiki on GitHub.")
+            ) {
+                SettingsSubToggle(title: "Export for Shortcuts (Apple Health)", isOn: $enabled)
+            }
+        } else {
         StrandCard(padding: 20) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
@@ -40,6 +50,7 @@ struct ShortcutExportSettingsView: View {
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }
+        }
         }
     }
 }

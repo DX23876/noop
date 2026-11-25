@@ -42,6 +42,9 @@ struct HeartRateSharingView: View {
     private static let phoneTitle: LocalizedStringKey = "Via iPhone"
     #endif
 
+    /// The size of a note under a control: the new design's footnote, the shipped design's caption.
+    private static var noteFont: Font { NoopVisualStyle.skin == .forge ? StrandFont.footnote : StrandFont.caption }
+
     private var strapCanBroadcast: Bool { selectedWhoopModelRaw == WhoopModel.whoop5mg.rawValue }
 
     var body: some View {
@@ -91,7 +94,7 @@ struct HeartRateSharingView: View {
             VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
                 Toggle(isOn: $phoneBroadcastEnabled) {
                     Text(Self.phoneTitle)
-                        .font(StrandFont.subhead)
+                        .font(SettingsRowFont.value)
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
@@ -140,7 +143,7 @@ struct HeartRateSharingView: View {
             VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
                 Toggle(isOn: $strapBroadcastEnabled) {
                     Text("Via strap")
-                        .font(StrandFont.subhead)
+                        .font(SettingsRowFont.value)
                         .foregroundStyle(StrandPalette.textPrimary)
                 }
                 .toggleStyle(.switch)
@@ -148,7 +151,7 @@ struct HeartRateSharingView: View {
                 .accessibilityLabel("Share heart rate via the strap")
                 .onChangeCompat(of: strapBroadcastEnabled) { on in model.ble.setBroadcastHr(on) }
                 Text("Applies on the next connection, or right away when connected. Writes a setting on the strap that turning this off reverses. Needs an iPhone: a Mac can't write to a 5/MG.")
-                    .font(StrandFont.caption)
+                    .font(Self.noteFont)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
                 strapStatus
@@ -173,7 +176,7 @@ struct HeartRateSharingView: View {
                     .foregroundStyle(StrandPalette.statusWarningForeground)
                     .accessibilityHidden(true)
                 Text("Your strap is sending its heart rate right now, to anything in range, even when nothing is connected to it. That drains it much faster. Turn it off when no other device needs it.")
-                    .font(StrandFont.caption)
+                    .font(Self.noteFont)
                     .foregroundStyle(StrandPalette.statusWarningForeground)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -181,12 +184,12 @@ struct HeartRateSharingView: View {
             .accessibilityElement(children: .combine)
         case false?:
             Text("Your strap says it is not sharing.")
-                .font(StrandFont.caption)
+                .font(Self.noteFont)
                 .foregroundStyle(StrandPalette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
         case nil:
             Text("Connect your strap to see whether it is sharing. This is a setting on the strap itself, so it can be on even when this switch is off.")
-                .font(StrandFont.caption)
+                .font(Self.noteFont)
                 .foregroundStyle(StrandPalette.textTertiary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -209,7 +212,7 @@ struct HeartRateSharingView: View {
                     model.ble.stopStrapSharingOnStrap()
                 }
                 Text("Sends the off command again, even if the switch above already looks off. Your live heart rate in NOOP is not affected.")
-                    .font(StrandFont.caption)
+                    .font(Self.noteFont)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
             }

@@ -71,79 +71,68 @@ struct BackupSyncView: View {
     /// Where it goes, what happens by itself, what can be done by hand. Restore stands apart, last.
     private var forgeBody: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
-            NoopCard {
-                VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                    ForgeTileRow(symbol: "folder.fill", tint: StrandPalette.metricCyan,
-                                 title: String(localized: "Backup folder"),
-                                 subtitle: folderLabel ?? String(localized: "No folder chosen yet.")) {
-                        EmptyView()
-                    }
-                    NoopButton(folderLabel == nil ? "Choose folder" : "Change folder", kind: .secondary, fullWidth: true) {
-                        chooseFolder()
-                    }
-                    .disabled(busy)
-                    #if os(iOS)
-                    if !FolderBackup.useInternalFolder {
-                        Button("Use NOOP's own folder (browse in Files)") { useNoopFolder() }
-                            .font(StrandFont.footnote.weight(.semibold))
-                            .foregroundStyle(StrandPalette.accent)
-                            .buttonStyle(.plain)
-                            .frame(minHeight: 44)
-                            .disabled(busy)
-                    }
-                    #endif
-                    Label {
-                        ForgeExpandableText(text: String(localized: "These backups are unencrypted too. If this folder syncs to Drive, Dropbox or iCloud, the readable file goes there as well — only point it at a service you trust."))
-                    } icon: {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundStyle(StrandPalette.statusWarningForeground)
-                    }
+            SettingsSubGroup(title: "Backup folder") {
+                Text(folderLabel ?? String(localized: "No folder chosen yet."))
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Divider().overlay(StrandPalette.hairline)
+                NoopButton(folderLabel == nil ? "Choose folder" : "Change folder", kind: .secondary, fullWidth: true) {
+                    chooseFolder()
+                }
+                .disabled(busy)
+                #if os(iOS)
+                if !FolderBackup.useInternalFolder {
+                    Button("Use NOOP's own folder (browse in Files)") { useNoopFolder() }
+                        .font(SettingsRowFont.value.weight(.semibold))
+                        .foregroundStyle(StrandPalette.accent)
+                        .buttonStyle(.plain)
+                        .frame(minHeight: 44)
+                        .disabled(busy)
+                }
+                #endif
+                Label {
+                    Text("These backups are unencrypted too. If this folder syncs to Drive, Dropbox or iCloud, the readable file goes there as well — only point it at a service you trust.")
+                        .settingsCaption()
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(StrandPalette.statusWarningForeground)
                 }
             }
-            ForgeSectionHeading("Automatic")
-            NoopCard {
-                VStack(spacing: NoopMetrics.space2) {
-                    ForgeToggleRow(title: "Daily auto-backup", isOn: $auto)
-                        .disabled(folderLabel == nil)
-                        .onChangeCompat(of: auto) { on in FolderBackup.autoEnabled = on }
-                    Divider().overlay(StrandPalette.hairline)
-                    HStack {
-                        Text("Keep last snapshots").font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
-                        Spacer()
-                        Picker("Keep last snapshots", selection: $keep) {
-                            ForEach(FolderBackup.keepOptions, id: \.self) { n in Text("\(n)").tag(n) }
-                        }
-                        .labelsHidden().pickerStyle(.menu)
-                        .onChangeCompat(of: keep) { n in FolderBackup.keepCount = n }
+            SettingsSubGroup(
+                title: "Automatic",
+                footer: Text(lastMs > 0 ? "Last backup: \(relativeTime(lastMs))" : "No backup yet.")
+            ) {
+                SettingsSubToggle(title: "Daily auto-backup", isOn: $auto)
+                    .disabled(folderLabel == nil)
+                    .onChangeCompat(of: auto) { on in FolderBackup.autoEnabled = on }
+                Divider().overlay(StrandPalette.hairline)
+                HStack {
+                    Text("Keep last snapshots").foregroundStyle(StrandPalette.textPrimary)
+                    Spacer()
+                    Picker("Keep last snapshots", selection: $keep) {
+                        ForEach(FolderBackup.keepOptions, id: \.self) { n in Text("\(n)").tag(n) }
                     }
-                    .frame(minHeight: 44)
+                    .labelsHidden().pickerStyle(.menu)
+                    .onChangeCompat(of: keep) { n in FolderBackup.keepCount = n }
+                }
+                .frame(minHeight: 44)
+                if auto, folderLabel != nil, lastMs > 0,
+                   BackupSync.isBackupStale(lastBackupMs: lastMs, nowMs: Int(Date().timeIntervalSince1970 * 1000.0)) {
                     Divider().overlay(StrandPalette.hairline)
-                    Text(lastMs > 0 ? "Last backup: \(relativeTime(lastMs))" : "No backup yet.")
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    if auto, folderLabel != nil, lastMs > 0,
-                       BackupSync.isBackupStale(lastBackupMs: lastMs, nowMs: Int(Date().timeIntervalSince1970 * 1000.0)) {
-                        Text("Auto-backup hasn't run in a few days. Check the backup folder is still available — a moved or disconnected cloud folder stops backups silently.")
-                            .font(StrandFont.caption)
-                            .foregroundStyle(StrandPalette.statusWarningForeground)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                    Text("Auto-backup hasn't run in a few days. Check the backup folder is still available — a moved or disconnected cloud folder stops backups silently.")
+                        .settingsCaption()
+                        .foregroundStyle(StrandPalette.statusWarningForeground)
                 }
             }
             NoopButton(busy ? "Working…" : "Back up now", systemImage: "icloud.and.arrow.up", kind: .primary, fullWidth: true) {
                 backupNow()
             }
             .disabled(folderLabel == nil || busy)
-            NoopCard {
-                VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                    ForgeActionRow(title: "Restore from a backup…", role: .destructive) { openRestorePicker() }
-                        .disabled(folderLabel == nil || busy)
-                    Text("Replace this device's data with one of the backups in your folder. This overwrites current data, so back up first if you're unsure.")
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+            SettingsSubGroup(
+                footer: Text("Replace this device's data with one of the backups in your folder. This overwrites current data, so back up first if you're unsure.")
+            ) {
+                SettingsSubAction(title: "Restore from a backup…", role: .destructive) { openRestorePicker() }
+                    .disabled(folderLabel == nil || busy)
             }
         }
     }
