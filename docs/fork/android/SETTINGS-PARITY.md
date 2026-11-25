@@ -19,8 +19,8 @@ Counts of iOS items by status (section 2; 23 Android-only items are listed separ
 | 2.3 Profile | 15 | 0 | 0 | 0 |
 | 2.4 Goals | 8 | 0 | 0 | 1 |
 | 2.5 Strap | 13 | 0 | 0 | 1 |
-| 2.6 Strap Actions | 1 | 3 | 0 | 1 |
-| 2.7 Notifications | 1 | 5 | 1 | 2 |
+| 2.6 Strap Actions | 4 | 0 | 0 | 1 |
+| 2.7 Notifications | 7 | 0 | 0 | 2 |
 | 2.8 Training | 26 | 0 | 0 | 1 |
 | 2.9 Today & Trends | 2 | 0 | 0 | 1 |
 | 2.10 AI Coach | 6 | 1 (written exception) | 0 | 1 |
@@ -33,7 +33,7 @@ Counts of iOS items by status (section 2; 23 Android-only items are listed separ
 | 2.17 Lab | 5 | 1 (written exception) | 1 (written exception) | 1 |
 | 2.18 Screens below the pages (compared at screen level only) | 12 | 0 | 0 | 1 |
 | 2.19 About | 10 | 0 | 0 | 0 |
-| **Total (202 items)** | **166** | **10** | **9** | **17** |
+| **Total (202 items)** | **175** | **2** | **8** | **17** |
 
 Things worth knowing before starting:
 
