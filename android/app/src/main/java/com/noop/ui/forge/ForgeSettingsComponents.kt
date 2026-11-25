@@ -216,21 +216,29 @@ internal fun HubDivider() {
  */
 @Composable
 internal fun SettingsCard(title: String?, blurb: String?, icon: ImageVector? = null, tint: Color? = null,
-                          active: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
+                          active: Boolean = false, headerAction: (@Composable () -> Unit)? = null,
+                          content: @Composable ColumnScope.() -> Unit) {
     // iOS `SettingsSection` in the new design, built as iOS Settings builds a group: a small upper-case header
     // above the card, the controls on the card, and the plain explanation as a footer under it. The icon and
     // tint stay in the signature for the callers; the header carries no icon, as on iOS.
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
-        if (title != null) {
-            Row(Modifier.padding(horizontal = ForgeMetrics.space4), verticalAlignment = Alignment.CenterVertically) {
-                Text(title.uppercase(), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold),
-                     color = Forge.colors.textSecondary, modifier = Modifier.semantics { heading() })
+        if (title != null || headerAction != null) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space4), verticalAlignment = Alignment.CenterVertically) {
+                if (title != null) {
+                    Text(title.uppercase(), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold),
+                         color = Forge.colors.textSecondary, modifier = Modifier.semantics { heading() })
+                }
                 // `Section2` on iOS: an active automation shows a small dot beside its name.
                 if (active) {
                     val on = stringResource(R.string.forge_sp_on)
                     Spacer(Modifier.width(ForgeMetrics.space2))
                     Box(Modifier.size(6.dp).background(Forge.colors.charge, CircleShape)
                         .semantics { contentDescription = on })
+                }
+                // iOS `SettingsSection.headerAction` ("Edit" on Profile): at the header's end, above the card.
+                if (headerAction != null) {
+                    Spacer(Modifier.weight(1f))
+                    headerAction()
                 }
             }
         }

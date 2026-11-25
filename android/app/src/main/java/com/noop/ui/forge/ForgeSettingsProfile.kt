@@ -191,13 +191,12 @@ internal fun ProfileSection(profile: ProfileStore, viewModel: AppViewModel, chan
     // The photo and the figures under it, as iOS's `forgeProfileHead`: the avatar large with a camera badge, tap it to change.
     ProfileHead(profile)
     // iOS keeps the fields still until "Edit" (`profileEditing`): plain values, then steppers and pickers.
-    SettingsCard(title = null, blurb = stringResource(R.string.fsp1_profile_blurb)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = { onEditing(!editing) }) {
-                Text(stringResource(if (editing) R.string.forge_profile_done else R.string.forge_profile_edit),
-                     style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.accent)
-            }
+    SettingsCard(title = null, blurb = stringResource(R.string.fsp1_profile_blurb), headerAction = {
+        TextButton(onClick = { onEditing(!editing) }) {
+            Text(stringResource(if (editing) R.string.forge_profile_done else R.string.forge_profile_edit),
+                 style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.accent)
         }
+    }) {
         // The name More's profile row shows (iOS `ProfileStore.name`); saved as typed, blank clears it. No frame, as iOS.
         var name by remember { mutableStateOf(profile.name) }
         SettingRow(stringResource(R.string.forge_profile_name)) {
