@@ -253,6 +253,7 @@ enum class ForgeSettingsSub(val titleRes: Int, val cards: Set<ClassicSettingsCar
     BackupSync(R.string.l10n_settings_screen_automatic_backups_8a772f3c),
     DataSources(R.string.nav_data_sources),
     SelfHostedPush(R.string.nav_self_hosted_push),
+    Storage(R.string.fsp5_storage_title),
     HowNoopWorks(R.string.l10n_settings_screen_how_noop_works_3396b27a, closes = true),
     ScoringGuide(R.string.l10n_settings_screen_how_your_scores_work_21a0e2be, closes = true),
     ModelComparison(R.string.l10n_settings_screen_whoop_4_0_vs_5_0_2babb05a, closes = true),
@@ -708,6 +709,7 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
         ForgeSettingsSub.ExerciseMedia -> ForgeExerciseMediaSettings(onBack)
         ForgeSettingsSub.HrZones -> HrZonesSettingsPage(onBack)
         ForgeSettingsSub.Equipment -> EquipmentSettingsPage(onBack)
+        ForgeSettingsSub.Storage -> StorageSettingsPage(onBack)
         ForgeSettingsSub.ProjectRoadmap -> SettingsColumn {
             PageTitle(stringResource(R.string.forge_roadmap_title), onBack)
             RoadmapPlanSection()
