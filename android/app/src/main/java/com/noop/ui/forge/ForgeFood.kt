@@ -1088,13 +1088,31 @@ private fun ItemRow(item: CoreFood.Item, onAdd: () -> Unit, onFavourite: (Boolea
 internal fun FoodPortionDialog(item: CoreFood.Item, lastGrams: Double?, onDismiss: () -> Unit, onAdd: (CoreFood.CartLine) -> Unit) {
     var text by remember { mutableStateOf(gramsText(lastGrams ?: item.servingG ?: 100.0)) }
     val grams = text.replace(',', '.').toDoubleOrNull() ?: 0.0
+    // The same choices iOS offers, from the core: serving, last time, a can of a six-pack, half or the whole pack.
+    val portions = remember(item.id, lastGrams) { CoreFood.portions(item, lastGrams) }
+    val unit = if (item.liquid) "ml" else "g"
+    val choices = portions.map { p ->
+        val amount = "${gramsText(p.amount)} $unit"
+        val label = when (p.kind) {
+            "serving" -> p.label?.let { stringResource(R.string.food_portion_one, it) } ?: stringResource(R.string.food_portion_one, amount)
+            "lastTime" -> stringResource(R.string.food_portion_last_time, amount)
+            "piece" -> stringResource(R.string.food_portion_piece, p.count ?: 1, amount)
+            "halfPack" -> stringResource(R.string.food_portion_half_pack, amount)
+            "wholePack" -> if ((p.count ?: 1) > 1 && item.packageAmount != null)
+                stringResource(R.string.food_portion_whole_pack_of, p.count ?: 1, "${gramsText(item.packageAmount)} $unit")
+                else stringResource(R.string.food_portion_whole_pack, amount)
+            else -> amount
+        }
+        Triple(label, p.amount, p.kind in setOf("serving", "piece", "halfPack", "wholePack"))
+    }
+    val chips = choices.map { (label, value, _) -> label to value }
+    val namedChips = choices.filter { it.third }.associate { (label, value, _) -> value to label }
     AlertDialog(onDismissRequest = onDismiss, title = { Text(item.name) }, text = {
         Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
-            OutlinedTextField(text, { text = it }, label = { Text(stringResource(R.string.food_grams)) }, singleLine = true,
-                              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+            OutlinedTextField(text, { text = it },
+                              label = { Text(stringResource(if (item.liquid) R.string.food_millilitres else R.string.food_grams)) },
+                              singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
-                val chips = listOfNotNull(item.servingG?.let { (item.servingLabel ?: "${gramsText(it)} g") to it },
-                                          lastGrams?.let { "${gramsText(it)} g" to it }, "100 g" to 100.0, "50 g" to 50.0)
                 chips.forEach { (label, value) ->
                     Text(label, style = Forge.type.footnote, color = Forge.colors.text,
                          modifier = Modifier.background(Forge.colors.inset, RoundedCornerShape(50)).clickable { text = gramsText(value) }
@@ -1113,7 +1131,9 @@ internal fun FoodPortionDialog(item: CoreFood.Item, lastGrams: Double?, onDismis
         }
     }, confirmButton = {
         TextButton(enabled = grams > 0 && grams <= 10_000, onClick = {
-            val label = item.servingG?.takeIf { abs(it - grams) < 0.01 }?.let { item.servingLabel }
+            // A named choice keeps its name; a drink typed in by hand keeps its millilitres.
+            val label = namedChips.entries.firstOrNull { abs(it.key - grams) < 0.01 }?.value
+                ?: if (item.liquid) "${gramsText(grams)} ml" else null
             onAdd(CoreFood.CartLine(item, grams, label))
         }) { Text(stringResource(R.string.food_add)) }
     }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.food_cancel)) } })

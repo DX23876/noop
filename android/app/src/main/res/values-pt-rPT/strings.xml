@@ -5253,6 +5253,13 @@
     <string name="food_worth_a_look">Vale a pena dar uma olhada</string>
     <string name="food_not_known">desconhecido</string>
     <string name="food_grams">Gramas</string>
+    <string name="food_millilitres">Mililitros</string>
+    <string name="food_portion_one">1 porção (%1$s)</string>
+    <string name="food_portion_last_time">Da última vez %1$s</string>
+    <string name="food_portion_piece">1 de %1$d (%2$s)</string>
+    <string name="food_portion_half_pack">Meia embalagem (%1$s)</string>
+    <string name="food_portion_whole_pack">Embalagem inteira (%1$s)</string>
+    <string name="food_portion_whole_pack_of">Embalagem inteira (%1$d × %2$s)</string>
     <string name="food_goal">Objetivo %1$s kcal</string>
     <string name="food_kcal_left">Faltam %1$s kcal</string>
     <string name="food_kcal_over">%1$s kcal a mais</string>

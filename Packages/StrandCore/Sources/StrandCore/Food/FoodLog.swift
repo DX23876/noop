@@ -395,7 +395,9 @@ public enum FoodLibrary {
                                 nova: food.nova, servingG: food.servingG, servingLabel: food.servingLabel,
                                 per100g: food.per100g.stored, origin: existing?.origin ?? origin,
                                 sourceId: source, createdAt: existing?.createdAt ?? stamp, updatedAt: stamp,
-                                estimatedFrom: food.estimatedFrom, estimatedKeys: food.estimatedKeys ?? [])
+                                estimatedFrom: food.estimatedFrom, estimatedKeys: food.estimatedKeys ?? [],
+                                liquid: food.liquid == true, packageAmount: food.packageAmount,
+                                packageCount: food.packageCount)
         guard (try? await store.saveCustomFood(custom)) == true else { return nil }
         return item(for: custom)
     }
@@ -438,7 +440,8 @@ public enum FoodLibrary {
         FoodItem(id: food.id, source: .own, name: food.name, brand: food.brand, group: food.group, nova: food.nova,
                  servingG: food.servingG, servingLabel: food.servingLabel,
                  per100g: NutrientAmounts(stored: food.per100g), barcode: food.barcode,
-                 estimatedFrom: food.estimatedFrom, estimatedKeys: food.estimatedKeys.isEmpty ? nil : food.estimatedKeys)
+                 estimatedFrom: food.estimatedFrom, estimatedKeys: food.estimatedKeys.isEmpty ? nil : food.estimatedKeys,
+                 liquid: food.liquid ? true : nil, packageAmount: food.packageAmount, packageCount: food.packageCount)
     }
 }
 

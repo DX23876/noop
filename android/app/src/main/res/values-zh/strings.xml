@@ -5221,6 +5221,13 @@
     <string name="food_worth_a_look">值得一看</string>
     <string name="food_not_known">未知</string>
     <string name="food_grams">克</string>
+    <string name="food_millilitres">毫升</string>
+    <string name="food_portion_one">1 份（%1$s）</string>
+    <string name="food_portion_last_time">上次 %1$s</string>
+    <string name="food_portion_piece">%1$d 件中的 1 件（%2$s）</string>
+    <string name="food_portion_half_pack">半包（%1$s）</string>
+    <string name="food_portion_whole_pack">整包（%1$s）</string>
+    <string name="food_portion_whole_pack_of">整包（%1$d × %2$s）</string>
     <string name="food_goal">目标 %1$s 大卡</string>
     <string name="food_kcal_left">还剩 %1$s 大卡</string>
     <string name="food_kcal_over">超出 %1$s 大卡</string>

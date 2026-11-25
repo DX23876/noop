@@ -5228,6 +5228,13 @@
     <string name="food_worth_a_look">Vale la pena dare un\'occhiata</string>
     <string name="food_not_known">sconosciuto</string>
     <string name="food_grams">Grammi</string>
+    <string name="food_millilitres">Millilitri</string>
+    <string name="food_portion_one">1 porzione (%1$s)</string>
+    <string name="food_portion_last_time">L\'ultima volta %1$s</string>
+    <string name="food_portion_piece">1 di %1$d (%2$s)</string>
+    <string name="food_portion_half_pack">Mezza confezione (%1$s)</string>
+    <string name="food_portion_whole_pack">Confezione intera (%1$s)</string>
+    <string name="food_portion_whole_pack_of">Confezione intera (%1$d × %2$s)</string>
     <string name="food_goal">Obiettivo %1$s kcal</string>
     <string name="food_kcal_left">Restano %1$s kcal</string>
     <string name="food_kcal_over">%1$s kcal in più</string>

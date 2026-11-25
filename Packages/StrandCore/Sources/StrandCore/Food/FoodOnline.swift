@@ -15,7 +15,8 @@ public enum FoodOnline {
     public static let minimumQueryLength = 3
 
     static let fields = "code,product_name,product_name_de,product_name_en,generic_name,brands,serving_size,"
-        + "serving_quantity,nova_group,pnns_groups_2,categories_tags,nutriments"
+        + "serving_quantity,nova_group,pnns_groups_2,categories_tags,quantity,product_quantity,product_quantity_unit,"
+        + "nutriments"
 
     /// The fields to ask for, with the product name in the app language when that is neither German nor English,
     /// so a Spanish app reads `product_name_es` where a product has one.
@@ -145,12 +146,21 @@ public enum FoodOnline {
         let group = categories ?? text("pnns_groups_2").flatMap {
             $0 == "unknown" ? nil : $0.lowercased().replacingOccurrences(of: " ", with: "-")
         }
+        // The package, and whether this is a drink. `nutrition_data_per` says "100g" for a cola whose values are
+        // per 100 ml (seen 2026-11-25), so the package's own unit and the drink categories decide.
+        let productQuantity = (json["product_quantity"] as? NSNumber)?.doubleValue
+            ?? (json["product_quantity"] as? String).flatMap { Double($0.replacingOccurrences(of: ",", with: ".")) }
+        let package = FoodPackage.parse(quantity: text("quantity"), productQuantity: productQuantity,
+                                        unit: text("product_quantity_unit"))
+        let liquid = package?.liquid == true || (group?.split(separator: ",").contains { $0.contains("beverage") } ?? false)
         return FoodItem(id: "off:\(code)", source: .online, name: name,
                         brand: text("brands")?.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces),
                         group: group, nova: (json["nova_group"] as? NSNumber)?.intValue,
                         servingG: serving.flatMap { $0 > 0 && $0 <= 5_000 ? $0 : nil }, servingLabel: text("serving_size"),
                         per100g: energy.amounts, barcode: code,
-                        estimatedKeys: energy.filled ? [FoodEnergy.mark] : nil)
+                        estimatedKeys: energy.filled ? [FoodEnergy.mark] : nil,
+                        liquid: liquid ? true : nil, packageAmount: package?.amount,
+                        packageCount: package.map { $0.count })
     }
 }
 

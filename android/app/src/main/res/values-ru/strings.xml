@@ -5240,6 +5240,13 @@
     <string name="food_worth_a_look">Стоит посмотреть</string>
     <string name="food_not_known">неизвестно</string>
     <string name="food_grams">Граммы</string>
+    <string name="food_millilitres">Миллилитры</string>
+    <string name="food_portion_one">1 порция (%1$s)</string>
+    <string name="food_portion_last_time">В прошлый раз %1$s</string>
+    <string name="food_portion_piece">1 из %1$d (%2$s)</string>
+    <string name="food_portion_half_pack">Половина упаковки (%1$s)</string>
+    <string name="food_portion_whole_pack">Вся упаковка (%1$s)</string>
+    <string name="food_portion_whole_pack_of">Вся упаковка (%1$d × %2$s)</string>
     <string name="food_goal">Цель %1$s ккал</string>
     <string name="food_kcal_left">Осталось %1$s ккал</string>
     <string name="food_kcal_over">%1$s ккал сверх</string>

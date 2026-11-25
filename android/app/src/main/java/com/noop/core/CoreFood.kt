@@ -14,6 +14,8 @@ object CoreFood {
         val json: JSONObject, val id: String, val source: String, val name: String, val brand: String?,
         val servingG: Double?, val servingLabel: String?, val per100g: Map<String, Double>, val barcode: String?,
         val estimatedFrom: String? = null, val estimatedCount: Int = 0,
+        /** A drink, measured in millilitres; one package piece and how many the pack holds (core `FoodItem`). */
+        val liquid: Boolean = false, val packageAmount: Double? = null, val packageCount: Int? = null,
     ) {
         fun scaled(grams: Double): Map<String, Double> = per100g.mapValues { it.value * grams / 100.0 }
     }
@@ -56,7 +58,22 @@ object CoreFood {
         json, json.optString("id"), json.optString("source"), json.optString("name"), json.text("brand"),
         json.number("servingG"), json.text("servingLabel"), numbers(json.optJSONObject("per100g")), json.text("barcode"),
         json.text("estimatedFrom"), json.optJSONArray("estimatedKeys")?.length() ?: 0,
+        json.optBoolean("liquid", false), json.number("packageAmount"),
+        json.number("packageCount")?.toInt(),
     )
+
+    /** One choice in the amount dialog, from the core (`FoodPortions`): [kind] is serving, lastTime, piece,
+     *  halfPack, wholePack or amount; [amount] is grams, or millilitres for a drink. */
+    data class Portion(val kind: String, val label: String?, val count: Int?, val amount: Double)
+
+    fun portions(item: Item, lastGrams: Double?): List<Portion> {
+        val args = JSONObject().put("item", item.json)
+        lastGrams?.let { args.put("lastGrams", it) }
+        val array = call("food.portions", args)?.optJSONArray("options") ?: return emptyList()
+        return (0 until array.length()).mapNotNull { i ->
+            array.optJSONObject(i)?.let { Portion(it.optString("kind"), it.text("label"), it.number("count")?.toInt(), it.optDouble("amount")) }
+        }
+    }
 
     private fun entry(json: JSONObject) = Entry(
         json.optString("id"), json.optLong("loggedAt"), json.optString("day"), json.text("meal"), json.text("foodId"),
