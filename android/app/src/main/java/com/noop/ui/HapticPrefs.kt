@@ -34,3 +34,27 @@ object HapticPrefs {
         p(ctx).edit().putBoolean(key, value).apply()
     }
 }
+
+/**
+ * The moments marked with a double-tap (Strap Actions › Double-tap › Recent moments), as the iPhone keeps them: the
+ * timestamps only, at most 500, newest last. A plain list of times, so it lives in preferences like the other
+ * strap-action settings.
+ */
+object MomentsStore {
+    private const val KEY = "moments"
+    private const val LIMIT = 500
+    private fun p(ctx: Context) = ctx.getSharedPreferences("noop_moments", Context.MODE_PRIVATE)
+
+    /** Epoch milliseconds, oldest first. */
+    fun all(ctx: Context): List<Long> =
+        p(ctx).getString(KEY, "").orEmpty().split(',').mapNotNull { it.toLongOrNull() }
+
+    fun add(ctx: Context, epochMs: Long) {
+        val next = (all(ctx) + epochMs).takeLast(LIMIT)
+        p(ctx).edit().putString(KEY, next.joinToString(",")).apply()
+    }
+
+    fun clear(ctx: Context) {
+        p(ctx).edit().remove(KEY).apply()
+    }
+}
