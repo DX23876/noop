@@ -7465,6 +7465,37 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="import_depth_one_year">1 год</string>
     <string name="import_depth_three_years">3 года</string>
     <string name="import_depth_ten_years">10 лет</string>
+    <!-- settings-parity:w2:begin -->
+    <string name="fsw2_bk_blurb">Сохраняй полную резервную копию в выбранную папку. Укажи папку Google Drive или Dropbox, чтобы синхронизировать вне устройства.</string>
+    <string name="fsw2_bk_saving_to">Сохраняется в: %1$s</string>
+    <string name="fsw2_bk_no_folder">Папка ещё не выбрана. Выбери папку, которую уже синхронизирует облачное приложение, или любую локальную.</string>
+    <string name="fsw2_bk_automatic">Автоматически</string>
+    <string name="fsw2_bk_last">Последняя копия: %1$s</string>
+    <string name="fsw2_bk_selected_file">выбранный файл</string>
+    <string name="fsw2_bk_from_date">копию от %1$s</string>
+    <string name="fsw2_bk_time_a11y">Время ежедневной копии</string>
+    <string name="fsw2_bk_done">Копия сохранена в твоей папке.</string>
+    <string name="fsw2_bk_failed">Не удалось сохранить копию. Выбери папку заново и повтори.</string>
+    <string name="fsw2_bk_restored">Копия восстановлена. NOOP перезапускается…</string>
+    <string name="fsw2_bk_selected_folder">выбранная папка</string>
+    <string name="fsw2_lim_title">Что читает NOOP</string>
+    <string name="fsw2_lim_col_mg">5.0/MG</string>
+    <string name="fsw2_lim_blurb">Что NOOP читает с каждого страпа, считается на этом телефоне и без аккаунта.</string>
+    <string name="fsw2_lim_hrv">ВСР (rMSSD)</string>
+    <string name="fsw2_lim_sleep">Фазы сна</string>
+    <string name="fsw2_lim_recovery">Восстановление и нагрузка</string>
+    <string name="fsw2_lim_stress">Стресс (на устройстве)</string>
+    <string name="fsw2_lim_workouts">Распознавание тренировок</string>
+    <string name="fsw2_lim_spo2">Кислород в крови (SpO₂ %)</string>
+    <string name="fsw2_lim_legend">Обозначения</string>
+    <string name="fsw2_lim_legend_full">Читается со страпа вживую</string>
+    <string name="fsw2_lim_legend_partial">Оценка на устройстве или экспериментально / зависит от прошивки</string>
+    <string name="fsw2_lim_legend_none">Не со страпа. SpO₂ можно заполнить, импортировав экспорт WHOOP или «Здоровья».</string>
+    <string name="fsw2_lim_yes">да</string>
+    <string name="fsw2_lim_partly">частично</string>
+    <string name="fsw2_lim_no">нет</string>
+    <string name="fsw2_lim_a11y">%1$s: WHOOP 4.0 %2$s, 5.0/MG %3$s</string>
+    <!-- settings-parity:w2:end -->
     <!-- settings-parity:p1:begin -->
     <string name="fsp1_profile_blurb">На их основе рассчитываются пульсовые зоны, оценка калорий и личные нормы восстановления. Следите, чтобы данные были точными.</string>
     <string name="fsp1_sex_nonbinary">Небинарный</string>

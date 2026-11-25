@@ -379,7 +379,7 @@ private fun InactivityCard() {
 /** A time of day as a chip that opens the clock picker (iOS's compact `DatePicker`), in the wearer's 12 or 24 hour clock. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TimeChip(minutes: Int, description: String, onPicked: (Int) -> Unit) {
+internal fun TimeChip(minutes: Int, description: String, onPicked: (Int) -> Unit) {
     val context = LocalContext.current
     val uses24 = ClockPrefs.uses24Hour(context)
     var open by remember { mutableStateOf(false) }

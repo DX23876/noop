@@ -162,14 +162,14 @@ subtitles are in `Strand/Screens/SettingsSearchCatalog.swift` (`enum SettingsPag
 | `.equipment` | `TrainingEquipmentSettingsView` (private in `SV`) | Training | none in Settings (an equipment dialog sits in `F/ForgeExerciseLibrary.kt`) |
 | `.testCentre` | `TestCentreView` | Strap, Help, Project › Problems | `ForgeSettingsSub.TestCentre` → `U/TestCentreScreen.kt` |
 | `.dashboard(String)` | `DashboardLayoutEditor` | Today & Trends (macOS) | PLATFORM |
-| `.backupSync` | `BackupSyncView` | Data & Backup | `ForgeSettingsSub.BackupSync` → `U/BackupSyncScreen.kt` |
+| `.backupSync` | `BackupSyncView` | Data & Backup | `ForgeSettingsSub.BackupSync` → `F/ForgeSettingsBackupSync.kt` (wave 2; the classic `U/BackupSyncScreen.kt` stays for the classic UI) |
 | `.appleWatchData` | `AppleWatchAboutView` | Help | PLATFORM |
 | `.storage` | `StorageView` | Data & Backup | none |
 | `.heartRateSharing` | `HeartRateSharingView` | Strap | `U/DataSourcesScreen.kt` ("Broadcast HR from this phone") and `SSC` Advanced card |
 | `.appleHealth` | `AppleHealthView` | Data & Backup | PLATFORM (Android: Health Connect, `U/DataSourcesScreen.kt`) |
 | `.dataSources` | `DataSourcesView` | Data & Backup | `ForgeSettingsSub.DataSources` → `U/DataSourcesScreen.kt` |
 | `.shortcutsExport` | `ShortcutExportSettingsView` | Data & Backup (iOS) | PLATFORM |
-| `.noopLimitations` | `NoopLimitationsView` | Help | `ForgeSettingsSub.Limitations` → `U/NoopLimitationsScreen.kt` |
+| `.noopLimitations` | `NoopLimitationsView` | Help | `ForgeSettingsSub.Limitations` → `F/ForgeSettingsLimitations.kt` (wave 2) |
 
 Sheets: `whatsNew` (`WhatsNewView`), `scoringGuide` (`ScoringGuideView`), `acknowledgements` (`AcknowledgementsView`),
 `howNoopWorks` (`HowNoopWorksView`), `appleWatchSetup` (`AppleWatchSetupView`), `heartRateZones` (`HRZoneEditorSheet`,
@@ -483,12 +483,12 @@ alone is 1,402 lines and the Android one 1,404).
 
 | ID | iOS screen | Android counterpart | Status | Notes |
 |---|---|---|---|---|
-| SUB-01 | `TestCentreView` (probe toggles, recalibrate, skin-temp backfill, scheduled export, test modes, raw-data collector, protocol diagnostics, experimental algorithms, Oura options, report-a-bug flow) | `U/TestCentreScreen.kt` `TestCentreScreen` | SAME | Screen-level. Both repos keep them in step (`Tools/test_android_ios_parity.py`). |
-| SUB-02 | `BackupSyncView` (folder, daily auto-backup, keep last N, Back up now, Restore from a backup…) | `U/BackupSyncScreen.kt` `BackupSyncScreen` | SAME | Android adds "Backup time" (A-17). iOS "NOOP's own folder (Files)" and "Move to iCloud Drive" are PLATFORM. |
-| SUB-03 | `DataSourcesView` | `U/DataSourcesScreen.kt` `DataSourcesScreen` | SAME | Screen-level. |
+| SUB-01 | `TestCentreView` (probe toggles, recalibrate, skin-temp backfill, scheduled export, test modes, raw-data collector, protocol diagnostics, experimental algorithms, Oura options, report-a-bug flow) | `U/TestCentreScreen.kt` `TestCentreScreen` | SAME | Wave 2: NOT rebuilt. The iOS Forge skin regroups the screen into a list (Report a problem, Testing, Maintenance, Experimental) with sub-pages, and the Android cards that would move (probes, bond traces, ECG, history-sync experiments, A-19) drive the strap and cannot be verified without one. Still the classic screen under the Forge palette; the regrouping is the next step. Both repos keep them in step (`Tools/test_android_ios_parity.py`). |
+| SUB-02 | `BackupSyncView` (folder, daily auto-backup, keep last N, Back up now, Restore from a backup…) | `F/ForgeSettingsBackupSync.kt` `BackupSyncSettingsPage` | SAME | Closed by wave 2: grouped Settings cards (Backup folder, Automatic, Back up now, Restore with its warning footer), the classic screen's state and calls (SAF folder, `BackupSyncPrefs`, `BackupSync`, `DataBackup`), Forge dialogs for the snapshot picker, the replace confirmation and the failure text. Android adds "Backup time" (A-17). iOS "NOOP's own folder (Files)" and "Move to iCloud Drive" are PLATFORM. |
+| SUB-03 | `DataSourcesView` | `U/DataSourcesScreen.kt` `DataSourcesScreen` | SAME | Wave 2: iOS draws this page in the Forge skin as the same source cards (not grouped Settings rows), so the screen stays one file and takes the Forge look inside the Settings host: live strap card first, no card tint, a solid 40 dp tile per source with the glyph on it, semibold subhead titles, secondary import buttons. Every import path and Android-only card (Health Connect, broadcast HR, Mi Band) is unchanged. |
 | SUB-04 | `StorageView` | `F/ForgeSettingsStorage.kt` | SAME | See DB-09. |
 | SUB-05 | `HeartRateSharingView` | `U/DataSourcesScreen.kt` card + `SSC` Advanced switch | SAME | Closed by package 2: see S-09. Was: See S-09. |
-| SUB-06 | `NoopLimitationsView` | `U/NoopLimitationsScreen.kt` | SAME | Screen-level. |
+| SUB-06 | `NoopLimitationsView` | `F/ForgeSettingsLimitations.kt` | SAME | Closed by wave 2: the capability grid and legend as two Settings cards, the marks of the classic screen, the "not from the strap" mark in the quiet grey iOS uses, every label a string resource. |
 | SUB-07 | `HowNoopWorksView`, `ScoringGuideView`, `WhatsNewView` | `HowNoopWorksScreen`, `ScoringGuideScreen`, `WhatsNewSheet` | SAME | Screen-level. |
 | SUB-08 | `ExerciseMediaManagementView` | `F/ForgeExerciseMedia.kt` (`ForgeExerciseMediaSettings`) | SAME | Screen-level. |
 | SUB-09 | `StepsCalibrationSheet` (explainer, current fit, estimate vs phone table, manual coefficient slider) | `U/StepsCalibrationScreen.kt` | SAME | Screen-level; entry is the problem (S-11). |

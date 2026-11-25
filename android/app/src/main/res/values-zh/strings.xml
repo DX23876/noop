@@ -7401,6 +7401,37 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="import_depth_one_year">1 年</string>
     <string name="import_depth_three_years">3 年</string>
     <string name="import_depth_ten_years">10 年</string>
+    <!-- settings-parity:w2:begin -->
+    <string name="fsw2_bk_blurb">将完整备份保存到你选择的文件夹。指向 Google Drive 或 Dropbox 即可在设备之外同步。</string>
+    <string name="fsw2_bk_saving_to">保存到:%1$s</string>
+    <string name="fsw2_bk_no_folder">尚未选择文件夹。请选择云应用已在同步的文件夹,或任意本地文件夹。</string>
+    <string name="fsw2_bk_automatic">自动</string>
+    <string name="fsw2_bk_last">上次备份:%1$s</string>
+    <string name="fsw2_bk_selected_file">所选文件</string>
+    <string name="fsw2_bk_from_date">%1$s 的备份</string>
+    <string name="fsw2_bk_time_a11y">每日备份时间</string>
+    <string name="fsw2_bk_done">已备份到你的文件夹。</string>
+    <string name="fsw2_bk_failed">备份失败。请重新选择文件夹后再试。</string>
+    <string name="fsw2_bk_restored">备份已恢复,正在重启 NOOP…</string>
+    <string name="fsw2_bk_selected_folder">所选文件夹</string>
+    <string name="fsw2_lim_title">NOOP 读取的内容</string>
+    <string name="fsw2_lim_col_mg">5.0/MG</string>
+    <string name="fsw2_lim_blurb">NOOP 从每条 Strap 读取的内容,在这部手机上计算,无需账号。</string>
+    <string name="fsw2_lim_hrv">HRV (rMSSD)</string>
+    <string name="fsw2_lim_sleep">睡眠分期</string>
+    <string name="fsw2_lim_recovery">恢复与负荷</string>
+    <string name="fsw2_lim_stress">压力(设备端)</string>
+    <string name="fsw2_lim_workouts">运动检测</string>
+    <string name="fsw2_lim_spo2">血氧(SpO₂ %)</string>
+    <string name="fsw2_lim_legend">图例</string>
+    <string name="fsw2_lim_legend_full">直接从 Strap 实时读取</string>
+    <string name="fsw2_lim_legend_partial">设备端估算,或实验性 / 取决于固件</string>
+    <string name="fsw2_lim_legend_none">不来自 Strap。可导入 WHOOP 或健康数据导出来补全 SpO₂。</string>
+    <string name="fsw2_lim_yes">是</string>
+    <string name="fsw2_lim_partly">部分</string>
+    <string name="fsw2_lim_no">否</string>
+    <string name="fsw2_lim_a11y">%1$s:WHOOP 4.0 %2$s,5.0/MG %3$s</string>
+    <!-- settings-parity:w2:end -->
     <!-- settings-parity:p1:begin -->
     <string name="fsp1_profile_blurb">这些数据为你的心率区间、卡路里估算和恢复基线提供支撑。请保持它们准确。</string>
     <string name="fsp1_sex_nonbinary">非二元性别</string>

@@ -682,10 +682,10 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
         ForgeSettingsSub.HowScores -> HowScoresPage(viewModel, onBack, stringResource(sub.titleRes))
         ForgeSettingsSub.ModelComparison -> Hosted(stringResource(sub.titleRes), onBack) { WhoopModelComparisonScreen(onClose = onBack) }
         ForgeSettingsSub.WhatsNew -> Hosted(stringResource(sub.titleRes), onBack) { WhatsNewSheet(onClose = onBack) }
-        ForgeSettingsSub.BackupSync -> Hosted(stringResource(sub.titleRes), onBack) { BackupSyncScreen() }
+        ForgeSettingsSub.BackupSync -> BackupSyncSettingsPage(onBack)
         ForgeSettingsSub.DataSources -> Hosted(stringResource(sub.titleRes), onBack) { DataSourcesScreen(viewModel) }
         ForgeSettingsSub.SelfHostedPush -> Hosted(stringResource(sub.titleRes), onBack) { SelfHostedPushScreen() }
-        ForgeSettingsSub.Limitations -> Hosted(stringResource(sub.titleRes), onBack) { NoopLimitationsScreen() }
+        ForgeSettingsSub.Limitations -> LimitationsSettingsPage(stringResource(sub.titleRes), onBack)
         ForgeSettingsSub.TestCentre -> Hosted(stringResource(sub.titleRes), onBack) { TestCentreScreen(viewModel) }
         ForgeSettingsSub.Acknowledgements -> AcknowledgementsPage(onBack)
         ForgeSettingsSub.ExerciseMedia -> ForgeExerciseMediaSettings(onBack)
