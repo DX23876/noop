@@ -79,7 +79,7 @@ final class ProjectReportModel: ObservableObject {
     }
 
     func load() async {
-        let page = await ProjectPageStore(directory: RoadmapModel.cacheDirectory).cached()
+        let page = await ProjectPageStore(directory: RoadmapModel.cacheDirectory).forWriting()
         let service = ProjectService(service: page.service)
         self.service = service
         canWrite = await service.isAvailable

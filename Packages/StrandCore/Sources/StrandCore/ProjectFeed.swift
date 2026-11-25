@@ -311,6 +311,15 @@ public actor ProjectPageStore {
         return box.page
     }
 
+    /// The page a write should use: the cached copy when it already knows the service's address, else a
+    /// fresh read. Writes used to take the cache alone, so a device whose cache was empty or predated the
+    /// address told the wearer sending was switched off while the switch was on (tester report,
+    /// 2026-11-24). A read that fails still returns the cache, and the write then says nothing answered.
+    public func forWriting(now: Date = Date()) async -> ProjectPage {
+        let page = cached()
+        return page.service != nil ? page : await refresh(now: now)
+    }
+
     /// Fetch both files and keep the result. Returns the cached page when the read fails, so a caller
     /// has one path and never has to decide what to show on an error.
     public func refresh(now: Date = Date()) async -> ProjectPage {

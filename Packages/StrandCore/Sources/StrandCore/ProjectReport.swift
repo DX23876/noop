@@ -176,7 +176,7 @@ extension ProjectService {
     /// gets no way back, which is the point of asking for it.
     public func report(text: String, wantsThread: Bool = true,
                        language: String = ProjectService.currentLanguage) async -> ProjectReportResult {
-        guard let service = endpoint else { return .failed(.notSending) }
+        guard let service = endpoint else { return .failed(closedReason) }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed.count <= ProjectService.maximumReport else {
             return .failed(.refused)
@@ -227,7 +227,7 @@ extension ProjectService {
 
     /// The reporter answering a question.
     public func reply(code: String, text: String) async -> ProjectServiceResult {
-        guard let service = endpoint else { return .failed(.notSending) }
+        guard let service = endpoint else { return .failed(closedReason) }
         guard ProjectService.isReportCode(code) else { return .refused }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed.count <= ProjectService.maximumReply else { return .refused }
@@ -237,14 +237,14 @@ extension ProjectService {
 
     /// Taking it back: the log is deleted, the thread closed, the code stops working.
     public func withdraw(code: String) async -> ProjectServiceResult {
-        guard let service = endpoint else { return .failed(.notSending) }
+        guard let service = endpoint else { return .failed(closedReason) }
         guard ProjectService.isReportCode(code) else { return .refused }
         return await post(service.appendingPathComponent("v1/report/withdraw"), body: ["code": code])
     }
 
     /// The redacted bundle, by the same two steps the donation uses: ask where, then put it there.
     public func sendLog(code: String, data: Data) async -> ProjectServiceResult {
-        guard let service = endpoint else { return .failed(.notSending) }
+        guard let service = endpoint else { return .failed(closedReason) }
         guard ProjectService.isReportCode(code) else { return .refused }
         guard !data.isEmpty, data.count <= ProjectService.maximumLogBytes else { return .refused }
         let asked = await ask(service.appendingPathComponent("v1/report-log-url"),

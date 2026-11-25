@@ -55,7 +55,7 @@ struct RawDonationView: View {
             }
         }
         .task {
-            service = await ProjectPageStore(directory: RoadmapModel.cacheDirectory).cached().service
+            service = await ProjectPageStore(directory: RoadmapModel.cacheDirectory).forWriting().service
         }
         .confirmationDialog("Delete this recording?",
                             isPresented: Binding(get: { deleting != nil },
