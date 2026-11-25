@@ -27,6 +27,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -79,6 +80,8 @@ import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.UnfoldMore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -152,6 +155,10 @@ import com.noop.ui.setAppIcon
 import com.noop.ui.waistCmStep
 import com.noop.ui.waistInchesStep
 import com.noop.ui.AppLanguage
+import com.noop.ui.AccentColor
+import com.noop.ui.AccentPrefs
+import com.noop.ui.ChartStyle
+import com.noop.ui.ChartStylePrefs
 import com.noop.ui.AppLanguagePrefs
 import com.noop.ui.AppearanceMode
 import com.noop.ui.AppearancePrefs
@@ -192,6 +199,14 @@ internal fun LanguageUnitsSection(context: Context, change: (() -> Unit) -> Unit
                       },
                       onSelect = { change { ClockPrefs.setPreference(context, it) } })
         }
+        RowDivider()
+        // The first day of the week (iOS `TrainingWeekStart`): training, the weekly review and the week strips follow it.
+        SettingRow(stringResource(R.string.fsp4_week_start)) {
+            Segmented(listOf(false, true), WeekStartPrefs.sundayFirst(context),
+                      label = { stringResource(if (it) R.string.fsp4_sunday else R.string.fsp4_monday) },
+                      onSelect = { sunday -> change { WeekStartPrefs.set(context, sunday) } })
+        }
+        Text(stringResource(R.string.fsp4_week_start_note), style = Forge.type.caption, color = Forge.colors.textSecondary)
     }
     SettingsCard(title = stringResource(R.string.l10n_settings_screen_units_12748281),
                  blurb = stringResource(R.string.forge_settings_units_blurb)) {
@@ -266,10 +281,59 @@ internal fun LanguageUnitsSection(context: Context, change: (() -> Unit) -> Unit
     }
 }
 
+/**
+ * iOS's `ThemePreset`: a one-tap bundle of accent, chart colours, sky and card transparency. Nothing is stored; the
+ * name shown is the first recipe the live settings match, or Custom. A null [chart] leaves the chart colours alone
+ * (Apple Health's own palette has no Android counterpart) and matches whatever they are.
+ */
+internal enum class ThemePresetChoice(val labelRes: Int, val accent: String, val chart: ChartStyle?, val sky: Boolean, val opacity: Int) {
+    Health(R.string.fsp4_preset_health, "systemBlue", null, false, 100),
+    Mint(R.string.forge_ap_mint, "mint", ChartStyle.TITANIUM, true, 100),
+    Ocean(R.string.fsp4_preset_ocean, "whoopBlue", ChartStyle.TITANIUM, true, 100),
+    Classic(R.string.forge_ap_classic, "whoopBlue", ChartStyle.CLASSIC, true, 100),
+    Midnight(R.string.fsp4_preset_midnight, "mint", ChartStyle.TITANIUM, false, 100),
+    Frosted(R.string.fsp4_preset_frosted, "mint", ChartStyle.TITANIUM, true, 85);
+
+    companion object {
+        fun matching(accent: String, chart: ChartStyle, sky: Boolean, opacity: Int): ThemePresetChoice? =
+            entries.firstOrNull { it.accent == accent && (it.chart == null || it.chart == chart) && it.sky == sky && it.opacity == opacity }
+    }
+}
+
+/** A choice from a menu: the current one in the accent, the options under it (iOS's `.pickerStyle(.menu)`). */
+@Composable
+internal fun <T> MenuPicker(current: String, options: List<T>, label: @Composable (T) -> String, onSelect: (T) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        Text(current, style = Forge.type.body, color = Forge.colors.accent,
+             modifier = Modifier.clickable(role = Role.Button) { open = true }.padding(vertical = 8.dp))
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            options.forEach { option -> DropdownMenuItem(text = { Text(label(option)) }, onClick = { open = false; onSelect(option) }) }
+        }
+    }
+}
+
 @Composable
 internal fun AppearanceSection(change: (() -> Unit) -> Unit) {
     val context = LocalContext.current
     SettingsCard(title = null, blurb = null) {
+        // The preset first, as iOS: recipes of accent, chart colours, sky and card transparency, derived from the live
+        // settings, so changing any of them below turns the name into Custom.
+        val matching = ThemePresetChoice.matching(ForgeAccent.raw, ChartStylePrefs.style, ForgeBackground.dayCycle,
+                                                  (CardAppearance.opacity * 100).roundToInt())
+        SettingRow(stringResource(R.string.fsp4_preset)) {
+            MenuPicker(stringResource(matching?.labelRes ?: R.string.forge_ap_custom), ThemePresetChoice.entries.toList(),
+                       label = { stringResource(it.labelRes) },
+                       onSelect = { p ->
+                           change {
+                               ForgeAccent.set(context, p.accent)
+                               p.chart?.let { ChartStylePrefs.set(context, it) }
+                               ForgeBackground.setDayCycle(context, p.sky)
+                               ForgeBackground.setCardOpacity(context, p.opacity)
+                           }
+                       })
+        }
+        RowDivider()
         SettingRow(stringResource(R.string.l10n_settings_screen_theme_a797e309)) {
             Segmented(listOf(AppearanceMode.SYSTEM, AppearanceMode.LIGHT, AppearanceMode.DARK), AppearancePrefs.mode,
                       label = {
@@ -280,13 +344,6 @@ internal fun AppearanceSection(change: (() -> Unit) -> Unit) {
                           }
                       },
                       onSelect = { change { AppearancePrefs.set(context, it) } })
-        }
-        RowDivider()
-        // The launcher icon swaps manifest aliases through the classic helper; the launcher may take a moment.
-        SettingRow(stringResource(R.string.l10n_settings_screen_app_icon_abde7a74)) {
-            Segmented(listOf(false, true), NoopPrefs.appIconNavy(context),
-                      label = { stringResource(if (it) R.string.forge_settings_icon_blue else R.string.forge_settings_icon_titanium) },
-                      onSelect = { navy -> change { setAppIcon(context, navy) } })
         }
         // The new design's colour profiles, as iOS's Design card: colourful by default, Stone, Slate and Sage calm.
         if (ForgeDesign.preview) {
@@ -299,25 +356,46 @@ internal fun AppearanceSection(change: (() -> Unit) -> Unit) {
                               ForgeColorProfile.Slate -> R.string.forge_ap_slate
                               ForgeColorProfile.Sage -> R.string.forge_ap_sage
                           }) },
-                          onSelect = { change { ForgeColorProfile.set(context, it) } })
+                          onSelect = { profile ->
+                              change {
+                                  // The profile brings its backdrop along, as on iOS: the sky under Colorful, none under
+                                  // the calm ones; the switch stays the wearer's after that.
+                                  ForgeColorProfile.set(context, profile)
+                                  ForgeBackground.setDayCycle(context, profile == ForgeColorProfile.Colorful)
+                              }
+                          })
             }
             // iOS shows the accent choice only for the colourful profile; the calm ones bring their own.
             if (ForgeColorProfile.current == ForgeColorProfile.Colorful) {
                 RowDivider()
+                val accents = listOf("systemBlue", "mint", "whoopBlue", "custom")
+                val accentLabel: @Composable (String) -> String = { stringResource(when (it) {
+                    "mint" -> R.string.forge_ap_mint
+                    "whoopBlue" -> R.string.forge_ap_whoop_blue
+                    "custom" -> R.string.forge_ap_custom
+                    else -> R.string.forge_ap_system_blue
+                }) }
                 SettingRow(stringResource(R.string.forge_ap_accent)) {
-                    // A custom colour chosen in the classic settings stays visible as its own choice, so the row never
-                    // claims System Blue while the app wears another colour.
-                    val accents = listOf("systemBlue", "mint", "whoopBlue") + listOfNotNull("custom".takeIf { ForgeAccent.raw == it })
-                    Segmented(accents, ForgeAccent.raw.takeIf { it in accents } ?: "systemBlue",
-                              label = { stringResource(when (it) {
-                                  "mint" -> R.string.forge_ap_mint
-                                  "whoopBlue" -> R.string.forge_ap_whoop_blue
-                                  "custom" -> R.string.forge_ap_custom
-                                  else -> R.string.forge_ap_system_blue
-                              }) },
-                              onSelect = { change { ForgeAccent.set(context, it) } })
+                    val chosen = ForgeAccent.raw.takeIf { it in accents } ?: "systemBlue"
+                    MenuPicker(accentLabel(chosen), accents, label = accentLabel, onSelect = { change { ForgeAccent.set(context, it) } })
+                }
+                // The colour itself, only while the accent is Custom (iOS shows its colour well then).
+                if (ForgeAccent.raw == "custom") {
+                    RowDivider()
+                    SettingRow(stringResource(R.string.fsp4_custom_colour)) {
+                        Box(Modifier.size(28.dp).background(Forge.colors.accent, CircleShape)
+                                .border(ForgeMetrics.hairline, Forge.colors.border, CircleShape))
+                    }
+                    ForgeColorWell(AccentPrefs.customHex) { hex -> change { AccentPrefs.setCustomHex(context, hex) } }
                 }
             }
+        }
+        RowDivider()
+        // The launcher icon swaps manifest aliases through the classic helper; the launcher may take a moment.
+        SettingRow(stringResource(R.string.l10n_settings_screen_app_icon_abde7a74)) {
+            Segmented(listOf(false, true), NoopPrefs.appIconNavy(context),
+                      label = { stringResource(if (it) R.string.forge_settings_icon_blue else R.string.forge_settings_icon_titanium) },
+                      onSelect = { navy -> change { setAppIcon(context, navy) } })
         }
     }
     BackgroundCard()
@@ -334,6 +412,10 @@ internal fun AppearanceSection(change: (() -> Unit) -> Unit) {
                       onSelect = { change { ScoreRingStyle.set(context, it) } })
         }
         Text(stringResource(R.string.forge_ap_rings_note), style = Forge.type.caption, color = Forge.colors.textTertiary)
+        RowDivider()
+        // The coach button's slow pulse (iOS `CoachTilePrefs.breathingKey`); Reduce motion above still holds it still.
+        ToggleRow(stringResource(R.string.fsp4_coach_animation), stringResource(R.string.fsp4_coach_animation_note),
+                  CoachBreathPrefs.enabled(context)) { on -> change { CoachBreathPrefs.set(context, on) } }
     }
 }
 
@@ -416,6 +498,20 @@ private fun BackgroundCard() {
             Text(stringResource(R.string.forge_settings_card_transparency_detail), style = Forge.type.caption,
                  color = Forge.colors.textTertiary)
         }
+        // Today's own surfaces over the day's picture, shown as transparency like the slider above (iOS, new design).
+        if (ForgeDesign.preview) {
+            RowDivider()
+            val todayTransparency = 100 - TodaySurfacePrefs.percent(context)
+            SettingRow(stringResource(R.string.fsp4_today_transparency)) {
+                Text(stringResource(R.string.forge_percent, todayTransparency), style = Forge.type.bodyNumber, color = Forge.colors.accent)
+            }
+            Slider(value = todayTransparency.toFloat(), valueRange = 0f..100f, steps = 19,
+                   onValueChange = { TodaySurfacePrefs.set(context, 100 - it.roundToInt()) },
+                   colors = SliderDefaults.colors(thumbColor = Forge.colors.accent, activeTrackColor = Forge.colors.accent))
+            Text(stringResource(R.string.fsp4_today_transparency_note), style = Forge.type.caption, color = Forge.colors.textTertiary)
+        }
+        RowDivider()
+        BackgroundPhotoControls()
     }
 }
 

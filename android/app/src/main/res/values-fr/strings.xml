@@ -7471,6 +7471,28 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <!-- settings-parity spacer 3b -->
     <!-- settings-parity spacer 3c -->
     <!-- settings-parity:p4:begin -->
+    <string name="fsp4_week_start">Début de semaine</string>
+    <string name="fsp4_monday">Lundi</string>
+    <string name="fsp4_sunday">Dimanche</string>
+    <string name="fsp4_week_start_note">Utilisé par l\'entraînement, le bilan de la semaine, Tendances et le calendrier des objectifs.</string>
+    <string name="fsp4_preset">Préréglage</string>
+    <string name="fsp4_preset_health">Apple Santé</string>
+    <string name="fsp4_preset_ocean">Ocean</string>
+    <string name="fsp4_preset_midnight">Minuit</string>
+    <string name="fsp4_preset_frosted">Frosted</string>
+    <string name="fsp4_custom_colour">Couleur personnalisée</string>
+    <string name="fsp4_today_transparency">Transparence sur Aujourd\'hui</string>
+    <string name="fsp4_today_transparency_note">Quelle part de l\'image du jour transparaît à travers les tuiles et les notes sur Aujourd\'hui. Gauche = opaque, droite = transparent.</string>
+    <string name="fsp4_bg_fill">Rempli</string>
+    <string name="fsp4_bg_fit">Ajuster</string>
+    <string name="fsp4_bg_stretch">Étirer</string>
+    <string name="fsp4_bg_tile">Mosaïque</string>
+    <string name="fsp4_bg_fit_label">Ajuster</string>
+    <string name="fsp4_bg_custom_photo">Photo personnelle</string>
+    <string name="fsp4_bg_problem">NOOP n’a pas pu lire cette image. Essayez une autre photo ou un fichier JPEG ou PNG.</string>
+    <string name="fsp4_bg_photo_note">Votre propre photo derrière chaque écran, à la place du ciel. Elle reste sur ce téléphone et n\'est jamais envoyée. Activez Cartes transparentes pour qu\'elle transparaisse.</string>
+    <string name="fsp4_coach_animation">Animation du Coach</string>
+    <string name="fsp4_coach_animation_note">Le bouton du Coach sur Aujourd\'hui pulse doucement. Désactivé, il reste immobile.</string>
     <!-- settings-parity:p4:end -->
     <!-- settings-parity spacer 4a -->
     <!-- settings-parity spacer 4b -->

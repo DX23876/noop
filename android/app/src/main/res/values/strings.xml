@@ -7516,6 +7516,28 @@ Plotting each series as change from its own first reading puts them on one scale
     <!-- settings-parity spacer 3b -->
     <!-- settings-parity spacer 3c -->
     <!-- settings-parity:p4:begin -->
+    <string name="fsp4_week_start">Week start</string>
+    <string name="fsp4_monday">Monday</string>
+    <string name="fsp4_sunday">Sunday</string>
+    <string name="fsp4_week_start_note">Used by training, the weekly review, Trends and the goal calendar.</string>
+    <string name="fsp4_preset">Preset</string>
+    <string name="fsp4_preset_health">Apple Health</string>
+    <string name="fsp4_preset_ocean">Ocean</string>
+    <string name="fsp4_preset_midnight">Midnight</string>
+    <string name="fsp4_preset_frosted">Frosted</string>
+    <string name="fsp4_custom_colour">Custom colour</string>
+    <string name="fsp4_today_transparency">Transparency on Today</string>
+    <string name="fsp4_today_transparency_note">How much of the day\'s picture shows through the tiles and notes on Today. Left = solid, right = clear.</string>
+    <string name="fsp4_bg_fill">Fill</string>
+    <string name="fsp4_bg_fit">Fit</string>
+    <string name="fsp4_bg_stretch">Stretch</string>
+    <string name="fsp4_bg_tile">Tile</string>
+    <string name="fsp4_bg_fit_label">Fit</string>
+    <string name="fsp4_bg_custom_photo">Custom photo</string>
+    <string name="fsp4_bg_problem">NOOP couldn\'t read that image. Try another photo or a JPEG or PNG file.</string>
+    <string name="fsp4_bg_photo_note">Your own photo behind every screen, in place of the sky. It stays on this phone and is never uploaded. Turn on Transparent cards to let it show through.</string>
+    <string name="fsp4_coach_animation">Coach animation</string>
+    <string name="fsp4_coach_animation_note">The coach button on Today pulses gently. Off keeps it still.</string>
     <!-- settings-parity:p4:end -->
     <!-- settings-parity spacer 4a -->
     <!-- settings-parity spacer 4b -->

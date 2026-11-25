@@ -64,12 +64,13 @@ fun ForgeStrengthPage(onClose: () -> Unit) {
     var editor by remember { mutableStateOf<CoreTrainingReports.GenericSession?>(null) }
     var mapping by remember { mutableStateOf<String?>(null) }
     var feedback by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(days, weekOffset, exerciseId, revision) {
+    val sundayFirst = WeekStartPrefs.sundayFirst(context)
+    LaunchedEffect(days, weekOffset, exerciseId, revision, sundayFirst) {
         loaded = false
         report = withContext(Dispatchers.IO) {
             CoreRead.open(context)
             CoreTrainingReports.strength(days, weekOffset, exerciseId,
-                firstWeekday = if (NoopPrefs.of(context).getString("training.weekStartsOn", null) == "sunday") 1 else 2,
+                firstWeekday = if (sundayFirst) 1 else 2,
                 dismissedWorkouts = dismissedTrainingWorkouts(context))
         }
         loaded = true

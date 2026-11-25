@@ -154,7 +154,7 @@ internal fun TodayWeekPlanForge(viewModel: AppViewModel, onOpen: () -> Unit) {
     val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
     val zone = ZoneId.systemDefault()
     val today = com.noop.ui.logicalDayNow()
-    val sundayFirst = remember { NoopPrefs.of(context).getString("training.weekStartsOn", null) == "sunday" }
+    val sundayFirst = WeekStartPrefs.sundayFirst(context)
     val start = if (sundayFirst) today.minusDays((today.dayOfWeek.value % 7).toLong())
                 else today.minusDays((today.dayOfWeek.value - 1).toLong())
     val days = (0L until 7L).map { start.plusDays(it) }

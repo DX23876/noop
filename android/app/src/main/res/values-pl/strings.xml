@@ -7525,6 +7525,28 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <!-- settings-parity spacer 3b -->
     <!-- settings-parity spacer 3c -->
     <!-- settings-parity:p4:begin -->
+    <string name="fsp4_week_start">Początek tygodnia</string>
+    <string name="fsp4_monday">Poniedziałek</string>
+    <string name="fsp4_sunday">Niedziela</string>
+    <string name="fsp4_week_start_note">Używane przez trening, podsumowanie tygodnia, Trendy i kalendarz celów.</string>
+    <string name="fsp4_preset">Wstępnie ustawione</string>
+    <string name="fsp4_preset_health">Apple Health</string>
+    <string name="fsp4_preset_ocean">Ocean</string>
+    <string name="fsp4_preset_midnight">Północ</string>
+    <string name="fsp4_preset_frosted">Matowe</string>
+    <string name="fsp4_custom_colour">Własny kolor</string>
+    <string name="fsp4_today_transparency">Przezroczystość na ekranie Dziś</string>
+    <string name="fsp4_today_transparency_note">Jak bardzo obraz dnia prześwituje przez kafelki i notatki na ekranie Dziś. Lewo = pełne, prawo = przezroczyste.</string>
+    <string name="fsp4_bg_fill">Wypełnić</string>
+    <string name="fsp4_bg_fit">Dopasuj</string>
+    <string name="fsp4_bg_stretch">Rozciągnij</string>
+    <string name="fsp4_bg_tile">Kafelek</string>
+    <string name="fsp4_bg_fit_label">Dopasuj</string>
+    <string name="fsp4_bg_custom_photo">Własne zdjęcie</string>
+    <string name="fsp4_bg_problem">NOOP nie mógł odczytać tego obrazu. Spróbuj użyć innego zdjęcia albo pliku JPEG lub PNG.</string>
+    <string name="fsp4_bg_photo_note">Twoje własne zdjęcie za każdym ekranem zamiast nieba. Zostaje na tym telefonie i nigdy nie jest wysyłane. Włącz Przezroczyste karty, aby przeświecało.</string>
+    <string name="fsp4_coach_animation">Animacja Coacha</string>
+    <string name="fsp4_coach_animation_note">Przycisk Coacha na Dzisiaj delikatnie pulsuje. Wyłączone pozostawia go w bezruchu.</string>
     <!-- settings-parity:p4:end -->
     <!-- settings-parity spacer 4a -->
     <!-- settings-parity spacer 4b -->

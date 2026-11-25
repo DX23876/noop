@@ -25,15 +25,15 @@ Counts of iOS items by status (section 2; 23 Android-only items are listed separ
 | 2.9 Today & Trends | 2 | 0 | 0 | 1 |
 | 2.10 AI Coach | 3 | 3 | 1 | 1 |
 | 2.11 Siri & Shortcuts | 0 | 0 | 0 | 1 |
-| 2.12 Language & Units | 8 | 0 | 1 | 0 |
-| 2.13 Appearance | 8 | 2 | 12 | 1 |
+| 2.12 Language & Units | 9 | 0 | 0 | 0 |
+| 2.13 Appearance | 15 | 0 | 7 (written exceptions) | 1 |
 | 2.14 Calculations | 4 | 1 | 3 | 0 |
 | 2.15 Data & Backup | 5 | 2 | 1 | 2 |
 | 2.16 Help & Diagnostics | 4 | 1 | 0 | 2 |
 | 2.17 Lab | 4 | 2 | 1 | 1 |
 | 2.18 Screens below the pages (compared at screen level only) | 7 | 4 | 1 | 1 |
 | 2.19 About | 3 | 4 | 3 | 0 |
-| **Total (202 items)** | **101** | **52** | **32** | **17** |
+| **Total (202 items)** | **109** | **50** | **26** | **17** |
 
 Things worth knowing before starting:
 
@@ -377,7 +377,7 @@ work is expected unless a row below says so.
 |---|---|---|---|---|
 | LU-01 | Language picker (System default + autonyms of `AppLanguage.allCases`) + note "takes effect after you reopen" | `LanguageUnitsSection` dialog over `AppLanguage.entries`; recreates the activity at once | SAME | Behaviour differs by platform; no note needed on Android. `U/AppLanguage.kt` has uncommitted edits in the main checkout (see section 5.4). |
 | LU-02 | Clock: System default / 12-hour / 24-hour | `LanguageUnitsSection` (`ClockPrefs`) | SAME | |
-| LU-03 | Week start: Monday / Sunday + note "Used by training, the weekly review, Trends and the goal calendar" (`training.weekStartsOn`) | none | MISSING | Surprising: five Android files already READ `training.weekStartsOn` (`ForgeWorkouts`, `ForgeStrengthOverview`, `ForgeTodayMoreWidgets`, `ForgeTrainingReports`, `FSGT`) and the core takes it as a call argument (`training.snapshot`), but no Android screen writes it, so Android is always Monday-first. Work: one `Segmented` row writing the key. Decide whether to add the key to `CorePrefs.keys` so core goal pacing can read it (verify how `goals.snapshot` gets the week start). |
+| LU-03 | Week start: Monday / Sunday + note "Used by training, the weekly review, Trends and the goal calendar" (`training.weekStartsOn`) | `LanguageUnitsSection` week-start `Segmented` (`WeekStartPrefs` in `F/ForgeSettingsDisplayPrefs.kt`) with the iOS note | SAME | Closed (package 4). Writes `training.weekStartsOn` ("monday"/"sunday"). The core reads the week start only as a call argument (`training.snapshot`, `CoreTrainingReports`) and `CoreGoals.swift` has no week-start input, so the key is NOT in `CorePrefs.keys`. `ForgeWorkouts`, `ForgeTodayMoreWidgets`, `ForgeStrengthOverview` and `ForgeTrainingReports` now read through `WeekStartPrefs` and redraw when it changes; `FSGT` reads the same key directly. |
 | LU-04 | Units › Body: Metric / Imperial | `LanguageUnitsSection` (`NoopPrefs.setUnitSystem`) | SAME | |
 | LU-05 | Distance & pace: Kilometres / Miles | `LanguageUnitsSection` | SAME | |
 | LU-06 | Temperature: Follow body / °C / °F | `LanguageUnitsSection` | SAME | |
@@ -389,29 +389,29 @@ work is expected unless a row below says so.
 
 | ID | iOS item | Android counterpart | Status | Notes |
 |---|---|---|---|---|
-| AP-01 | Preset (`ThemePreset`: recipes setting accent, chart style, backdrop and card opacity) | `SSC` `ThemePresetDropdown` (classic General card) | MISSING | Not on the Forge page. Needs `ThemePreset.matching` semantics; presentation only. |
+| AP-01 | Preset (`ThemePreset`: recipes setting accent, chart style, backdrop and card opacity) | `AppearanceSection` first row, `MenuPicker` over `ThemePresetChoice` (Apple Health, Mint, Ocean, Classic, Midnight, Frosted; derived, Custom when nothing matches) | SAME | Closed (package 4). Same recipes as iOS `ThemePreset`. Exception inside the row: Apple Health's chart palette does not exist on Android (`ChartStyle` has Titanium and Classic only), so that recipe leaves the chart colours alone and matches whatever they are. |
 | AP-02 | Theme: System / Light / Dark | `AppearanceSection` (`AppearancePrefs`) | SAME | |
-| AP-03 | Color profile: Colorful / Stone / Slate / Sage (Forge skin; selecting it switches the day-cycle sky) | `AppearanceSection` (when `ForgeDesign.preview`; `ForgeColorProfile`) | DIFFERENT | The iOS onChange also sets the sky on for Colorful and off otherwise and mirrors to the app group; check that `ForgeColorProfile.set` does the sky part. |
-| AP-04 | Accent picker (all `AccentColor` cases), shown only for Colorful | `AppearanceSection`: System Blue, Mint, WHOOP Blue (+ "Custom" only if already stored) | DIFFERENT | Option list shorter than `AccentColor.allCases`. |
-| AP-05 | Custom colour (`ColorPicker`) when Accent = Custom | `SSC` `AccentCustomPicker` (classic) | MISSING | Not on the Forge page (`FORGE-PARITY.md` lists it as an open gap). |
+| AP-03 | Color profile: Colorful / Stone / Slate / Sage (Forge skin; selecting it switches the day-cycle sky) | `AppearanceSection`: choosing a profile also sets the sky on for Colorful and off for the others, as the iOS onChange does | SAME | Closed (package 4). The app-group mirror of the iOS onChange is a widget feature and PLATFORM. |
+| AP-04 | Accent picker (all `AccentColor` cases), shown only for Colorful | `AppearanceSection` accent menu: System Blue, Mint, WHOOP Blue, Custom, always all four | SAME | Closed (package 4). |
+| AP-05 | Custom colour (`ColorPicker`) when Accent = Custom | `AppearanceSection`: a "Custom colour" row with a swatch and `ForgeColorWell` (saturation/brightness square and hue rail, `F/ForgeSettingsColorWell.kt`) while the accent is Custom | SAME | Closed (package 4). The classic `AccentCustomPicker` stays for All settings. |
 | AP-06 | App icon: Default / Navy | `AppearanceSection` (`setAppIcon`, Titanium / Blue Titanium) | SAME | Different icon artwork per platform. |
-| AP-07 | Coloured icons switch (`AppleInspiredColorsPrefs`; off keeps blue controls) | none | MISSING | Presentation only; consumers are the tile colours in `FS` `ForgeSettingsPage.tint()` and similar. Low value; confirm with the owner. |
+| AP-07 | Coloured icons switch (`AppleInspiredColorsPrefs`; off keeps blue controls) | none | MISSING (written exception) | Exception (package 4, decided 2026-11-25 by the lead rule "no dead settings"): on iOS the Forge skin ignores this switch for controls (`AppleInspiredTintModifier` uses the accent), and its readers are legacy screens (Coach info, Goals rows, journal card, Cardio). No Forge screen on Android has an equivalent colour choice to switch, so the key would be written and never read. Revisit when the owner decides the Goals and Coach screens on Android should offer it. |
 | AP-08 | Hide tab bar when scrolling (iOS 26 only) | `SSC` classic Bottom bar card "Hide bar when scrolling" | PLATFORM | iOS 26 feature. Android's own switch is classic-only (A-12). |
-| AP-09 | Swipe between tabs switch | none | MISSING | The behaviour itself is not known to exist on Android; ask before building. |
+| AP-09 | Swipe between tabs switch | none | MISSING (written exception) | Exception (package 4): Android has no swipe-between-tabs gesture, and the iOS note says it was turned off by default after sideways swipes inside routines and carousels changed the tab. Adding the setting alone would be a dead switch; adding the gesture is a behaviour change the owner has to ask for. |
 | BG-01 | Time-of-day sky switch + note | `BackgroundCard` (`ForgeBackground.dayCycle`) | SAME | |
-| BG-02 | Motif: Alps / Coast / Meadow (disabled when the sky is off) | none | MISSING | Android has the Alps set only (`F/ForgeScene.kt`); Coast and Meadow artwork does not exist on Android. Needs the painted scenes (assets), then a `ForgeBackground.motif`. |
+| BG-02 | Motif: Alps / Coast / Meadow (disabled when the sky is off) | none | MISSING (written exception) | Exception (package 4): waits for the owner; Coast and Meadow are painted artwork Android does not have, and no artwork was drawn. |
 | BG-03 | Sky behind cards switch (disabled when the sky is off) | `BackgroundCard` (shown only while the sky is on) | SAME | |
 | BG-04 | Transparent cards switch (+ note) | `BackgroundCard` | SAME | |
 | BG-05 | Card transparency slider (0 to 100) + note | `BackgroundCard` `Slider` | SAME | |
-| BG-06 | "Transparency on Today" slider (`todaySurfacePercent`, Forge preview) + note | none | MISSING | Check `ForgeTodayTile.kt` for a surface alpha before adding. |
-| BG-07 | Custom photo: Choose from Photos / Replace, Browse files, Recent thumbnails (re-apply), "Custom photo" switch, Fit menu (`BackgroundFillMode`), Remove image, note | `SSC` classic "Background image" card (`U/BackgroundImage.kt` `BackgroundImageStore`) | MISSING | `ForgeScene.kt` already draws `BackgroundImageStore` when active, so only the controls are missing on the Forge page. Reuse the store. UI only. |
-| CH-01 | Charts › Chart colours (`ChartStyle`) | `SSC` classic (Classic / Default) | MISSING | Check consumers first: no file under `F/` reads `ChartStyle`, `TrendChartStyle` or `SleepChartStyle` (only `U/Units.kt`, `U/SettingsScreen.kt`, `U/HealthVitalDetailLogic.kt`). A picker port would write preferences the Forge screens ignore. |
-| CH-02 | Charts › Sleep chart (`SleepChartStyle`) | `SSC` classic | MISSING | Same remark. |
-| CH-03 | Charts › Trend charts (`TrendChartStyle`) | `SSC` classic (Bars / Line) | MISSING | On iOS only `TrendsView` and `MetricExplorerView` read it, not the Forge screens. Decide with the owner whether the card should exist in the redesign at all. |
+| BG-06 | "Transparency on Today" slider (`todaySurfacePercent`, Forge preview) + note | `BackgroundCard` slider (`TodaySurfacePrefs`, key `forge.today.surfacePercent`, default 75, steps of 5, new design only); `ForgeToday` provides `LocalTodaySurface` and `ForgeCard` reads it | SAME | Closed (package 4). Consumer: every non-glass `ForgeCard` on Today (tiles, notes). The hero chamber is a glass card on Android and is not affected. There is no system Reduce transparency switch to honour on Android. |
+| BG-07 | Custom photo: Choose from Photos / Replace, Browse files, Recent thumbnails (re-apply), "Custom photo" switch, Fit menu (`BackgroundFillMode`), Remove image, note | `BackgroundCard` ends with `BackgroundPhotoControls` (`F/ForgeSettingsBackgroundPhoto.kt`): Choose or Replace from Photos, Browse files, Recent thumbnails, Custom photo switch, Fit menu, Remove image, note | SAME | Closed (package 4). Reuses `BackgroundImageStore`; `ForgeSceneBackdrop` already draws it. |
+| CH-01 | Charts › Chart colours (`ChartStyle`) | `SSC` classic (stays reachable through All settings) | MISSING (written exception) | Exception (package 4): no Forge screen on Android reads `ChartStyle`, `SleepChartStyle` or `TrendChartStyle`, so a Forge picker would write a preference nothing reads. It is added together with its consumer, or never; on iOS only `TrendsView` and `MetricExplorerView` read it, not the Forge screens. |
+| CH-02 | Charts › Sleep chart (`SleepChartStyle`) | `SSC` classic (stays reachable through All settings) | MISSING (written exception) | Exception (package 4): no Forge screen on Android reads `ChartStyle`, `SleepChartStyle` or `TrendChartStyle`, so a Forge picker would write a preference nothing reads. It is added together with its consumer, or never; on iOS only `TrendsView` and `MetricExplorerView` read it, not the Forge screens. |
+| CH-03 | Charts › Trend charts (`TrendChartStyle`) | `SSC` classic (stays reachable through All settings) | MISSING (written exception) | Exception (package 4): no Forge screen on Android reads `ChartStyle`, `SleepChartStyle` or `TrendChartStyle`, so a Forge picker would write a preference nothing reads. It is added together with its consumer, or never; on iOS only `TrendsView` and `MetricExplorerView` read it, not the Forge screens. |
 | MO-01 | Reduce motion switch + note | `AppearanceSection` `forge_ap_reduce_motion` | SAME | |
 | MO-02 | Score rings: Living / Classic + note | `AppearanceSection` (`ScoreRingStyle`) | SAME | |
-| MO-03 | Motion effect (rings lean as the phone moves; disabled with Reduce motion or Classic rings) | none | MISSING | The Forge rings on Android (`F/OrganicRing.kt`) have no tilt response; the classic liquid gauges do (`U/LiquidMotion.kt`). Feature absent, not only the switch. |
-| MO-04 | Coach animation switch (the coach tile pulses) | none | MISSING | Check `F/ForgeCoachButton.kt`. |
+| MO-03 | Motion effect (rings lean as the phone moves; disabled with Reduce motion or Classic rings) | none | MISSING (written exception) | Exception (package 4): waits for the owner; the Forge rings have no tilt response on Android, so the feature does not exist, not only its switch. |
+| MO-04 | Coach animation switch (the coach tile pulses) | `AppearanceSection` Motion card "Coach animation" switch (`CoachBreathPrefs`, key `noop.coachTileBreathing`, default on); consumer: the floating coach button in `ForgeCoachButton` pulses about 3 % over 4 s with its shadow swelling, unless Reduce motion, Power saver or the system setting hold it still (`rememberPoseStill`) | SAME | Closed (package 4). Note wording says "coach button" where iOS says "coach tile", because that is what pulses on Android. Pulse is unverified on a device (lead takes screenshots). |
 
 ### 2.14 Calculations (iOS `calculationCard`, `AnalysisMaintenanceSettingsCard`; Android `FSD` `CalculationsSection`)
 
