@@ -7401,6 +7401,20 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="import_depth_one_year">1 年</string>
     <string name="import_depth_three_years">3 年</string>
     <string name="import_depth_ten_years">10 年</string>
+    <!-- settings-parity:w3:begin -->
+    <string name="fsw3_tc_blurb">为出问题的部分打开一个测试，佩戴手环，然后点按“报告”。一切都保留在这部手机上。</string>
+    <string name="fsw3_report_footer">生成已脱敏的 .zip，并在分享任何内容之前先让你查看其内容。</string>
+    <string name="fsw3_report_detail">先由你查看的脱敏 .zip，以及每日导出</string>
+    <string name="fsw3_group_testing">测试</string>
+    <string name="fsw3_modes_detail">按区域：手环、睡眠、锻炼等</string>
+    <string name="fsw3_collector">原始数据采集器</string>
+    <string name="fsw3_for_5mg">5.0 和 MG</string>
+    <string name="fsw3_collector_40">4.0，尚未在真实硬件上确认</string>
+    <string name="fsw3_group_maintenance">维护</string>
+    <string name="fsw3_diag_detail">手环日志、重新校准充沛度、补全皮肤温度、调试日志</string>
+    <string name="fsw3_experimental_footer">对设备的实验性写入会在运行前先询问，并且可以撤销。</string>
+    <string name="fsw3_experimental_detail">可选，默认关闭</string>
+    <!-- settings-parity:w3:end -->
     <!-- settings-parity:w2:begin -->
     <string name="fsw2_bk_blurb">将完整备份保存到你选择的文件夹。指向 Google Drive 或 Dropbox 即可在设备之外同步。</string>
     <string name="fsw2_bk_saving_to">保存到:%1$s</string>

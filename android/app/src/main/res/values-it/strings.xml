@@ -7425,6 +7425,20 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="import_depth_one_year">1 anno</string>
     <string name="import_depth_three_years">3 anni</string>
     <string name="import_depth_ten_years">10 anni</string>
+    <!-- settings-parity:w3:begin -->
+    <string name="fsw3_tc_blurb">Attiva un test per ciò che non va, indossa la fascia e tocca Segnala. Tutto resta su questo telefono.</string>
+    <string name="fsw3_report_footer">Crea uno .zip con i dati oscurati e ti mostra cosa contiene prima di condividere qualsiasi cosa.</string>
+    <string name="fsw3_report_detail">Uno .zip oscurato che controlli prima, e l\'esportazione giornaliera</string>
+    <string name="fsw3_group_testing">Test</string>
+    <string name="fsw3_modes_detail">Per area: fascia, sonno, allenamenti e altro</string>
+    <string name="fsw3_collector">Raccolta dati grezzi</string>
+    <string name="fsw3_for_5mg">5.0 e MG</string>
+    <string name="fsw3_collector_40">4.0, non confermato su hardware reale</string>
+    <string name="fsw3_group_maintenance">Manutenzione</string>
+    <string name="fsw3_diag_detail">Registro della fascia, ricalibrazione della Carica, recupero della temperatura cutanea, log di debug</string>
+    <string name="fsw3_experimental_footer">Le scritture sperimentali su un dispositivo chiedono conferma prima di partire e si possono annullare.</string>
+    <string name="fsw3_experimental_detail">Facoltativo, disattivato di default</string>
+    <!-- settings-parity:w3:end -->
     <!-- settings-parity:w2:begin -->
     <string name="fsw2_bk_blurb">Salva un backup completo in una cartella a tua scelta. Indirizzala a Google Drive o Dropbox per sincronizzare fuori dal dispositivo.</string>
     <string name="fsw2_bk_saving_to">Salvataggio in: %1$s</string>

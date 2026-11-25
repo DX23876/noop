@@ -7474,6 +7474,20 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="import_depth_one_year">1 Jahr</string>
     <string name="import_depth_three_years">3 Jahre</string>
     <string name="import_depth_ten_years">10 Jahre</string>
+    <!-- settings-parity:w3:begin -->
+    <string name="fsw3_tc_blurb">Schalte einen Test für das ein, was nicht stimmt, trag den Strap und tippe dann auf Melden. Alles bleibt auf diesem Telefon.</string>
+    <string name="fsw3_report_footer">Erstellt eine geschwärzte .zip und zeigt dir den Inhalt, bevor etwas geteilt wird.</string>
+    <string name="fsw3_report_detail">Geschwärzte .zip zur Prüfung vorab, und der tägliche Export</string>
+    <string name="fsw3_group_testing">Tests</string>
+    <string name="fsw3_modes_detail">Pro Bereich: Strap, Schlaf, Workouts und mehr</string>
+    <string name="fsw3_collector">Rohdaten-Collector</string>
+    <string name="fsw3_for_5mg">5.0 und MG</string>
+    <string name="fsw3_collector_40">4.0, auf echter Hardware unbestätigt</string>
+    <string name="fsw3_group_maintenance">Wartung</string>
+    <string name="fsw3_diag_detail">Strap-Log, Charge neu kalibrieren, Hauttemperatur nachtragen, Debug-Log</string>
+    <string name="fsw3_experimental_footer">Experimentelle Schreibzugriffe auf ein Gerät fragen vorher nach und lassen sich rückgängig machen.</string>
+    <string name="fsw3_experimental_detail">Zum Einschalten, standardmäßig aus</string>
+    <!-- settings-parity:w3:end -->
     <!-- settings-parity:w2:begin -->
     <string name="fsw2_bk_blurb">Speichere ein vollständiges Backup in einem Ordner deiner Wahl. Zeig ihn auf Google Drive oder Dropbox, um außerhalb des Geräts zu sichern.</string>
     <string name="fsw2_bk_saving_to">Speichert in: %1$s</string>

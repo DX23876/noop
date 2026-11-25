@@ -145,7 +145,9 @@ import com.noop.ui.ScoringGuideScreen
 import com.noop.ui.SettingsScreen
 import com.noop.ui.StepsCalibrationScreen
 import com.noop.ui.TemperatureUnit
+import com.noop.ui.GroundTruthCollectorScreen
 import com.noop.ui.TestCentreScreen
+import com.noop.ui.TestCentreSection
 import com.noop.ui.WhatsNewSheet
 import com.noop.ui.WhoopModelComparisonScreen
 import com.noop.ui.setAppIcon
@@ -233,6 +235,14 @@ enum class ForgeSettingsSub(val titleRes: Int, val cards: Set<ClassicSettingsCar
     ModelComparison(R.string.l10n_settings_screen_whoop_4_0_vs_5_0_2babb05a, closes = true),
     Limitations(R.string.nav_noop_limitations),
     TestCentre(R.string.nav_test_centre),
+    // Settings parity, wave 3: the pages the Test Centre index opens, and the classic screen (reached from All settings).
+    TestCentreModes(R.string.l10n_test_centre_screen_test_modes_e21f1d3c),
+    TestCentreCollector(R.string.fsw3_collector),
+    TestCentreProtocol(R.string.raw_diag_title),
+    TestCentreDiagnostics(R.string.l10n_test_centre_screen_diagnostic_tools_04ba4d3f),
+    TestCentreExport(R.string.forge_roadmap_report),
+    TestCentreExperimental(R.string.l10n_test_centre_screen_experimental_algorithms_e09581e2),
+    ClassicTestCentre(R.string.nav_test_centre),
     HealthWellness(R.string.l10n_settings_screen_health_wellness_93475778, cards = setOf(ClassicSettingsCard.HealthWellness)),
     Advanced(R.string.l10n_settings_screen_advanced_4d064726, cards = setOf(ClassicSettingsCard.Advanced)),
     WhatsNew(R.string.l10n_settings_screen_what_s_new_4d8dc5fe, closes = true),
@@ -687,7 +697,22 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
         ForgeSettingsSub.DataSources -> Hosted(stringResource(sub.titleRes), onBack) { DataSourcesScreen(viewModel) }
         ForgeSettingsSub.SelfHostedPush -> Hosted(stringResource(sub.titleRes), onBack) { SelfHostedPushScreen() }
         ForgeSettingsSub.Limitations -> LimitationsSettingsPage(stringResource(sub.titleRes), onBack)
-        ForgeSettingsSub.TestCentre -> Hosted(stringResource(sub.titleRes), onBack) { TestCentreScreen(viewModel) }
+        ForgeSettingsSub.TestCentre -> TestCentreSettingsPage(viewModel, stringResource(sub.titleRes), onBack, onOpen)
+        ForgeSettingsSub.TestCentreModes, ForgeSettingsSub.TestCentreProtocol, ForgeSettingsSub.TestCentreDiagnostics,
+        ForgeSettingsSub.TestCentreExport, ForgeSettingsSub.TestCentreExperimental ->
+            Hosted(stringResource(sub.titleRes), onBack) {
+                TestCentreScreen(viewModel, section = when (sub) {
+                    ForgeSettingsSub.TestCentreModes -> TestCentreSection.Modes
+                    ForgeSettingsSub.TestCentreProtocol -> TestCentreSection.Protocol
+                    ForgeSettingsSub.TestCentreDiagnostics -> TestCentreSection.Diagnostics
+                    ForgeSettingsSub.TestCentreExport -> TestCentreSection.Export
+                    else -> TestCentreSection.Experimental
+                })
+            }
+        ForgeSettingsSub.TestCentreCollector -> Hosted(stringResource(sub.titleRes), onBack) { GroundTruthCollectorScreen(viewModel) }
+        ForgeSettingsSub.ClassicTestCentre -> Hosted(stringResource(sub.titleRes), onBack) {
+            TestCentreScreen(viewModel, onOpenGroundTruthCollector = { onOpen(ForgeSettingsSub.TestCentreCollector) })
+        }
         ForgeSettingsSub.Acknowledgements -> AcknowledgementsPage(onBack)
         ForgeSettingsSub.ExerciseMedia -> ForgeExerciseMediaSettings(onBack)
         ForgeSettingsSub.HrZones -> HrZonesSettingsPage(onBack)
@@ -719,7 +744,8 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
         ForgeSettingsSub.AllSettings -> Hosted(stringResource(sub.titleRes), onBack) {
             SettingsScreen(
                 viewModel,
-                onOpenTestCentre = { onOpen(ForgeSettingsSub.TestCentre) },
+                // All settings keeps the classic Test Centre, as one long screen; the Forge page is the way in everywhere else.
+                onOpenTestCentre = { onOpen(ForgeSettingsSub.ClassicTestCentre) },
                 onOpenBackupSync = { onOpen(ForgeSettingsSub.BackupSync) },
                 onOpenSelfHostedPush = { onOpen(ForgeSettingsSub.SelfHostedPush) },
                 onOpenStepsCalibration = { onOpen(ForgeSettingsSub.StepsCalibration) },

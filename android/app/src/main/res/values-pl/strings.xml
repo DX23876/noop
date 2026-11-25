@@ -7509,6 +7509,20 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="import_depth_one_year">1 rok</string>
     <string name="import_depth_three_years">3 lata</string>
     <string name="import_depth_ten_years">10 lat</string>
+    <!-- settings-parity:w3:begin -->
+    <string name="fsw3_tc_blurb">Włącz test dla tego, co nie działa, załóż opaskę i dotknij Zgłoś. Wszystko zostaje na tym telefonie.</string>
+    <string name="fsw3_report_footer">Tworzy zanonimizowany plik .zip i pokazuje jego zawartość, zanim cokolwiek zostanie udostępnione.</string>
+    <string name="fsw3_report_detail">Zanonimizowany .zip do wcześniejszego przejrzenia oraz codzienny eksport</string>
+    <string name="fsw3_group_testing">Testy</string>
+    <string name="fsw3_modes_detail">Według obszaru: opaska, sen, treningi i więcej</string>
+    <string name="fsw3_collector">Kolektor surowych danych</string>
+    <string name="fsw3_for_5mg">5.0 i MG</string>
+    <string name="fsw3_collector_40">4.0, niepotwierdzone na prawdziwym sprzęcie</string>
+    <string name="fsw3_group_maintenance">Konserwacja</string>
+    <string name="fsw3_diag_detail">Dziennik opaski, rekalibracja Ładowania, uzupełnienie temperatury skóry, dziennik debugowania</string>
+    <string name="fsw3_experimental_footer">Eksperymentalne zapisy na urządzeniu pytają o zgodę przed uruchomieniem i można je cofnąć.</string>
+    <string name="fsw3_experimental_detail">Opcjonalne, domyślnie wyłączone</string>
+    <!-- settings-parity:w3:end -->
     <!-- settings-parity:w2:begin -->
     <string name="fsw2_bk_blurb">Zapisz pełną kopię zapasową w wybranym folderze. Wskaż Dysk Google lub Dropbox, aby synchronizować poza urządzeniem.</string>
     <string name="fsw2_bk_saving_to">Zapis do: %1$s</string>

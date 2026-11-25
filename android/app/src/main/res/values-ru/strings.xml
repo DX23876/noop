@@ -7465,6 +7465,20 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="import_depth_one_year">1 год</string>
     <string name="import_depth_three_years">3 года</string>
     <string name="import_depth_ten_years">10 лет</string>
+    <!-- settings-parity:w3:begin -->
+    <string name="fsw3_tc_blurb">Включите тест для того, что не работает, наденьте браслет и нажмите «Сообщить». Всё остаётся на этом телефоне.</string>
+    <string name="fsw3_report_footer">Создаёт .zip со скрытыми личными данными и показывает его содержимое, прежде чем что-либо будет отправлено.</string>
+    <string name="fsw3_report_detail">Очищенный .zip, который вы проверяете заранее, и ежедневный экспорт</string>
+    <string name="fsw3_group_testing">Тесты</string>
+    <string name="fsw3_modes_detail">По областям: браслет, сон, тренировки и другое</string>
+    <string name="fsw3_collector">Сборщик сырых данных</string>
+    <string name="fsw3_for_5mg">5.0 и MG</string>
+    <string name="fsw3_collector_40">4.0, не подтверждено на реальном устройстве</string>
+    <string name="fsw3_group_maintenance">Обслуживание</string>
+    <string name="fsw3_diag_detail">Журнал браслета, перекалибровка заряда, дозаполнение температуры кожи, журнал отладки</string>
+    <string name="fsw3_experimental_footer">Экспериментальные записи на устройство спрашивают разрешения перед запуском, и их можно отменить.</string>
+    <string name="fsw3_experimental_detail">По желанию, по умолчанию выключено</string>
+    <!-- settings-parity:w3:end -->
     <!-- settings-parity:w2:begin -->
     <string name="fsw2_bk_blurb">Сохраняй полную резервную копию в выбранную папку. Укажи папку Google Drive или Dropbox, чтобы синхронизировать вне устройства.</string>
     <string name="fsw2_bk_saving_to">Сохраняется в: %1$s</string>
