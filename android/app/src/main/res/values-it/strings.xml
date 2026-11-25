@@ -7426,6 +7426,68 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="import_depth_three_years">3 anni</string>
     <string name="import_depth_ten_years">10 anni</string>
     <!-- settings-parity:p1:begin -->
+    <string name="fsp1_profile_blurb">Questi alimentano le tue zone di frequenza cardiaca, le stime caloriche e le linee di base del recupero. Mantienili accurati.</string>
+    <string name="fsp1_sex_nonbinary">Non binario</string>
+    <string name="fsp1_body_formula">Formula di composizione corporea</string>
+    <string name="fsp1_formula_male">Equazione maschile</string>
+    <string name="fsp1_formula_female">Equazione femminile</string>
+    <string name="fsp1_formula_note">Quale equazione pubblicata deve usare la stima del grasso corporeo. È una questione di composizione corporea e non di identità, e NOOP non ha modo di dedurla: quindi chiede invece di presumere.</string>
+    <string name="fsp1_maxhr_manual">Override manuale</string>
+    <string name="fsp1_maxhr_measured">Misurata nei tuoi allenamenti, confermata il %1$s</string>
+    <string name="fsp1_maxhr_age">Stimata in base alla tua età</string>
+    <string name="fsp1_maxhr_auto">Automatico</string>
+    <string name="fsp1_hz_bpm_unit">bpm</string>
+    <string name="fsp1_vo2max">VO₂max</string>
+    <string name="fsp1_auto">Auto</string>
+    <string name="fsp1_vo2_unit">ml/kg/min</string>
+    <string name="fsp1_vo2_entered">Inserito il %1$s</string>
+    <string name="fsp1_vo2_hint">Stimato con una formula non validata oltre un IMC di 40, quindi può risultare molto più alto del tuo valore reale. Una misurazione è più precisa: una camminata all’aperto con l’Apple Watch o un valore di laboratorio inserito qui.</string>
+    <string name="fsp1_activity">Livello di attività</string>
+    <string name="fsp1_activity_level">Livello %1$d</string>
+    <string name="fsp1_activity_note">Le calorie degli allenamenti sono scalate sulla tua capacità aerobica. Un VO₂max inserito o una lettura dell’Apple Watch vale sei mesi, convertito al tuo peso attuale. Altrimenti viene stimato da frequenza cardiaca a riposo, corporatura e livello di attività. Le modifiche valgono dalla prossima sincronizzazione della fascia.</string>
+    <string name="fsp1_zones_row">Zone di frequenza cardiaca</string>
+    <string name="fsp1_zones_standard">Fasce standard</string>
+    <string name="fsp1_zones_custom">Personalizzate · %1$s</string>
+    <string name="fsp1_zones_note">Dove inizia ogni zona, come quota della tua frequenza cardiaca massima. Cambia le zone che vedi e quelle in cui il coach programma, non il tuo punteggio Effort.</string>
+    <string name="fsp1_hz_title">Imposta le tue fasce</string>
+    <string name="fsp1_hz_max">Frequenza cardiaca massima %1$d bpm</string>
+    <string name="fsp1_hz_what">Che cosa sono</string>
+    <string name="fsp1_hz_what_body" formatted="false">Ogni zona inizia a una frequenza cardiaca. Le fasce standard collocano questi inizi al 50, 60, 70, 80 e 90 % del tuo massimo, il che va bene per la maggior parte delle persone. Se hai fatto un test di soglia o del lattato, o ti alleni secondo lo schema di un allenatore, imposta qui le tue.</string>
+    <string name="fsp1_hz_what_note">La zona 5 finisce sempre alla tua frequenza cardiaca massima, quindi puoi spostare solo i cinque punti di inizio.</string>
+    <string name="fsp1_hz_mode">Come sono definite le tue zone</string>
+    <string name="fsp1_hz_standard">Standard</string>
+    <string name="fsp1_hz_percent" formatted="false">% del max</string>
+    <string name="fsp1_hz_beats">Battiti</string>
+    <string name="fsp1_hz_blurb_auto" formatted="false">I soliti 50/60/70/80/90 % della tua frequenza cardiaca massima.</string>
+    <string name="fsp1_hz_blurb_percent">Imposti le percentuali. Seguono la tua frequenza cardiaca massima, quindi ristimarla sposta tutte le fasce.</string>
+    <string name="fsp1_hz_blurb_bpm">Imposti direttamente le frequenze cardiache, quelle che ti dà un test di soglia o del lattato. Restano ferme quando cambia il tuo massimo.</string>
+    <string name="fsp1_hz_zone">Zona %1$d</string>
+    <string name="fsp1_hz_percent_range">%1$s–%2$s %% del max</string>
+    <string name="fsp1_hz_bpm_range">%1$d–%2$d bpm</string>
+    <string name="fsp1_hz_invalid_bpm">Ogni zona deve iniziare sopra la precedente e la zona 5 deve iniziare sotto il tuo massimo di %1$d bpm.</string>
+    <string name="fsp1_hz_invalid_percent">Ogni zona deve iniziare sopra la precedente. Regola le fasce in modo che salgano in ordine.</string>
+    <string name="fsp1_hz_use_standard">Usa le fasce standard</string>
+    <string name="fsp1_hz_save">Salva</string>
+    <string name="fsp1_hz_changes">Che cosa cambia</string>
+    <string name="fsp1_hz_changes_body">Le tue fasce determinano la zona mostrata in tempo reale, la suddivisione per zone di un allenamento e le zone in cui il tuo coach programma.</string>
+    <string name="fsp1_hz_changes_note">Non cambiano il tuo punteggio Effort, che si misura sulla tua riserva di frequenza cardiaca con un metodo pubblicato che ha soglie fisse proprie: così il tuo storico resta confrontabile. Non cambiano nemmeno le barre di zona arrivate con un\'esportazione WHOOP, che portano le fasce di WHOOP.</string>
+    <string name="fsp1_equipment_title">Attrezzatura disponibile</string>
+    <string name="fsp1_equipment_note">Scegli l\'attrezzatura che puoi usare. La libreria degli esercizi potrà così mostrare gli esercizi adatti. Se non selezioni nulla, tutti gli esercizi restano disponibili.</string>
+    <string name="fsp1_weight_step">Incremento del peso</string>
+    <string name="fsp1_weight_step_note">Usato dai pulsanti − e + per manubri, macchine e cavi. Gli esercizi con bilanciere avanzano di due dei dischi più piccoli salvati nel calcolatore dei dischi. Puoi anche digitare qualsiasi peso direttamente.</string>
+    <string name="fsp1_rest_pause">Rest-pause: %1$d s</string>
+    <string name="fsp1_guided_switch">Allenamento guidato</string>
+    <string name="fsp1_guided_note">Mostra un pulsante di avvio in Oggi, nel Coach e in Altro. Durante la sessione la fascia vibra solo quando esci dal tuo intervallo di battito. Beta.</string>
+    <string name="fsp1_help_teach">Aiuta a insegnare all\'app</string>
+    <string name="fsp1_help_teach_note">Registra brevi tratti di come ti muovi durante una sessione e inviali, così NOOP impara a riconoscere gli sport da solo. Spento finché non spunti uno sport.</string>
+    <string name="fsp1_gn_week_start">Inizio settimana</string>
+    <string name="fsp1_gn_mid_week">A metà settimana, se un obiettivo sfugge</string>
+    <string name="fsp1_gn_review">Riepilogo settimanale e mensile</string>
+    <string name="fsp1_hz_percent_unit" formatted="false">%</string>
+    <plurals name="fsp1_profile_years">
+        <item quantity="one">%1$d anno</item>
+        <item quantity="other">%1$d anni</item>
+    </plurals>
     <!-- settings-parity:p1:end -->
     <!-- settings-parity spacer 1a -->
     <!-- settings-parity spacer 1b -->

@@ -33,7 +33,8 @@ object CoreBody {
         if (!SwiftCore.available) return null
         CoreUserInputs.ensure(context)
         val profile = ProfileStore.from(context)
-        val equation = when (profile.sex.lowercase()) { "male" -> "male"; "female" -> "female"; else -> "" }
+        // A non-binary profile carries the equation in its own field (iOS `BodyView.navyEquation`).
+        val equation = profile.bodyEquation
         val json = SwiftCore.call("body.snapshot", JSONObject().put("days", days).put("comparisonDays", comparisonDays)
             .put("equation", equation).toString()) ?: return null
         return parse(json)

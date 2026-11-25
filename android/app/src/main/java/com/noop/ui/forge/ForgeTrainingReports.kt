@@ -260,7 +260,7 @@ fun ForgeCardioPage(onClose: () -> Unit) {
             CoreRead.open(context)
             val profile = ProfileStore.from(context)
             val maxHR = profile.hrMax.toDouble()
-            val edges = profile.hrZoneThresholds?.map(Int::toDouble)?.let { it + maxOf(maxHR, it.last()) }
+            val edges = profile.hrZoneLowerBounds?.let { it + maxOf(maxHR, it.last()) }
             CoreTrainingReports.cardio(maxHR, profile.sex, edges, days, weekOffset, sport,
                 dismissedTrainingWorkouts(context))
         }

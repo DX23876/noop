@@ -3876,7 +3876,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // Memoized on maxHR + personalized bounds: this runs every ~1 Hz live-HR sample while zone
         // coaching is active, but the zone set only changes when the user edits their max HR or custom
         // zones — so don't rebuild it per tick.
-        val zone = zoneSetCache.zones(maxHR, profileStore.hrZoneThresholds?.map(Int::toDouble))
+        val zone = zoneSetCache.zones(maxHR, profileStore.hrZoneLowerBounds)
             .zoneNumber(hr.toDouble())
         val previous = lastZone
         lastZone = zone

@@ -7501,6 +7501,68 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="import_depth_three_years">3 years</string>
     <string name="import_depth_ten_years">10 years</string>
     <!-- settings-parity:p1:begin -->
+    <string name="fsp1_profile_blurb">These power your heart-rate zones, calorie estimates and recovery baselines. Keep them accurate.</string>
+    <string name="fsp1_sex_nonbinary">Non-binary</string>
+    <string name="fsp1_body_formula">Body-composition formula</string>
+    <string name="fsp1_formula_male">Male equation</string>
+    <string name="fsp1_formula_female">Female equation</string>
+    <string name="fsp1_formula_note">Which published equation the body-fat estimate should use. It is a question about body composition rather than about identity, and NOOP has no way to infer it — so it asks instead of assuming.</string>
+    <string name="fsp1_maxhr_manual">Manual override</string>
+    <string name="fsp1_maxhr_measured">Measured in your workouts, confirmed %1$s</string>
+    <string name="fsp1_maxhr_age">Estimated from your age</string>
+    <string name="fsp1_maxhr_auto">Automatic</string>
+    <string name="fsp1_hz_bpm_unit">bpm</string>
+    <string name="fsp1_vo2max">VO₂max</string>
+    <string name="fsp1_auto">Auto</string>
+    <string name="fsp1_vo2_unit">ml/kg/min</string>
+    <string name="fsp1_vo2_entered">Entered %1$s</string>
+    <string name="fsp1_vo2_hint">Estimated from a formula that is not validated above a BMI of 40, so it can read well above your real value. A measurement is more accurate: an outdoor walk with an Apple Watch, or a lab value entered here.</string>
+    <string name="fsp1_activity">Activity level</string>
+    <string name="fsp1_activity_level">Level %1$d</string>
+    <string name="fsp1_activity_note">Workout calories are scaled to your aerobic capacity. An entered VO₂max or an Apple Watch reading counts for six months, converted to your current weight. Otherwise it is estimated from resting heart rate, body size and activity level. Changes apply from the next strap sync.</string>
+    <string name="fsp1_zones_row">Heart-rate zones</string>
+    <string name="fsp1_zones_standard">Standard bands</string>
+    <string name="fsp1_zones_custom">Custom · %1$s</string>
+    <string name="fsp1_zones_note">Where each zone starts, as a share of your max heart rate. Changes the zones you see and the ones your coach prescribes — not your Effort score.</string>
+    <string name="fsp1_hz_title">Set your own bands</string>
+    <string name="fsp1_hz_max">Max heart rate %1$d bpm</string>
+    <string name="fsp1_hz_what">What these are</string>
+    <string name="fsp1_hz_what_body" formatted="false">Each zone starts at a heart rate. The standard bands put those starts at 50, 60, 70, 80 and 90 % of your maximum, which suits most people. If you\'ve had a threshold or lactate test, or you train to a coach\'s scheme, set your own here.</string>
+    <string name="fsp1_hz_what_note">Zone 5 always ends at your maximum heart rate, so only the five starting points are yours to move.</string>
+    <string name="fsp1_hz_mode">How your zones are defined</string>
+    <string name="fsp1_hz_standard">Standard</string>
+    <string name="fsp1_hz_percent" formatted="false">% of max</string>
+    <string name="fsp1_hz_beats">Beats</string>
+    <string name="fsp1_hz_blurb_auto" formatted="false">The usual 50/60/70/80/90 % of your maximum heart rate.</string>
+    <string name="fsp1_hz_blurb_percent">You set the percentages. They move with your maximum heart rate, so re-estimating it shifts every band.</string>
+    <string name="fsp1_hz_blurb_bpm">You set the heart rates themselves — what a threshold or lactate test gives you. They stay put when your maximum changes.</string>
+    <string name="fsp1_hz_zone">Zone %1$d</string>
+    <string name="fsp1_hz_percent_range">%1$s–%2$s %% of max</string>
+    <string name="fsp1_hz_bpm_range">%1$d–%2$d bpm</string>
+    <string name="fsp1_hz_invalid_bpm">Each zone has to start above the one before it, and Zone 5 has to start below your maximum of %1$d bpm.</string>
+    <string name="fsp1_hz_invalid_percent">Each zone has to start above the one before it. Adjust the bands so they rise in order.</string>
+    <string name="fsp1_hz_use_standard">Use the standard bands</string>
+    <string name="fsp1_hz_save">Save</string>
+    <string name="fsp1_hz_changes">What this changes</string>
+    <string name="fsp1_hz_changes_body">Your bands set the live zone readout, the zone split on a workout, and the zones your coach prescribes in.</string>
+    <string name="fsp1_hz_changes_note">They don\'t change your Effort score, which is measured against your heart-rate reserve on a published method with its own fixed thresholds — so your history stays comparable. They also don\'t change zone bars that came in with a WHOOP export, which carry WHOOP\'s own bands.</string>
+    <string name="fsp1_equipment_title">Available equipment</string>
+    <string name="fsp1_equipment_note">Choose the equipment you can use. The exercise library can then show matching exercises. If nothing is selected, every exercise remains available.</string>
+    <string name="fsp1_weight_step">Weight step</string>
+    <string name="fsp1_weight_step_note">Used by the − and + buttons for dumbbells, machines and cables. Barbell exercises step by two of the smallest plates saved in the plate calculator. You can also type any weight directly.</string>
+    <string name="fsp1_rest_pause">Rest-pause: %1$d sec</string>
+    <string name="fsp1_guided_switch">Guided training</string>
+    <string name="fsp1_guided_note">Shows a start button on Today, in Coach and in More. During the session the strap only buzzes when you leave your heart-rate range. Beta.</string>
+    <string name="fsp1_help_teach">Help teach the app</string>
+    <string name="fsp1_help_teach_note">Record short stretches of how you move during a workout, and send them so NOOP can learn to recognise sports on its own. Off until you tick a sport.</string>
+    <string name="fsp1_gn_week_start">Start of the week</string>
+    <string name="fsp1_gn_mid_week">Mid-week, when a goal is slipping</string>
+    <string name="fsp1_gn_review">Weekly and monthly review</string>
+    <string name="fsp1_hz_percent_unit" formatted="false">%</string>
+    <plurals name="fsp1_profile_years">
+        <item quantity="one">%1$d year</item>
+        <item quantity="other">%1$d years</item>
+    </plurals>
     <!-- settings-parity:p1:end -->
     <!-- settings-parity spacer 1a -->
     <!-- settings-parity spacer 1b -->

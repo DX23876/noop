@@ -326,14 +326,16 @@ private fun GoalNotifyOffer(today: List<CoreGoals.Action>) {
 }
 
 /**
- * The goal notifications iOS offers in its goal settings (`GoalsSettingsView`): four kinds, each off until switched
- * on. Switching one on asks for Android's notification permission where the system needs it.
+ * The goal notifications iOS offers in its goal settings (`GoalsSettingsView`): four kinds and the three weekly-goal ones,
+ * each off until switched on. Switching one on asks for Android's notification permission where the system needs it.
  */
 @Composable
 internal fun GoalNotificationsCard() {
     val context = LocalContext.current
     val kinds = com.noop.notif.GoalNoticeNotifier.Kind.values()
     var on by remember { mutableStateOf(kinds.associateWith { com.noop.notif.GoalNoticeNotifier.isOn(context, it) }) }
+    val periodKinds = com.noop.notif.GoalNoticeNotifier.PeriodKind.values()
+    var periodOn by remember { mutableStateOf(periodKinds.associateWith { com.noop.notif.GoalNoticeNotifier.isOn(context, it) }) }
     val permission = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {}
     GoalSectionHeader(stringResource(R.string.forge_gn_title))
@@ -354,6 +356,23 @@ internal fun GoalNotificationsCard() {
                 }
             }
             if (i < kinds.lastIndex) RowDivider()
+        }
+        // The weekly and monthly goals' own notices, after the four (iOS `GoalPrefs.NotificationKind`).
+        periodKinds.forEach { kind ->
+            RowDivider()
+            ToggleRow(stringResource(when (kind) {
+                com.noop.notif.GoalNoticeNotifier.PeriodKind.WeekStart -> R.string.fsp1_gn_week_start
+                com.noop.notif.GoalNoticeNotifier.PeriodKind.MidWeek -> R.string.fsp1_gn_mid_week
+                com.noop.notif.GoalNoticeNotifier.PeriodKind.Review -> R.string.fsp1_gn_review
+            }), detail = null, checked = periodOn[kind] == true) { value ->
+                com.noop.notif.GoalNoticeNotifier.setOn(context, kind, value)
+                periodOn = periodOn + (kind to value)
+                if (value && android.os.Build.VERSION.SDK_INT >= 33 &&
+                    androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) !=
+                    android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    permission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
         }
         Text(stringResource(R.string.forge_gn_footer), style = Forge.type.caption, color = Forge.colors.textTertiary)
     }

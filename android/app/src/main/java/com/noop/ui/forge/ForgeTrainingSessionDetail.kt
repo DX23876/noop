@@ -51,7 +51,7 @@ fun ForgeTrainingSessionDetailPage(id: String, onClose: () -> Unit) {
             CoreRead.open(context)
             val profile = ProfileStore.from(context)
             val maxHR = profile.hrMax.toDouble()
-            val edges = profile.hrZoneThresholds?.map(Int::toDouble)?.let { it + maxOf(maxHR, it.last()) }
+            val edges = profile.hrZoneLowerBounds?.let { it + maxOf(maxHR, it.last()) }
             CoreTrainingSession.read(id, maxHR, edges, dismissedTrainingWorkouts(context))
         }
         withContext(Dispatchers.IO) { com.noop.notif.SessionRatingReminderWorker.synchronize(context) }

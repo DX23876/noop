@@ -7466,6 +7466,70 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="import_depth_three_years">3 года</string>
     <string name="import_depth_ten_years">10 лет</string>
     <!-- settings-parity:p1:begin -->
+    <string name="fsp1_profile_blurb">На их основе рассчитываются пульсовые зоны, оценка калорий и личные нормы восстановления. Следите, чтобы данные были точными.</string>
+    <string name="fsp1_sex_nonbinary">Небинарный</string>
+    <string name="fsp1_body_formula">Формула состава тела</string>
+    <string name="fsp1_formula_male">Мужское уравнение</string>
+    <string name="fsp1_formula_female">Женское уравнение</string>
+    <string name="fsp1_formula_note">Какое опубликованное уравнение должна использовать оценка процента жира. Это вопрос о составе тела, а не об идентичности, и NOOP не может его вывести — поэтому спрашивает, а не предполагает.</string>
+    <string name="fsp1_maxhr_manual">Задать вручную</string>
+    <string name="fsp1_maxhr_measured">Измерено на ваших тренировках, подтверждено %1$s</string>
+    <string name="fsp1_maxhr_age">Оценено по возрасту</string>
+    <string name="fsp1_maxhr_auto">Автоматически</string>
+    <string name="fsp1_hz_bpm_unit">уд/мин</string>
+    <string name="fsp1_vo2max">VO₂max</string>
+    <string name="fsp1_auto">Авторасчёт</string>
+    <string name="fsp1_vo2_unit">мл/кг/мин</string>
+    <string name="fsp1_vo2_entered">Введено %1$s</string>
+    <string name="fsp1_vo2_hint">Оценка по формуле, которая не проверена для ИМТ выше 40, поэтому она может быть заметно выше вашего реального значения. Измерение точнее: прогулка на улице с Apple Watch или лабораторное значение, введённое здесь.</string>
+    <string name="fsp1_activity">Уровень активности</string>
+    <string name="fsp1_activity_level">Уровень %1$d</string>
+    <string name="fsp1_activity_note">Калории тренировок масштабируются по вашей аэробной выносливости. Введённый VO₂max или измерение Apple Watch действует шесть месяцев с пересчётом на ваш текущий вес. Иначе он оценивается по пульсу покоя, телосложению и уровню активности. Изменения вступают в силу со следующей синхронизации браслета.</string>
+    <string name="fsp1_zones_row">Зоны пульса</string>
+    <string name="fsp1_zones_standard">Стандартные диапазоны</string>
+    <string name="fsp1_zones_custom">Свои · %1$s</string>
+    <string name="fsp1_zones_note">Где начинается каждая зона — в долях от максимального пульса. Меняет зоны, которые вы видите, и те, что назначает тренер, но не показатель Effort.</string>
+    <string name="fsp1_hz_title">Задайте свои диапазоны</string>
+    <string name="fsp1_hz_max">Максимальный пульс %1$d уд/мин</string>
+    <string name="fsp1_hz_what">Что это такое</string>
+    <string name="fsp1_hz_what_body" formatted="false">Каждая зона начинается с определённого пульса. Стандартные диапазоны задают эти границы на уровне 50, 60, 70, 80 и 90 % от максимума, что подходит большинству. Если вы проходили тест на порог или лактат либо тренируетесь по схеме тренера, задайте свои значения здесь.</string>
+    <string name="fsp1_hz_what_note">Зона 5 всегда заканчивается на максимальном пульсе, поэтому менять можно только пять начальных точек.</string>
+    <string name="fsp1_hz_mode">Как заданы ваши зоны</string>
+    <string name="fsp1_hz_standard">Стандарт</string>
+    <string name="fsp1_hz_percent" formatted="false">% от макс.</string>
+    <string name="fsp1_hz_beats">Удары</string>
+    <string name="fsp1_hz_blurb_auto" formatted="false">Обычные 50/60/70/80/90 % от максимального пульса.</string>
+    <string name="fsp1_hz_blurb_percent">Вы задаёте проценты. Они привязаны к максимальному пульсу, поэтому его пересчёт сдвигает все диапазоны.</string>
+    <string name="fsp1_hz_blurb_bpm">Вы задаёте сам пульс — то, что даёт тест на порог или лактат. Значения не смещаются при изменении максимума.</string>
+    <string name="fsp1_hz_zone">Зона %1$d</string>
+    <string name="fsp1_hz_percent_range">%1$s–%2$s %% от макс.</string>
+    <string name="fsp1_hz_bpm_range">%1$d–%2$d бипс в минуту</string>
+    <string name="fsp1_hz_invalid_bpm">Каждая зона должна начинаться выше предыдущей, а зона 5 — ниже вашего максимума в %1$d уд/мин.</string>
+    <string name="fsp1_hz_invalid_percent">Каждая зона должна начинаться выше предыдущей. Настройте диапазоны так, чтобы они возрастали по порядку.</string>
+    <string name="fsp1_hz_use_standard">Использовать стандартные диапазоны</string>
+    <string name="fsp1_hz_save">Сохранить</string>
+    <string name="fsp1_hz_changes">На что это влияет</string>
+    <string name="fsp1_hz_changes_body">Ваши диапазоны определяют зону в реальном времени, разбивку тренировки по зонам и зоны, в которых планирует тренер.</string>
+    <string name="fsp1_hz_changes_note">Они не меняют показатель Effort: он считается от резерва пульса по опубликованной методике с собственными фиксированными порогами, поэтому история остаётся сопоставимой. Не меняют они и полосы зон из экспорта WHOOP — там диапазоны самой WHOOP.</string>
+    <string name="fsp1_equipment_title">Доступное оборудование</string>
+    <string name="fsp1_equipment_note">Выберите оборудование, которым вы можете пользоваться. Тогда библиотека упражнений сможет показывать подходящие упражнения. Если ничего не выбрано, доступны все упражнения.</string>
+    <string name="fsp1_weight_step">Шаг веса</string>
+    <string name="fsp1_weight_step_note">Используется кнопками − и + для гантелей, тренажёров и блоков. Упражнения со штангой меняются на два самых лёгких диска, сохранённых в калькуляторе дисков. Любой вес можно ввести и вручную.</string>
+    <string name="fsp1_rest_pause">Рест-пауза: %1$d с</string>
+    <string name="fsp1_guided_switch">Тренировка с подсказками</string>
+    <string name="fsp1_guided_note">Показывает кнопку запуска на «Сегодня», в Coach и в «Ещё». Во время сессии браслет вибрирует, только когда вы выходите из своего диапазона пульса. Бета.</string>
+    <string name="fsp1_help_teach">Помогите научить приложение</string>
+    <string name="fsp1_help_teach_note">Записывайте короткие отрезки того, как вы двигаетесь на тренировке, и отправляйте их, чтобы NOOP научился сам распознавать виды спорта. Выключено, пока вы не отметите вид спорта.</string>
+    <string name="fsp1_gn_week_start">Начало недели</string>
+    <string name="fsp1_gn_mid_week">В середине недели, если цель ускользает</string>
+    <string name="fsp1_gn_review">Обзор недели и месяца</string>
+    <string name="fsp1_hz_percent_unit" formatted="false">%</string>
+    <plurals name="fsp1_profile_years">
+        <item quantity="one">%1$d год</item>
+        <item quantity="few">%1$d года</item>
+        <item quantity="many">%1$d лет</item>
+        <item quantity="other">%1$d года</item>
+    </plurals>
     <!-- settings-parity:p1:end -->
     <!-- settings-parity spacer 1a -->
     <!-- settings-parity spacer 1b -->

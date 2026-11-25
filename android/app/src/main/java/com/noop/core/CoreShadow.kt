@@ -224,7 +224,7 @@ object CoreShadow {
 
     /**
      * The further choices the core's pass reads (`CoreAnalysis.applyExtras`): the deleted nights and detected
-     * workouts as "start:end" tokens, the waist, the step estimate's calibration, baseline anchors, the Lab's
+     * workouts as "start:end" tokens, the waist, the entered VO₂max and activity level, the step estimate's calibration, baseline anchors, the Lab's
      * SpO₂ estimate and strength share of Effort, and the Energy Plan's basal formula. [historyRescore] makes that
      * one pass cover the whole history with unchanged days reused, for a switch that moves only some old days.
      */
@@ -232,6 +232,8 @@ object CoreShadow {
                dismissedWorkouts: List<Pair<Long, Long>>, spo2CandidateDisplay: Boolean,
                historyRescore: Boolean = false): String =
         org.json.JSONObject().apply {
+            // The automatic maximum heart rate the screens read is the one the pass scores with: ask the core, off the main thread.
+            CoreProfile.refreshMaxHeartRate(profile)
             put("sleepStagerMethod", com.noop.ble.PuffinExperiment.from(context).sleepStagerMethod)
             put("spo2CandidateDisplay", spo2CandidateDisplay)
             put("effortStrengthBonus", CoreFeatures.effortStrengthBonus(context))
@@ -241,6 +243,11 @@ object CoreShadow {
             put("dismissedSleep", org.json.JSONArray(dismissedSleep.map { "${it.first}:${it.second}" }))
             put("dismissedWorkouts", org.json.JSONArray(dismissedWorkouts.map { "${it.first}:${it.second}" }))
             put("waistCm", profile.waistCm)
+            // The aerobic ceiling the energy model scales workouts to: an entered VO₂max and the hand-chosen activity category.
+            put("manualVO2max", profile.vo2maxManual)
+            put("manualVO2maxDay", profile.vo2maxManualDay)
+            put("manualVO2maxWeightKg", profile.vo2maxManualWeightKg)
+            put("activityLevelOverride", profile.activityLevelOverride)
             put("formulaLog", CoreEnergyPlan.formulaLog(context))
             put("stepTicksPerStep", profile.stepTicksPerStep)
             put("stepsManualCoefficient", profile.stepsManualCoefficient)
