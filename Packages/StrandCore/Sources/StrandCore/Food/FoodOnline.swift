@@ -15,7 +15,7 @@ public enum FoodOnline {
     public static let minimumQueryLength = 3
 
     static let fields = "code,product_name,product_name_de,product_name_en,generic_name,brands,serving_size,"
-        + "serving_quantity,nova_group,pnns_groups_2,nutriments"
+        + "serving_quantity,nova_group,pnns_groups_2,categories_tags,nutriments"
 
     /// The fields to ask for, with the product name in the app language when that is neither German nor English,
     /// so a Spanish app reads `product_name_es` where a product has one.
@@ -140,7 +140,11 @@ public enum FoodOnline {
               let kcal = energy.amounts[.energyKcal], kcal <= 950 else { return nil }
         let serving = (json["serving_quantity"] as? NSNumber)?.doubleValue
             ?? (json["serving_quantity"] as? String).flatMap(Double.init)
-        let group = text("pnns_groups_2").flatMap { $0 == "unknown" ? nil : $0.lowercased().replacingOccurrences(of: " ", with: "-") }
+        // The category IDs first: they are the same in every language and say more than the coarse group.
+        let categories = FoodCategoryGroups.group(for: (json["categories_tags"] as? [String]) ?? [])
+        let group = categories ?? text("pnns_groups_2").flatMap {
+            $0 == "unknown" ? nil : $0.lowercased().replacingOccurrences(of: " ", with: "-")
+        }
         return FoodItem(id: "off:\(code)", source: .online, name: name,
                         brand: text("brands")?.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces),
                         group: group, nova: (json["nova_group"] as? NSNumber)?.intValue,
