@@ -384,6 +384,12 @@ public enum CoreAnalysis {
                              measured: MaxHeartRate.Level(stored: Host.strings[MaxHeartRate.measuredLevelKey])?.bpm)
     }
 
+    /// The measured maximum heart rate the last pass confirmed, nil until one has (`MaxHeartRate.measuredLevels`).
+    @MainActor
+    public static var measuredMaxHeartRate: MaxHeartRate.Level? {
+        MaxHeartRate.Level(stored: Host.strings[MaxHeartRate.measuredLevelKey])
+    }
+
     @MainActor
     private final class Host: AnalysisHost {
         let settings: Settings

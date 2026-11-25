@@ -11,9 +11,9 @@ import UserNotifications
 /// refresh from the latest state, through the same `UNCalendarNotificationTrigger` mechanism as the plan
 /// reminders, and never inside the wearer's quiet hours.
 enum GoalNotifier {
-    static let weekStartId = "goals.notify.weekStart"
-    static let midWeekId = "goals.notify.midWeek"
-    static let reviewId = "goals.notify.review"
+    static let weekStartId = PeriodGoalNoticePlan.weekStartId
+    static let midWeekId = PeriodGoalNoticePlan.midWeekId
+    static let reviewId = PeriodGoalNoticePlan.reviewId
 
     static func requestAuthorization() {
         #if canImport(UserNotifications)
@@ -26,28 +26,13 @@ enum GoalNotifier {
         #if canImport(UserNotifications)
         let center = UNUserNotificationCenter.current()
         center.removePendingNotificationRequests(withIdentifiers: [weekStartId, midWeekId, reviewId])
-        let week = snapshots.filter { $0.goal.status == .active && $0.goal.period == .week }
-        guard !week.isEmpty, UserDefaults.standard.object(forKey: "notif.masterEnabled") as? Bool ?? true else { return }
-        let calendar = TrainingPreferences.weekCalendar
-        guard let interval = calendar.dateInterval(of: .weekOfYear, for: now) else { return }
-
-        if GoalPrefs.notifies(.weekStart),
-           let next = calendar.date(byAdding: .day, value: 7, to: interval.start).flatMap({ at($0, hour: 8, calendar) }) {
-            schedule(weekStartId, title: String(localized: "A new week"),
-                     body: week.map { GoalFormat.title($0.goal) }.prefix(3).joined(separator: " · "), at: next)
-        }
-        if GoalPrefs.notifies(.midWeek),
-           let slipping = Self.slipping(week),
-           let thursday = calendar.date(byAdding: .day, value: 3, to: interval.start).flatMap({ at($0, hour: 18, calendar) }),
-           thursday > now {
-            schedule(midWeekId, title: GoalFormat.shortName(slipping.goal), body: GoalFormat.remainingLine(slipping),
-                     at: thursday)
-        }
-        if GoalPrefs.notifies(.review),
-           let lastDay = calendar.date(byAdding: .day, value: 6, to: interval.start).flatMap({ at($0, hour: 19, calendar) }),
-           lastDay > now {
-            schedule(reviewId, title: String(localized: "Your week"),
-                     body: String(localized: "See how your goals went and set up the next week."), at: lastDay)
+        guard UserDefaults.standard.object(forKey: "notif.masterEnabled") as? Bool ?? true else { return }
+        // What to say and when is `PeriodGoalNoticePlan`, which the Android app reads as well.
+        let kinds = Set(GoalPrefs.NotificationKind.allCases.filter { GoalPrefs.notifies($0) })
+        for notice in PeriodGoalNoticePlan.plan(snapshots, kinds: kinds, now: now,
+                                               calendar: TrainingPreferences.weekCalendar,
+                                               isQuiet: { isQuiet($0) }) {
+            schedule(notice.id, title: notice.title, body: notice.body, at: notice.at)
         }
         #endif
     }
@@ -55,10 +40,6 @@ enum GoalNotifier {
     /// The weekly goal the mid-week reminder speaks about: one clearly behind before one only close.
     static func slipping(_ week: [PeriodGoalSnapshot]) -> PeriodGoalSnapshot? {
         PeriodGoalMaintenance.slipping(week)
-    }
-
-    private static func at(_ day: Date, hour: Int, _ calendar: Calendar) -> Date? {
-        calendar.date(bySettingHour: hour, minute: 0, second: 0, of: day)
     }
 
     /// True when `date` falls inside the wearer's quiet hours (the shared notification settings).
