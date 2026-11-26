@@ -7500,17 +7500,12 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="import_depth_one_year">1 year</string>
     <string name="import_depth_three_years">3 years</string>
     <string name="import_depth_ten_years">10 years</string>
-    <!-- settings-parity:w8:begin -->
     <string name="fsw8_strap_conn_title">Connection &amp; steps</string>
     <string name="fsw8_strap_conn_sub">Connection, steps and heart rate sharing</string>
     <string name="fsw8_today_footer">Optional cards. Everything stays on this phone.</string>
     <string name="fsw8_power_footer">The strap keeps banking data on its own, so nothing is lost. NOOP just talks to it less often to help it last until you can charge it: while the strap\'s battery is low, background sync runs every 45 minutes instead of every 15.</string>
     <string name="fsw8_restore_from_backup">Restore from a backup</string>
-    <!-- settings-parity:w8:end -->
-    <!-- settings-parity:w5:begin -->
     <string name="fsw5_haptics">Haptics</string>
-    <!-- settings-parity:w5:end -->
-    <!-- settings-parity:w4:begin -->
     <string name="fsw4_calc_title">How NOOP calculates</string>
     <string name="fsw4_calc_blurb">Changes here can recompute past days. Your recorded data stays.</string>
     <string name="fsw4_day_start">Day start</string>
@@ -7537,8 +7532,6 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="fsw4_tc_daily_auto">Daily auto-export of the strap log</string>
     <string name="fsw4_tc_clear">Clear scheduled exports</string>
     <string name="fsw4_imports_group">Health Connect &amp; imports</string>
-    <!-- settings-parity:w4:end -->
-    <!-- settings-parity:w3:begin -->
     <string name="fsw3_tc_blurb">Turn on a test for the thing that\'s wrong, wear the strap, then tap “Report a bug with my log”. Everything stays on this phone.</string>
     <string name="fsw3_report_footer">Builds a redacted .zip and shows you what it contains before anything is shared.</string>
     <string name="fsw3_report_detail">Redacted .zip you review first, and the daily export</string>
@@ -7551,8 +7544,6 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="fsw3_diag_detail">Strap log, Charge recalibration, skin-temp backfill, debug logging</string>
     <string name="fsw3_experimental_footer">Experimental writes to a device ask before they run and can be undone.</string>
     <string name="fsw3_experimental_detail">Opt-in, off by default</string>
-    <!-- settings-parity:w3:end -->
-    <!-- settings-parity:w2:begin -->
     <string name="fsw2_bk_blurb">Save a full backup to a folder you choose - point it at Google Drive / Dropbox for off-device sync.</string>
     <string name="fsw2_bk_saving_to">Saving to: %1$s</string>
     <string name="fsw2_bk_no_folder">No folder chosen yet. Pick one your cloud app already syncs, or any local folder.</string>
@@ -7582,8 +7573,6 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="fsw2_lim_partly">partly</string>
     <string name="fsw2_lim_no">no</string>
     <string name="fsw2_lim_a11y">%1$s: WHOOP 4.0 %2$s, 5.0/MG %3$s</string>
-    <!-- settings-parity:w2:end -->
-    <!-- settings-parity:p1:begin -->
     <string name="fsp1_profile_blurb">These power your heart-rate zones, calorie estimates and recovery baselines. Keep them accurate.</string>
     <string name="fsp1_sex_nonbinary">Non-binary</string>
     <string name="fsp1_body_formula">Body-composition formula</string>
@@ -7646,11 +7635,6 @@ Plotting each series as change from its own first reading puts them on one scale
         <item quantity="one">%1$d year</item>
         <item quantity="other">%1$d years</item>
     </plurals>
-    <!-- settings-parity:p1:end -->
-    <!-- settings-parity spacer 1a -->
-    <!-- settings-parity spacer 1b -->
-    <!-- settings-parity spacer 1c -->
-    <!-- settings-parity:p2:begin -->
     <string name="fsp2_strap_conn_title">Connection, steps and sharing</string>
     <string name="fsp2_strap_conn_detail">Name, reconnecting, step estimate, heart-rate sharing</string>
     <string name="fsp2_strap_rec_title">Recording and battery</string>
@@ -7713,11 +7697,6 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="fsp2_hrs_strap_note">Applies on the next connection, or right away when connected. Writes a setting on the strap that turning this off reverses.</string>
     <string name="fsp2_chrv_needs_background">Works only while “Keep connected in the background” is on.</string>
     <string name="fsp2_dev_row_detail">Strap, chest strap, ring and other wearables</string>
-    <!-- settings-parity:p2:end -->
-    <!-- settings-parity spacer 2a -->
-    <!-- settings-parity spacer 2b -->
-    <!-- settings-parity spacer 2c -->
-    <!-- settings-parity:p3:begin -->
     <string name="fsp3_haptics_blurb">Choose which in-session cues buzz your wrist during a breathing session, timer, or workout.</string>
     <string name="fsp3_haptics_breathing_help">Buzz each inhale and exhale during a breathing or resonance session.</string>
     <string name="fsp3_haptics_intervals_help">Buzz on each interval change.</string>
@@ -7798,11 +7777,6 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="fsp3_tla_cardio_title">Cardio load well above your usual</string>
     <string name="fsp3_tla_cardio_body">Your last seven days of cardio are well above your usual. This describes the load only — Training Load shows what it rests on.</string>
     <string name="fsp3_hi_title">Health insights</string>
-    <!-- settings-parity:p3:end -->
-    <!-- settings-parity spacer 3a -->
-    <!-- settings-parity spacer 3b -->
-    <!-- settings-parity spacer 3c -->
-    <!-- settings-parity:p4:begin -->
     <string name="fsp4_week_start">Week start</string>
     <string name="fsp4_monday">Monday</string>
     <string name="fsp4_sunday">Sunday</string>
@@ -7825,11 +7799,6 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="fsp4_bg_photo_note">Your own photo behind every screen, in place of the sky. It stays on this phone and is never uploaded. Turn on Transparent cards to let it show through.</string>
     <string name="fsp4_coach_animation">Coach animation</string>
     <string name="fsp4_coach_animation_note">The coach button on Today pulses gently. Off keeps it still.</string>
-    <!-- settings-parity:p4:end -->
-    <!-- settings-parity spacer 4a -->
-    <!-- settings-parity spacer 4b -->
-    <!-- settings-parity spacer 4c -->
-    <!-- settings-parity:p5:begin -->
     <string name="fsp5_repair_title">If scores look wrong</string>
     <string name="fsp5_repair_blurb">NOOP updates new data on its own. Use these only when a score looks out of date or off.</string>
     <string name="fsp5_repair_ready">Ready when a recent insight looks out of date.</string>
@@ -7876,11 +7845,6 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="fsp5_storage_already_clean">Already clean.</string>
     <string name="fsp5_storage_why_title">Why does this grow?</string>
     <string name="fsp5_storage_why_body">When you import an export, NOOP works from a temporary copy of the file, saves your data into the health database, then deletes the copy. If an import is interrupted, a copy can be left behind. This screen reclaims anything left behind.</string>
-    <!-- settings-parity:p5:end -->
-    <!-- settings-parity spacer 5a -->
-    <!-- settings-parity spacer 5b -->
-    <!-- settings-parity spacer 5c -->
-    <!-- settings-parity:p6:begin -->
     <string name="fsp6_alerts_title">Alerts and reminders</string>
     <string name="fsp6_alerts_subtitle">Lock Screen, wrist alerts and reminders</string>
     <string name="fsp6_sub_roadmap">The plan, reported problems, wishes, and how to help</string>
@@ -7928,8 +7892,4 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="fsp6_coach_forget_message">You\'ll need to paste it again to reconnect. This is different from Disconnect, which keeps the key.</string>
     <string name="fsp6_lab_blurb">Unfinished features. Off by default; turn one off again any time.</string>
     <string name="fsp6_ss_motion">Motion</string>
-    <!-- settings-parity:p6:end -->
-    <!-- settings-parity spacer 6a -->
-    <!-- settings-parity spacer 6b -->
-    <!-- settings-parity spacer 6c -->
 </resources>

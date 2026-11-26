@@ -7474,17 +7474,12 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="import_depth_one_year">1 Jahr</string>
     <string name="import_depth_three_years">3 Jahre</string>
     <string name="import_depth_ten_years">10 Jahre</string>
-    <!-- settings-parity:w8:begin -->
     <string name="fsw8_strap_conn_title">Verbindung &amp; Schritte</string>
     <string name="fsw8_strap_conn_sub">Verbindung, Schritte und Puls teilen</string>
     <string name="fsw8_today_footer">Optionale Karten. Alles bleibt auf diesem Telefon.</string>
     <string name="fsw8_power_footer">Der Strap speichert seine Daten weiterhin selbst, es geht also nichts verloren. NOOP spricht nur seltener mit ihm, damit er bis zum Laden durchhält. Synchronisiert im Hintergrund seltener (alle 45 statt 15 Minuten), solange der Akku deines Straps niedrig ist.</string>
     <string name="fsw8_restore_from_backup">Aus einer Sicherung wiederherstellen</string>
-    <!-- settings-parity:w8:end -->
-    <!-- settings-parity:w5:begin -->
     <string name="fsw5_haptics">Vibration</string>
-    <!-- settings-parity:w5:end -->
-    <!-- settings-parity:w4:begin -->
     <string name="fsw4_calc_title">So rechnet NOOP</string>
     <string name="fsw4_calc_blurb">Änderungen hier können vergangene Tage neu berechnen. Deine aufgezeichneten Daten bleiben.</string>
     <string name="fsw4_day_start">Tagesbeginn</string>
@@ -7511,8 +7506,6 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsw4_tc_daily_auto">Täglicher Auto-Export des Strap-Logs</string>
     <string name="fsw4_tc_clear">Geplante Exporte löschen</string>
     <string name="fsw4_imports_group">Health Connect &amp; Importe</string>
-    <!-- settings-parity:w4:end -->
-    <!-- settings-parity:w3:begin -->
     <string name="fsw3_tc_blurb">Schalte einen Test für das ein, was nicht stimmt, trage den Strap und tippe dann auf „Fehler mit meinem Log melden“. Alles bleibt auf diesem Telefon.</string>
     <string name="fsw3_report_footer">Erstellt eine geschwärzte .zip und zeigt dir den Inhalt, bevor etwas geteilt wird.</string>
     <string name="fsw3_report_detail">Geschwärzte .zip zur Prüfung vorab, und der tägliche Export</string>
@@ -7525,8 +7518,6 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsw3_diag_detail">Strap-Log, Charge neu kalibrieren, Hauttemperatur nachtragen, Debug-Log</string>
     <string name="fsw3_experimental_footer">Experimentelle Schreibzugriffe auf ein Gerät fragen vorher nach und lassen sich rückgängig machen.</string>
     <string name="fsw3_experimental_detail">Zum Einschalten, standardmäßig aus</string>
-    <!-- settings-parity:w3:end -->
-    <!-- settings-parity:w2:begin -->
     <string name="fsw2_bk_blurb">Speichere ein vollständiges Backup in einem Ordner deiner Wahl. Zeig ihn auf Google Drive oder Dropbox, um außerhalb des Geräts zu sichern.</string>
     <string name="fsw2_bk_saving_to">Speichert in: %1$s</string>
     <string name="fsw2_bk_no_folder">Noch kein Ordner gewählt. Nimm einen, den deine Cloud-App schon synchronisiert, oder irgendeinen lokalen Ordner.</string>
@@ -7556,8 +7547,6 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsw2_lim_partly">teilweise</string>
     <string name="fsw2_lim_no">nein</string>
     <string name="fsw2_lim_a11y">%1$s: WHOOP 4.0 %2$s, 5.0/MG %3$s</string>
-    <!-- settings-parity:w2:end -->
-    <!-- settings-parity:p1:begin -->
     <string name="fsp1_profile_blurb">Diese steuern deine Herzfrequenzzonen, Kalorienschätzungen und Erholungs-Basislinien. Halte sie genau.</string>
     <string name="fsp1_sex_nonbinary">Nichtbinär</string>
     <string name="fsp1_body_formula">Körperzusammensetzungs-Formel</string>
@@ -7620,11 +7609,6 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
         <item quantity="one">%1$d Jahr</item>
         <item quantity="other">%1$d Jahre</item>
     </plurals>
-    <!-- settings-parity:p1:end -->
-    <!-- settings-parity spacer 1a -->
-    <!-- settings-parity spacer 1b -->
-    <!-- settings-parity spacer 1c -->
-    <!-- settings-parity:p2:begin -->
     <string name="fsp2_strap_conn_title">Verbindung, Schritte und Freigabe</string>
     <string name="fsp2_strap_conn_detail">Name, Neuverbinden, Schrittschätzung, Pulsfreigabe</string>
     <string name="fsp2_strap_rec_title">Aufzeichnung und Akku</string>
@@ -7687,11 +7671,6 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsp2_hrs_strap_note">Gilt ab der nächsten Verbindung, bei bestehender Verbindung sofort. Schreibt eine Einstellung auf den Strap, die Ausschalten rückgängig macht.</string>
     <string name="fsp2_chrv_needs_background">Funktioniert nur, solange „Bleibe im Hintergrund verbunden“ eingeschaltet ist.</string>
     <string name="fsp2_dev_row_detail">Strap, Brustgurt, Ring und weitere Wearables</string>
-    <!-- settings-parity:p2:end -->
-    <!-- settings-parity spacer 2a -->
-    <!-- settings-parity spacer 2b -->
-    <!-- settings-parity spacer 2c -->
-    <!-- settings-parity:p3:begin -->
     <string name="fsp3_haptics_blurb">Wähle, bei welchen Hinweisen dein Handgelenk vibriert: beim Atmen, beim Timer oder im Training.</string>
     <string name="fsp3_haptics_breathing_help">Vibriert bei jedem Ein- und Ausatmen während einer Atemübung.</string>
     <string name="fsp3_haptics_intervals_help">Vibriert bei jedem Intervallwechsel.</string>
@@ -7772,11 +7751,6 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsp3_tla_cardio_title">Cardio-Last deutlich über dem Üblichen</string>
     <string name="fsp3_tla_cardio_body">Deine letzten sieben Tage Cardio liegen deutlich über deinem Üblichen. Das beschreibt nur die Last – Trainingslast zeigt, worauf sie beruht.</string>
     <string name="fsp3_hi_title">Gesundheits-Einblicke</string>
-    <!-- settings-parity:p3:end -->
-    <!-- settings-parity spacer 3a -->
-    <!-- settings-parity spacer 3b -->
-    <!-- settings-parity spacer 3c -->
-    <!-- settings-parity:p4:begin -->
     <string name="fsp4_week_start">Wochenbeginn</string>
     <string name="fsp4_monday">Montag</string>
     <string name="fsp4_sunday">Sonntag</string>
@@ -7799,11 +7773,6 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsp4_bg_photo_note">Dein eigenes Foto hinter jeder Seite statt des Himmels. Es bleibt auf diesem Telefon und wird nie hochgeladen. Schalte Transparente Karten ein, damit es durchscheint.</string>
     <string name="fsp4_coach_animation">Coach-Animation</string>
     <string name="fsp4_coach_animation_note">Der Coach-Button auf Heute pulsiert sanft. Aus lässt ihn still stehen.</string>
-    <!-- settings-parity:p4:end -->
-    <!-- settings-parity spacer 4a -->
-    <!-- settings-parity spacer 4b -->
-    <!-- settings-parity spacer 4c -->
-    <!-- settings-parity:p5:begin -->
     <string name="fsp5_repair_title">Wenn Werte nicht stimmen</string>
     <string name="fsp5_repair_blurb">NOOP aktualisiert neue Daten selbst. Nutze das hier nur, wenn ein Wert veraltet oder falsch aussieht.</string>
     <string name="fsp5_repair_ready">Bereit, falls eine aktuelle Auswertung veraltet wirkt.</string>
@@ -7850,11 +7819,6 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsp5_storage_already_clean">Bereits sauber.</string>
     <string name="fsp5_storage_why_title">Warum wächst das?</string>
     <string name="fsp5_storage_why_body">Wenn du einen Export importierst, arbeitet NOOP mit einer temporären Kopie der Datei, speichert deine Daten in der Gesundheitsdatenbank und löscht die Kopie dann. Wird ein Import unterbrochen, kann eine Kopie übrig bleiben. Dieser Bildschirm gibt übrig gebliebene frei.</string>
-    <!-- settings-parity:p5:end -->
-    <!-- settings-parity spacer 5a -->
-    <!-- settings-parity spacer 5b -->
-    <!-- settings-parity spacer 5c -->
-    <!-- settings-parity:p6:begin -->
     <string name="fsp6_alerts_title">Hinweise und Erinnerungen</string>
     <string name="fsp6_alerts_subtitle">Sperrbildschirm, Handgelenk-Hinweise und Erinnerungen</string>
     <string name="fsp6_sub_roadmap">Der Plan, gemeldete Probleme, Wünsche und wie du helfen kannst</string>
@@ -7902,8 +7866,4 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsp6_coach_forget_message">Du musst ihn zum erneuten Verbinden wieder einfügen. Das ist etwas anderes als „Trennen“, wobei der Schlüssel erhalten bleibt.</string>
     <string name="fsp6_lab_blurb">Unfertige Funktionen. Standardmäßig aus, jederzeit wieder abschaltbar.</string>
     <string name="fsp6_ss_motion">Bewegung</string>
-    <!-- settings-parity:p6:end -->
-    <!-- settings-parity spacer 6a -->
-    <!-- settings-parity spacer 6b -->
-    <!-- settings-parity spacer 6c -->
 </resources>

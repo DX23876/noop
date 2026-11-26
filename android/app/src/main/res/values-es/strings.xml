@@ -7458,17 +7458,12 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="import_depth_one_year">1 año</string>
     <string name="import_depth_three_years">3 años</string>
     <string name="import_depth_ten_years">10 años</string>
-    <!-- settings-parity:w8:begin -->
     <string name="fsw8_strap_conn_title">Conexión y pasos</string>
     <string name="fsw8_strap_conn_sub">Conexión, pasos y compartir pulso</string>
     <string name="fsw8_today_footer">Tarjetas opcionales. Todo se queda en este teléfono.</string>
     <string name="fsw8_power_footer">La pulsera sigue guardando sus datos por sí sola, así que no se pierde nada. NOOP solo habla con ella con menos frecuencia para que aguante hasta que la cargues: mientras la batería de la pulsera esté baja, la sincronización en segundo plano se hace cada 45 minutos en lugar de cada 15.</string>
     <string name="fsw8_restore_from_backup">Restaurar desde una copia de seguridad</string>
-    <!-- settings-parity:w8:end -->
-    <!-- settings-parity:w5:begin -->
     <string name="fsw5_haptics">Vibración</string>
-    <!-- settings-parity:w5:end -->
-    <!-- settings-parity:w4:begin -->
     <string name="fsw4_calc_title">Cómo calcula NOOP</string>
     <string name="fsw4_calc_blurb">Los cambios aquí pueden recalcular días pasados. Tus datos registrados se conservan.</string>
     <string name="fsw4_day_start">Inicio del día</string>
@@ -7495,8 +7490,6 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="fsw4_tc_daily_auto">Exportación automática diaria del registro de la pulsera</string>
     <string name="fsw4_tc_clear">Borrar exportaciones programadas</string>
     <string name="fsw4_imports_group">Health Connect e importaciones</string>
-    <!-- settings-parity:w4:end -->
-    <!-- settings-parity:w3:begin -->
     <string name="fsw3_tc_blurb">Activa una prueba para lo que va mal, ponte la pulsera y luego toca «Reportar un error con mi registro». Todo se queda en este teléfono.</string>
     <string name="fsw3_report_footer">Crea un .zip con datos ocultos y te muestra lo que contiene antes de compartir nada.</string>
     <string name="fsw3_report_detail">Un .zip con datos ocultos que revisas antes, y la exportación diaria</string>
@@ -7509,8 +7502,6 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="fsw3_diag_detail">Registro de la banda, recalibrar Carga, relleno de temperatura de la piel, registro de depuración</string>
     <string name="fsw3_experimental_footer">Las escrituras experimentales en un dispositivo piden permiso antes de ejecutarse y se pueden deshacer.</string>
     <string name="fsw3_experimental_detail">Opcional, desactivado por defecto</string>
-    <!-- settings-parity:w3:end -->
-    <!-- settings-parity:w2:begin -->
     <string name="fsw2_bk_blurb">Guarda una copia de seguridad completa en la carpeta que elijas. Apúntala a Google Drive o Dropbox para sincronizar fuera del dispositivo.</string>
     <string name="fsw2_bk_saving_to">Se guarda en: %1$s</string>
     <string name="fsw2_bk_no_folder">Aún no has elegido carpeta. Elige una que tu app en la nube ya sincronice, o cualquier carpeta local.</string>
@@ -7540,8 +7531,6 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="fsw2_lim_partly">en parte</string>
     <string name="fsw2_lim_no">no</string>
     <string name="fsw2_lim_a11y">%1$s: WHOOP 4.0 %2$s, 5.0/MG %3$s</string>
-    <!-- settings-parity:w2:end -->
-    <!-- settings-parity:p1:begin -->
     <string name="fsp1_profile_blurb">Estos alimentan tus zonas de frecuencia cardíaca, las estimaciones de calorías y las líneas base de recuperación. Mantenlos precisos.</string>
     <string name="fsp1_sex_nonbinary">No binario</string>
     <string name="fsp1_body_formula">Fórmula de composición corporal</string>
@@ -7604,11 +7593,6 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
         <item quantity="one">%1$d año</item>
         <item quantity="other">%1$d años</item>
     </plurals>
-    <!-- settings-parity:p1:end -->
-    <!-- settings-parity spacer 1a -->
-    <!-- settings-parity spacer 1b -->
-    <!-- settings-parity spacer 1c -->
-    <!-- settings-parity:p2:begin -->
     <string name="fsp2_strap_conn_title">Conexión, pasos y uso compartido</string>
     <string name="fsp2_strap_conn_detail">Nombre, reconexión, estimación de pasos, compartir pulso</string>
     <string name="fsp2_strap_rec_title">Registro y batería</string>
@@ -7671,11 +7655,6 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="fsp2_hrs_strap_note">Se aplica en la próxima conexión, o al momento si ya está conectada. Escribe un ajuste en la pulsera que se revierte al desactivarlo.</string>
     <string name="fsp2_chrv_needs_background">Solo funciona mientras «Mantener conectado en el fondo» esté activado.</string>
     <string name="fsp2_dev_row_detail">Banda, banda de pecho, anillo y otros wearables</string>
-    <!-- settings-parity:p2:end -->
-    <!-- settings-parity spacer 2a -->
-    <!-- settings-parity spacer 2b -->
-    <!-- settings-parity spacer 2c -->
-    <!-- settings-parity:p3:begin -->
     <string name="fsp3_haptics_blurb">Elige qué avisos hacen vibrar tu muñeca durante una sesión de respiración, un temporizador o un entrenamiento.</string>
     <string name="fsp3_haptics_breathing_help">Vibra en cada inhalación y exhalación durante una sesión de respiración o resonancia.</string>
     <string name="fsp3_haptics_intervals_help">Vibra en cada cambio de intervalo.</string>
@@ -7756,11 +7735,6 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="fsp3_tla_cardio_title">Carga de cardio muy por encima de lo habitual</string>
     <string name="fsp3_tla_cardio_body">Tus últimos siete días de cardio están muy por encima de lo habitual. Esto describe solo la carga; Carga de entrenamiento muestra en qué se basa.</string>
     <string name="fsp3_hi_title">Información de salud</string>
-    <!-- settings-parity:p3:end -->
-    <!-- settings-parity spacer 3a -->
-    <!-- settings-parity spacer 3b -->
-    <!-- settings-parity spacer 3c -->
-    <!-- settings-parity:p4:begin -->
     <string name="fsp4_week_start">Inicio de semana</string>
     <string name="fsp4_monday">Lunes</string>
     <string name="fsp4_sunday">Domingo</string>
@@ -7783,11 +7757,6 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="fsp4_bg_photo_note">Tu propia foto detrás de cada pantalla, en lugar del cielo. Se queda en este teléfono y nunca se sube. Activa Tarjetas transparentes para que se vea.</string>
     <string name="fsp4_coach_animation">Animación del Coach</string>
     <string name="fsp4_coach_animation_note">El botón del Coach en Hoy late suavemente. Desactivado lo deja quieto.</string>
-    <!-- settings-parity:p4:end -->
-    <!-- settings-parity spacer 4a -->
-    <!-- settings-parity spacer 4b -->
-    <!-- settings-parity spacer 4c -->
-    <!-- settings-parity:p5:begin -->
     <string name="fsp5_repair_title">Si las puntuaciones parecen incorrectas</string>
     <string name="fsp5_repair_blurb">NOOP actualiza los datos nuevos por sí solo. Usa esto solo si una puntuación parece desactualizada o incorrecta.</string>
     <string name="fsp5_repair_ready">Listo por si un análisis reciente parece desactualizado.</string>
@@ -7834,11 +7803,6 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="fsp5_storage_already_clean">Ya está limpio.</string>
     <string name="fsp5_storage_why_title">¿Por qué crece esto?</string>
     <string name="fsp5_storage_why_body">Cuando importas una exportación, NOOP trabaja con una copia temporal del archivo, guarda tus datos en la base de datos de salud y luego elimina la copia. Si una importación se interrumpe, puede quedar una copia. Esta pantalla recupera las que hayan quedado atrás.</string>
-    <!-- settings-parity:p5:end -->
-    <!-- settings-parity spacer 5a -->
-    <!-- settings-parity spacer 5b -->
-    <!-- settings-parity spacer 5c -->
-    <!-- settings-parity:p6:begin -->
     <string name="fsp6_alerts_title">Avisos y recordatorios</string>
     <string name="fsp6_alerts_subtitle">Pantalla bloqueada, avisos en la muñeca y recordatorios</string>
     <string name="fsp6_sub_roadmap">El plan, los problemas informados, los deseos y cómo ayudar</string>
@@ -7886,8 +7850,4 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="fsp6_coach_forget_message">Tendrás que pegarla de nuevo para reconectar. Esto es diferente de Desconectar, que conserva la clave.</string>
     <string name="fsp6_lab_blurb">Funciones sin terminar. Desactivadas por defecto; puedes volver a desactivarlas cuando quieras.</string>
     <string name="fsp6_ss_motion">Movimiento</string>
-    <!-- settings-parity:p6:end -->
-    <!-- settings-parity spacer 6a -->
-    <!-- settings-parity spacer 6b -->
-    <!-- settings-parity spacer 6c -->
 </resources>

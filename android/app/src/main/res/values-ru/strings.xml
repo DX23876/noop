@@ -7465,17 +7465,12 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="import_depth_one_year">1 год</string>
     <string name="import_depth_three_years">3 года</string>
     <string name="import_depth_ten_years">10 лет</string>
-    <!-- settings-parity:w8:begin -->
     <string name="fsw8_strap_conn_title">Подключение и шаги</string>
     <string name="fsw8_strap_conn_sub">Подключение, шаги и передача пульса</string>
     <string name="fsw8_today_footer">Дополнительные карточки. Всё остаётся на этом телефоне.</string>
     <string name="fsw8_power_footer">Браслет продолжает сам сохранять данные, поэтому ничего не теряется. NOOP просто реже обращается к нему, чтобы он дотянул до зарядки: пока заряд браслета низкий, фоновая синхронизация идёт раз в 45 минут вместо 15.</string>
     <string name="fsw8_restore_from_backup">Восстановить из резервной копии</string>
-    <!-- settings-parity:w8:end -->
-    <!-- settings-parity:w5:begin -->
     <string name="fsw5_haptics">Вибрация</string>
-    <!-- settings-parity:w5:end -->
-    <!-- settings-parity:w4:begin -->
     <string name="fsw4_calc_title">Как считает NOOP</string>
     <string name="fsw4_calc_blurb">Изменения здесь могут пересчитать прошлые дни. Записанные данные сохраняются.</string>
     <string name="fsw4_day_start">Начало дня</string>
@@ -7502,8 +7497,6 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="fsw4_tc_daily_auto">Ежедневный автоэкспорт журнала браслета</string>
     <string name="fsw4_tc_clear">Очистить запланированные экспорты</string>
     <string name="fsw4_imports_group">Health Connect и импорт</string>
-    <!-- settings-parity:w4:end -->
-    <!-- settings-parity:w3:begin -->
     <string name="fsw3_tc_blurb">Включите тест для проблемы, наденьте браслет, затем нажмите «Сообщить об ошибке, приложив журнал». Всё остаётся на этом телефоне.</string>
     <string name="fsw3_report_footer">Создаёт .zip со скрытыми личными данными и показывает его содержимое, прежде чем что-либо будет отправлено.</string>
     <string name="fsw3_report_detail">Очищенный .zip, который вы проверяете заранее, и ежедневный экспорт</string>
@@ -7516,8 +7509,6 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="fsw3_diag_detail">Журнал браслета, перекалибровка заряда, дозаполнение температуры кожи, журнал отладки</string>
     <string name="fsw3_experimental_footer">Экспериментальные записи на устройство спрашивают разрешения перед запуском, и их можно отменить.</string>
     <string name="fsw3_experimental_detail">По желанию, по умолчанию выключено</string>
-    <!-- settings-parity:w3:end -->
-    <!-- settings-parity:w2:begin -->
     <string name="fsw2_bk_blurb">Сохраняй полную резервную копию в выбранную папку. Укажи папку Google Drive или Dropbox, чтобы синхронизировать вне устройства.</string>
     <string name="fsw2_bk_saving_to">Сохраняется в: %1$s</string>
     <string name="fsw2_bk_no_folder">Папка ещё не выбрана. Выбери папку, которую уже синхронизирует облачное приложение, или любую локальную.</string>
@@ -7547,8 +7538,6 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="fsw2_lim_partly">частично</string>
     <string name="fsw2_lim_no">нет</string>
     <string name="fsw2_lim_a11y">%1$s: WHOOP 4.0 %2$s, 5.0/MG %3$s</string>
-    <!-- settings-parity:w2:end -->
-    <!-- settings-parity:p1:begin -->
     <string name="fsp1_profile_blurb">На их основе рассчитываются пульсовые зоны, оценка калорий и личные нормы восстановления. Следите, чтобы данные были точными.</string>
     <string name="fsp1_sex_nonbinary">Небинарный</string>
     <string name="fsp1_body_formula">Формула состава тела</string>
@@ -7613,11 +7602,6 @@ NOOP не задаёт фиксированный порог, а берёт ег
         <item quantity="many">%1$d лет</item>
         <item quantity="other">%1$d года</item>
     </plurals>
-    <!-- settings-parity:p1:end -->
-    <!-- settings-parity spacer 1a -->
-    <!-- settings-parity spacer 1b -->
-    <!-- settings-parity spacer 1c -->
-    <!-- settings-parity:p2:begin -->
     <string name="fsp2_strap_conn_title">Подключение, шаги и трансляция</string>
     <string name="fsp2_strap_conn_detail">Имя, переподключение, оценка шагов, трансляция пульса</string>
     <string name="fsp2_strap_rec_title">Запись и батарея</string>
@@ -7680,11 +7664,6 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="fsp2_hrs_strap_note">Применяется при следующем подключении или сразу, если подключено. Записывает на браслет настройку, которую отключение отменяет.</string>
     <string name="fsp2_chrv_needs_background">Работает, только если включено «Оставаться подключённым в фоне».</string>
     <string name="fsp2_dev_row_detail">Браслет, нагрудный датчик, кольцо и другие носимые устройства</string>
-    <!-- settings-parity:p2:end -->
-    <!-- settings-parity spacer 2a -->
-    <!-- settings-parity spacer 2b -->
-    <!-- settings-parity spacer 2c -->
-    <!-- settings-parity:p3:begin -->
     <string name="fsp3_haptics_blurb">Выберите, какие сигналы вибрируют на запястье во время дыхательной сессии, таймера или тренировки.</string>
     <string name="fsp3_haptics_breathing_help">Вибрация на каждом вдохе и выдохе во время дыхательной или резонансной сессии.</string>
     <string name="fsp3_haptics_intervals_help">Вибрация при каждой смене интервала.</string>
@@ -7765,11 +7744,6 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="fsp3_tla_cardio_title">Кардионагрузка значительно выше обычной</string>
     <string name="fsp3_tla_cardio_body">Последние семь дней кардио значительно выше обычного. Это описывает только нагрузку — «Тренировочная нагрузка» показывает, на чём она основана.</string>
     <string name="fsp3_hi_title">Выводы о здоровье</string>
-    <!-- settings-parity:p3:end -->
-    <!-- settings-parity spacer 3a -->
-    <!-- settings-parity spacer 3b -->
-    <!-- settings-parity spacer 3c -->
-    <!-- settings-parity:p4:begin -->
     <string name="fsp4_week_start">Начало недели</string>
     <string name="fsp4_monday">Понедельник</string>
     <string name="fsp4_sunday">Воскресенье</string>
@@ -7792,11 +7766,6 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="fsp4_bg_photo_note">Ваше фото за каждым экраном вместо неба. Остаётся на этом телефоне и никуда не загружается. Включите «Прозрачные карточки», чтобы оно просвечивало.</string>
     <string name="fsp4_coach_animation">Анимация Coach</string>
     <string name="fsp4_coach_animation_note">Кнопка Coach на «Сегодня» мягко пульсирует. Выключено: остаётся неподвижной.</string>
-    <!-- settings-parity:p4:end -->
-    <!-- settings-parity spacer 4a -->
-    <!-- settings-parity spacer 4b -->
-    <!-- settings-parity spacer 4c -->
-    <!-- settings-parity:p5:begin -->
     <string name="fsp5_repair_title">Если оценки выглядят неверно</string>
     <string name="fsp5_repair_blurb">NOOP сам обновляет новые данные. Используйте это, только если оценка выглядит устаревшей или неверной.</string>
     <string name="fsp5_repair_ready">Готово к обновлению, если недавний анализ выглядит устаревшим.</string>
@@ -7843,11 +7812,6 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="fsp5_storage_already_clean">Уже чисто.</string>
     <string name="fsp5_storage_why_title">Почему это растёт?</string>
     <string name="fsp5_storage_why_body">Когда вы импортируете экспорт, NOOP работает с временной копией файла, сохраняет данные в базу данных здоровья, затем удаляет копию. Если импорт прерван, копия может остаться. Этот экран освобождает место, занятое оставшимися файлами.</string>
-    <!-- settings-parity:p5:end -->
-    <!-- settings-parity spacer 5a -->
-    <!-- settings-parity spacer 5b -->
-    <!-- settings-parity spacer 5c -->
-    <!-- settings-parity:p6:begin -->
     <string name="fsp6_alerts_title">Уведомления и напоминания</string>
     <string name="fsp6_alerts_subtitle">Экран блокировки, сигналы на запястье и напоминания</string>
     <string name="fsp6_sub_roadmap">План, сообщённые проблемы, пожелания и как помочь</string>
@@ -7895,8 +7859,4 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="fsp6_coach_forget_message">Для повторного подключения вам придется вставить его еще раз. Это отличается от Disconnect, который сохраняет ключ.</string>
     <string name="fsp6_lab_blurb">Незавершённые функции. По умолчанию выключены; их можно снова выключить в любой момент.</string>
     <string name="fsp6_ss_motion">Движение</string>
-    <!-- settings-parity:p6:end -->
-    <!-- settings-parity spacer 6a -->
-    <!-- settings-parity spacer 6b -->
-    <!-- settings-parity spacer 6c -->
 </resources>

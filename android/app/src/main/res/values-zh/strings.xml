@@ -7401,17 +7401,12 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="import_depth_one_year">1 年</string>
     <string name="import_depth_three_years">3 年</string>
     <string name="import_depth_ten_years">10 年</string>
-    <!-- settings-parity:w8:begin -->
     <string name="fsw8_strap_conn_title">连接与步数</string>
     <string name="fsw8_strap_conn_sub">连接、步数与心率共享</string>
     <string name="fsw8_today_footer">可选卡片。所有内容都保留在这部手机上。</string>
     <string name="fsw8_power_footer">手环会继续自行保存数据，所以不会丢失任何内容。NOOP 只是减少与它通信的次数，让它撑到你充电：手环电量低时，后台同步每 45 分钟一次，而不是每 15 分钟一次。</string>
     <string name="fsw8_restore_from_backup">从备份恢复</string>
-    <!-- settings-parity:w8:end -->
-    <!-- settings-parity:w5:begin -->
     <string name="fsw5_haptics">触觉反馈</string>
-    <!-- settings-parity:w5:end -->
-    <!-- settings-parity:w4:begin -->
     <string name="fsw4_calc_title">NOOP 如何计算</string>
     <string name="fsw4_calc_blurb">此处的更改可能会重新计算过去的日子。你的记录数据会保留。</string>
     <string name="fsw4_day_start">一天开始于</string>
@@ -7438,8 +7433,6 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fsw4_tc_daily_auto">每日自动导出手环日志</string>
     <string name="fsw4_tc_clear">清除计划导出</string>
     <string name="fsw4_imports_group">Health Connect 与导入</string>
-    <!-- settings-parity:w4:end -->
-    <!-- settings-parity:w3:begin -->
     <string name="fsw3_tc_blurb">为出问题的部分开启一项测试，佩戴手环，然后点击「附上我的日志报告一个错误」。一切都保留在这部手机上。</string>
     <string name="fsw3_report_footer">生成已脱敏的 .zip，并在分享任何内容之前先让你查看其内容。</string>
     <string name="fsw3_report_detail">先由你查看的脱敏 .zip，以及每日导出</string>
@@ -7452,8 +7445,6 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fsw3_diag_detail">手环日志、重新校准充沛度、补全皮肤温度、调试日志</string>
     <string name="fsw3_experimental_footer">对设备的实验性写入会在运行前先询问，并且可以撤销。</string>
     <string name="fsw3_experimental_detail">可选，默认关闭</string>
-    <!-- settings-parity:w3:end -->
-    <!-- settings-parity:w2:begin -->
     <string name="fsw2_bk_blurb">将完整备份保存到你选择的文件夹。指向 Google Drive 或 Dropbox 即可在设备之外同步。</string>
     <string name="fsw2_bk_saving_to">保存到:%1$s</string>
     <string name="fsw2_bk_no_folder">尚未选择文件夹。请选择云应用已在同步的文件夹,或任意本地文件夹。</string>
@@ -7483,8 +7474,6 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fsw2_lim_partly">部分</string>
     <string name="fsw2_lim_no">否</string>
     <string name="fsw2_lim_a11y">%1$s:WHOOP 4.0 %2$s,5.0/MG %3$s</string>
-    <!-- settings-parity:w2:end -->
-    <!-- settings-parity:p1:begin -->
     <string name="fsp1_profile_blurb">这些数据为你的心率区间、卡路里估算和恢复基线提供支撑。请保持它们准确。</string>
     <string name="fsp1_sex_nonbinary">非二元性别</string>
     <string name="fsp1_body_formula">身体成分公式</string>
@@ -7546,11 +7535,6 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <plurals name="fsp1_profile_years">
         <item quantity="other">%1$d 岁</item>
     </plurals>
-    <!-- settings-parity:p1:end -->
-    <!-- settings-parity spacer 1a -->
-    <!-- settings-parity spacer 1b -->
-    <!-- settings-parity spacer 1c -->
-    <!-- settings-parity:p2:begin -->
     <string name="fsp2_strap_conn_title">连接、步数与共享</string>
     <string name="fsp2_strap_conn_detail">名称、重新连接、步数估算、心率共享</string>
     <string name="fsp2_strap_rec_title">记录与电量</string>
@@ -7613,11 +7597,6 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fsp2_hrs_strap_note">下次连接时生效，已连接则立即生效。会在手环上写入一项设置，关闭即可撤销。</string>
     <string name="fsp2_chrv_needs_background">仅在开启“允许后台保持连接”时有效。</string>
     <string name="fsp2_dev_row_detail">手环、胸带、戒指及其他可穿戴设备</string>
-    <!-- settings-parity:p2:end -->
-    <!-- settings-parity spacer 2a -->
-    <!-- settings-parity spacer 2b -->
-    <!-- settings-parity spacer 2c -->
-    <!-- settings-parity:p3:begin -->
     <string name="fsp3_haptics_blurb">选择在呼吸练习、计时器或锻炼期间，哪些提示会让手腕震动。</string>
     <string name="fsp3_haptics_breathing_help">在呼吸或共振练习期间，每次吸气和呼气都会震动。</string>
     <string name="fsp3_haptics_intervals_help">每次切换间隔时震动。</string>
@@ -7698,11 +7677,6 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fsp3_tla_cardio_title">有氧负荷明显高于平常</string>
     <string name="fsp3_tla_cardio_body">你过去七天的有氧明显高于平常。这里只描述负荷——训练负荷会显示其依据。</string>
     <string name="fsp3_hi_title">健康洞察</string>
-    <!-- settings-parity:p3:end -->
-    <!-- settings-parity spacer 3a -->
-    <!-- settings-parity spacer 3b -->
-    <!-- settings-parity spacer 3c -->
-    <!-- settings-parity:p4:begin -->
     <string name="fsp4_week_start">每周开始日</string>
     <string name="fsp4_monday">星期一</string>
     <string name="fsp4_sunday">星期日</string>
@@ -7725,11 +7699,6 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fsp4_bg_photo_note">用你自己的照片替代天空，显示在每个页面后方。照片保留在这部手机上，从不上传。开启“透明卡片”即可透出照片。</string>
     <string name="fsp4_coach_animation">Coach 动画</string>
     <string name="fsp4_coach_animation_note">今天页上的 Coach 按钮会轻轻跳动。关闭后保持静止。</string>
-    <!-- settings-parity:p4:end -->
-    <!-- settings-parity spacer 4a -->
-    <!-- settings-parity spacer 4b -->
-    <!-- settings-parity spacer 4c -->
-    <!-- settings-parity:p5:begin -->
     <string name="fsp5_repair_title">如果分数看起来不对</string>
     <string name="fsp5_repair_blurb">NOOP 会自动更新新数据。仅在分数看起来过时或不对时使用这些工具。</string>
     <string name="fsp5_repair_ready">若最近的分析看起来已过时，可随时更新。</string>
@@ -7776,11 +7745,6 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fsp5_storage_already_clean">已经是干净的。</string>
     <string name="fsp5_storage_why_title">这为什么会增长？</string>
     <string name="fsp5_storage_why_body">当你导入导出文件时，NOOP 会使用该文件的一份临时副本，将你的数据保存到健康数据库中，然后删除该副本。如果导入被中断，副本可能会被遗留下来。此界面会回收任何被遗留下来的副本。</string>
-    <!-- settings-parity:p5:end -->
-    <!-- settings-parity spacer 5a -->
-    <!-- settings-parity spacer 5b -->
-    <!-- settings-parity spacer 5c -->
-    <!-- settings-parity:p6:begin -->
     <string name="fsp6_alerts_title">提醒与通知</string>
     <string name="fsp6_alerts_subtitle">锁定屏幕、腕部提醒与提醒事项</string>
     <string name="fsp6_sub_roadmap">计划、已报告的问题、心愿，以及如何帮忙</string>
@@ -7828,8 +7792,4 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fsp6_coach_forget_message">您需要再次粘贴它才能重新连接。这与 Disconnect 不同，Disconnect 保留密钥。</string>
     <string name="fsp6_lab_blurb">尚未完成的功能。默认关闭，随时可以再次关闭。</string>
     <string name="fsp6_ss_motion">运动</string>
-    <!-- settings-parity:p6:end -->
-    <!-- settings-parity spacer 6a -->
-    <!-- settings-parity spacer 6b -->
-    <!-- settings-parity spacer 6c -->
 </resources>
