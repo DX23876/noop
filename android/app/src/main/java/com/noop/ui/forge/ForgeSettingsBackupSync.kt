@@ -247,7 +247,7 @@ private fun BackupSyncSettings() {
     SettingsCard(title = stringResource(R.string.l10n_backup_sync_screen_restore_3cbe6d6b),
                  blurb = stringResource(R.string.l10n_backup_sync_screen_replace_this_device_s_data_with_b8679c51)) {
         Gated(!busy) {
-            LinkRow(stringResource(R.string.l10n_backup_sync_screen_restore_from_a_backup_c28917c6), null) {
+            LinkRow(stringResource(R.string.fsw8_restore_from_backup), null) {
                 val tree = treeUri
                 if (tree == null) {
                     pickRestoreFile.launch(RESTORE_MIME_TYPES)

@@ -7401,6 +7401,13 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="import_depth_one_year">1 年</string>
     <string name="import_depth_three_years">3 年</string>
     <string name="import_depth_ten_years">10 年</string>
+    <!-- settings-parity:w8:begin -->
+    <string name="fsw8_strap_conn_title">连接与步数</string>
+    <string name="fsw8_strap_conn_sub">连接、步数与心率共享</string>
+    <string name="fsw8_today_footer">可选卡片。所有内容都保留在这部手机上。</string>
+    <string name="fsw8_power_footer">手环会继续自行保存数据，所以不会丢失任何内容。NOOP 只是减少与它通信的次数，让它撑到你充电：手环电量低时，后台同步每 45 分钟一次，而不是每 15 分钟一次。</string>
+    <string name="fsw8_restore_from_backup">从备份恢复</string>
+    <!-- settings-parity:w8:end -->
     <!-- settings-parity:w5:begin -->
     <string name="fsw5_haptics">触觉反馈</string>
     <!-- settings-parity:w5:end -->
@@ -7424,7 +7431,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fsw4_export">导出…</string>
     <string name="fsw4_import">导入…</string>
     <string name="fsw4_csv">导出 CSV…</string>
-    <string name="fsw4_backup_sync">备份并同步到文件夹…</string>
+    <string name="fsw4_backup_sync">备份并同步到文件夹</string>
     <string name="fsw4_tc_strap_log">腕带日志</string>
     <string name="fsw4_tc_strap_log_hint">报告错误时抓取此内容。它会告诉我应用看到了什么。</string>
     <string name="fsw4_tc_report_hint">生成已脱敏的 .zip 并显示其内容。</string>
@@ -7433,7 +7440,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fsw4_imports_group">Health Connect 与导入</string>
     <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
-    <string name="fsw3_tc_blurb">为出问题的部分打开一个测试，佩戴手环，然后点按“报告”。一切都保留在这部手机上。</string>
+    <string name="fsw3_tc_blurb">为出问题的部分打开一个测试，佩戴手环，然后点按“分享”。一切都保留在这部手机上。</string>
     <string name="fsw3_report_footer">生成已脱敏的 .zip，并在分享任何内容之前先让你查看其内容。</string>
     <string name="fsw3_report_detail">先由你查看的脱敏 .zip，以及每日导出</string>
     <string name="fsw3_group_testing">测试</string>
@@ -7780,7 +7787,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fsp6_sub_strap">连接、记录、电量、双击、步数</string>
     <string name="fsp6_sub_battery">省电与连续 HRV</string>
     <string name="fsp6_sub_actions">双击、振动与心率提醒</string>
-    <string name="fsp6_sub_today">卡片、顺序与风格</string>
+    <string name="fsp6_sub_today">“今天”页的可选卡片</string>
     <string name="fsp6_sub_coach">服务商、模型与记忆</string>
     <string name="fsp6_sub_language">语言、时钟、每周开始日与单位</string>
     <string name="fsp6_sub_appearance">主题、背景、图表与动效</string>
@@ -7806,7 +7813,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fsp6_ack_adopted_header">NOOP Forge 采用了其成果的贡献者</string>
     <string name="fsp6_ack_unavailable">无法加载致谢名单。</string>
     <string name="fsp6_ack_licence_missing">此版本不包含许可文本。</string>
-    <string name="fsp6_help_tc_blurb">为出问题的部分开启一项测试，佩戴手环，然后点击「报告」。你的手环日志、重新校准、定时导出和实验性探测也都在这里。</string>
+    <string name="fsp6_help_tc_blurb">为出问题的部分开启一项测试，佩戴手环，然后点击「分享」。你的手环日志、重新校准、定时导出和实验性探测也都在这里。</string>
     <string name="fsp6_help_open_tc">打开测试中心</string>
     <string name="fsp6_help_diag_blurb">对 NOOP 已存储的已解码传感器数据流进行只读导出。适用于任何手环，不会向你的设备写入任何内容，也不会上传任何内容。</string>
     <string name="fsp6_coach_conn">连接方式及型号</string>

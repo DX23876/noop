@@ -278,7 +278,7 @@
     <string name="l10n_backup_sync_screen_choose_a_backup_2fbfb0d6">Sicherung auswählen</string>
     <string name="l10n_backup_sync_screen_daily_auto_backup_e5627357">Tägliche automatische Sicherung</string>
     <string name="l10n_backup_sync_screen_keep_1addd33c">%1$s</string>
-    <string name="l10n_backup_sync_screen_keep_last_snapshots_cd5c9ea9">Letzte Snapshots behalten</string>
+    <string name="l10n_backup_sync_screen_keep_last_snapshots_cd5c9ea9">Letzte Sicherungen behalten</string>
     <string name="l10n_backup_sync_screen_n_9e03569f">%1$s</string>
     <string name="l10n_backup_sync_screen_newest_first_restoring_replaces_this_device_97dbcd8b">Neueste zuerst. Die Wiederherstellung ersetzt die Daten dieses Geräts.</string>
     <string name="l10n_backup_sync_screen_older_backups_beyond_this_many_are_00b7daa6">Ältere Backups über diese Anzahl hinaus werden gelöscht, das älteste zuerst (ungefähr so viele Tage tägliche Backups). Für den Notfall: Wenn Daten einmal kaputtgehen, nimm die neueste Sicherung.</string>
@@ -845,7 +845,7 @@
     <string name="l10n_settings_screen_24_hour_18e86819">24 Stunden</string>
     <string name="l10n_settings_screen_advancedchevron_f22dfa01">AdvancedChevron</string>
     <string name="l10n_settings_screen_bottom_bar_overlay_f257c96f">Overlay der unteren Leiste</string>
-    <string name="l10n_settings_screen_clock_04f6b3ea">Uhr</string>
+    <string name="l10n_settings_screen_clock_04f6b3ea">Uhrzeit</string>
     <string name="l10n_settings_screen_hide_bar_when_scrolling_b077d9f3">Leiste beim Scrollen ausblenden</string>
     <string name="l10n_settings_screen_note_a2481d6c">· %1$s</string>
     <string name="l10n_settings_screen_repo_note_0a694b50">%1$s, %2$s</string>
@@ -1654,12 +1654,12 @@
     <string name="l10n_settings_screen_use_weight_from_health_connect_detail_40238f8a">Nach jeder Synchronisierung übernimmt dein Profilgewicht die neueste Messung aus Health Connect. Ausschalten, um es selbst einzustellen.</string>
     <string name="l10n_settings_screen_weight_from_health_connect_caption_5ca6ea7d">Aus Health Connect · %1$s</string>
     <string name="l10n_settings_screen_weight_from_health_connect_none_dd3f4884">Aus Health Connect · noch kein Gewicht</string>
-    <string name="l10n_settings_screen_what_each_strap_can_read_and_51e7d3fc">Was jeder Strap lesen kann und warum sich einige Merkmale unterscheiden.</string>
+    <string name="l10n_settings_screen_what_each_strap_can_read_and_51e7d3fc">WHOOP 4.0 im Vergleich mit 5.0 und MG.</string>
     <string name="l10n_settings_screen_what_s_new_4d8dc5fe">Was ist neu</string>
     <string name="l10n_settings_screen_what_s_new_in_noop_appchangelog_d26fb453">Was ist neu in NOOP %1$s</string>
     <string name="l10n_settings_screen_whole_night_is_noop_s_default_fbfff434">Die ganze Nacht ist das Standardmaß von NOOP; Deep Sleep Pools HRV nur über Slow Wave Sleep, lesen niedriger und passend zu WHOOP. Durch das Umschalten werden deine letzten Nächte über das neue Fenster neu bewertet und sofort wirksam, sobald du ein paar Nächte Daten hast.</string>
     <string name="l10n_settings_screen_whoop_4_0_versus_5_0_a54c5504">WHOOP 4.0 versus 5.0: Was jeder lesen kann und warum</string>
-    <string name="l10n_settings_screen_whoop_4_0_vs_5_0_2babb05a">WHOOP 4.0 vs. 5.0/MG</string>
+    <string name="l10n_settings_screen_whoop_4_0_vs_5_0_2babb05a">Was jeder Strap kann</string>
     <string name="l10n_settings_screen_whoop_5_mg_straps_hand_a_b8b239e6">Ein Altversuch mit Funktionsschaltern (R22). Der Strap nimmt diese Schreibvorgänge an, NOOP hat aber nicht beobachtet, dass sie einen eigenen Live-Strom freischalten. Für die normale Unterstützung eines WHOOP 5/MG oder für die Rohdaten-Aufzeichnung wird das nicht gebraucht. Es schreibt dauerhafte Einstellungen in den Strap und tut auf deiner Firmware womöglich gar nichts.</string>
     <string name="l10n_settings_screen_whoop_a3650379">WHOOP</string>
     <string name="l10n_settings_screen_working_13b7bfca">Arbeite…</string>
@@ -2044,10 +2044,10 @@
     <string name="l10n_sleep_screen_partly_recorded_f43509ab">Teilweise aufgezeichnet</string>
     <string name="l10n_sleep_screen_only_of_this_night_s_window_9660332a">Nur %1$d%% des Zeitfensters dieser Nacht enthält Schlafphasendaten. Die Phasenwerte decken nur diesen Teil der Nacht ab.</string>
     <string name="haptics_section_title">Haptik</string>
-    <string name="haptics_breathing_label">Atemtaktgeber</string>
+    <string name="haptics_breathing_label">Atemtakt</string>
     <string name="haptics_intervals_label">Intervall-Timer</string>
-    <string name="haptics_live_session_label">Live-Session-Hinweise</string>
-    <string name="haptics_workout_label">Trainingsstart und -ende</string>
+    <string name="haptics_live_session_label">Hinweise im geführten Training</string>
+    <string name="haptics_workout_label">Workout-Start und -Ende</string>
     <string name="notif_timer_alarm_title">Timer &amp; Wecker</string>
     <string name="l10n_settings_screen_ecg_raw_data_gate_whoop_mg_only">ECG-Rohdatensperre (nur WHOOP MG)</string>
     <string name="l10n_settings_screen_ecg_gate_blurb">Dein Strap hat seine eigenen Geräte-Konfigurationsschlüssel aufgelistet, darunter enable_raw_data_w_ecg. Auf einem MG ohne ECG-Abo steht er auf \'0\' — während alle drei ECG-Befehle mit SUCCESS antworten und trotzdem keine Daten senden (#891). Das ist die naheliegendste Vermutung, was ECG verschlossen hält. Ob das Umlegen tatsächlich ECG-Daten liefert, weiß niemand: genau das herauszufinden ist der Zweck, und „immer noch nichts“ ist ein brauchbares Ergebnis, das sich zu posten lohnt (#891).</string>
@@ -2772,7 +2772,7 @@
     <string name="l10n_health_screen_only_nights_with_a_measured_temperature_are_shown_the_others_b6f7c45b">Es werden nur Nächte mit gemessener Temperatur angezeigt; für die übrigen wurde nur eine Abweichung vom Basiswert erfasst.</string>
     <string name="l10n_today_screen_this_night_was_staged_from_heart_rate_4d0f1f9b">Diese Nacht wurde allein anhand der Herzfrequenz ausgewertet, ohne aufgezeichnete Bewegung, daher konnten Herzfrequenzvariabilität und Ruheherzfrequenz nicht gemessen werden. Ein nicht vollständig gekoppelter Strap ist die übliche Ursache.</string>
     <string name="settings_day_cycle_title">Tageszyklus</string>
-    <string name="settings_day_cycle_description">Lege fest, wann Schritte und die laufende Effort neu beginnen. Nickerchen starten keinen neuen Tag.</string>
+    <string name="settings_day_cycle_description">Lege fest, wann Schritte und der laufende Effort neu beginnen. Nickerchen starten keinen neuen Tag.</string>
     <string name="settings_day_cycle_starts">Tagesbeginn</string>
     <string name="settings_day_cycle_sleep">Hauptschlaf</string>
     <string name="settings_day_cycle_midnight">00:00</string>
@@ -2825,7 +2825,7 @@
     <string name="coach_voice_permission_denied">Mikrofonberechtigung verweigert. Aktiviere sie in den Einstellungen, um die Spracheingabe zu nutzen.</string>
     <string name="units_settings_blurb">Wähle Einheiten für Körpermaße und Trainingsdistanz separat. Deine Daten werden immer gleich gespeichert; diese Einstellungen ändern nur die Anzeige.</string>
     <string name="units_body_measurements">Körpermaße</string>
-    <string name="units_exercise_distance_pace">Trainingsdistanz &amp; Tempo</string>
+    <string name="units_exercise_distance_pace">Distanz &amp; Tempo</string>
     <string name="units_kilometres">Kilometer</string>
     <string name="units_miles">Meilen</string>
     <string name="units_follow_body">Wie Körpermaße</string>
@@ -4595,7 +4595,7 @@
     <string name="coach_goals_journey">Ziele &amp; Weg</string>
     <string name="coach_goals_journey_subtitle">Ziel setzen und Fortschritt sehen.</string>
 
-    <string name="sleep_stager_method">Schlafphasenmethode</string>
+    <string name="sleep_stager_method">Schlafphasen-Methode</string>
     <string name="sleep_stager_method_detail">V3 erkennt den Schlafbeginn vorsichtiger und nutzt die V2-Schlafphasen. V2 behält die bisherige Erkennung bei; V1 ist die klassische Methode. Beim Wechsel werden die letzten Nächte neu berechnet.</string>
     <string name="forge_lay_section_coach">Coach</string>
     <string name="forge_lay_section_momentum">Momentum</string>
@@ -4665,7 +4665,7 @@
     <string name="forge_sg_how_many">Wie viele Ziele</string>
     <string name="forge_sg_long_term_limit">Langzeitziele: bis zu %1$d</string>
     <string name="forge_sg_period_limit">Wochen- und Monatsziele: bis zu %1$d</string>
-    <string name="forge_sg_limit_note">Today zeigt immer die drei wichtigsten. Weniger Ziele hält man leichter.</string>
+    <string name="forge_sg_limit_note">Heute zeigt immer die drei wichtigsten. Weniger Ziele hält man leichter.</string>
     <string name="forge_sg_rest_days">Meine Ruhetage</string>
     <string name="forge_sg_rest_days_note">Trainingsziele verteilen ihr Tempo auf die übrigen Tage. Die Woche beginnt mit dem Tag, der unter Sprache &amp; Einheiten eingestellt ist.</string>
     <string name="forge_sg_step_goal">Tägliches Schrittziel</string>
@@ -7474,6 +7474,13 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="import_depth_one_year">1 Jahr</string>
     <string name="import_depth_three_years">3 Jahre</string>
     <string name="import_depth_ten_years">10 Jahre</string>
+    <!-- settings-parity:w8:begin -->
+    <string name="fsw8_strap_conn_title">Verbindung &amp; Schritte</string>
+    <string name="fsw8_strap_conn_sub">Verbindung, Schritte und Puls teilen</string>
+    <string name="fsw8_today_footer">Optionale Karten. Alles bleibt auf diesem Telefon.</string>
+    <string name="fsw8_power_footer">Der Strap speichert seine Daten weiterhin selbst, es geht also nichts verloren. NOOP spricht nur seltener mit ihm, damit er bis zum Laden durchhält: Solange der Akku deines Straps niedrig ist, läuft die Synchronisierung im Hintergrund alle 45 statt alle 15 Minuten.</string>
+    <string name="fsw8_restore_from_backup">Aus einer Sicherung wiederherstellen</string>
+    <!-- settings-parity:w8:end -->
     <!-- settings-parity:w5:begin -->
     <string name="fsw5_haptics">Vibration</string>
     <!-- settings-parity:w5:end -->
@@ -7483,7 +7490,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsw4_day_start">Tagesbeginn</string>
     <string name="fsw4_falling_asleep">Einschlafen</string>
     <string name="fsw4_midnight">Mitternacht</string>
-    <string name="fsw4_day_sleep_note">Standard: Schritte und laufende Effort starten am Anfang des erkannten Hauptschlafs. Nickerchen starten keinen neuen Tag; fehlende Schlafdauer wird auf Mitternacht vor Ort zurückgesetzt.</string>
+    <string name="fsw4_day_sleep_note">Standard: Schritte und der laufende Effort starten am Anfang des erkannten Hauptschlafs. Nickerchen starten keinen neuen Tag; fehlende Schlafdauer wird auf Mitternacht vor Ort zurückgesetzt.</string>
     <string name="fsw4_day_midnight_note">Verwendet einen konventionellen lokalen Kalendertag von 00:00 bis 00:00.</string>
     <string name="fsw4_hrv_window">HRV-Zeitraum</string>
     <string name="fsw4_hrv_note">Tiefschlaf ergibt niedrigere Werte. Ein Wechsel berechnet deine letzten Nächte neu.</string>
@@ -7497,7 +7504,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsw4_export">Exportieren…</string>
     <string name="fsw4_import">Importieren…</string>
     <string name="fsw4_csv">CSV exportieren…</string>
-    <string name="fsw4_backup_sync">Sicherung &amp; Sync in einen Ordner…</string>
+    <string name="fsw4_backup_sync">Sicherung &amp; Sync in einen Ordner</string>
     <string name="fsw4_tc_strap_log">Strap-Log</string>
     <string name="fsw4_tc_strap_log_hint">Nimm das mit, wenn du einen Fehler meldest. Es zeigt mir, was die App gesehen hat.</string>
     <string name="fsw4_tc_report_hint">Erstellt eine bereinigte .zip und zeigt dir, was drin ist.</string>
@@ -7506,7 +7513,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsw4_imports_group">Health Connect &amp; Importe</string>
     <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
-    <string name="fsw3_tc_blurb">Schalte einen Test für das ein, was nicht stimmt, trag den Strap und tippe dann auf Melden. Alles bleibt auf diesem Telefon.</string>
+    <string name="fsw3_tc_blurb">Schalte einen Test für das ein, was nicht stimmt, trag den Strap und tippe dann auf Teilen. Alles bleibt auf diesem Telefon.</string>
     <string name="fsw3_report_footer">Erstellt eine geschwärzte .zip und zeigt dir den Inhalt, bevor etwas geteilt wird.</string>
     <string name="fsw3_report_detail">Geschwärzte .zip zur Prüfung vorab, und der tägliche Export</string>
     <string name="fsw3_group_testing">Tests</string>
@@ -7723,7 +7730,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsp3_hc_nudge">Auto-Anstoß</string>
     <string name="fsp3_hc_nudge_help">Lass den Check-in von selbst auslösen. Aus bleibt es manuell: Du startest eine Atmung selbst über „Atmen“.</string>
     <string name="fsp3_hc_quiet">Ruhezeiten beachten</string>
-    <string name="fsp3_hc_quiet_help">Unterdrücken Sie automatische Anstupser über Nacht (22:00–07:00 Uhr).</string>
+    <string name="fsp3_hc_quiet_help">Unterdrücke automatische Anstupser über Nacht (22:00–07:00 Uhr).</string>
     <string name="fsp3_hc_resonance">Mein Resonanztempo verwenden</string>
     <string name="fsp3_hc_resonance_help">Atme im Tempo, das dein letzter „Mein Tempo finden“-Durchlauf festgelegt hat, falls vorhanden. Sonst ruhige 5,5 Atemzüge/min.</string>
     <string name="fsp3_nap_detail">Erkennt ein wahrscheinliches Nickerchen am Tag anhand der Bewegung des Straps und bittet dich um Bestätigung.</string>
@@ -7854,7 +7861,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsp6_sub_strap">Verbindung, Aufzeichnung, Akku, Doppeltipp, Schritte</string>
     <string name="fsp6_sub_battery">Energiesparen und Dauer-HRV</string>
     <string name="fsp6_sub_actions">Doppeltippen, Vibration und Pulsalarm</string>
-    <string name="fsp6_sub_today">Karten, Reihenfolge und Stil</string>
+    <string name="fsp6_sub_today">Optionale Karten auf Heute</string>
     <string name="fsp6_sub_coach">Anbieter, Modell und Gedächtnis</string>
     <string name="fsp6_sub_language">Sprache, Uhrzeit, Wochenbeginn und Einheiten</string>
     <string name="fsp6_sub_appearance">Design, Hintergrund, Diagramme und Bewegung</string>
@@ -7880,7 +7887,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsp6_ack_adopted_header">Menschen, deren Arbeit NOOP Forge übernommen hat</string>
     <string name="fsp6_ack_unavailable">Die Danksagungen konnten nicht geladen werden.</string>
     <string name="fsp6_ack_licence_missing">Der Lizenztext ist in diesem Build nicht enthalten.</string>
-    <string name="fsp6_help_tc_blurb">Schalte einen Test für das ein, was nicht stimmt, trage den Strap und tippe dann auf „Bericht“. Dein Strap-Log, Neukalibrierung, geplanter Export und experimentelle Sonden leben auch hier.</string>
+    <string name="fsp6_help_tc_blurb">Schalte einen Test für das ein, was nicht stimmt, trage den Strap und tippe dann auf „Teilen“. Dein Strap-Log, Neukalibrierung, geplanter Export und experimentelle Sonden leben auch hier.</string>
     <string name="fsp6_help_open_tc">Testzentrum öffnen</string>
     <string name="fsp6_help_diag_blurb">Ein schreibgeschützter Export der dekodierten Sensor-Streams, die NOOP bereits speichert. Funktioniert mit jedem Strap. Nichts wird auf dein Gerät geschrieben, nichts hochgeladen.</string>
     <string name="fsp6_coach_conn">Verbindung &amp; Modell</string>

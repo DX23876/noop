@@ -219,7 +219,7 @@ internal val HUB_GROUPS = listOf(
  */
 enum class ForgeSettingsSub(val titleRes: Int, val cards: Set<ClassicSettingsCard>? = null, val closes: Boolean = false) {
     StepsCalibration(R.string.l10n_settings_screen_steps_estimate_ce7a604d, closes = true),
-    StrapConnection(R.string.l10n_settings_screen_strap_02b88eeb),
+    StrapConnection(R.string.fsw8_strap_conn_title),
     HeartRateSharing(R.string.fsp2_hrs_title),
     Devices(R.string.nav_devices),
     DevicesSources(R.string.forge_set_devices_sources),

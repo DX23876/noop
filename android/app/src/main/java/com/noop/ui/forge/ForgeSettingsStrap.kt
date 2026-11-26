@@ -18,6 +18,7 @@ import androidx.compose.material.icons.rounded.Battery5Bar
 import androidx.compose.material.icons.rounded.DeviceHub
 import androidx.compose.material.icons.rounded.SettingsInputAntenna
 import androidx.compose.material.icons.rounded.TouchApp
+import androidx.compose.material.icons.rounded.Watch
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -127,19 +128,20 @@ internal fun StrapSettingsPage(viewModel: AppViewModel, onOpenPage: (ForgeSettin
     }
     val green = ForgeTokens.Color.systemGreen.resolve()
     ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
-        HubRow(Icons.Rounded.SettingsInputAntenna, green, name ?: stringResource(R.string.nav_devices), status) {
+        // Its own symbol: the row below it is the connection page and wears the antenna.
+        HubRow(Icons.Rounded.Watch, green, name ?: stringResource(R.string.nav_devices), status) {
             onOpenSub(ForgeSettingsSub.Devices)
         }
     }
     ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
-        HubRow(Icons.Rounded.SettingsInputAntenna, green, stringResource(R.string.fsp2_strap_conn_title),
-               stringResource(R.string.fsp2_strap_conn_detail)) { onOpenSub(ForgeSettingsSub.StrapConnection) }
+        HubRow(Icons.Rounded.SettingsInputAntenna, green, stringResource(ForgeSettingsSub.StrapConnection.titleRes),
+               stringResource(R.string.fsw8_strap_conn_sub)) { onOpenSub(ForgeSettingsSub.StrapConnection) }
         HubDivider()
-        HubRow(Icons.Rounded.Battery5Bar, green, stringResource(R.string.fsp2_strap_rec_title),
-               stringResource(R.string.fsp2_strap_rec_detail)) { onOpenPage(ForgeSettingsPage.BatteryRecording) }
+        HubRow(Icons.Rounded.Battery5Bar, green, stringResource(ForgeSettingsPage.BatteryRecording.titleRes),
+               stringResource(ForgeSettingsPage.BatteryRecording.subtitleRes)) { onOpenPage(ForgeSettingsPage.BatteryRecording) }
         HubDivider()
-        HubRow(Icons.Rounded.TouchApp, ForgeTokens.Color.systemOrange.resolve(), stringResource(R.string.fsp2_strap_actions_title),
-               stringResource(R.string.fsp2_strap_actions_detail)) { onOpenPage(ForgeSettingsPage.StrapActions) }
+        HubRow(Icons.Rounded.TouchApp, ForgeTokens.Color.systemOrange.resolve(), stringResource(ForgeSettingsPage.StrapActions.titleRes),
+               stringResource(ForgeSettingsPage.StrapActions.subtitleRes)) { onOpenPage(ForgeSettingsPage.StrapActions) }
     }
     ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
         HubRow(Icons.Rounded.DeviceHub, ForgeTokens.Color.systemIndigo.resolve(), stringResource(R.string.nav_devices),
@@ -468,8 +470,7 @@ internal fun BatteryRecordingSettings(viewModel: AppViewModel) {
     // iOS `powerSavingGroup`: the master switch and its sub-options on one card, the page's note and then each
     // explanation, in the order of the rows, as the footer under it.
     val powerFooter = listOfNotNull(
-        stringResource(R.string.fsp2_power_blurb),
-        stringResource(R.string.power_saving_mode_desc),
+        stringResource(R.string.fsw8_power_footer), // One paragraph; the page's note and the mode's note said "nothing is lost" twice.
         if (powerSaving) stringResource(R.string.power_saving_hrv_pause_desc) else null,
         if (powerSaving) stringResource(R.string.power_saving_low_refresh_desc) else null,
     ).joinToString("\n\n")

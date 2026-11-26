@@ -7455,6 +7455,13 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="import_depth_one_year">1 an</string>
     <string name="import_depth_three_years">3 ans</string>
     <string name="import_depth_ten_years">10 ans</string>
+    <!-- settings-parity:w8:begin -->
+    <string name="fsw8_strap_conn_title">Connexion et pas</string>
+    <string name="fsw8_strap_conn_sub">Connexion, pas et partage du pouls</string>
+    <string name="fsw8_today_footer">Cartes facultatives. Tout reste sur ce téléphone.</string>
+    <string name="fsw8_power_footer">Le bracelet continue d\'enregistrer ses données lui-même, donc rien n\'est perdu. NOOP lui parle simplement moins souvent pour qu\'il tienne jusqu\'à la recharge : tant que la batterie du bracelet est faible, la synchronisation en arrière-plan a lieu toutes les 45 minutes au lieu de toutes les 15.</string>
+    <string name="fsw8_restore_from_backup">Restaurer depuis une sauvegarde</string>
+    <!-- settings-parity:w8:end -->
     <!-- settings-parity:w5:begin -->
     <string name="fsw5_haptics">Retour haptique</string>
     <!-- settings-parity:w5:end -->
@@ -7478,7 +7485,7 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="fsw4_export">Exporter…</string>
     <string name="fsw4_import">Importer…</string>
     <string name="fsw4_csv">Exporter en CSV…</string>
-    <string name="fsw4_backup_sync">Sauvegarde et synchronisation vers un dossier…</string>
+    <string name="fsw4_backup_sync">Sauvegarde et synchronisation vers un dossier</string>
     <string name="fsw4_tc_strap_log">Journal du strap</string>
     <string name="fsw4_tc_strap_log_hint">Récupérez ceci quand vous signalez un bug. Cela m\'indique ce que l\'application a vu.</string>
     <string name="fsw4_tc_report_hint">Crée un .zip expurgé et te montre son contenu.</string>
@@ -7487,7 +7494,7 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="fsw4_imports_group">Health Connect et imports</string>
     <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
-    <string name="fsw3_tc_blurb">Active un test pour ce qui ne va pas, portez le bracelet, puis touchez Signaler. Tout reste sur ce téléphone.</string>
+    <string name="fsw3_tc_blurb">Active un test pour ce qui ne va pas, portez le bracelet, puis touchez Partager. Tout reste sur ce téléphone.</string>
     <string name="fsw3_report_footer">Crée un .zip expurgé et vous montre son contenu avant tout partage.</string>
     <string name="fsw3_report_detail">Un .zip expurgé que vous relisez d\'abord, et l\'export quotidien</string>
     <string name="fsw3_group_testing">Tests</string>
@@ -7835,7 +7842,7 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="fsp6_sub_strap">Connexion, enregistrement, batterie, double tape, pas</string>
     <string name="fsp6_sub_battery">Économie d\'énergie et VFC continue</string>
     <string name="fsp6_sub_actions">Double tape, vibrations et alertes de pouls</string>
-    <string name="fsp6_sub_today">Cartes, ordre et style</string>
+    <string name="fsp6_sub_today">Cartes facultatives dans Aujourd\'hui</string>
     <string name="fsp6_sub_coach">Fournisseur, modèle et mémoire</string>
     <string name="fsp6_sub_language">Langue, horloge, début de semaine et unités</string>
     <string name="fsp6_sub_appearance">Thème, fond, graphiques et mouvement</string>
@@ -7861,7 +7868,7 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="fsp6_ack_adopted_header">Les personnes dont NOOP Forge a repris le travail</string>
     <string name="fsp6_ack_unavailable">Les remerciements n\'ont pas pu être chargés.</string>
     <string name="fsp6_ack_licence_missing">Le texte de la licence n\'est pas disponible dans cette version.</string>
-    <string name="fsp6_help_tc_blurb">Activez un test pour ce qui ne va pas, portez le bracelet, puis touchez Rapport. Le journal de votre bracelet, le recalibrage, l\'export programmé et les sondes expérimentales se trouvent aussi ici.</string>
+    <string name="fsp6_help_tc_blurb">Activez un test pour ce qui ne va pas, portez le bracelet, puis touchez Partager. Le journal de votre bracelet, le recalibrage, l\'export programmé et les sondes expérimentales se trouvent aussi ici.</string>
     <string name="fsp6_help_open_tc">Ouvrir le Centre de tests</string>
     <string name="fsp6_help_diag_blurb">Un export en lecture seule des flux de capteurs décodés que NOOP stocke déjà. Fonctionne avec n\'importe quel bracelet. Rien n\'est écrit sur votre appareil, et rien n\'est téléversé.</string>
     <string name="fsp6_coach_conn">Connexion et modèle</string>

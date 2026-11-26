@@ -7509,6 +7509,13 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="import_depth_one_year">1 rok</string>
     <string name="import_depth_three_years">3 lata</string>
     <string name="import_depth_ten_years">10 lat</string>
+    <!-- settings-parity:w8:begin -->
+    <string name="fsw8_strap_conn_title">Połączenie i kroki</string>
+    <string name="fsw8_strap_conn_sub">Połączenie, kroki i udostępnianie tętna</string>
+    <string name="fsw8_today_footer">Karty opcjonalne. Wszystko zostaje na tym telefonie.</string>
+    <string name="fsw8_power_footer">Opaska nadal sama zapisuje dane, więc nic nie ginie. NOOP po prostu rzadziej się z nią łączy, żeby wytrzymała do ładowania: gdy bateria opaski jest niska, synchronizacja w tle odbywa się co 45 minut zamiast co 15.</string>
+    <string name="fsw8_restore_from_backup">Przywróć z kopii zapasowej</string>
+    <!-- settings-parity:w8:end -->
     <!-- settings-parity:w5:begin -->
     <string name="fsw5_haptics">Wibracje</string>
     <!-- settings-parity:w5:end -->
@@ -7532,7 +7539,7 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="fsw4_export">Eksport…</string>
     <string name="fsw4_import">Import…</string>
     <string name="fsw4_csv">Eksportuj CSV…</string>
-    <string name="fsw4_backup_sync">Kopia zapasowa i synchronizacja z folderem…</string>
+    <string name="fsw4_backup_sync">Kopia zapasowa i synchronizacja z folderem</string>
     <string name="fsw4_tc_strap_log">Log strapa</string>
     <string name="fsw4_tc_strap_log_hint">Skorzystaj z tego, gdy zgłosisz błąd. Mówi mi, co zobaczyła aplikacja.</string>
     <string name="fsw4_tc_report_hint">Tworzy ocenzurowany plik .zip i pokazuje jego zawartość.</string>
@@ -7541,7 +7548,7 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="fsw4_imports_group">Health Connect i importy</string>
     <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
-    <string name="fsw3_tc_blurb">Włącz test dla tego, co nie działa, załóż opaskę i dotknij Zgłoś. Wszystko zostaje na tym telefonie.</string>
+    <string name="fsw3_tc_blurb">Włącz test dla tego, co nie działa, załóż opaskę i dotknij Udostępnij. Wszystko zostaje na tym telefonie.</string>
     <string name="fsw3_report_footer">Tworzy zanonimizowany plik .zip i pokazuje jego zawartość, zanim cokolwiek zostanie udostępnione.</string>
     <string name="fsw3_report_detail">Zanonimizowany .zip do wcześniejszego przejrzenia oraz codzienny eksport</string>
     <string name="fsw3_group_testing">Testy</string>
@@ -7891,7 +7898,7 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="fsp6_sub_strap">Połączenie, zapis, bateria, podwójne stuknięcie, kroki</string>
     <string name="fsp6_sub_battery">Oszczędzanie energii i ciągła HRV</string>
     <string name="fsp6_sub_actions">Podwójne stuknięcie, wibracje i alerty tętna</string>
-    <string name="fsp6_sub_today">Karty, kolejność i styl</string>
+    <string name="fsp6_sub_today">Opcjonalne karty na Dzisiaj</string>
     <string name="fsp6_sub_coach">Dostawca, model i pamięć</string>
     <string name="fsp6_sub_language">Język, zegar, początek tygodnia i jednostki</string>
     <string name="fsp6_sub_appearance">Motyw, tło, wykresy i ruch</string>
@@ -7917,7 +7924,7 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="fsp6_ack_adopted_header">Osoby, których pracę przejął NOOP Forge</string>
     <string name="fsp6_ack_unavailable">Nie udało się wczytać podziękowań.</string>
     <string name="fsp6_ack_licence_missing">Tekst licencji nie jest dostępny w tej wersji.</string>
-    <string name="fsp6_help_tc_blurb">Włącz test na to, co jest nie tak, załóż pasek, a następnie dotknij Zgłoś. Twój dziennik paska, ponowna kalibracja, zaplanowany eksport i sondy eksperymentalne również znajdują się tutaj.</string>
+    <string name="fsp6_help_tc_blurb">Włącz test na to, co jest nie tak, załóż pasek, a następnie dotknij Udostępnij. Twój dziennik paska, ponowna kalibracja, zaplanowany eksport i sondy eksperymentalne również znajdują się tutaj.</string>
     <string name="fsp6_help_open_tc">Otwórz Centrum Testowe</string>
     <string name="fsp6_help_diag_blurb">Eksport tylko do odczytu zdekodowanych strumieni czujników NOOP jest już zapisany. Działa na każdym pasku. Nic nie jest zapisywane na Twoim urządzeniu i nic nie jest przesyłane.</string>
     <string name="fsp6_coach_conn">Połączenie i model</string>

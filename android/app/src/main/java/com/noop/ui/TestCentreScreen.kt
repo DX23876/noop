@@ -162,7 +162,7 @@ fun TestCentreScreen(vm: AppViewModel, onOpenGroundTruthCollector: () -> Unit = 
     ScreenScaffold(
         title = uiString(R.string.l10n_test_centre_screen_test_centre_37b36828),
         subtitle = if (section == null) {
-            "Turn on a test for the thing that's wrong, wear the strap, then tap Report. Everything stays on this phone."
+            "Turn on a test for the thing that's wrong, wear the strap, then tap Share. Everything stays on this phone."
         } else null,
     ) {
         // --- Section 1: Domain test modes ---

@@ -7458,6 +7458,13 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="import_depth_one_year">1 año</string>
     <string name="import_depth_three_years">3 años</string>
     <string name="import_depth_ten_years">10 años</string>
+    <!-- settings-parity:w8:begin -->
+    <string name="fsw8_strap_conn_title">Conexión y pasos</string>
+    <string name="fsw8_strap_conn_sub">Conexión, pasos y compartir pulso</string>
+    <string name="fsw8_today_footer">Tarjetas opcionales. Todo se queda en este teléfono.</string>
+    <string name="fsw8_power_footer">La pulsera sigue guardando sus datos por sí sola, así que no se pierde nada. NOOP solo habla con ella con menos frecuencia para que aguante hasta que la cargues: mientras la batería de la pulsera esté baja, la sincronización en segundo plano se hace cada 45 minutos en lugar de cada 15.</string>
+    <string name="fsw8_restore_from_backup">Restaurar desde una copia de seguridad</string>
+    <!-- settings-parity:w8:end -->
     <!-- settings-parity:w5:begin -->
     <string name="fsw5_haptics">Vibración</string>
     <!-- settings-parity:w5:end -->
@@ -7481,7 +7488,7 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="fsw4_export">Exportar…</string>
     <string name="fsw4_import">Importar…</string>
     <string name="fsw4_csv">Exportar CSV…</string>
-    <string name="fsw4_backup_sync">Copia y sincronización a una carpeta…</string>
+    <string name="fsw4_backup_sync">Copia y sincronización a una carpeta</string>
     <string name="fsw4_tc_strap_log">Registro del strap</string>
     <string name="fsw4_tc_strap_log_hint">Copia esto cuando reportes un error. Me dice lo que vio la app.</string>
     <string name="fsw4_tc_report_hint">Crea un .zip censurado y te muestra su contenido.</string>
@@ -7490,7 +7497,7 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="fsw4_imports_group">Health Connect e importaciones</string>
     <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
-    <string name="fsw3_tc_blurb">Activa una prueba para lo que falla, ponte la banda y pulsa Informar. Todo se queda en este teléfono.</string>
+    <string name="fsw3_tc_blurb">Activa una prueba para lo que falla, ponte la banda y pulsa Compartir. Todo se queda en este teléfono.</string>
     <string name="fsw3_report_footer">Crea un .zip con datos ocultos y te muestra lo que contiene antes de compartir nada.</string>
     <string name="fsw3_report_detail">Un .zip con datos ocultos que revisas antes, y la exportación diaria</string>
     <string name="fsw3_group_testing">Pruebas</string>
@@ -7838,7 +7845,7 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="fsp6_sub_strap">Conexión, registro, batería, doble toque, pasos</string>
     <string name="fsp6_sub_battery">Ahorro de energía y VFC continua</string>
     <string name="fsp6_sub_actions">Doble toque, vibraciones y alertas de pulso</string>
-    <string name="fsp6_sub_today">Tarjetas, orden y estilo</string>
+    <string name="fsp6_sub_today">Tarjetas opcionales en Hoy</string>
     <string name="fsp6_sub_coach">Proveedor, modelo y memoria</string>
     <string name="fsp6_sub_language">Idioma, reloj, inicio de semana y unidades</string>
     <string name="fsp6_sub_appearance">Tema, fondo, gráficos y movimiento</string>
@@ -7864,7 +7871,7 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="fsp6_ack_adopted_header">Personas cuyo trabajo ha adoptado NOOP Forge</string>
     <string name="fsp6_ack_unavailable">No se pudieron cargar los créditos.</string>
     <string name="fsp6_ack_licence_missing">El texto de la licencia no está disponible en esta versión.</string>
-    <string name="fsp6_help_tc_blurb">Activa una prueba para lo que va mal, ponte la pulsera y luego toca Informe. El registro de tu pulsera, la recalibración, la exportación programada y las sondas experimentales también viven aquí.</string>
+    <string name="fsp6_help_tc_blurb">Activa una prueba para lo que va mal, ponte la pulsera y luego toca Compartir. El registro de tu pulsera, la recalibración, la exportación programada y las sondas experimentales también viven aquí.</string>
     <string name="fsp6_help_open_tc">Abrir Centro de pruebas</string>
     <string name="fsp6_help_diag_blurb">Una exportación de solo lectura de los flujos de sensores decodificados que NOOP ya almacena. Funciona con cualquier pulsera. No se escribe nada en tu dispositivo y no se sube nada.</string>
     <string name="fsp6_coach_conn">Conexión y modelo</string>

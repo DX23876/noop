@@ -189,7 +189,7 @@ internal fun ProfileSection(profile: ProfileStore, viewModel: AppViewModel, chan
         if (before != (profile.hrMaxAuto to profile.hrMaxAutoSource)) change {}
     }
     // The photo and the figures under it, as iOS's `forgeProfileHead`: the avatar large with a camera badge, tap it to change.
-    ProfileHead(profile)
+    ProfileHead(profile, imperial)
     // iOS keeps the fields still until "Edit" (`profileEditing`): plain values, then steppers and pickers.
     SettingsCard(title = null, blurb = stringResource(R.string.fsp1_profile_blurb), headerAction = {
         TextButton(onClick = { onEditing(!editing) }) {
@@ -248,11 +248,11 @@ internal fun ProfileSection(profile: ProfileStore, viewModel: AppViewModel, chan
         SettingRow(stringResource(R.string.l10n_settings_screen_weight_69c0b815)) {
             if (imperial) {
                 val lb = UnitFormatter.kgToPounds(profile.weightKg)
-                ProfileStepper(editing, "%.0f lb".format(lb), enabled = !fromHealthConnect,
+                ProfileStepper(editing, profileWeightText(profile.weightKg, true), enabled = !fromHealthConnect,
                         onMinus = { change { profile.weightKg = (lb - 1) / UnitFormatter.POUNDS_PER_KILOGRAM } },
                         onPlus = { change { profile.weightKg = (lb + 1) / UnitFormatter.POUNDS_PER_KILOGRAM } })
             } else {
-                ProfileStepper(editing, "%.1f kg".format(profile.weightKg), enabled = !fromHealthConnect,
+                ProfileStepper(editing, profileWeightText(profile.weightKg, false), enabled = !fromHealthConnect,
                         onMinus = { change { profile.weightKg -= 0.5 } }, onPlus = { change { profile.weightKg += 0.5 } })
             }
         }
@@ -367,9 +367,13 @@ internal fun ProfileSection(profile: ProfileStore, viewModel: AppViewModel, chan
     }
 }
 
+/** The weight as the head and its row both read it: the device's decimal separator, whole pounds or tenths of a kilogram. */
+private fun profileWeightText(kg: Double, imperial: Boolean): String =
+    if (imperial) "%.0f lb".format(UnitFormatter.kgToPounds(kg)) else "%.1f kg".format(kg)
+
 /** The new design's profile head: the photo large with a camera badge (tap it to change it), and the figures under it in one line. */
 @Composable
-private fun ProfileHead(profile: ProfileStore) {
+private fun ProfileHead(profile: ProfileStore, imperial: Boolean) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val photoPicker = androidx.activity.compose.rememberLauncherForActivityResult(
@@ -391,7 +395,7 @@ private fun ProfileHead(profile: ProfileStore) {
             }
         }
         Text(listOf(androidx.compose.ui.res.pluralStringResource(R.plurals.fsp1_profile_years, profile.age, profile.age), stringResource(R.string.forge_body_cm, profile.heightCm.roundToInt().toString()),
-                    UnitFormatter.massFromKilograms(profile.weightKg, UnitSystem.METRIC)).joinToString(" · "),
+                    profileWeightText(profile.weightKg, imperial)).joinToString(" · "),
              style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = Forge.sceneInk.secondary)
         // The photo can also be taken off again: Android keeps iOS's classic remove action, which the new head lacks.
         if (hasAvatar) {
