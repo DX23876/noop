@@ -2131,8 +2131,10 @@ every reader takes the same one. Collecting more paired nights was considered an
 **Stored workouts follow.** A recorded session or a confirmed suggestion stores its Effort when it is saved,
 so it kept the old yardstick and could stand above its own day. The rebuild's workout heart-rate step now
 scores those rows again from the band under the fills' coverage rule
-(`WorkoutHeartRateFills.rescoreRecordedEffort`); a row the band does not cover keeps its value, imports
-keep their source's, and the wearer never types an Effort.
+(`WorkoutHeartRateFills.rescoreRecordedEffort`); a row the band does not cover, or on a day the pass stored
+no Effort resting rate for, keeps its value (it is never scored against a default), imports keep their
+source's, and the wearer never types an Effort. Every fill takes its resting rate from one place
+(`StoreReader.fillRestingHRByDay`): the day's Effort rate where the pass stored one, else the day's own.
 
 Detection keeps the day's shown resting heart rate, so the walk rule under test does not move; only the
 scoring of a found bout uses Effort's. The shown resting heart rate, energy, training load, AgeLess and

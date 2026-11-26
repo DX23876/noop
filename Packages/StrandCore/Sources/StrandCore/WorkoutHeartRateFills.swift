@@ -99,10 +99,7 @@ public enum WorkoutHeartRateFills {
                                                  WorkoutHeartRateFill.appleRestingWindowDays)
         // Health Connect's resting heart rate reaches the daily rows of days the strap does not cover, so the same
         // read finds it there.
-        // A day the pass scored lends its Effort resting heart rate (`EffortRestingHR`), so a filled session is
-        // scored as the day around it is; other days keep their own resting rate.
-        let own = (await reader.restingHrByDay(fromDay: firstDay, toDay: lastDay))
-            .merging(await reader.storedEffortRestingHRByDay(fromDay: firstDay, toDay: lastDay)) { _, effort in effort }
+        let own = await reader.fillRestingHRByDay(fromDay: firstDay, toDay: lastDay)
         let now = Int(Date().timeIntervalSince1970)
         var keys: [WorkoutKey] = []
         var fills: [WorkoutHeartRateFillRow] = []
@@ -155,10 +152,7 @@ public enum WorkoutHeartRateFills {
                                                   -WorkoutHeartRateFill.appleRestingWindowDays)
         let lastDay = WeeklyDigestEngine.addDays(StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(last))),
                                                  WorkoutHeartRateFill.appleRestingWindowDays)
-        // A day the pass scored lends its Effort resting heart rate (`EffortRestingHR`), so a filled session is
-        // scored as the day around it is; other days keep their own resting rate.
-        let own = (await reader.restingHrByDay(fromDay: firstDay, toDay: lastDay))
-            .merging(await reader.storedEffortRestingHRByDay(fromDay: firstDay, toDay: lastDay)) { _, effort in effort }
+        let own = await reader.fillRestingHRByDay(fromDay: firstDay, toDay: lastDay)
         var apple: [String: Double] = [:]
         for metric in try await store.dailyMetrics(deviceId: MetricResolver.appleHealthSource, from: firstDay, to: lastDay) {
             if let value = metric.restingHr, value > 0 { apple[metric.day] = Double(value) }
@@ -233,9 +227,7 @@ public enum WorkoutHeartRateFills {
               let last = candidates.map(\.startTs).max() else { return .untouched }
         let firstDay = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(first)))
         let lastDay = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(last)))
-        // A day the pass scored lends its Effort resting heart rate (`EffortRestingHR`), as in the fills above.
-        let own = (await reader.restingHrByDay(fromDay: firstDay, toDay: lastDay))
-            .merging(await reader.storedEffortRestingHRByDay(fromDay: firstDay, toDay: lastDay)) { _, effort in effort }
+        let own = await reader.fillRestingHRByDay(fromDay: firstDay, toDay: lastDay)
         let now = Int(Date().timeIntervalSince1970)
         var keys: [WorkoutKey] = []
         var fills: [WorkoutHeartRateFillRow] = []
@@ -263,8 +255,8 @@ public enum WorkoutHeartRateFills {
     /// the band's trace, against its day's Effort resting heart rate (`EffortRestingHR`), under the fills' own
     /// coverage rule (`WorkoutHeartRateFill.resolve`). Such a value is stored when the session is saved (a live
     /// recording, a confirmed suggestion) and so followed no later change to how Effort is scored; the wearer
-    /// never types one. A row the band does not cover well enough keeps its value, and an import keeps what its
-    /// source gave it. The rebuild's workout heart-rate step runs it over the whole history (2026-11-25).
+    /// never types one. A row the band does not cover well enough, or on a day the pass stored no Effort resting
+    /// rate for, keeps its value, and an import keeps what its source gave it. The rebuild's workout heart-rate step runs it over the whole history (2026-11-25).
     /// Returns the number of rows whose Effort changed.
     public static func rescoreRecordedEffort(reader: StoreReader, from: Int, to: Int, maxHR: Double) async throws -> Int {
         let store = reader.store
@@ -292,9 +284,12 @@ public enum WorkoutHeartRateFills {
                 try Task.checkCancellation()
                 let day = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(row.startTs)))
                 let band = await reader.hrSamples(from: row.startTs, to: row.endTs, limit: 20_000)
-                guard let strain = WorkoutHeartRateFill.resolve(
+                // A day the pass stored no Effort resting rate for keeps the session's value: it is not scored
+                // against a default, as a fill without a resting rate stays empty.
+                guard let restingHR = resting[day],
+                      let strain = WorkoutHeartRateFill.resolve(
                         band: band, watchMinutes: [], start: row.startTs, end: row.endTs, maxHR: maxHR,
-                        restingHR: resting[day] ?? StrainScorer.defaultRestingHR)?.strain,
+                        restingHR: restingHR)?.strain,
                       strain != row.strain else { continue }
                 updated.append(WorkoutRow(
                     startTs: row.startTs, endTs: row.endTs, sport: row.sport, source: row.source,

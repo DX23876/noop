@@ -60,6 +60,14 @@ extension StoreReader {
         return byDay
     }
 
+    /// The resting heart rate a workout filled from the band is scored against on each day in `[fromDay,
+    /// toDay]`: the Effort resting rate the pass stored for a day it scored, so the session sits on the yardstick
+    /// of the day around it, else the day's own resting rate (`restingHrByDay`). Every fill reads it here.
+    public func fillRestingHRByDay(fromDay: String, toDay: String) async -> [String: Double] {
+        (await restingHrByDay(fromDay: fromDay, toDay: toDay))
+            .merging(await storedEffortRestingHRByDay(fromDay: fromDay, toDay: toDay)) { _, effort in effort }
+    }
+
     /// The resting heart rate Effort reads on `day` (`EffortRestingHR.stored` over this wearer's computed
     /// sources).
     public func effortRestingHR(day: String) async -> Double {
