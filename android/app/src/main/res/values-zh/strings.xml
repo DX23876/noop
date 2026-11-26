@@ -7440,7 +7440,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fsw4_imports_group">Health Connect 与导入</string>
     <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
-    <string name="fsw3_tc_blurb">为出问题的部分打开一个测试，佩戴手环，然后点按“分享”。一切都保留在这部手机上。</string>
+    <string name="fsw3_tc_blurb">为出问题的部分开启一项测试，佩戴手环，然后点击「附上我的日志报告一个错误」。一切都保留在这部手机上。</string>
     <string name="fsw3_report_footer">生成已脱敏的 .zip，并在分享任何内容之前先让你查看其内容。</string>
     <string name="fsw3_report_detail">先由你查看的脱敏 .zip，以及每日导出</string>
     <string name="fsw3_group_testing">测试</string>
@@ -7813,7 +7813,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fsp6_ack_adopted_header">NOOP Forge 采用了其成果的贡献者</string>
     <string name="fsp6_ack_unavailable">无法加载致谢名单。</string>
     <string name="fsp6_ack_licence_missing">此版本不包含许可文本。</string>
-    <string name="fsp6_help_tc_blurb">为出问题的部分开启一项测试，佩戴手环，然后点击「分享」。你的手环日志、重新校准、定时导出和实验性探测也都在这里。</string>
+    <string name="fsp6_help_tc_blurb">为出问题的部分开启一项测试，佩戴手环，然后点击「附上我的日志报告一个错误」。你的手环日志、重新校准、定时导出和实验性探测也都在这里。</string>
     <string name="fsp6_help_open_tc">打开测试中心</string>
     <string name="fsp6_help_diag_blurb">对 NOOP 已存储的已解码传感器数据流进行只读导出。适用于任何手环，不会向你的设备写入任何内容，也不会上传任何内容。</string>
     <string name="fsp6_coach_conn">连接方式及型号</string>

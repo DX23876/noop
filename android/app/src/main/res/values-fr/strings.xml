@@ -7494,7 +7494,7 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="fsw4_imports_group">Health Connect et imports</string>
     <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
-    <string name="fsw3_tc_blurb">Active un test pour ce qui ne va pas, portez le bracelet, puis touchez Partager. Tout reste sur ce téléphone.</string>
+    <string name="fsw3_tc_blurb">Activez un test pour ce qui ne va pas, portez le bracelet, puis touchez « Signaler un bug avec mon journal ». Tout reste sur ce téléphone.</string>
     <string name="fsw3_report_footer">Crée un .zip expurgé et vous montre son contenu avant tout partage.</string>
     <string name="fsw3_report_detail">Un .zip expurgé que vous relisez d\'abord, et l\'export quotidien</string>
     <string name="fsw3_group_testing">Tests</string>
@@ -7868,7 +7868,7 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="fsp6_ack_adopted_header">Les personnes dont NOOP Forge a repris le travail</string>
     <string name="fsp6_ack_unavailable">Les remerciements n\'ont pas pu être chargés.</string>
     <string name="fsp6_ack_licence_missing">Le texte de la licence n\'est pas disponible dans cette version.</string>
-    <string name="fsp6_help_tc_blurb">Activez un test pour ce qui ne va pas, portez le bracelet, puis touchez Partager. Le journal de votre bracelet, le recalibrage, l\'export programmé et les sondes expérimentales se trouvent aussi ici.</string>
+    <string name="fsp6_help_tc_blurb">Activez un test pour ce qui ne va pas, portez le bracelet, puis touchez « Signaler un bug avec mon journal ». Le journal de votre bracelet, le recalibrage, l\'export programmé et les sondes expérimentales se trouvent aussi ici.</string>
     <string name="fsp6_help_open_tc">Ouvrir le Centre de tests</string>
     <string name="fsp6_help_diag_blurb">Un export en lecture seule des flux de capteurs décodés que NOOP stocke déjà. Fonctionne avec n\'importe quel bracelet. Rien n\'est écrit sur votre appareil, et rien n\'est téléversé.</string>
     <string name="fsp6_coach_conn">Connexion et modèle</string>

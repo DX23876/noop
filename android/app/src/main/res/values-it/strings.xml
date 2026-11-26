@@ -7464,7 +7464,7 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="fsw4_imports_group">Health Connect e importazioni</string>
     <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
-    <string name="fsw3_tc_blurb">Attiva un test per ciò che non va, indossa la fascia e tocca Condividi. Tutto resta su questo telefono.</string>
+    <string name="fsw3_tc_blurb">Attiva un test per ciò che non va, indossa la fascia, poi tocca «Segnala un bug con il mio log». Tutto resta su questo telefono.</string>
     <string name="fsw3_report_footer">Crea uno .zip con i dati oscurati e ti mostra cosa contiene prima di condividere qualsiasi cosa.</string>
     <string name="fsw3_report_detail">Uno .zip oscurato che controlli prima, e l\'esportazione giornaliera</string>
     <string name="fsw3_group_testing">Test</string>
@@ -7838,7 +7838,7 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="fsp6_ack_adopted_header">Persone di cui NOOP Forge ha adottato il lavoro</string>
     <string name="fsp6_ack_unavailable">Impossibile caricare i riconoscimenti.</string>
     <string name="fsp6_ack_licence_missing">Il testo della licenza non è disponibile in questa versione.</string>
-    <string name="fsp6_help_tc_blurb">Attiva un test per ciò che non va, indossa la fascia, poi tocca Condividi. Anche il registro della fascia, la ricalibrazione, l\'esportazione pianificata e le sonde sperimentali si trovano qui.</string>
+    <string name="fsp6_help_tc_blurb">Attiva un test per ciò che non va, indossa la fascia, poi tocca «Segnala un bug con il mio log». Anche il registro della fascia, la ricalibrazione, l\'esportazione pianificata e le sonde sperimentali si trovano qui.</string>
     <string name="fsp6_help_open_tc">Apri il Centro test</string>
     <string name="fsp6_help_diag_blurb">Un\'esportazione in sola lettura degli stream dei sensori decodificati che NOOP già memorizza. Funziona con qualsiasi fascia, niente viene scritto sul tuo dispositivo e niente viene caricato.</string>
     <string name="fsp6_coach_conn">Connessione e modello</string>

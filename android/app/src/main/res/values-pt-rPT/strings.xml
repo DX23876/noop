@@ -7489,7 +7489,7 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="fsw4_imports_group">Health Connect e importações</string>
     <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
-    <string name="fsw3_tc_blurb">Ative um teste para o que está errado, use a pulseira e toque em Partilhar. Tudo fica neste telemóvel.</string>
+    <string name="fsw3_tc_blurb">Ative um teste para detetar o que está errado, utilize a bracelete e toque em «Reportar um erro com o meu registo». Tudo fica neste telemóvel.</string>
     <string name="fsw3_report_footer">Cria um .zip com dados ocultados e mostra o que contém antes de partilhar seja o que for.</string>
     <string name="fsw3_report_detail">Um .zip ocultado que revê primeiro, e a exportação diária</string>
     <string name="fsw3_group_testing">Testes</string>
@@ -7863,7 +7863,7 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="fsp6_ack_adopted_header">Pessoas cujo trabalho o NOOP Forge adotou</string>
     <string name="fsp6_ack_unavailable">Não foi possível carregar os créditos.</string>
     <string name="fsp6_ack_licence_missing">O texto da licença não está disponível nesta versão.</string>
-    <string name="fsp6_help_tc_blurb">Ative um teste para detetar o que está errado, utilize a bracelete e toque em Partilhar. O teu registo de bracelete, recalibração, exportação programada e sondas experimentais também estão aqui.</string>
+    <string name="fsp6_help_tc_blurb">Ative um teste para detetar o que está errado, utilize a bracelete e toque em «Reportar um erro com o meu registo». O teu registo de bracelete, recalibração, exportação programada e sondas experimentais também estão aqui.</string>
     <string name="fsp6_help_open_tc">Centro de testes aberto</string>
     <string name="fsp6_help_diag_blurb">Uma exportação de leitura apenas dos fluxos de sensores descodificados que o NOOP já armazena. Funciona em qualquer bracelete. Nada é gravado no teu dispositivo e nada é carregado.</string>
     <string name="fsp6_coach_conn">Conexão e modelo</string>

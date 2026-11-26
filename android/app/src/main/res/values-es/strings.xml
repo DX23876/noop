@@ -7497,7 +7497,7 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="fsw4_imports_group">Health Connect e importaciones</string>
     <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
-    <string name="fsw3_tc_blurb">Activa una prueba para lo que falla, ponte la banda y pulsa Compartir. Todo se queda en este teléfono.</string>
+    <string name="fsw3_tc_blurb">Activa una prueba para lo que va mal, ponte la pulsera y luego toca «Reportar un error con mi registro». Todo se queda en este teléfono.</string>
     <string name="fsw3_report_footer">Crea un .zip con datos ocultos y te muestra lo que contiene antes de compartir nada.</string>
     <string name="fsw3_report_detail">Un .zip con datos ocultos que revisas antes, y la exportación diaria</string>
     <string name="fsw3_group_testing">Pruebas</string>
@@ -7871,7 +7871,7 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="fsp6_ack_adopted_header">Personas cuyo trabajo ha adoptado NOOP Forge</string>
     <string name="fsp6_ack_unavailable">No se pudieron cargar los créditos.</string>
     <string name="fsp6_ack_licence_missing">El texto de la licencia no está disponible en esta versión.</string>
-    <string name="fsp6_help_tc_blurb">Activa una prueba para lo que va mal, ponte la pulsera y luego toca Compartir. El registro de tu pulsera, la recalibración, la exportación programada y las sondas experimentales también viven aquí.</string>
+    <string name="fsp6_help_tc_blurb">Activa una prueba para lo que va mal, ponte la pulsera y luego toca «Reportar un error con mi registro». El registro de tu pulsera, la recalibración, la exportación programada y las sondas experimentales también viven aquí.</string>
     <string name="fsp6_help_open_tc">Abrir Centro de pruebas</string>
     <string name="fsp6_help_diag_blurb">Una exportación de solo lectura de los flujos de sensores decodificados que NOOP ya almacena. Funciona con cualquier pulsera. No se escribe nada en tu dispositivo y no se sube nada.</string>
     <string name="fsp6_coach_conn">Conexión y modelo</string>

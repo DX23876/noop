@@ -3076,7 +3076,7 @@
     <string name="forge_settings_charge_detail">Charge-Basis neu kalibrieren</string>
     <string name="forge_settings_icon_titanium">Titan</string>
     <string name="forge_settings_icon_blue">Blaues Titan</string>
-    <string name="forge_settings_auto_backup_detail">Täglich ein datiertes Backup in einen Ordner</string>
+    <string name="forge_settings_auto_backup_detail">Täglich eine datierte Sicherung in einen Ordner</string>
     <string name="forge_settings_imports">Importe</string>
     <string name="forge_settings_data_sources_detail">WHOOP-Verlauf, Apple Health und Health Connect</string>
     <string name="forge_settings_guides">Anleitungen</string>
@@ -7478,7 +7478,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsw8_strap_conn_title">Verbindung &amp; Schritte</string>
     <string name="fsw8_strap_conn_sub">Verbindung, Schritte und Puls teilen</string>
     <string name="fsw8_today_footer">Optionale Karten. Alles bleibt auf diesem Telefon.</string>
-    <string name="fsw8_power_footer">Der Strap speichert seine Daten weiterhin selbst, es geht also nichts verloren. NOOP spricht nur seltener mit ihm, damit er bis zum Laden durchhält: Solange der Akku deines Straps niedrig ist, läuft die Synchronisierung im Hintergrund alle 45 statt alle 15 Minuten.</string>
+    <string name="fsw8_power_footer">Der Strap speichert seine Daten weiterhin selbst, es geht also nichts verloren. NOOP spricht nur seltener mit ihm, damit er bis zum Laden durchhält. Synchronisiert im Hintergrund seltener (alle 45 statt 15 Minuten), solange der Akku deines Straps niedrig ist.</string>
     <string name="fsw8_restore_from_backup">Aus einer Sicherung wiederherstellen</string>
     <!-- settings-parity:w8:end -->
     <!-- settings-parity:w5:begin -->
@@ -7513,7 +7513,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsw4_imports_group">Health Connect &amp; Importe</string>
     <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
-    <string name="fsw3_tc_blurb">Schalte einen Test für das ein, was nicht stimmt, trag den Strap und tippe dann auf Teilen. Alles bleibt auf diesem Telefon.</string>
+    <string name="fsw3_tc_blurb">Schalte einen Test für das ein, was nicht stimmt, trage den Strap und tippe dann auf „Fehler mit meinem Log melden“. Alles bleibt auf diesem Telefon.</string>
     <string name="fsw3_report_footer">Erstellt eine geschwärzte .zip und zeigt dir den Inhalt, bevor etwas geteilt wird.</string>
     <string name="fsw3_report_detail">Geschwärzte .zip zur Prüfung vorab, und der tägliche Export</string>
     <string name="fsw3_group_testing">Tests</string>
@@ -7887,7 +7887,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsp6_ack_adopted_header">Menschen, deren Arbeit NOOP Forge übernommen hat</string>
     <string name="fsp6_ack_unavailable">Die Danksagungen konnten nicht geladen werden.</string>
     <string name="fsp6_ack_licence_missing">Der Lizenztext ist in diesem Build nicht enthalten.</string>
-    <string name="fsp6_help_tc_blurb">Schalte einen Test für das ein, was nicht stimmt, trage den Strap und tippe dann auf „Teilen“. Dein Strap-Log, Neukalibrierung, geplanter Export und experimentelle Sonden leben auch hier.</string>
+    <string name="fsp6_help_tc_blurb">Schalte einen Test für das ein, was nicht stimmt, trage den Strap und tippe dann auf „Fehler mit meinem Log melden“. Dein Strap-Log, Neukalibrierung, geplanter Export und experimentelle Sonden leben auch hier.</string>
     <string name="fsp6_help_open_tc">Testzentrum öffnen</string>
     <string name="fsp6_help_diag_blurb">Ein schreibgeschützter Export der dekodierten Sensor-Streams, die NOOP bereits speichert. Funktioniert mit jedem Strap. Nichts wird auf dein Gerät geschrieben, nichts hochgeladen.</string>
     <string name="fsp6_coach_conn">Verbindung &amp; Modell</string>
