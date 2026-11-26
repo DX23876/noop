@@ -75,11 +75,11 @@ import java.util.Locale
 
 // MARK: - Strap Actions
 
-/** Strap Actions: Haptics, Double-tap and Haptic coaching, as iOS orders them, then Android's nap detection. */
+/** Strap Actions: Double-tap, Haptics and Haptic coaching, as iOS orders them, then Android's nap detection. */
 @Composable
 internal fun StrapActionsSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Unit) {
-    HapticsCard()
     DoubleTapCard(viewModel)
+    HapticsCard()
     HapticCoachingCard(viewModel)
     // Android only (A-11): the nap review list has no iOS twin, so it keeps its own screen one row away.
     SettingsCard(stringResource(R.string.l10n_automations_screen_nap_detection_ca2dedf5), null) {
@@ -95,7 +95,7 @@ private fun HapticsCard() {
     var intervals by remember { mutableStateOf(HapticPrefs.enabled(context, HapticPrefs.INTERVALS)) }
     var live by remember { mutableStateOf(HapticPrefs.enabled(context, HapticPrefs.LIVE_SESSION)) }
     var workout by remember { mutableStateOf(HapticPrefs.enabled(context, HapticPrefs.WORKOUT)) }
-    SettingsCard(stringResource(R.string.haptics_section_title), stringResource(R.string.fsp3_haptics_blurb),
+    SettingsCard(stringResource(R.string.fsw5_haptics), stringResource(R.string.fsp3_haptics_blurb),
                  active = breathing || intervals || live || workout) {
         ToggleRow(stringResource(R.string.haptics_breathing_label), stringResource(R.string.fsp3_haptics_breathing_help), breathing) {
             breathing = it; HapticPrefs.setEnabled(context, HapticPrefs.BREATHING, it)

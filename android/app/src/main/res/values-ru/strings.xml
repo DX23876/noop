@@ -7465,6 +7465,9 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="import_depth_one_year">1 год</string>
     <string name="import_depth_three_years">3 года</string>
     <string name="import_depth_ten_years">10 лет</string>
+    <!-- settings-parity:w5:begin -->
+    <string name="fsw5_haptics">Вибрация</string>
+    <!-- settings-parity:w5:end -->
     <!-- settings-parity:w4:begin -->
     <string name="fsw4_calc_title">Как считает NOOP</string>
     <string name="fsw4_calc_blurb">Изменения здесь могут пересчитать прошлые дни. Записанные данные сохраняются.</string>

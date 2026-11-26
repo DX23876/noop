@@ -526,7 +526,7 @@
     <string name="l10n_fused_record_screen_noop_shows_the_winner_source_displayname_4a3892cc">NOOP zeigt die %1$s Lesung, weil es %2$s für diese Metrik: eine höhere Vertrauensquelle hier, nicht ein Urteil, dass die anderen falsch sind.</string>
     <string name="l10n_fused_record_screen_other_source_displayname_agrees_fusionformat_value_78e29c2a">%1$s stimmt zu: %2$s</string>
     <string name="l10n_fused_record_screen_other_source_displayname_fusionformat_value_other_207f7548">%1$s: %2$s</string>
-    <string name="l10n_fused_record_screen_your_bands_report_different_numbers_here_03d20d81">Deine Bänder melden unterschiedliche Zahlen. Hier ist jede Quelle und die, die NOOP verwendet.</string>
+    <string name="l10n_fused_record_screen_your_bands_report_different_numbers_here_03d20d81">Deine Straps melden unterschiedliche Zahlen. Hier ist jede Quelle und die, die NOOP verwendet.</string>
     <string name="l10n_health_screen_5_yr_a_fitness_comparison_not_418aa11d">± 5 Jahre · ein Fitness-Vergleich, kein biologisches Alter</string>
     <string name="l10n_health_screen_a_wellness_estimate_from_your_habits_d00f36de">Eine Wellness-Schätzung aus deinen Gewohnheiten, kein klinisches biologisches Alter.</string>
     <string name="l10n_health_screen_as_of_latest_first_726f20bb">wie von %1$s</string>
@@ -1534,7 +1534,7 @@
     <string name="l10n_settings_screen_backup_restore_a1616284">Sicherung &amp; Wiederherstellung</string>
     <string name="l10n_settings_screen_battery_pct_roundtoint_e02e2891">Batterie %1$s%%%2$s</string>
     <string name="l10n_settings_screen_broadcast_heart_rate_d1af1c79">Herzfrequenz senden</string>
-    <string name="l10n_settings_screen_broadcast_strap_hr_garmin_ant_a39d0654">Sendeband HR (Garmin/ANT)</string>
+    <string name="l10n_settings_screen_broadcast_strap_hr_garmin_ant_a39d0654">Strap-HR senden (Garmin/ANT)</string>
     <string name="l10n_settings_screen_buzz_the_time_on_your_strap_06fc879d">Die Zeit auf deinem Strap summen lassen</string>
     <string name="l10n_settings_screen_cancel_77dfd213">Abbrechen</string>
     <string name="l10n_settings_screen_restore_3cbe6d6b">Wiederherstellen</string>
@@ -1583,7 +1583,7 @@
     <string name="l10n_settings_screen_keep_screen_on_during_a_workout_42d27284">Bildschirm während eines Workouts anlassen</string>
     <string name="l10n_settings_screen_keeps_streaming_from_your_strap_with_d31b4af9">Behält das Streaming von deinem Strap mit einer laufenden Benachrichtigung, auch nachdem du NOOP geschlossen hast. Schalte die Verbindung aus, wenn die App geschlossen ist.</string>
     <string name="l10n_settings_screen_keeps_the_detailed_beat_to_beat_87b78edd">Läuft den detaillierten Beat-to-Beat-Stream Tag und Nacht, nicht nur während ein Live-Bildschirm geöffnet ist, so dass NOOP viel mehr für HRV über Nacht, Erholung und Schlaf einfängt. Verwendet mehr Batterie (dein Strap streamt die Herzfrequenz kontinuierlich). Benötigt "Im Hintergrund verbunden bleiben" auf.</string>
-    <string name="l10n_settings_screen_live_deeppacketsthissession_type_0x2f_historical_offload_8fef3d84">%1$s Typ-0x2F historischer-Offload-Frame (s) außerhalb unserer Synchronisierung gesehen. Dies sind Geschichte (z. B. eine andere App, die den Bandbestand zieht), kein Live-R22-Stream (#494).</string>
+    <string name="l10n_settings_screen_live_deeppacketsthissession_type_0x2f_historical_offload_8fef3d84">%1$s Typ-0x2F historischer-Offload-Frame (s) außerhalb unserer Synchronisierung gesehen. Dies sind Geschichte (z. B. eine andere App, die den Strap-Bestand zieht), kein Live-R22-Stream (#494).</string>
     <string name="l10n_settings_screen_live_sessions_beta_2ca3a97f">Live Sessions (Beta)</string>
     <string name="l10n_settings_screen_makes_your_whoop_5_0_mg_b26b94c7">Bringt deinen WHOOP 5.0/MG dazu, seine Herzfrequenz als Standard-Bluetooth-HR-Sensor zu bewerben, so dass ein Garmin (Edge / Watch), Zwift oder Fitnessgeräte es während eines Trainings verwenden können. Auf die nächste Verbindung angewendet (und sofort, wenn verbunden); schreibt das Flag whoop live hr in adv ind pkt des Straps. Reversibel. 5/MG.</string>
     <string name="l10n_settings_screen_max_heart_rate_3d4ed858">Maximale Herzfrequenz</string>
@@ -1814,7 +1814,7 @@
     <string name="timeline_metric_skin_temp">Hauttemperatur</string>
     <string name="timeline_metric_respiration">Atmung</string>
     <string name="timeline_metric_motion">Bewegung</string>
-    <string name="timeline_metric_band_sleep_state">Schlafstatus des Bands</string>
+    <string name="timeline_metric_band_sleep_state">Schlafstatus des Straps</string>
     <string name="timeline_metric_movement">Bewegung</string>
     <string name="explore_category_charge">Charge</string>
     <string name="explore_category_effort">Effort</string>
@@ -1870,7 +1870,7 @@
         <item quantity="one">%1$d Workout</item>
         <item quantity="other">%1$d Workouts</item>
     </plurals>
-    <string name="timeline_spo2_not_on_whoop5">Dieses Band sendet kein SpO₂ über Bluetooth. Importiere einen WHOOP-Export oder Health Connect, um es zu sehen.</string>
+    <string name="timeline_spo2_not_on_whoop5">Dieser Strap sendet kein SpO₂ über Bluetooth. Importiere einen WHOOP-Export oder Health Connect, um es zu sehen.</string>
     <string name="timeline_resp_not_on_whoop5">Dieses Strap sendet keinen Rohdaten-Atemstrom. Deine geschätzte Atemfrequenz erscheint im Health-Bildschirm.</string>
     <string name="settings_disclosure_expanded">Erweitert</string>
     <string name="settings_disclosure_collapsed">Reduziert</string>
@@ -2689,10 +2689,10 @@
     <string name="ground_truth_capture_status">Aufnahmestatus</string>
     <string name="ground_truth_recording">Aufnahme · %1$s</string>
     <string name="ground_truth_imu_coverage">IMU %1$s · %2$s</string>
-    <string name="ground_truth_band_connected_paired">Band: verbunden + gekoppelt</string>
-    <string name="ground_truth_band_connected_pairing">Band: verbunden; Kopplung läuft</string>
-    <string name="ground_truth_band_disconnected">Band: getrennt</string>
-    <string name="ground_truth_band_searching">Band: getrennt; Suche läuft</string>
+    <string name="ground_truth_band_connected_paired">Strap: verbunden + gekoppelt</string>
+    <string name="ground_truth_band_connected_pairing">Strap: verbunden; Kopplung läuft</string>
+    <string name="ground_truth_band_disconnected">Strap: getrennt</string>
+    <string name="ground_truth_band_searching">Strap: getrennt; Suche läuft</string>
     <string name="ground_truth_history_running">Verlaufssynchronisierung läuft (%1$d Blöcke)</string>
     <string name="ground_truth_history_completed">Verlauf synchronisiert: %1$s</string>
     <string name="ground_truth_history_none">Noch keine abgeschlossene Verlaufssynchronisierung</string>
@@ -3330,7 +3330,7 @@
     <string name="forge_tl_m_immediate">Deine gemessene Last ist sofort verfügbar. Ein erster persönlicher Vergleich erscheint nach 21 vollständigen Tagen.</string>
     <string name="forge_tl_m_personal">Dein üblicher Bereich basiert auf der robusten Schwankung deiner eigenen vollständigen Trainingswochen.</string>
     <string name="forge_tl_maintaining">Erhaltend</string>
-    <string name="forge_tl_method_cardio">Banister-TRIMP: Jede Minute zählt danach, wie weit sie in deine Herzfrequenzreserve reichte – nach oben hin steil ansteigend –, mit dem Ruhepuls jener Woche und einem Koeffizienten für dein Profil. Daten des NOOP-Bands haben Vorrang; workoutbezogene Health-Daten ergänzen nur, wenn die Band-Aufzeichnung unvollständig ist.</string>
+    <string name="forge_tl_method_cardio">Banister-TRIMP: Jede Minute zählt danach, wie weit sie in deine Herzfrequenzreserve reichte – nach oben hin steil ansteigend –, mit dem Ruhepuls jener Woche und einem Koeffizienten für dein Profil. Daten des NOOP-Straps haben Vorrang; workoutbezogene Health-Daten ergänzen nur, wenn die Strap-Aufzeichnung unvollständig ist.</string>
     <string name="forge_tl_method_session">RPE der gesamten Einheit × Dauer. Füge sie in jeder Trainingsansicht hinzu; fehlende Bewertungen werden nie geschätzt.</string>
     <string name="forge_tl_method_strength">Arbeitssätze, gewichtet nach Nähe zum Muskelversagen. Tonnage bleibt eine Trainingsstatistik, nicht die Last.</string>
     <string name="forge_tl_moderate">Moderat</string>
@@ -7474,6 +7474,9 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="import_depth_one_year">1 Jahr</string>
     <string name="import_depth_three_years">3 Jahre</string>
     <string name="import_depth_ten_years">10 Jahre</string>
+    <!-- settings-parity:w5:begin -->
+    <string name="fsw5_haptics">Vibration</string>
+    <!-- settings-parity:w5:end -->
     <!-- settings-parity:w4:begin -->
     <string name="fsw4_calc_title">So rechnet NOOP</string>
     <string name="fsw4_calc_blurb">Änderungen hier können vergangene Tage neu berechnen. Deine aufgezeichneten Daten bleiben.</string>
@@ -7629,12 +7632,12 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsp2_status_connected">Verbunden</string>
     <string name="fsp2_status_disconnected">Getrennt</string>
     <string name="fsp2_detail_paired">Dein Strap ist gekoppelt und sendet Daten. Öffne Live für eine Echtzeit-Herzfrequenz.</string>
-    <string name="fsp2_detail_live_only">Live-Herzschlag wird übertragen, aber dein Stützband ist nicht vollständig verbunden. Die verschlüsselte Verbindung überträgt Bewegung, Hauttemperatur, SpO₂ und Atemfrequenz – ohne sie wird der Schlaf aus dem Herzschlag allein erstellt. Vibration, Alarme und die Synchronisation der Geschichte benötigen sie ebenfalls.</string>
+    <string name="fsp2_detail_live_only">Live-Herzschlag wird übertragen, aber dein Strap ist nicht vollständig verbunden. Die verschlüsselte Verbindung überträgt Bewegung, Hauttemperatur, SpO₂ und Atemfrequenz – ohne sie wird der Schlaf aus dem Herzschlag allein erstellt. Vibration, Alarme und die Synchronisation der Geschichte benötigen sie ebenfalls.</string>
     <string name="fsp2_detail_finishing">Verbunden. Sicherer Kopplungs-Handshake wird abgeschlossen…</string>
     <string name="fsp2_detail_previous">Zuvor gekoppelt, aber gerade nicht verbunden. Scanne neu, um wieder zu verbinden.</string>
-    <string name="fsp2_detail_none">Kein Strap verbunden. Leg dein WHOOP in die Nähe und tippe auf „Neu scannen“ zum Koppeln.</string>
+    <string name="fsp2_detail_none">Kein Strap verbunden. Leg dein WHOOP in die Nähe und tippe auf „Erneut suchen“, um ihn zu koppeln.</string>
     <string name="fsp2_diag_title">Verbindungsdiagnose</string>
-    <string name="fsp2_diag_detail">Bandprotokoll, Verbindungswerte und Exporte</string>
+    <string name="fsp2_diag_detail">Strap-Log, Verbindungswerte und Exporte</string>
     <string name="fsp2_name_field">Neuer Strap-Name</string>
     <string name="fsp2_name_note">Ändert den Bluetooth-Namen, den dein WHOOP 4.0 sendet (was du beim Koppeln siehst). Der Strap startet zum Übernehmen neu, der neue Name erscheint also bei der nächsten Verbindung. Nur WHOOP 4.0.</string>
     <string name="fsp2_name_current">Aktuell: %1$s</string>

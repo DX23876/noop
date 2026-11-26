@@ -7401,6 +7401,9 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="import_depth_one_year">1 年</string>
     <string name="import_depth_three_years">3 年</string>
     <string name="import_depth_ten_years">10 年</string>
+    <!-- settings-parity:w5:begin -->
+    <string name="fsw5_haptics">触觉反馈</string>
+    <!-- settings-parity:w5:end -->
     <!-- settings-parity:w4:begin -->
     <string name="fsw4_calc_title">NOOP 如何计算</string>
     <string name="fsw4_calc_blurb">此处的更改可能会重新计算过去的日子。你的记录数据会保留。</string>

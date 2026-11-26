@@ -7500,6 +7500,9 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="import_depth_one_year">1 year</string>
     <string name="import_depth_three_years">3 years</string>
     <string name="import_depth_ten_years">10 years</string>
+    <!-- settings-parity:w5:begin -->
+    <string name="fsw5_haptics">Haptics</string>
+    <!-- settings-parity:w5:end -->
     <!-- settings-parity:w4:begin -->
     <string name="fsw4_calc_title">How NOOP calculates</string>
     <string name="fsw4_calc_blurb">Changes here can recompute past days. Your recorded data stays.</string>
