@@ -184,6 +184,8 @@ enum CoreAnalysisMaintenance {
         if let extras = args["extras"] as? String { CoreAnalysis.applyExtras(extras, to: &settings, profile: &profile) }
         // A repair never rescored the whole history: that is the Lab switch's own pass.
         settings.historyRescore = false
+        // Nor is it the post-offload pass: a repair derives every day of the window again.
+        settings.afterOffload = false
         return (profile, settings)
     }
 
@@ -191,6 +193,9 @@ enum CoreAnalysisMaintenance {
         switch op {
         case "analysis.maintenance":
             return CoreRead.json(status())
+        case "analysis.passLog":
+            // The daily pass's own strap-log lines since the last call, for the Android strap log.
+            return CoreRead.json(["lines": CoreAnalysis.PassLog.drain()])
         case "analysis.reanalyzeRecent":
             guard let (profile, settings) = request(args) else { return #"{"error":"invalid"}"# }
             guard let session = ShadowSession.storeAndPath, !session.path.isEmpty else { return #"{"error":"noStore"}"# }
