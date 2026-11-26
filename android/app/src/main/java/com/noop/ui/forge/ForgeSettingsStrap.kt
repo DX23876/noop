@@ -173,7 +173,8 @@ internal fun StrapConnectionSettings(viewModel: AppViewModel, onOpen: (ForgeSett
     val colors = Forge.colors
 
     val state = strapLinkState(live.encryptedBond, live.bonded, live.connected)
-    SettingsCard(title = stringResource(R.string.l10n_settings_screen_strap_02b88eeb), blurb = stringResource(R.string.fsp2_strap_blurb)) {
+    // No header: "Strap" under the Strap page head would only repeat it (iOS hides it the same way).
+    SettingsCard(title = null, blurb = stringResource(R.string.fsp2_strap_blurb)) {
         Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
             Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2), verticalAlignment = Alignment.CenterVertically) {
                 ForgeBadgePill(stringResource(strapLinkTitleRes(state)),
