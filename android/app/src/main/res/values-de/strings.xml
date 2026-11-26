@@ -526,7 +526,7 @@
     <string name="l10n_fused_record_screen_noop_shows_the_winner_source_displayname_4a3892cc">NOOP zeigt die %1$s Lesung, weil es %2$s für diese Metrik: eine höhere Vertrauensquelle hier, nicht ein Urteil, dass die anderen falsch sind.</string>
     <string name="l10n_fused_record_screen_other_source_displayname_agrees_fusionformat_value_78e29c2a">%1$s stimmt zu: %2$s</string>
     <string name="l10n_fused_record_screen_other_source_displayname_fusionformat_value_other_207f7548">%1$s: %2$s</string>
-    <string name="l10n_fused_record_screen_your_bands_report_different_numbers_here_03d20d81">Deine Straps melden unterschiedliche Zahlen. Hier ist jede Quelle und die, die NOOP verwendet.</string>
+    <string name="l10n_fused_record_screen_your_bands_report_different_numbers_here_03d20d81">Deine Geräte melden unterschiedliche Zahlen. Hier ist jede Quelle und die, die NOOP verwendet.</string>
     <string name="l10n_health_screen_5_yr_a_fitness_comparison_not_418aa11d">± 5 Jahre · ein Fitness-Vergleich, kein biologisches Alter</string>
     <string name="l10n_health_screen_a_wellness_estimate_from_your_habits_d00f36de">Eine Wellness-Schätzung aus deinen Gewohnheiten, kein klinisches biologisches Alter.</string>
     <string name="l10n_health_screen_as_of_latest_first_726f20bb">wie von %1$s</string>
