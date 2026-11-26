@@ -68,6 +68,8 @@ class NoopApplication : Application() {
         // Fork (DX23876), Android plan D-5: load the shared Swift core on the main thread (its main actor binds
         // there) and log its recipe; nothing reads it yet.
         com.noop.core.SwiftCore.start(this)
+        // The core's daily pass paces and spaces itself while no NOOP screen is in front, as on iOS.
+        com.noop.core.CoreForeground.install(this)
         // Android without Room (docs/fork/android/CORE-ONLY-PLAN.md): the data access runs in the core's store,
         // and the core scores every day; the Kotlin engine stands down whenever the core is in this build.
         com.noop.core.CoreDb.init(this)

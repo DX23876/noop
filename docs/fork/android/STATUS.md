@@ -72,6 +72,7 @@ Plan: [`PLAN.md`](PLAN.md) · parity continuation: [`PARITY-PLAN.md`](PARITY-PLA
 
 | Step | Date | Evidence |
 |---|---|---|
+| Battery: the core's pass after an offload, as on iOS | 2026-11-26 | A tester's Oppo Find N3 (WHOOP MG, 636 days) listed NOOP as its biggest battery user. Every Android pass derived all 21 days again (`allowDayReuse: false`), about 70 times a day. The post-offload pass is now Apple's (`CoreAnalysis.Settings.afterOffload`: skipped when nothing new was banked, unchanged days reused), its watermark outlives the process, and in the background it follows Apple's `RescoreBackgroundPolicy`, now in `StrandCore`: rests after each ten seconds of work and starts at most every 30 minutes, the put-off pass running when a screen comes back (`CoreForeground`, `analysis.background`). The pass's own lines and a `re-score: cost cpu=` line reach the strap log (`analysis.passLog`). `CorePostOffloadPassTests`; not yet on a phone |
 | Parity 2.3: Training plans and the routine editor | 2026-11-14 | Android has the whole plan surface and a routine editor with depth (`17e0b718e`), a plan that can be seen and a routine started from nothing (`3a94c027f`), what a plan amounts to in a week (`cd82d26ab`) and the coach reading a plan where the coach is on (`f76053c09`). The plan itself is a stored object since GRDB v90, so both platforms read one plan through one resolver. Checked on the emulator; the long press that carries a set's numbers down is NOT verified on a device (see Untested). Analysis migration required: no; prescriptions are not derived values. |
 | Health Connect: per-type choice and what was actually granted | 2026-11-14 | The import now reads the types the wearer did grant instead of giving up on a partial grant, and each type can be picked (`41c7101ae`), the categories a log asks for are named (`890cba5ce`), past data is requested (`b381731a9`) and `READ_DISTANCE` / `WRITE_VO2_MAX` are declared (`a3829912a`). Analysis migration required: no; an import boundary. |
 | Onboarding, the terms gate and What's New in the Forge colours | 2026-11-14 | `66c716a60`. The three screens a new install sees first no longer carry the old palette while the rest of the app is in the new one. Analysis migration required: no. |
@@ -256,6 +257,10 @@ Compares the build before a restructuring with the build after it on a copy of t
 ## Untested (needs a device or a tester's strap log)
 
 Everything on Bluetooth, background sync and real hardware. Phase A ran on an emulator only.
+
+Open since 2026-11-26: the post-offload pass's battery cost on a real phone. A tester's next strap log should
+show `re-score: cost cpu=` lines, `reuse summary: … reused=` near 20 and `re-score: deferred (post-offload)` while
+the app is in the background.
 
 Open since 2026-11-15, not yet run anywhere:
 

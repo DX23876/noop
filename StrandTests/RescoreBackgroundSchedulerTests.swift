@@ -1,4 +1,5 @@
 import XCTest
+import StrandCore
 @testable import Strand
 
 /// #1538: the bookkeeping that makes a deferred re-score actually happen.

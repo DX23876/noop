@@ -1,4 +1,11 @@
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#elseif canImport(Android)
+import Android
+#elseif canImport(Glibc)
+import Glibc
+#endif
 import StrandAnalytics
 import StrandCore
 import WhoopProtocol
@@ -67,6 +74,10 @@ public enum CoreAnalysis {
         /// One pass over every day with raw heart rate, unchanged days reused, as Apple runs when the strength
         /// switch flips (`reanalyzeHistoryReusingUnchangedDays`); the extras key `historyRescore`.
         public var historyRescore = false
+        /// The pass answers a completed strap offload, as Apple's `AppModel` runs that one: skipped when no sensor
+        /// row moved since the last pass, and every day whose raw inputs did not move kept from its stored row
+        /// instead of derived again. The extras key `afterOffload`. A setting or a repair still derives the window.
+        public var afterOffload = false
         public init(effortBanister: Bool, sleepStagerV2: Bool, motionAwareWake: Bool, deepHrvWindow: Bool,
                     dayCycleMode: String?, healthspan: Bool = false, rhythmAge: Bool = false,
                     dismissedSleepSpans: [String] = [], dismissedWorkoutSpans: [String] = [],
@@ -133,6 +144,7 @@ public enum CoreAnalysis {
         if let v = bool("spo2CandidateDisplay") { settings.spo2CandidateDisplay = v }
         if let v = bool("effortStrengthBonus") { settings.effortStrengthBonus = v }
         if let v = bool("historyRescore") { settings.historyRescore = v }
+        if let v = bool("afterOffload") { settings.afterOffload = v }
         if let v = double("waistCm") { profile.waistCm = v }
         if let v = double("stepTicksPerStep"), v > 0 { profile.stepTicksPerStep = v }
         if let v = double("stepsManualCoefficient") { profile.stepsManualCoefficient = v }
@@ -192,9 +204,15 @@ public enum CoreAnalysis {
                 try? await Task.sleep(for: .milliseconds(500))
             }
         }
-        defer { watcher.cancel(); AnalysisMaintenanceState.finish(unless: .today) }
+        Background.passRunning(true)
+        defer { watcher.cancel(); AnalysisMaintenanceState.finish(unless: .today); Background.passRunning(false) }
         if settings.historyRescore {
             await engine.reanalyzeHistoryReusingUnchangedDays()
+        } else if settings.afterOffload {
+            // Apple's post-offload pass, argument for argument: deriving all 21 days again after every sync
+            // is most of a pass's cost, about 70 times a day on a phone that offloads every quarter hour.
+            await engine.analyzeRecent(maxDays: days, skipIfUnchanged: true, allowDayReuse: true,
+                                       reason: .rawMutation)
         } else {
             await engine.analyzeRecent(maxDays: days, force: true, allowDayReuse: false)
         }
@@ -428,19 +446,102 @@ public enum CoreAnalysis {
         var strings: [String: String] { get { Self.strings } set { Self.strings = newValue } }
         init(_ settings: Settings) { self.settings = settings }
         func analysisSettings() -> AnalysisSettings { settings.analysisSettings }
-        func diagnostic(_ line: String, domain: TestDomain?) {}
+        /// The lines without a Test Centre domain, as the Apple strap log shows them with Test Centre off.
+        func diagnostic(_ line: String, domain: TestDomain?) {
+            if domain == nil { PassLog.append(line) }
+        }
         func storedBool(_ key: String) -> Bool { bools[key] ?? false }
-        func storedString(_ key: String) -> String? { strings[key] }
+        func storedString(_ key: String) -> String? {
+            strings[key] ?? (CoreAnalysis.persistedKeys.contains(key)
+                ? CoreAnalysis.bookkeepingDefaults?.string(forKey: key) : nil)
+        }
         func store(_ value: Bool, forKey key: String) { bools[key] = value }
-        func store(_ value: String?, forKey key: String) { strings[key] = value }
+        func store(_ value: String?, forKey key: String) {
+            strings[key] = value
+            guard CoreAnalysis.persistedKeys.contains(key), let defaults = CoreAnalysis.bookkeepingDefaults else { return }
+            if let value { defaults.set(value, forKey: key) } else { defaults.removeObject(forKey: key) }
+            CoreDefaults.save()
+        }
         func store(_ value: Double, forKey key: String) {}
         func passWillStart() -> AnalysisPassTicket {
-            AnalysisPassTicket(owedToken: nil, cpuSecondsAtStart: nil, assertionExpiriesAtStart: 0)
+            Background.passWillWork()
+            return AnalysisPassTicket(owedToken: nil, cpuSecondsAtStart: CoreAnalysis.processCPUSeconds(),
+                                      assertionExpiriesAtStart: 0)
         }
         func passDidFinish(_ ticket: AnalysisPassTicket, elapsedSeconds: Double) -> AnalysisPassReport {
-            AnalysisPassReport(settled: true, costLine: "re-score: cost core")
+            let cpu = CoreAnalysis.processCPUSeconds().flatMap { end in ticket.cpuSecondsAtStart.map { end - $0 } }
+            return AnalysisPassReport(settled: true,
+                                      costLine: CoreAnalysis.passCostLine(cpuSeconds: cpu, elapsedSeconds: elapsedSeconds))
         }
-        nonisolated func paceIfBackgrounded(since mark: inout UInt64) async {}
-        func costReading() -> (cpuSeconds: Double?, batteryPercent: Int?) { (nil, nil) }
+        nonisolated func paceIfBackgrounded(since mark: inout UInt64) async { await Background.pace(since: &mark) }
+        func costReading() -> (cpuSeconds: Double?, batteryPercent: Int?) { (CoreAnalysis.processCPUSeconds(), nil) }
+    }
+}
+
+extension CoreAnalysis {
+    /// The pass's bookkeeping that has to outlive the process, as Apple keeps it in UserDefaults: the raw-input
+    /// watermark, so the first offload after a restart that banked nothing new still skips its pass. The rest
+    /// stays per process, as before (the measured maximum heart rate is filled again by the first pass).
+    static let persistedKeys: Set<String> = [DailyAnalysis.analyzeWatermarkKey]
+
+    /// Where those keys live: the core's UserDefaults on Android, which `CoreDefaults` writes to disk. Nil on
+    /// Apple, where this package only runs in tests, so a test run leaves the machine's defaults alone.
+    nonisolated(unsafe) static var bookkeepingDefaults: UserDefaults? = {
+        #if canImport(Darwin)
+        return nil
+        #else
+        return .standard
+        #endif
+    }()
+
+    /// Forgets what this process kept, as a restart does; for tests.
+    @MainActor
+    static func forgetProcessBookkeepingForTesting() {
+        Host.bools = [:]
+        Host.strings = [:]
+    }
+
+    /// CPU seconds this process has used, user plus system, across all threads (Apple:
+    /// `RescoreBackgroundScheduler.processCPUSeconds`). Process-wide, so it includes the strap's frames beside a
+    /// pass; nil if the kernel refuses the read.
+    static func processCPUSeconds() -> Double? {
+        var usage = rusage()
+        guard getrusage(RUSAGE_SELF, &usage) == 0 else { return nil }
+        func seconds(_ t: timeval) -> Double { Double(t.tv_sec) + Double(t.tv_usec) / 1_000_000 }
+        return seconds(usage.ru_utime) + seconds(usage.ru_stime)
+    }
+
+    /// What a completed pass cost, in the words of the Apple cost line so the two platforms' logs compare.
+    static func passCostLine(cpuSeconds: Double?, elapsedSeconds: Double) -> String {
+        let cpu = cpuSeconds.map { String(format: "%.1fs", max(0, $0)) } ?? "n/a"
+        let share = cpuSeconds.flatMap { elapsedSeconds > 0 ? Int((max(0, $0) / elapsedSeconds * 100).rounded()) : nil }
+        return "re-score: cost cpu=\(cpu) elapsed=\(String(format: "%.1f", elapsedSeconds))s"
+            + " cpuShare=\(share.map { "\($0)%" } ?? "n/a")"
+    }
+
+    /// The strap-log lines the daily pass wrote (Apple: `AppAnalysisHost.diagnosticSink`), held until the Android
+    /// app collects them with `analysis.passLog`. Bounded, so a client that never collects keeps a few hundred.
+    enum PassLog {
+        private final class Buffer: @unchecked Sendable {
+            let lock = NSLock()
+            var lines: [String] = []
+        }
+        private static let buffer = Buffer()
+        static let capacity = 400
+
+        static func append(_ line: String) {
+            buffer.lock.withLock {
+                buffer.lines.append(line)
+                if buffer.lines.count > capacity { buffer.lines.removeFirst(buffer.lines.count - capacity) }
+            }
+        }
+
+        /// The lines written since the last collection, oldest first; the buffer is empty afterwards.
+        static func drain() -> [String] {
+            buffer.lock.withLock {
+                defer { buffer.lines.removeAll() }
+                return buffer.lines
+            }
+        }
     }
 }

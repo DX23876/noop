@@ -3280,6 +3280,9 @@ class WhoopBleClient(
 
     init {
         seedLastSyncFromActiveStrap()
+        // The shared core's daily pass writes into the same strap log as this client (Apple: `AppModel` wires
+        // `AppAnalysisHost.diagnosticSink` to `live.append(log:)`).
+        com.noop.core.CoreShadow.passLogSink = { line -> log(line) }
         // Retro-decode (#151): when the decoder gains a historical layout (WHOOP 4.0 v25), re-run every
         // archived undecodable frame through it and insert whatever now decodes — the only path by
         // which already-acked, strap-freed history backfills after an update. Runs once per APP version
@@ -3400,8 +3403,9 @@ class WhoopBleClient(
                 log("re-score: trigger=post-offload newData=" +
                     if (newData) "yes"
                     else "no (empty/duplicate offload — nothing changed since last run) — skipping (#1146)")
-                // Fork (DX23876), Android plan D-5: the shared core scores the same nights on its own store. Its
-                // answer is logged two minutes later beside this pass's own per-day lines, for comparison.
+                // Fork (DX23876), Android plan D-5: the shared core scores the nights on its own store. Since
+                // 2026-11-26 this is Apple's post-offload pass (`afterOffload`): only the days the offload moved are
+                // derived again, where every pass used to derive all 21 about 70 times a day.
                 if (newData) {
                     com.noop.core.CoreShadow.analyze(profile.age.toInt(), profile.sex, profile.weightKg,
                         profile.heightCm, profileStore.hrMaxOverride,
@@ -3417,10 +3421,14 @@ class WhoopBleClient(
                             profileStore,
                             dismissedSleep = repository.dismissedSleeps(deviceId).map { it.startTs to it.endTs },
                             dismissedWorkouts = repository.dismissedDetectedUnion(deviceId).map { it.startTs to it.endTs },
-                            spo2CandidateDisplay = NoopPrefs.spo2CandidateDisplay(context)))
-                    handler.postDelayed({
+                            spo2CandidateDisplay = NoopPrefs.spo2CandidateDisplay(context),
+                            afterOffload = true))
+                    // The pass's own lines (what it derived, what it reused, what it cost) and today's scores, once
+                    // it has finished: it waits behind any history still arriving, so a fixed delay could miss it.
+                    ioScope.launch {
+                        com.noop.core.CoreShadow.awaitQueuedAnalysis()
                         com.noop.core.CoreShadow.today()?.let { log("Core shadow analysis: $it") }
-                    }, 120_000)
+                    }
                 }
                 if (newData) runCatching {
                     // #1816: set the motion sink so a fresh strap's first backfill flips the Today caption
