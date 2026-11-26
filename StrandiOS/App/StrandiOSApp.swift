@@ -362,12 +362,15 @@ struct StrandiOSApp: App {
                 // is exactly the wiring someone forgets on the next write path.
                 .onReceive(NotificationCenter.default.publisher(for: .noopWeightLogged)) { note in
                     guard let logged = WeightLogNotification(note) else { return }
+                    // A weigh-in today takes today's reminder back.
+                    if logged.day == Repository.localDayKey(Date()) { BodyMeasurementReminder.noteWeighIn(day: logged.day) }
                     Task {
                         await health.writeWeightReportingFailure(kg: logged.kg, day: logged.day)
                         // …and the profile follows the series, wherever the weigh-in was made. A
                         // back-dated entry moves nothing: the reconciler takes the NEWEST reading,
                         // not the one just written.
                         await model.repo.reconcileProfileWeight(model.profile)
+                        await WeightWidgetPublisher.refresh(repo: model.repo)
                     }
                 }
                 .noopAccent(accentRaw, customHex: accentCustomHex)
@@ -514,6 +517,8 @@ struct StrandiOSApp: App {
         .onChange(of: scenePhase, initial: true) { _, phase in
             if phase == .active {
                 model.traceAppState("foreground")
+                // The weight widgets' dates count down and a weigh-in may have arrived from Apple Health.
+                Task { @MainActor in await WeightWidgetPublisher.refresh(repo: model.repo) }
                 model.session.publishActivity()
                 model.drainPendingIntents(router: router)
                 // A reported problem that moved. Looks at most every six hours and only at this

@@ -33,5 +33,6 @@ struct NOOPWidgetBundle: WidgetBundle {
         NOOPGoalWidget()
         SyncLiveActivity()
         NOOPFitnessWidgets().body
+        NOOPWeightWidgets().body
     }
 }

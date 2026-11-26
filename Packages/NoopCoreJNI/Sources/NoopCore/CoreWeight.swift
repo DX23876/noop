@@ -79,6 +79,16 @@ enum CoreWeight {
         case "weight.linkedPlan":
             guard let plan = DietPlan.decode(args["plan"] as? String) else { return "null" }
             return await linkedPlan(plan, store: store).encoded() ?? "null"
+        case "weight.updateWeight":
+            // An edit keeps the row's id, as Apple's `updateWeight`: the same weigh-in with a new value, instant or
+            // note, re-projected onto its (possibly new) day.
+            guard let id = args["id"] as? String, !id.isEmpty, let kg = (args["kg"] as? NSNumber)?.doubleValue,
+                  GoalMeasure.isPlausible(kg, cfg: GoalMeasure.weightTrend) else { return #"{"ok":false}"# }
+            let at = Date(timeIntervalSince1970: (args["takenAt"] as? NSNumber)?.doubleValue ?? Date().timeIntervalSince1970)
+            let note = (args["note"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            let row = BodyWeightRow(id: id, deviceId: WhoopStore.noopWeightSourceId, day: StoreReader.localDayKey(at),
+                                    takenAt: Int(at.timeIntervalSince1970), weightKg: kg, source: "manual", note: note)
+            return (try? await store.upsertBodyWeights([row])) != nil ? #"{"ok":true}"# : #"{"ok":false}"#
         case "weight.deleteEvent":
             let id = args["id"] as? String ?? ""
             return await change(store: store) { $0.events.removeAll { $0.id == id } }
