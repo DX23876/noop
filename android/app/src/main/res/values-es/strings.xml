@@ -7458,6 +7458,9 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="import_depth_one_year">1 año</string>
     <string name="import_depth_three_years">3 años</string>
     <string name="import_depth_ten_years">10 años</string>
+    <!-- settings-parity:w5:begin -->
+    <string name="fsw5_haptics">Vibración</string>
+    <!-- settings-parity:w5:end -->
     <!-- settings-parity:w4:begin -->
     <string name="fsw4_calc_title">Cómo calcula NOOP</string>
     <string name="fsw4_calc_blurb">Los cambios aquí pueden recalcular días pasados. Tus datos registrados se conservan.</string>

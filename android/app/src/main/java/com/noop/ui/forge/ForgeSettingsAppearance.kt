@@ -179,105 +179,89 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun LanguageUnitsSection(context: Context, change: (() -> Unit) -> Unit) {
     val language = AppLanguagePrefs.selected(context)
-    var picking by remember { mutableStateOf(false) }
+    val systemDefault = stringResource(R.string.settings_language_system)
     SettingsCard(title = stringResource(R.string.settings_language), blurb = null) {
         SettingRow(stringResource(R.string.settings_language)) {
-            Text(if (language == AppLanguage.SYSTEM) stringResource(R.string.settings_language_system) else language.autonym,
-                 style = Forge.type.body, color = Forge.colors.accent,
-                 modifier = Modifier.clickable(role = Role.Button) { picking = true }.padding(vertical = 8.dp))
+            MenuPicker(if (language == AppLanguage.SYSTEM) systemDefault else language.autonym, AppLanguage.entries.toList(),
+                       label = { if (it == AppLanguage.SYSTEM) systemDefault else it.autonym },
+                       onSelect = { option ->
+                           if (option != language) {
+                               // Every string switches at once by recreating the activity, as the classic row does.
+                               AppLanguagePrefs.set(context, option)
+                               context.hostingActivity()?.recreate()
+                           }
+                       })
         }
         RowDivider()
+        val clock = ClockPrefs.preference(context)
+        val clockLabel: @Composable (ClockFormatPreference) -> String = {
+            when (it) {
+                ClockFormatPreference.TWELVE_HOUR -> stringResource(R.string.l10n_settings_screen_12_hour_41c18ba0)
+                ClockFormatPreference.TWENTY_FOUR_HOUR -> stringResource(R.string.l10n_settings_screen_24_hour_18e86819)
+                else -> systemDefault
+            }
+        }
         SettingRow(stringResource(R.string.l10n_settings_screen_clock_04f6b3ea)) {
-            Segmented(listOf(ClockFormatPreference.SYSTEM, ClockFormatPreference.TWELVE_HOUR,
-                             ClockFormatPreference.TWENTY_FOUR_HOUR), ClockPrefs.preference(context),
-                      label = {
-                          when (it) {
-                              ClockFormatPreference.TWELVE_HOUR -> stringResource(R.string.l10n_settings_screen_12_hour_41c18ba0)
-                              ClockFormatPreference.TWENTY_FOUR_HOUR -> stringResource(R.string.l10n_settings_screen_24_hour_18e86819)
-                              else -> stringResource(R.string.settings_language_system)
-                          }
-                      },
-                      onSelect = { change { ClockPrefs.setPreference(context, it) } })
+            MenuPicker(clockLabel(clock), listOf(ClockFormatPreference.SYSTEM, ClockFormatPreference.TWELVE_HOUR,
+                                                 ClockFormatPreference.TWENTY_FOUR_HOUR),
+                       label = clockLabel, onSelect = { change { ClockPrefs.setPreference(context, it) } })
         }
         RowDivider()
         // The first day of the week (iOS `TrainingWeekStart`): training, the weekly review and the week strips follow it.
+        val weekLabel: @Composable (Boolean) -> String = { stringResource(if (it) R.string.fsp4_sunday else R.string.fsp4_monday) }
         SettingRow(stringResource(R.string.fsp4_week_start)) {
-            Segmented(listOf(false, true), WeekStartPrefs.sundayFirst(context),
-                      label = { stringResource(if (it) R.string.fsp4_sunday else R.string.fsp4_monday) },
-                      onSelect = { sunday -> change { WeekStartPrefs.set(context, sunday) } })
+            MenuPicker(weekLabel(WeekStartPrefs.sundayFirst(context)), listOf(false, true), label = weekLabel,
+                       onSelect = { sunday -> change { WeekStartPrefs.set(context, sunday) } })
         }
         Text(stringResource(R.string.fsp4_week_start_note), style = Forge.type.caption, color = Forge.colors.textSecondary)
     }
     SettingsCard(title = stringResource(R.string.l10n_settings_screen_units_12748281),
                  blurb = stringResource(R.string.forge_settings_units_blurb)) {
+        val bodyLabel: @Composable (UnitSystem) -> String = {
+            stringResource(if (it == UnitSystem.METRIC) R.string.onboarding_metric else R.string.onboarding_imperial)
+        }
         SettingRow(stringResource(R.string.units_body_measurements)) {
-            Segmented(listOf(UnitSystem.METRIC, UnitSystem.IMPERIAL), UnitPrefs.system(context),
-                      label = {
-                          stringResource(if (it == UnitSystem.METRIC) R.string.onboarding_metric else R.string.onboarding_imperial)
-                      },
-                      onSelect = { change { NoopPrefs.setUnitSystem(context, it) } })
+            MenuPicker(bodyLabel(UnitPrefs.system(context)), listOf(UnitSystem.METRIC, UnitSystem.IMPERIAL), label = bodyLabel,
+                       onSelect = { change { NoopPrefs.setUnitSystem(context, it) } })
         }
         RowDivider()
+        val distanceLabel: @Composable (UnitSystem) -> String = {
+            stringResource(if (it == UnitSystem.METRIC) R.string.units_kilometres else R.string.units_miles)
+        }
         SettingRow(stringResource(R.string.units_exercise_distance_pace)) {
-            Segmented(listOf(UnitSystem.METRIC, UnitSystem.IMPERIAL), UnitPrefs.distanceSystem(context),
-                      label = { stringResource(if (it == UnitSystem.METRIC) R.string.units_kilometres else R.string.units_miles) },
-                      onSelect = { change { NoopPrefs.setDistanceUnitSystem(context, it) } })
+            MenuPicker(distanceLabel(UnitPrefs.distanceSystem(context)), listOf(UnitSystem.METRIC, UnitSystem.IMPERIAL),
+                       label = distanceLabel, onSelect = { change { NoopPrefs.setDistanceUnitSystem(context, it) } })
         }
         RowDivider()
         // Unset follows the body measurements, which is what the first choice says.
         val temperatureRaw = NoopPrefs.of(context).getString(NoopPrefs.KEY_TEMPERATURE_UNIT, null)
             ?.takeIf { raw -> TemperatureUnit.entries.any { it.raw == raw } } ?: ""
+        val temperatureLabel: @Composable (String) -> String = {
+            when (it) {
+                TemperatureUnit.CELSIUS.raw -> "°C"
+                TemperatureUnit.FAHRENHEIT.raw -> "°F"
+                else -> stringResource(R.string.units_follow_body)
+            }
+        }
         SettingRow(stringResource(R.string.l10n_settings_screen_temperature_0a9062a9)) {
-            Segmented(listOf("", TemperatureUnit.CELSIUS.raw, TemperatureUnit.FAHRENHEIT.raw), temperatureRaw,
-                      label = {
-                          when (it) {
-                              TemperatureUnit.CELSIUS.raw -> "°C"
-                              TemperatureUnit.FAHRENHEIT.raw -> "°F"
-                              else -> stringResource(R.string.units_follow_body)
-                          }
-                      },
-                      onSelect = { change { NoopPrefs.setTemperatureUnit(context, TemperatureUnit.fromRaw(it)) } })
+            MenuPicker(temperatureLabel(temperatureRaw), listOf("", TemperatureUnit.CELSIUS.raw, TemperatureUnit.FAHRENHEIT.raw),
+                       label = temperatureLabel, onSelect = { change { NoopPrefs.setTemperatureUnit(context, TemperatureUnit.fromRaw(it)) } })
         }
         RowDivider()
+        val skinLabel: @Composable (SkinTempDisplay.Kind) -> String = {
+            stringResource(if (it == SkinTempDisplay.Kind.ABSOLUTE) R.string.l10n_settings_screen_temperature_0a9062a9
+                           else R.string.skin_temp_vs_baseline)
+        }
         SettingRow(stringResource(R.string.l10n_settings_screen_skin_temperature_fc103030)) {
-            Segmented(listOf(SkinTempDisplay.Kind.ABSOLUTE, SkinTempDisplay.Kind.DEVIATION), UnitPrefs.skinTempPreferred(context),
-                      label = {
-                          stringResource(if (it == SkinTempDisplay.Kind.ABSOLUTE) R.string.l10n_settings_screen_temperature_0a9062a9
-                                         else R.string.skin_temp_vs_baseline)
-                      },
-                      onSelect = { change { NoopPrefs.setSkinTempDisplay(context, it) } })
+            MenuPicker(skinLabel(UnitPrefs.skinTempPreferred(context)), listOf(SkinTempDisplay.Kind.ABSOLUTE, SkinTempDisplay.Kind.DEVIATION),
+                       label = skinLabel, onSelect = { change { NoopPrefs.setSkinTempDisplay(context, it) } })
         }
         RowDivider()
+        val effortLabel: @Composable (EffortScale) -> String = { if (it == EffortScale.HUNDRED) "0–100" else "0–21" }
         SettingRow(stringResource(R.string.l10n_settings_screen_effort_scale_81afa9ef)) {
-            Segmented(listOf(EffortScale.HUNDRED, EffortScale.WHOOP), UnitPrefs.effortScale(context),
-                      label = { if (it == EffortScale.HUNDRED) "0–100" else "0–21" },
-                      onSelect = { change { UnitPrefs.setEffortScale(context, it) } })
+            MenuPicker(effortLabel(UnitPrefs.effortScale(context)), listOf(EffortScale.HUNDRED, EffortScale.WHOOP),
+                       label = effortLabel, onSelect = { change { UnitPrefs.setEffortScale(context, it) } })
         }
-    }
-    if (picking) {
-        AlertDialog(
-            onDismissRequest = { picking = false },
-            title = { Text(stringResource(R.string.settings_choose_language)) },
-            text = {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    AppLanguage.entries.forEach { option ->
-                        Text(if (option == AppLanguage.SYSTEM) stringResource(R.string.settings_language_system) else option.autonym,
-                             style = Forge.type.body,
-                             color = if (option == language) Forge.colors.accent else Forge.colors.text,
-                             modifier = Modifier.fillMaxWidth().clickable(role = Role.Button) {
-                                 picking = false
-                                 if (option != language) {
-                                     // Every string switches at once by recreating the activity, as the classic row does.
-                                     AppLanguagePrefs.set(context, option)
-                                     context.hostingActivity()?.recreate()
-                                 }
-                             }.padding(vertical = 12.dp))
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { picking = false }) { Text(stringResource(R.string.forge_cancel)) } },
-        )
     }
 }
 

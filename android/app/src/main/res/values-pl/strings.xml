@@ -7509,6 +7509,9 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="import_depth_one_year">1 rok</string>
     <string name="import_depth_three_years">3 lata</string>
     <string name="import_depth_ten_years">10 lat</string>
+    <!-- settings-parity:w5:begin -->
+    <string name="fsw5_haptics">Wibracje</string>
+    <!-- settings-parity:w5:end -->
     <!-- settings-parity:w4:begin -->
     <string name="fsw4_calc_title">Jak liczy NOOP</string>
     <string name="fsw4_calc_blurb">Zmiany tutaj mogą przeliczyć minione dni. Zapisane dane pozostają.</string>
