@@ -2097,3 +2097,38 @@ The service records nothing about who called, by design, so the first real evide
 from a build that carries this.
 
 Analysis migration required: no
+
+## 2026-11-26 — A trained sleep-stage model as a Lab choice, judged against sleep-lab truth
+
+Refs #59. A tester (@andreyeurope) reported that lying awake and restless before getting up is scored as REM,
+and proposed counting small wrist movements against REM. Replayed through `Tools/SleepPSG` the proposal held
+in pooled numbers on PhysioNet sleep-accel (wake sensitivity 30.9 to 43.7 %, REM share 26.4 to 21.2 % against
+22.0 %), but it z-scores the movement within each night, so a calm sleeper's quietest restlessness reads as
+wake: one subject with 1.0 % PSG wake went from 4.4 to 17.5 % awake. A second open set (Newcastle PSG +
+GENEActiv, no heart rate) and two gentler forms (sustained movement only, a cross-subject reference, a
+heart-rate gate) narrowed that, never removed it.
+
+The largest step available was not a tweak of V2: ayiskakov/noop's `SleepStagerV3`, a pair of logistic heads
+and an HMM fitted to open polysomnography. On Newcastle, which it never saw, it took the per-subject kappa
+from 0.084 to 0.167; its weakness is REM (on Newcastle, with no heart rate, it called 6.9 % against 11.5 %).
+It is adopted as `SleepStagerTrained` (the name `V3` was taken by this fork's detection change), byte for byte
+against its own Python oracle, behind a Lab choice "Sleep stages (test)" with "Standard" and "Trained model".
+
+Decided with the owner:
+
+- **What "better" means.** Sleep-lab truth, with a guard for calm sleepers: their mean wake error rises at
+  most 1 point over today's, at most 1 in 30 subjects is over-called by more than 5 points of wake, the
+  per-subject REM error worsens by at most 2 points, and on data with heart rate no night shows 0 % REM where
+  the lab measured over 10 %. The owner's own nights are the last check, not the target.
+- **Where it lives.** One recipe value, `SleepStager.StagingRecipe`, read by every V2-family call site through
+  `SleepStager.stageV2Family`: detection, the heart-rate-only path, the edit heal, and the core's restage calls.
+  V1 ignores it. The standard recipe leaves every signature as it was, so an untouched install reuses every
+  stored day; any other recipe appends to the day signature and the heal signature (`signatureSuffix`), so a
+  switch stages the whole history and every edited night again. No recipe bump: nothing changes until someone
+  switches.
+- **When it may become the default.** Only after it wins on two independent sleep-lab sets, one of them with
+  beat-to-beat intervals (the signal a WHOOP has and sleep-accel and Newcastle lack), and testers report no
+  outliers. The heart-rate-gated form of #59 is measured on Wearanize+ next; if it breaks the guard it is
+  dropped rather than retuned on the data it is checked on.
+
+Analysis migration required: no (a Lab choice, default standard; switching it restages the history itself)

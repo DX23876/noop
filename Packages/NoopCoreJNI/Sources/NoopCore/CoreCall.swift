@@ -178,7 +178,8 @@ public enum CoreCall {
             let method = SleepStager.Method(rawValue: string("method")) ?? .v2
             let stages = await EditedSleepHeal.restage(
                 store: store, deviceId: string("deviceId"), start: int("start", 0), end: int("end", 0),
-                staging: .init(method: method, motionAwareWake: args["motionAwareWake"] as? Bool ?? false))
+                staging: .init(method: method, motionAwareWake: args["motionAwareWake"] as? Bool ?? false,
+                               recipe: .resolved(rawValue: args["recipe"] as? String)))
             return CoreRead.json(["stages": stages])
         case "sleep.addSeed":
             // Where the "add a sleep" pickers open, by the one rule both platforms use.
@@ -200,7 +201,8 @@ public enum CoreCall {
             let method = SleepStager.Method(rawValue: string("method")) ?? .v2
             let staged = await EditedSleepHeal.restage(
                 store: store, deviceId: string("deviceId"), start: start, end: end,
-                staging: .init(method: method, motionAwareWake: args["motionAwareWake"] as? Bool ?? false))
+                staging: .init(method: method, motionAwareWake: args["motionAwareWake"] as? Bool ?? false,
+                               recipe: .resolved(rawValue: args["recipe"] as? String)))
             let outcome = ManualSleepPlan.decide(
                 start: start, end: end, now: now,
                 existing: rows.map { SleepEditGuard.Span(start: $0.effectiveStartTs, end: $0.endTs) },

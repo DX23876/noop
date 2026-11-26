@@ -83,9 +83,11 @@ object CoreSleepEdit {
     /** Correct the bed and wake times of the night [blocks] belongs to. */
     fun editTimes(blocks: List<CoreRead.Night.Block>, newStartTs: Long, newEndTs: Long,
                   deviceId: String, method: String, motionAwareWake: Boolean,
-                  allowRelocation: Boolean = false, now: Long = System.currentTimeMillis() / 1000L): Answer =
+                  allowRelocation: Boolean = false, now: Long = System.currentTimeMillis() / 1000L,
+                  recipe: String = "standard"): Answer =
         call("sleep.editTimes", args(blocks).put("start", newStartTs).put("end", newEndTs)
             .put("deviceId", deviceId).put("method", method).put("motionAwareWake", motionAwareWake)
+            .put("recipe", recipe)
             .put("allowRelocation", allowRelocation).put("now", now))
 
     /** Take the whole night out of the store, every block of it. */

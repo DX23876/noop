@@ -7892,4 +7892,8 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="fsp6_coach_forget_message">You\'ll need to paste it again to reconnect. This is different from Disconnect, which keeps the key.</string>
     <string name="fsp6_lab_blurb">Unfinished features. Off by default; turn one off again any time.</string>
     <string name="fsp6_ss_motion">Motion</string>
+    <string name="forge_lab_sleep_recipe">Sleep stages (test)</string>
+    <string name="forge_lab_sleep_recipe_standard">Standard</string>
+    <string name="forge_lab_sleep_recipe_trained">Trained model</string>
+    <string name="forge_lab_sleep_recipe_detail">Which method sorts your night into light, deep, REM and awake. The trained model was fitted to sleep-lab recordings from other wrist devices and is not yet checked on WHOOP nights. Switching recalculates all nights; your recorded data and your sleep corrections stay.</string>
 </resources>

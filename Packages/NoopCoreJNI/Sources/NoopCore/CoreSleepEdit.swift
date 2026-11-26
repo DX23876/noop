@@ -74,7 +74,8 @@ enum CoreSleepEdit {
 
     private static func staging(_ args: [String: Any]) -> EditedSleepHeal.Staging {
         .init(method: SleepStager.Method(rawValue: args["method"] as? String ?? "") ?? .v2,
-              motionAwareWake: args["motionAwareWake"] as? Bool ?? false)
+              motionAwareWake: args["motionAwareWake"] as? Bool ?? false,
+              recipe: .resolved(rawValue: args["recipe"] as? String))
     }
 
     private struct RetiredWire: Encodable {

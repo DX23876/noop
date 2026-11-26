@@ -77,7 +77,8 @@ class NoopApplication : Application() {
         com.noop.core.CoreMath.enabled = { com.noop.core.SwiftCore.available }
         com.noop.analytics.SleepStageHealer.coreRestage = { id, start, end ->
             val experiment = com.noop.ble.PuffinExperiment.from(this)
-            com.noop.core.CoreMath.restage(id, start, end, experiment.sleepStagerMethod, experiment.motionAwareWake)
+            com.noop.core.CoreMath.restage(id, start, end, experiment.sleepStagerMethod, experiment.motionAwareWake,
+                                           experiment.sleepStagingRecipe)
         }
     }
 

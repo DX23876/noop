@@ -687120,6 +687120,198 @@
           }
         }
       }
+    },
+    "Sleep stages (test)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sleep stages (test)"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schlafphasen (Test)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fases del sueño (prueba)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Phases de sommeil (test)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fases do sono (teste)"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fazy snu (test)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fasi del sonno (test)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Фазы сна (тест)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠阶段（测试）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠階段（測試）"
+          }
+        }
+      }
+    },
+    "Trained model" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trained model"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trainiertes Modell"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modelo entrenado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modèle entraîné"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modelo treinado"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wytrenowany model"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Modello addestrato"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обученная модель"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "训练模型"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "訓練模型"
+          }
+        }
+      }
+    },
+    "Which method sorts your night into light, deep, REM and awake. The trained model was fitted to sleep-lab recordings from other wrist devices and is not yet checked on WHOOP nights. Switching recalculates all nights; your recorded data and your sleep corrections stay." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Which method sorts your night into light, deep, REM and awake. The trained model was fitted to sleep-lab recordings from other wrist devices and is not yet checked on WHOOP nights. Switching recalculates all nights; your recorded data and your sleep corrections stay."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welches Verfahren deine Nacht in leicht, tief, REM und wach einteilt. Das trainierte Modell wurde an Schlaflabor-Aufnahmen anderer Geräte am Handgelenk angepasst und ist auf WHOOP-Nächten noch nicht geprüft. Umschalten berechnet alle Nächte neu; deine aufgezeichneten Daten und deine Schlafkorrekturen bleiben."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qué método divide tu noche en ligero, profundo, REM y despierto. El modelo entrenado se ajustó a registros de laboratorio del sueño de otros dispositivos de muñeca y aún no se ha comprobado en noches de WHOOP. Al cambiar se recalculan todas las noches; tus datos registrados y tus correcciones del sueño se mantienen."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La méthode qui répartit ta nuit en léger, profond, REM et éveil. Le modèle entraîné a été ajusté sur des enregistrements de laboratoire du sommeil d'autres appareils au poignet et n'est pas encore vérifié sur des nuits WHOOP. Changer recalcule toutes les nuits ; tes données enregistrées et tes corrections de sommeil sont conservées."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Que método divide a tua noite em leve, profundo, REM e acordado. O modelo treinado foi ajustado a gravações de laboratório do sono de outros dispositivos de pulso e ainda não foi verificado em noites WHOOP. Mudar recalcula todas as noites; os teus dados registados e as tuas correções do sono mantêm-se."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Która metoda dzieli twoją noc na sen płytki, głęboki, REM i czuwanie. Wytrenowany model dopasowano do nagrań z laboratoriów snu z innych urządzeń na nadgarstek i nie sprawdzono go jeszcze na nocach WHOOP. Zmiana przelicza wszystkie noce; zapisane dane i twoje poprawki snu zostają."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quale metodo divide la tua notte in leggero, profondo, REM e sveglio. Il modello addestrato è stato adattato a registrazioni di laboratorio del sonno di altri dispositivi da polso e non è ancora verificato su notti WHOOP. Cambiare ricalcola tutte le notti; i dati registrati e le tue correzioni del sonno restano."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Какой метод делит вашу ночь на лёгкий и глубокий сон, REM и бодрствование. Обученная модель подобрана по записям сомнологических лабораторий с других наручных устройств и на ночах WHOOP пока не проверена. Переключение пересчитывает все ночи; записанные данные и ваши исправления сна сохраняются."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将你的夜晚划分为浅睡、深睡、REM 和清醒的方法。训练模型是根据其他腕戴设备的睡眠实验室记录拟合的，尚未在 WHOOP 夜晚上验证。切换后会重新计算所有夜晚；你记录的数据和睡眠修正会保留。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "將你的夜晚劃分為淺睡、深睡、REM 和清醒的方法。訓練模型是根據其他腕戴裝置的睡眠實驗室記錄擬合的，尚未在 WHOOP 夜晚上驗證。切換後會重新計算所有夜晚；你記錄的資料和睡眠修正會保留。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

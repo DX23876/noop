@@ -4755,5 +4755,9 @@
   "Is anything unusual?": "Есть ли что-то необычное?",
   "How are my values developing?": "Как меняются мои показатели?",
   "Opens the coach for this page": "Открывает коуча для этой страницы",
-  "New message from the coach": "Новое сообщение от коуча"
+  "New message from the coach": "Новое сообщение от коуча",
+  "Sleep stages (test)": "Фазы сна (тест)",
+  "Standard": "Стандарт",
+  "Trained model": "Обученная модель",
+  "Which method sorts your night into light, deep, REM and awake. The trained model was fitted to sleep-lab recordings from other wrist devices and is not yet checked on WHOOP nights. Switching recalculates all nights; your recorded data and your sleep corrections stay.": "Какой метод делит вашу ночь на лёгкий и глубокий сон, REM и бодрствование. Обученная модель подобрана по записям сомнологических лабораторий с других наручных устройств и на ночах WHOOP пока не проверена. Переключение пересчитывает все ночи; записанные данные и ваши исправления сна сохраняются."
 }

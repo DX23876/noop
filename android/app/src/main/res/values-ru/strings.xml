@@ -7859,4 +7859,8 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="fsp6_coach_forget_message">Для повторного подключения вам придется вставить его еще раз. Это отличается от Disconnect, который сохраняет ключ.</string>
     <string name="fsp6_lab_blurb">Незавершённые функции. По умолчанию выключены; их можно снова выключить в любой момент.</string>
     <string name="fsp6_ss_motion">Движение</string>
+    <string name="forge_lab_sleep_recipe">Фазы сна (тест)</string>
+    <string name="forge_lab_sleep_recipe_standard">Стандарт</string>
+    <string name="forge_lab_sleep_recipe_trained">Обученная модель</string>
+    <string name="forge_lab_sleep_recipe_detail">Какой метод делит вашу ночь на лёгкий и глубокий сон, REM и бодрствование. Обученная модель подобрана по записям сомнологических лабораторий с других наручных устройств и на ночах WHOOP пока не проверена. Переключение пересчитывает все ночи; записанные данные и ваши исправления сна сохраняются.</string>
 </resources>

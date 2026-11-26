@@ -7903,4 +7903,8 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="fsp6_coach_forget_message">Aby połączyć się ponownie, trzeba będzie wkleić go jeszcze raz. To co innego niż Rozłącz, które zachowuje klucz.</string>
     <string name="fsp6_lab_blurb">Niedokończone funkcje. Domyślnie wyłączone; możesz je wyłączyć w każdej chwili.</string>
     <string name="fsp6_ss_motion">Ruch</string>
+    <string name="forge_lab_sleep_recipe">Fazy snu (test)</string>
+    <string name="forge_lab_sleep_recipe_standard">Standardowa</string>
+    <string name="forge_lab_sleep_recipe_trained">Wytrenowany model</string>
+    <string name="forge_lab_sleep_recipe_detail">Która metoda dzieli twoją noc na sen płytki, głęboki, REM i czuwanie. Wytrenowany model dopasowano do nagrań z laboratoriów snu z innych urządzeń na nadgarstek i nie sprawdzono go jeszcze na nocach WHOOP. Zmiana przelicza wszystkie noce; zapisane dane i twoje poprawki snu zostają.</string>
 </resources>

@@ -4933,5 +4933,9 @@
   "Is anything unusual?": "有什麼異常嗎？",
   "How are my values developing?": "我的各項數值變化如何？",
   "Opens the coach for this page": "為此頁面打開教練",
-  "New message from the coach": "教練的新訊息"
+  "New message from the coach": "教練的新訊息",
+  "Sleep stages (test)": "睡眠階段（測試）",
+  "Standard": "標準",
+  "Trained model": "訓練模型",
+  "Which method sorts your night into light, deep, REM and awake. The trained model was fitted to sleep-lab recordings from other wrist devices and is not yet checked on WHOOP nights. Switching recalculates all nights; your recorded data and your sleep corrections stay.": "將你的夜晚劃分為淺睡、深睡、REM 和清醒的方法。訓練模型是根據其他腕戴裝置的睡眠實驗室記錄擬合的，尚未在 WHOOP 夜晚上驗證。切換後會重新計算所有夜晚；你記錄的資料和睡眠修正會保留。"
 }

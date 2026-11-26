@@ -22,6 +22,24 @@ final class AnalysisSettingsTests: XCTestCase {
         XCTAssertTrue(v3.sleepV2)
     }
 
+    /// The Lab recipe keys both the day cache and the edit heal, through the one suffix the recipe carries: the
+    /// standard recipe leaves both signatures as they were before it existed, so an untouched install reuses every
+    /// stored day, and the trained one re-keys them, so a switch stages the history and every edited night again.
+    func testTheStagingRecipeKeysTheDaySignatureAndTheHealSignature() {
+        var captured = settings()
+        captured.sleepStagerMethod = .v3
+        XCTAssertEqual(captured.sleepStagingRecipe, .standard)
+        XCTAssertEqual(DailyAnalysis.sleepMethodSignatureField(captured), "sleepMethod=v3")
+        captured.sleepStagingRecipe = .trained
+        XCTAssertEqual(DailyAnalysis.sleepMethodSignatureField(captured), "sleepMethod=v3+trained")
+
+        let standard = EditedSleepHeal.Staging(method: .v3, motionAwareWake: false)
+        XCTAssertEqual(standard.signature, "sleepMethod=v3|motionAwareWake=0")
+        XCTAssertEqual(EditedSleepHeal.Staging(method: .v3, motionAwareWake: false, recipe: .standard), standard)
+        let trained = EditedSleepHeal.Staging(method: .v3, motionAwareWake: false, recipe: .trained)
+        XCTAssertEqual(trained.signature, "sleepMethod=v3+trained|motionAwareWake=0")
+    }
+
     func testOnlyTheCapturedDomainsTrace() {
         let s = settings(traces: [.sleep, .universal])
         XCTAssertTrue(s.traces(.sleep))

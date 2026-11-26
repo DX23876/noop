@@ -7847,4 +7847,8 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="fsp6_coach_forget_message">Vous devrez la coller à nouveau pour vous reconnecter. C\'est différent de Déconnecter, qui conserve la clé.</string>
     <string name="fsp6_lab_blurb">Fonctions inachevées. Désactivées par défaut ; désactivez-les à tout moment.</string>
     <string name="fsp6_ss_motion">Mouvement</string>
+    <string name="forge_lab_sleep_recipe">Phases de sommeil (test)</string>
+    <string name="forge_lab_sleep_recipe_standard">Standard</string>
+    <string name="forge_lab_sleep_recipe_trained">Modèle entraîné</string>
+    <string name="forge_lab_sleep_recipe_detail">La méthode qui répartit ta nuit en léger, profond, REM et éveil. Le modèle entraîné a été ajusté sur des enregistrements de laboratoire du sommeil d\'autres appareils au poignet et n\'est pas encore vérifié sur des nuits WHOOP. Changer recalcule toutes les nuits ; tes données enregistrées et tes corrections de sommeil sont conservées.</string>
 </resources>

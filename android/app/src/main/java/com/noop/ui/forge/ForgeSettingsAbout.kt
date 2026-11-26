@@ -263,6 +263,21 @@ internal fun LabSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> U
             viewModel.setEffortStrengthBonus(it)
         }
     }
+    // Lab "Sleep stages (test)", as on iOS: which recipe stages a night. The flip restages the whole history; the
+    // recorded streams and corrected bed and wake times stay.
+    var sleepRecipe by remember { mutableStateOf(com.noop.ble.PuffinExperiment.from(context).sleepStagingRecipe) }
+    SettingsCard(title = null, blurb = stringResource(R.string.forge_lab_sleep_recipe_detail)) {
+        val standard = stringResource(R.string.forge_lab_sleep_recipe_standard)
+        val trained = stringResource(R.string.forge_lab_sleep_recipe_trained)
+        SettingRow(stringResource(R.string.forge_lab_sleep_recipe)) {
+            MenuPicker(if (sleepRecipe == "trained") trained else standard,
+                       com.noop.ble.PuffinExperiment.SLEEP_RECIPES,
+                       label = { if (it == "trained") trained else standard }, onSelect = { recipe ->
+                           sleepRecipe = recipe
+                           viewModel.setSleepStagingRecipe(recipe)
+                       })
+        }
+    }
     // The two Lab passes of the shared core, as on iOS: off by default, scored at the next analysis.
     var ageless by remember { mutableStateOf(com.noop.core.CoreFeatures.healthspan(context)) }
     SettingsCard(title = null, blurb = stringResource(R.string.forge_lab_ageless_detail)) {

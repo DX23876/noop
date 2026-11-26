@@ -4779,5 +4779,9 @@
   "Is anything unusual?": "Ist etwas auffällig?",
   "How are my values developing?": "Wie entwickeln sich meine Werte?",
   "Opens the coach for this page": "Öffnet den Coach für diese Seite",
-  "New message from the coach": "Neue Nachricht vom Coach"
+  "New message from the coach": "Neue Nachricht vom Coach",
+  "Sleep stages (test)": "Schlafphasen (Test)",
+  "Standard": "Standard",
+  "Trained model": "Trainiertes Modell",
+  "Which method sorts your night into light, deep, REM and awake. The trained model was fitted to sleep-lab recordings from other wrist devices and is not yet checked on WHOOP nights. Switching recalculates all nights; your recorded data and your sleep corrections stay.": "Welches Verfahren deine Nacht in leicht, tief, REM und wach einteilt. Das trainierte Modell wurde an Schlaflabor-Aufnahmen anderer Geräte am Handgelenk angepasst und ist auf WHOOP-Nächten noch nicht geprüft. Umschalten berechnet alle Nächte neu; deine aufgezeichneten Daten und deine Schlafkorrekturen bleiben."
 }

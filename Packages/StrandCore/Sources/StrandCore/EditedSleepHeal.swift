@@ -14,15 +14,19 @@ public enum EditedSleepHeal {
     public struct Staging: Sendable, Equatable {
         public var method: SleepStager.Method
         public var motionAwareWake: Bool
+        /// Lab: which recipe stages a V2-family window. `.standard` is `SleepStagerV2`.
+        public var recipe: SleepStager.StagingRecipe
         public var sleepV2: Bool { method.usesV2Stages }
-        public init(method: SleepStager.Method, motionAwareWake: Bool) {
-            self.method = method; self.motionAwareWake = motionAwareWake
+        public init(method: SleepStager.Method, motionAwareWake: Bool, recipe: SleepStager.StagingRecipe = .standard) {
+            self.method = method; self.motionAwareWake = motionAwareWake; self.recipe = recipe
         }
         public init(sleepV2: Bool, motionAwareWake: Bool) {
             self.init(method: sleepV2 ? .v2 : .v1, motionAwareWake: motionAwareWake)
         }
         /// The value stored after a heal; a change re-stages every edited night once.
-        public var signature: String { "sleepMethod=\(method.rawValue)|motionAwareWake=\(motionAwareWake ? 1 : 0)" }
+        public var signature: String {
+            "sleepMethod=\(method.rawValue)\(recipe.signatureSuffix)|motionAwareWake=\(motionAwareWake ? 1 : 0)"
+        }
     }
 
     /// The stage JSON the raw streams give over `[start, end]` on `deviceId`, nil while the raw is not dense
@@ -44,10 +48,10 @@ public enum EditedSleepHeal {
         let steps = staging.motionAwareWake
             ? ((try? await store.stepSamples(deviceId: deviceId, from: lo, to: hi, limit: Int.max)) ?? [])
             : []
-        let useV2 = staging.sleepV2, refine = staging.motionAwareWake
+        let useV2 = staging.sleepV2, refine = staging.motionAwareWake, recipe = staging.recipe
         let segs = await Task.detached(priority: .utility) {
             let staged = useV2
-                ? SleepStagerV2.stageSession(start: start, end: end, grav: grav, hr: hr, rr: rr, resp: resp)
+                ? SleepStager.stageV2Family(recipe, start: start, end: end, grav: grav, hr: hr, rr: rr, resp: resp)
                 : SleepStager.stageSession(start: start, end: end, grav: grav, hr: hr, rr: rr, resp: resp)
             return WakeMotionRefinement.apply(staged, grav: grav, steps: steps, enabled: refine)
         }.value

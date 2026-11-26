@@ -2190,10 +2190,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     suspend fun editSleepNight(blocks: List<com.noop.core.CoreRead.Night.Block>,
                                newStartTs: Long, newEndTs: Long,
                                method: String, motionAwareWake: Boolean,
-                               relocating: Boolean = false): com.noop.core.CoreSleepEdit.Answer {
+                               relocating: Boolean = false, recipe: String = "standard"): com.noop.core.CoreSleepEdit.Answer {
         val answer = withContext(Dispatchers.IO) {
             com.noop.core.CoreSleepEdit.editTimes(blocks, newStartTs, newEndTs, activeStrapId,
-                                                  method, motionAwareWake, allowRelocation = relocating)
+                                                  method, motionAwareWake, allowRelocation = relocating,
+                                                  recipe = recipe)
         }
         finishSleepChange("Sleep edit", blocks.size, "${clockForLog(newStartTs)} → ${clockForLog(newEndTs)}",
                           answer)
@@ -3542,6 +3543,36 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      */
     fun setEffortStrengthBonus(enabled: Boolean) {
         com.noop.core.CoreFeatures.setEffortStrengthBonus(appContext, enabled)
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) {
+                com.noop.core.CoreShadow.ensureStarted(appContext, deviceId)
+                val experiment = PuffinExperiment.from(appContext)
+                val profile = currentProfile()
+                com.noop.core.CoreShadow.analyze(
+                    profile.age.toInt(), profile.sex, profile.weightKg, profile.heightCm,
+                    profileStore.hrMaxOverride, effortBanister = NoopPrefs.banisterEffort(appContext),
+                    sleepStagerV2 = experiment.experimentalSleepV2,
+                    motionAwareWake = experiment.motionAwareWake,
+                    deepHrvWindow = UnitPrefs.hrvWindow(appContext) == HrvWindow.DEEP_SLEEP,
+                    dayCycleMode = NoopPrefs.dayCycleMode(appContext).persistedValue,
+                    healthspan = com.noop.core.CoreFeatures.healthspan(appContext),
+                    rhythmAge = com.noop.core.CoreFeatures.rhythmAge(appContext),
+                    extras = com.noop.core.CoreShadow.extras(appContext, profileStore,
+                        dismissedSleep = repository.dismissedSleeps(deviceId).map { it.startTs to it.endTs },
+                        dismissedWorkouts = repository.dismissedDetectedUnion(deviceId).map { it.startTs to it.endTs },
+                        spo2CandidateDisplay = NoopPrefs.spo2CandidateDisplay(appContext),
+                        historyRescore = true))
+                com.noop.core.CoreShadow.awaitQueuedAnalysis()
+            }
+            rescoreAfterEdit()
+        }
+    }
+
+    /** Lab "Sleep stages (test)": stage V2-family nights with [recipe] and restage the whole history, as iOS does on
+     *  the flip; the recipe re-keys every day, so nothing is reused. */
+    fun setSleepStagingRecipe(recipe: String) {
+        PuffinExperiment.from(appContext).sleepStagingRecipe = recipe
+        NoopPrefs.setAnalyzeWatermark(appContext, "")
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
                 com.noop.core.CoreShadow.ensureStarted(appContext, deviceId)

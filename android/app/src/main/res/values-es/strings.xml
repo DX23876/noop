@@ -7850,4 +7850,8 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="fsp6_coach_forget_message">Tendrás que pegarla de nuevo para reconectar. Esto es diferente de Desconectar, que conserva la clave.</string>
     <string name="fsp6_lab_blurb">Funciones sin terminar. Desactivadas por defecto; puedes volver a desactivarlas cuando quieras.</string>
     <string name="fsp6_ss_motion">Movimiento</string>
+    <string name="forge_lab_sleep_recipe">Fases del sueño (prueba)</string>
+    <string name="forge_lab_sleep_recipe_standard">Estándar</string>
+    <string name="forge_lab_sleep_recipe_trained">Modelo entrenado</string>
+    <string name="forge_lab_sleep_recipe_detail">Qué método divide tu noche en ligero, profundo, REM y despierto. El modelo entrenado se ajustó a registros de laboratorio del sueño de otros dispositivos de muñeca y aún no se ha comprobado en noches de WHOOP. Al cambiar se recalculan todas las noches; tus datos registrados y tus correcciones del sueño se mantienen.</string>
 </resources>

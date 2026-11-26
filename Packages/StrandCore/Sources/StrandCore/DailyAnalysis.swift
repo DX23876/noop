@@ -896,14 +896,15 @@ public final class DailyAnalysis {
     }
 
     /// Every day with raw heart rate scored again where its signature moved, the rest reused: for a choice that
-    /// changes only some days, such as the strength share of Effort (#2438). Paced like any pass.
-    public func reanalyzeHistoryReusingUnchangedDays() async {
+    /// changes only some days, such as the strength share of Effort (#2438), or every day, such as the Lab's
+    /// sleep staging recipe. Paced like any pass. `triggerLabel` names the choice in the pass's log line.
+    public func reanalyzeHistoryReusingUnchangedDays(triggerLabel: String = "history-rescore") async {
         guard let store = await repo.storeHandle() else { return }
         let earliestRawDay = ((try? await store.earliestHeartRateSampleTs()) ?? nil)
             .map { StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval($0))) }
         let days = AnalysisRecipe.rebuildDays(earliestRawDay: earliestRawDay, today: StoreReader.localDayKey(Date()))
         await analyzeRecent(maxDays: days, force: true, allowDayReuse: true, reason: .semanticChange,
-                            triggerLabel: "strength-effort")
+                            triggerLabel: triggerLabel)
     }
 
     private func runRebuildStep(_ step: AnalysisRecipe.RebuildStep, store: WhoopStore, from: Int) async throws {
@@ -1351,6 +1352,12 @@ public final class DailyAnalysis {
             let old = a[key] ?? "<absent>", new = b[key] ?? "<absent>"
             return old == new ? nil : "\(key): \(old) → \(new)"
         }
+    }
+
+    /// The day signature's sleep field: the pipeline, and a Lab recipe other than the standard one, which then re-keys
+    /// every day so switching it stages the history again. The standard recipe keeps the field as it was.
+    public nonisolated static func sleepMethodSignatureField(_ settings: AnalysisSettings) -> String {
+        "sleepMethod=\(settings.sleepStagerMethod.rawValue)\(settings.sleepStagingRecipe.signatureSuffix)"
     }
 
     /// The body mass to score each day with: the wearer's weight AS OF that day, resolved causally from
@@ -2030,7 +2037,7 @@ public final class DailyAnalysis {
         let semanticSignatureTail = [
             "stepTicks=\(profile.stepTicksPerStep.bitPattern)",
             "tz=\(tzOffset)",
-            "sleepMethod=\(settings.sleepStagerMethod.rawValue)",
+            Self.sleepMethodSignatureField(settings),
             "motionAwareWake=\(settings.motionAwareWake ? 1 : 0)",
             "deepHrv=\(deepHrvWindow ? 1 : 0)",
             "spo2Candidate=\(spo2CandidateDisplayOn ? 1 : 0)",
@@ -2456,7 +2463,8 @@ public final class DailyAnalysis {
                             day: day, attempted: true, reason: "no-motion-no-hypnogram",
                             gravRows: grav.count, storedNights: 0))
                         providedSleep = SleepStager.hrOnlySessions(day: day, hr: hr, rr: rr, resp: resp,
-                                                                   traceSink: traceSink)
+                                                                   traceSink: traceSink,
+                                                                   stagingRecipe: settings.sleepStagingRecipe)
                     }
                 } else {
                     providedSleep = []
@@ -2533,7 +2541,8 @@ public final class DailyAnalysis {
                                                      strengthLoad: strengthLoadByDay[day] ?? 0,
                                                      workoutPeakMET: EnergyModelRefresh.peakMET(
                                                         on: day, in: workoutPeakByDay),
-                                                     method: settings.sleepStagerMethod)
+                                                     method: settings.sleepStagerMethod,
+                                                     stagingRecipe: settings.sleepStagingRecipe)
                 await Task.yield()
                 // #195: whole-night HRV cleaning-pipeline summary for the always-on strap log, so a "reads ~2x
                 // too high" report is triageable without the HRV test mode: RMSSD vs SDNN (rmssd >> sdnn =

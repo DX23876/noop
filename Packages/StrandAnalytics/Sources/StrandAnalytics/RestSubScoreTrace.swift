@@ -65,10 +65,13 @@ extension AnalyticsEngine {
     /// `family` the day's owner. PURE; byte-identical to Android `AnalyticsEngine.sleepMotionLine`.
     public static func sleepMotionLine(day: String, grav: Int, hr: Int, sparse: Bool,
                                        useSleepStagerV2: Bool, family: DeviceFamily,
-                                       method: SleepStager.Method? = nil) -> String {
+                                       method: SleepStager.Method? = nil,
+                                       recipe: SleepStager.StagingRecipe = .standard) -> String {
         let method = method ?? (useSleepStagerV2 ? .v2 : .v1)
+        // A night the Lab's trained recipe staged says so; the standard line stays byte-identical.
+        let recipeTag = method.usesV2Stages && recipe != .standard ? " recipe=\(recipe.rawValue)" : ""
         return "sleep-motion day=\(day) grav=\(grav) hr=\(hr) sparse=\(sparse) "
-            + "stager=\(method.rawValue.uppercased()) family=\(family.rawValue)"
+            + "stager=\(method.rawValue.uppercased()) family=\(family.rawValue)" + recipeTag
     }
 
     /// How long AFTER the detected onset to sample HR for the #271 onset trace (seconds). The first

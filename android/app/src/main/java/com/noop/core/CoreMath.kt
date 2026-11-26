@@ -126,11 +126,11 @@ object CoreMath {
     }
 
     fun addSleepPreflight(deviceId: String, computedDeviceId: String, start: Long, end: Long,
-                          method: String, motionAwareWake: Boolean): AddSleepOutcome? {
+                          method: String, motionAwareWake: Boolean, recipe: String = "standard"): AddSleepOutcome? {
         if (!CoreShadow.running) return null
         val a = call("sleep.addPreflight", JSONObject().put("deviceId", deviceId)
             .put("computedDeviceId", computedDeviceId).put("start", start).put("end", end)
-            .put("method", method).put("motionAwareWake", motionAwareWake)) ?: return null
+            .put("method", method).put("motionAwareWake", motionAwareWake).put("recipe", recipe)) ?: return null
         return when (a.optString("outcome")) {
             "ok" -> AddSleepOutcome.Ok
             "noRawData" -> AddSleepOutcome.NoRawData
@@ -140,11 +140,12 @@ object CoreMath {
         }
     }
 
-    /** A night staged by the core (`sleep.restage`) with [method] and [motionAwareWake]. */
-    fun restage(deviceId: String, start: Long, end: Long, method: String, motionAwareWake: Boolean): Answer<String?>? {
+    /** A night staged by the core (`sleep.restage`) with [method], [motionAwareWake] and the Lab [recipe]. */
+    fun restage(deviceId: String, start: Long, end: Long, method: String, motionAwareWake: Boolean,
+                recipe: String = "standard"): Answer<String?>? {
         if (!CoreShadow.running) return null
         val a = call("sleep.restage", JSONObject().put("deviceId", deviceId).put("start", start).put("end", end)
-            .put("method", method).put("motionAwareWake", motionAwareWake)) ?: return null
+            .put("method", method).put("motionAwareWake", motionAwareWake).put("recipe", recipe)) ?: return null
         return Answer(if (a.isNull("stages")) null else a.optString("stages").ifEmpty { null })
     }
 }

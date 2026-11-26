@@ -7866,4 +7866,8 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsp6_coach_forget_message">Du musst ihn zum erneuten Verbinden wieder einfügen. Das ist etwas anderes als „Trennen“, wobei der Schlüssel erhalten bleibt.</string>
     <string name="fsp6_lab_blurb">Unfertige Funktionen. Standardmäßig aus, jederzeit wieder abschaltbar.</string>
     <string name="fsp6_ss_motion">Bewegung</string>
+    <string name="forge_lab_sleep_recipe">Schlafphasen (Test)</string>
+    <string name="forge_lab_sleep_recipe_standard">Standard</string>
+    <string name="forge_lab_sleep_recipe_trained">Trainiertes Modell</string>
+    <string name="forge_lab_sleep_recipe_detail">Welches Verfahren deine Nacht in leicht, tief, REM und wach einteilt. Das trainierte Modell wurde an Schlaflabor-Aufnahmen anderer Geräte am Handgelenk angepasst und ist auf WHOOP-Nächten noch nicht geprüft. Umschalten berechnet alle Nächte neu; deine aufgezeichneten Daten und deine Schlafkorrekturen bleiben.</string>
 </resources>

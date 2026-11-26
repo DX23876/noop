@@ -5985,5 +5985,8 @@
   "Whole pack (%@)": "Całe opakowanie (%@)",
   "Whole pack (%lld × %@ %@)": "Całe opakowanie (%lld × %@ %@)",
   "Choose a day": "Wybierz dzień",
-  "Add %@ %@": "Dodaj %1$@ %2$@"
+  "Add %@ %@": "Dodaj %1$@ %2$@",
+  "Sleep stages (test)": "Fazy snu (test)",
+  "Trained model": "Wytrenowany model",
+  "Which method sorts your night into light, deep, REM and awake. The trained model was fitted to sleep-lab recordings from other wrist devices and is not yet checked on WHOOP nights. Switching recalculates all nights; your recorded data and your sleep corrections stay.": "Która metoda dzieli twoją noc na sen płytki, głęboki, REM i czuwanie. Wytrenowany model dopasowano do nagrań z laboratoriów snu z innych urządzeń na nadgarstek i nie sprawdzono go jeszcze na nocach WHOOP. Zmiana przelicza wszystkie noce; zapisane dane i twoje poprawki snu zostają."
 }
