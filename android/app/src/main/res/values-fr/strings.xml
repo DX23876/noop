@@ -7904,10 +7904,10 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="wt_change">Évolution</string>
     <string name="wt_since_start">depuis le début</string>
     <string name="wt_this_week">Cette semaine</string>
-    <string name="wt_high">Haut</string>
+    <string name="wt_high">Élevé</string>
     <string name="wt_latest">Dernier</string>
     <string name="wt_trend_label">Tendance</string>
-    <string name="wt_low">Bas</string>
+    <string name="wt_low">Faible</string>
     <string name="wt_one_year">1 an</string>
     <string name="wt_all">Tout</string>
     <string name="wt_chart_legend">Points : ce qu’indiquait la balance. Ligne : la tendance.</string>
@@ -7981,6 +7981,10 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="wt_widget_name_month">Poids ce mois-ci</string>
     <string name="wt_widget_name_figures">Chiffres du poids</string>
     <string name="wt_widget_name_event">Poids à une date</string>
+    <string name="wt_widget_desc_trend">La tendance derrière les hauts et les bas du quotidien, et sa vitesse.</string>
+    <string name="wt_widget_desc_month">La pesée la plus basse et la moyenne du mois par rapport au mois dernier.</string>
+    <string name="wt_widget_desc_figures">Dernière pesée, tendance, évolution hebdomadaire et votre progression en un coup d’œil.</string>
+    <string name="wt_widget_desc_event">Ce que vous pèserez probablement à une date choisie, avec compte à rebours.</string>
     <plurals name="wt_days">
         <item quantity="one">%1$d jour</item>
         <item quantity="other">%1$d jours</item>

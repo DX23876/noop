@@ -7874,7 +7874,7 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="wt_to_go">Faltan %1$s</string>
     <string name="wt_all_stops">Todas las etapas alcanzadas</string>
     <string name="wt_stops_reached">%1$d de %2$d etapas alcanzadas</string>
-    <string name="wt_forecast">Previsión</string>
+    <string name="wt_forecast">Pronóstico</string>
     <string name="wt_rate_current">Actual</string>
     <string name="wt_rate_overall">Global</string>
     <string name="wt_rate_plan">Plan</string>
@@ -7907,10 +7907,10 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="wt_change">Cambio</string>
     <string name="wt_since_start">desde el inicio</string>
     <string name="wt_this_week">Esta semana</string>
-    <string name="wt_high">Máximo</string>
+    <string name="wt_high">Alto</string>
     <string name="wt_latest">Último</string>
     <string name="wt_trend_label">Tendencia</string>
-    <string name="wt_low">Mínimo</string>
+    <string name="wt_low">Bajo</string>
     <string name="wt_one_year">1 año</string>
     <string name="wt_all">Todo</string>
     <string name="wt_chart_legend">Puntos: lo que marcó la báscula. Línea: la tendencia.</string>
@@ -7984,6 +7984,10 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="wt_widget_name_month">Peso este mes</string>
     <string name="wt_widget_name_figures">Cifras de peso</string>
     <string name="wt_widget_name_event">Peso en una fecha</string>
+    <string name="wt_widget_desc_trend">La tendencia detrás de los altibajos diarios y lo rápido que cambia.</string>
+    <string name="wt_widget_desc_month">El pesaje más bajo y la media de este mes frente al mes pasado.</string>
+    <string name="wt_widget_desc_figures">Último pesaje, tendencia, cambio semanal y tu progreso de un vistazo.</string>
+    <string name="wt_widget_desc_event">Cuánto pesarás probablemente en una fecha que elijas, con cuenta atrás.</string>
     <plurals name="wt_days">
         <item quantity="one">%1$d día</item>
         <item quantity="other">%1$d días</item>

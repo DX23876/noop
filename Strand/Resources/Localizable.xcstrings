@@ -225865,7 +225865,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Prévision."
+            "value" : "Prévision"
           }
         },
         "it" : {
@@ -225877,7 +225877,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Prognozowanie."
+            "value" : "Prognoza"
           }
         },
         "pt-PT" : {

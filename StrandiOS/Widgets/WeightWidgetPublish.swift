@@ -47,7 +47,7 @@ enum WeightWidgetPublisher {
             if let change = m.trendChangeKg { month.append(.init(label: String(localized: "Trend change"), value: signed(change))) }
         }
         var figures: [WeightWidgetSnapshot.Figure] = [
-            .init(label: String(localized: "Latest"), value: number(s.latest.kg)),
+            .init(label: String(localized: "Last"), value: number(s.latest.kg)),
             .init(label: String(localized: "Trend"), value: number(s.trendKg)),
         ]
         if let r = s.rates.currentKgPerWeek { figures.append(.init(label: String(localized: "Per week"), value: signed(r))) }

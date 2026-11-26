@@ -3,12 +3,21 @@ package com.noop.widget
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.Path
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
+import androidx.glance.ColorFilter
+import androidx.glance.Image
+import androidx.glance.ImageProvider
+import androidx.glance.layout.ContentScale
 import androidx.glance.LocalContext
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
@@ -17,7 +26,12 @@ import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
-import androidx.glance.appwidget.updateAll
+import androidx.glance.appwidget.state.updateAppWidgetState
+import androidx.glance.currentState
+import androidx.glance.state.GlanceStateDefinition
+import androidx.glance.state.PreferencesGlanceStateDefinition
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.glance.background
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Column
@@ -26,6 +40,7 @@ import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
+import androidx.glance.layout.size
 import androidx.glance.layout.padding
 import androidx.glance.layout.width
 import androidx.glance.text.FontWeight
@@ -101,18 +116,18 @@ object WeightWidgets {
      * Republishes from a fresh snapshot when a weight widget is placed: when the app comes to the front, as iOS does,
      * so a weigh-in logged anywhere (or a countdown's new day) reaches the home screen without visiting the page.
      */
-    suspend fun refresh(context: Context) {
+    suspend fun refresh(context: Context, redrawAfter: Boolean = true) {
         val app = context.applicationContext
         if (!placed(app)) return
         runCatching { com.noop.core.CoreRead.open(app) }
-        publish(app, CoreWeight.page(app))
+        publish(app, CoreWeight.page(app), redrawAfter)
     }
 
-    /** Words the page's snapshot for the widgets and redraws them, only when one is placed and something changed. */
-    suspend fun publish(context: Context, page: CoreWeight.Page?) {
+    /** Words the page's snapshot for the widgets and Today's tile, and redraws placed widgets when something changed. */
+    suspend fun publish(context: Context, page: CoreWeight.Page?, redrawAfter: Boolean = true) {
         val app = context.applicationContext
         val s = page?.snapshot ?: return
-        if (!placed(app)) return
+        // Worded even with no widget placed: Today's two-column weight tile reads the same lines.
         val units = UnitPrefs.system(app)
         val unit = UnitFormatter.massUnit(units)
         val one = NumberFormat.getNumberInstance(Locale.getDefault()).apply { minimumFractionDigits = 1; maximumFractionDigits = 1 }
@@ -168,15 +183,29 @@ object WeightWidgets {
             .toString()
         val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         if (prefs.getString(KEY, null) == payload) return
-        prefs.edit().putString(KEY, payload).apply()
-        redraw(app)
+        prefs.edit().putString(KEY, payload).commit()
+        if (redrawAfter && placed(app)) redraw(app)
     }
 
+    /** Bumped in each placed widget's Glance state on every redraw; see [WeightGlanceWidget.provideGlance]. */
+    internal val STAMP = longPreferencesKey("weightRedraw")
+
+    /**
+     * Redraws every placed weight widget. A plain `updateAll` reached a running session without changing anything it
+     * read, so the composition was skipped and a new colour or payload waited for the session to end; bumping a
+     * value in each widget's Glance state is what makes that session recompose.
+     */
     suspend fun redraw(context: Context) {
-        runCatching { WeightTrendWidget().updateAll(context) }
-        runCatching { WeightMonthWidget().updateAll(context) }
-        runCatching { WeightFiguresWidget().updateAll(context) }
-        runCatching { WeightEventWidget().updateAll(context) }
+        val manager = GlanceAppWidgetManager(context)
+        val stamp = System.currentTimeMillis()
+        listOf(WeightTrendWidget(), WeightMonthWidget(), WeightFiguresWidget(), WeightEventWidget()).forEach { widget ->
+            runCatching {
+                manager.getGlanceIds(widget.javaClass).forEach { id ->
+                    updateAppWidgetState(context, id) { it[STAMP] = stamp }
+                    widget.update(context, id)
+                }
+            }
+        }
     }
 
     fun stored(context: Context): Payload? = runCatching {
@@ -194,20 +223,28 @@ object WeightWidgets {
 
 /** One weight widget: its stored colour and the payload, drawn by [content]. */
 abstract class WeightGlanceWidget(private val fallback: WeightWidgets.Tint) : GlanceAppWidget() {
+    override val stateDefinition: GlanceStateDefinition<*> = PreferencesGlanceStateDefinition
+
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val dark = WidgetTheme.isDark(context)
         val appWidgetId = runCatching { GlanceAppWidgetManager(context).getAppWidgetId(id) }.getOrDefault(-1)
+        // The app writes the payload only while a weight widget is placed, so the first one placed finds none yet:
+        // word it here once, without a redraw, since this session is about to draw anyway.
+        if (WeightWidgets.stored(context) == null) runCatching { WeightWidgets.refresh(context, redrawAfter = false) }
         provideContent {
+            // Everything the widget shows is read here, at the top of the composition that the stamp invalidates.
+            currentState<Preferences>()[WeightWidgets.STAMP]  // read so a redraw's new stamp recomposes this
             val tint = WeightWidgets.tint(context, appWidgetId, fallback)
+            val p = WeightWidgets.stored(context)
+            val chosen = WeightWidgets.eventChoice(context, appWidgetId)
             WeightWidgetFrame(tint.color(dark), dark) {
-                val p = WeightWidgets.stored(context)
-                if (p == null) NoData(dark) else content(p, tint.color(dark), dark, appWidgetId)
+                if (p == null) NoData(dark) else content(p, tint.color(dark), dark, chosen)
             }
         }
     }
 
     @Composable
-    abstract fun content(p: WeightWidgets.Payload, tint: Color, dark: Boolean, appWidgetId: Int)
+    abstract fun content(p: WeightWidgets.Payload, tint: Color, dark: Boolean, chosenEvent: String?)
 }
 
 private fun ink(dark: Boolean) = ColorProvider(if (dark) Color(0xFFF4F6F8) else Color(0xFF1A2230))
@@ -235,13 +272,20 @@ private fun Pill(text: String, tint: Color) {
 }
 
 @Composable
-private fun NoData(dark: Boolean) {
-    Text(LocalContext.current.getString(R.string.wt_widget_no_data), style = TextStyle(color = inkSecondary(dark), fontSize = 12.sp))
+private fun NoData(dark: Boolean) = EmptyNote(R.drawable.ic_widget_weight, R.string.wt_widget_no_data, dark)
+
+/** An empty widget's mark and line, as iOS's `WeightNoData`. */
+@Composable
+private fun EmptyNote(icon: Int, text: Int, dark: Boolean) {
+    Image(ImageProvider(icon), contentDescription = null, colorFilter = ColorFilter.tint(ink(dark)),
+          modifier = GlanceModifier.size(22.dp))
+    Spacer(GlanceModifier.height(6.dp))
+    Text(LocalContext.current.getString(text), style = TextStyle(color = inkSecondary(dark), fontSize = 12.sp))
 }
 
 class WeightTrendWidget : WeightGlanceWidget(WeightWidgets.Tint.Pink) {
     @Composable
-    override fun content(p: WeightWidgets.Payload, tint: Color, dark: Boolean, appWidgetId: Int) {
+    override fun content(p: WeightWidgets.Payload, tint: Color, dark: Boolean, chosenEvent: String?) {
         val context = LocalContext.current
         Pill(context.getString(R.string.wt_trend_label), tint)
         Spacer(GlanceModifier.height(6.dp))
@@ -251,14 +295,23 @@ class WeightTrendWidget : WeightGlanceWidget(WeightWidgets.Tint.Pink) {
             Text(p.unit, style = TextStyle(color = inkSecondary(dark), fontSize = 13.sp, fontWeight = FontWeight.Medium))
         }
         p.rateLine?.let { Text(it, maxLines = 1, style = TextStyle(color = ColorProvider(tint), fontSize = 12.sp, fontWeight = FontWeight.Bold)) }
-        Spacer(GlanceModifier.height(4.dp))
-        Text(context.getString(R.string.wt_widget_latest, p.latest, p.unit), style = TextStyle(color = inkSecondary(dark), fontSize = 11.sp))
+        Spacer(GlanceModifier.height(6.dp))
+        // The last 30 days of the trend as a line, as iOS's `WidgetLineChart`; the latest weigh-in when there is
+        // too little to draw.
+        val density = context.resources.displayMetrics.density
+        val line = trendLine(p.line, (150 * density).toInt(), (34 * density).toInt(), tint, 2.2f * density)
+        if (line != null) {
+            Image(ImageProvider(line), contentDescription = null, contentScale = ContentScale.FillBounds,
+                  modifier = GlanceModifier.fillMaxWidth().height(34.dp))
+        } else {
+            Text(context.getString(R.string.wt_widget_latest, p.latest, p.unit), style = TextStyle(color = inkSecondary(dark), fontSize = 11.sp))
+        }
     }
 }
 
 class WeightMonthWidget : WeightGlanceWidget(WeightWidgets.Tint.Orange) {
     @Composable
-    override fun content(p: WeightWidgets.Payload, tint: Color, dark: Boolean, appWidgetId: Int) {
+    override fun content(p: WeightWidgets.Payload, tint: Color, dark: Boolean, chosenEvent: String?) {
         val context = LocalContext.current
         Pill(p.monthLabel, tint)
         Spacer(GlanceModifier.height(8.dp))
@@ -278,7 +331,7 @@ class WeightMonthWidget : WeightGlanceWidget(WeightWidgets.Tint.Orange) {
 
 class WeightFiguresWidget : WeightGlanceWidget(WeightWidgets.Tint.Indigo) {
     @Composable
-    override fun content(p: WeightWidgets.Payload, tint: Color, dark: Boolean, appWidgetId: Int) {
+    override fun content(p: WeightWidgets.Payload, tint: Color, dark: Boolean, chosenEvent: String?) {
         val context = LocalContext.current
         Pill(context.getString(R.string.wt_widget_figures_title, p.unit), tint)
         Spacer(GlanceModifier.height(8.dp))
@@ -298,14 +351,13 @@ class WeightFiguresWidget : WeightGlanceWidget(WeightWidgets.Tint.Indigo) {
 
 class WeightEventWidget : WeightGlanceWidget(WeightWidgets.Tint.Teal) {
     @Composable
-    override fun content(p: WeightWidgets.Payload, tint: Color, dark: Boolean, appWidgetId: Int) {
+    override fun content(p: WeightWidgets.Payload, tint: Color, dark: Boolean, chosenEvent: String?) {
         val context = LocalContext.current
         val today = LocalDate.now()
         val upcoming = p.events.filter { runCatching { !LocalDate.parse(it.day).isBefore(today) }.getOrDefault(false) }
-        val chosen = WeightWidgets.eventChoice(context, appWidgetId)
-        val e = upcoming.firstOrNull { it.id == chosen } ?: upcoming.minByOrNull { it.day }
+        val e = upcoming.firstOrNull { it.id == chosenEvent } ?: upcoming.minByOrNull { it.day }
         if (e == null) {
-            Text(context.getString(R.string.wt_widget_event_empty), style = TextStyle(color = inkSecondary(dark), fontSize = 12.sp))
+            EmptyNote(R.drawable.ic_widget_event, R.string.wt_widget_event_empty, dark)
             return
         }
         val days = ChronoUnit.DAYS.between(today, LocalDate.parse(e.day)).toInt()
@@ -326,3 +378,33 @@ class WeightTrendWidgetReceiver : GlanceAppWidgetReceiver() { override val glanc
 class WeightMonthWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget: GlanceAppWidget = WeightMonthWidget() }
 class WeightFiguresWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget: GlanceAppWidget = WeightFiguresWidget() }
 class WeightEventWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget: GlanceAppWidget = WeightEventWidget() }
+
+/**
+ * The trend line for the trend widget, drawn to a transparent bitmap because Glance cannot draw: the values scaled into
+ * the box with a little headroom, a round-capped stroke in the widget's colour and a dot on the newest point. Null
+ * when there are fewer than two values or the bitmap cannot be made, so the widget shows the latest weigh-in instead.
+ */
+private fun trendLine(values: List<Double>, widthPx: Int, heightPx: Int, tint: Color, strokePx: Float): Bitmap? {
+    if (values.size < 2 || widthPx < 4 || heightPx < 4) return null
+    val bmp = runCatching { Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888) }.getOrNull() ?: return null
+    val lo = values.min()
+    val hi = values.max()
+    val span = (hi - lo).takeIf { it > 1e-6 } ?: 1.0
+    val inset = strokePx * 1.6f
+    val w = widthPx - 2 * inset
+    val h = heightPx - 2 * inset
+    fun x(i: Int) = inset + w * i / (values.size - 1)
+    fun y(v: Double) = inset + h * (1 - ((v - lo) / span)).toFloat()
+    val path = Path().apply {
+        moveTo(x(0), y(values[0]))
+        for (i in 1 until values.size) lineTo(x(i), y(values[i]))
+    }
+    val argb = tint.toArgb()
+    val canvas = Canvas(bmp)
+    canvas.drawPath(path, Paint().apply {
+        isAntiAlias = true; style = Paint.Style.STROKE; strokeWidth = strokePx
+        strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND; color = argb
+    })
+    canvas.drawCircle(x(values.size - 1), y(values.last()), strokePx * 1.5f, Paint().apply { isAntiAlias = true; color = argb })
+    return bmp
+}

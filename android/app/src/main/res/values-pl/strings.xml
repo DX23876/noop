@@ -7960,10 +7960,10 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="wt_change">Zmiana</string>
     <string name="wt_since_start">od początku</string>
     <string name="wt_this_week">Ten tydzień</string>
-    <string name="wt_high">Najwyżej</string>
+    <string name="wt_high">Wysoki</string>
     <string name="wt_latest">Ostatnio</string>
     <string name="wt_trend_label">Trend</string>
-    <string name="wt_low">Najniżej</string>
+    <string name="wt_low">Niski</string>
     <string name="wt_one_year">1 rok</string>
     <string name="wt_all">Wszystko</string>
     <string name="wt_chart_legend">Punkty: co pokazała waga. Linia: trend.</string>
@@ -8037,6 +8037,10 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="wt_widget_name_month">Waga w tym miesiącu</string>
     <string name="wt_widget_name_figures">Wartości wagi</string>
     <string name="wt_widget_name_event">Waga w danym dniu</string>
+    <string name="wt_widget_desc_trend">Trend za codziennymi wahaniami i to, jak szybko się zmienia.</string>
+    <string name="wt_widget_desc_month">Najniższy pomiar i średnia z tego miesiąca w porównaniu z poprzednim.</string>
+    <string name="wt_widget_desc_figures">Ostatni pomiar, trend, zmiana tygodniowa i postęp w skrócie.</string>
+    <string name="wt_widget_desc_event">Ile prawdopodobnie będziesz ważyć w wybranym dniu, z odliczaniem.</string>
     <plurals name="wt_days">
         <item quantity="one">%1$d dzień</item>
         <item quantity="few">%1$d dni</item>

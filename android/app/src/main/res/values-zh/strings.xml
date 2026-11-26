@@ -7816,7 +7816,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="wt_to_go">还差 %1$s</string>
     <string name="wt_all_stops">所有站点均已达到</string>
     <string name="wt_stops_reached">已达到 %1$d / %2$d 站</string>
-    <string name="wt_forecast">预测</string>
+    <string name="wt_forecast">预报</string>
     <string name="wt_rate_current">当前</string>
     <string name="wt_rate_overall">总体</string>
     <string name="wt_rate_plan">计划</string>
@@ -7849,10 +7849,10 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="wt_change">变化</string>
     <string name="wt_since_start">自开始</string>
     <string name="wt_this_week">本周</string>
-    <string name="wt_high">最高</string>
+    <string name="wt_high">高</string>
     <string name="wt_latest">最近</string>
     <string name="wt_trend_label">趋势</string>
-    <string name="wt_low">最低</string>
+    <string name="wt_low">低</string>
     <string name="wt_one_year">1 年</string>
     <string name="wt_all">全部</string>
     <string name="wt_chart_legend">点：体重秤的读数。线：趋势。</string>
@@ -7926,6 +7926,10 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="wt_widget_name_month">本月体重</string>
     <string name="wt_widget_name_figures">体重数值</string>
     <string name="wt_widget_name_event">某日的体重</string>
+    <string name="wt_widget_desc_trend">日常起伏背后的趋势，以及它变化的速度。</string>
+    <string name="wt_widget_desc_month">本月最低称重和平均值与上月对比。</string>
+    <string name="wt_widget_desc_figures">最近称重、趋势、每周变化和进度一目了然。</string>
+    <string name="wt_widget_desc_event">在你设定的日期大概会有多重，并倒计时。</string>
     <plurals name="wt_days">
         <item quantity="other">%1$d 天</item>
     </plurals>

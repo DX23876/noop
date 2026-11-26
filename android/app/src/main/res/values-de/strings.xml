@@ -7890,7 +7890,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="wt_to_go">Noch %1$s</string>
     <string name="wt_all_stops">Alle Etappen erreicht</string>
     <string name="wt_stops_reached">%1$d von %2$d Etappen erreicht</string>
-    <string name="wt_forecast">Prognose</string>
+    <string name="wt_forecast">Vorhersage</string>
     <string name="wt_rate_current">Aktuell</string>
     <string name="wt_rate_overall">Gesamt</string>
     <string name="wt_rate_plan">Plan</string>
@@ -7926,7 +7926,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="wt_high">Hoch</string>
     <string name="wt_latest">Zuletzt</string>
     <string name="wt_trend_label">Trend</string>
-    <string name="wt_low">Tief</string>
+    <string name="wt_low">Niedrig</string>
     <string name="wt_one_year">1 Jahr</string>
     <string name="wt_all">Alle</string>
     <string name="wt_chart_legend">Punkte: was die Waage zeigte. Linie: der Trend.</string>
@@ -8000,6 +8000,10 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="wt_widget_name_month">Gewicht diesen Monat</string>
     <string name="wt_widget_name_figures">Gewichtswerte</string>
     <string name="wt_widget_name_event">Gewicht an einem Termin</string>
+    <string name="wt_widget_desc_trend">Der Trend hinter dem täglichen Auf und Ab, und wie schnell er sich bewegt.</string>
+    <string name="wt_widget_desc_month">Der niedrigste Wert und der Durchschnitt dieses Monats im Vergleich zum Vormonat.</string>
+    <string name="wt_widget_desc_figures">Letzte Messung, Trend, Wochenänderung und dein Fortschritt auf einen Blick.</string>
+    <string name="wt_widget_desc_event">Was du an einem gewählten Termin wahrscheinlich wiegst, mit Countdown.</string>
     <plurals name="wt_days">
         <item quantity="one">%1$d Tag</item>
         <item quantity="other">%1$d Tage</item>

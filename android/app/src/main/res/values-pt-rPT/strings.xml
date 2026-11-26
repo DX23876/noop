@@ -7899,10 +7899,10 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="wt_change">Variação</string>
     <string name="wt_since_start">desde o início</string>
     <string name="wt_this_week">Esta semana</string>
-    <string name="wt_high">Máximo</string>
+    <string name="wt_high">Alto</string>
     <string name="wt_latest">Último</string>
     <string name="wt_trend_label">Tendência</string>
-    <string name="wt_low">Mínimo</string>
+    <string name="wt_low">Baixo</string>
     <string name="wt_one_year">1 ano</string>
     <string name="wt_all">Tudo</string>
     <string name="wt_chart_legend">Pontos: o que a balança indicou. Linha: a tendência.</string>
@@ -7976,6 +7976,10 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="wt_widget_name_month">Peso este mês</string>
     <string name="wt_widget_name_figures">Valores do peso</string>
     <string name="wt_widget_name_event">Peso numa data</string>
+    <string name="wt_widget_desc_trend">A tendência por trás dos altos e baixos diários, e a rapidez com que muda.</string>
+    <string name="wt_widget_desc_month">A pesagem mais baixa e a média deste mês face ao mês passado.</string>
+    <string name="wt_widget_desc_figures">Última pesagem, tendência, variação semanal e o seu progresso num relance.</string>
+    <string name="wt_widget_desc_event">Quanto deverá pesar numa data que definir, em contagem decrescente.</string>
     <plurals name="wt_days">
         <item quantity="one">%1$d dia</item>
         <item quantity="other">%1$d dias</item>

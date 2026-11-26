@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AddCircle
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Tune
@@ -181,6 +182,7 @@ internal class WeightFormat(val units: UnitSystem, val unit: String, private val
     val monthYear: DateTimeFormatter = DateTimeFormatter.ofPattern(
         android.text.format.DateFormat.getBestDateTimePattern(locale, "MMMMy"), locale)
     val year: DateTimeFormatter = DateTimeFormatter.ofPattern("y", locale)
+    val monthShort: DateTimeFormatter = DateTimeFormatter.ofPattern("LLL", locale)
 
     fun value(kg: Double): Double = if (units == UnitSystem.IMPERIAL) UnitFormatter.kgToPounds(kg) else kg
     fun number(kg: Double): String = one.format(value(kg))
@@ -208,6 +210,8 @@ private fun Hero(s: CoreWeight.Snapshot, fromPlan: Boolean, fmt: WeightFormat) {
                 val ago = android.text.format.DateUtils.getRelativeTimeSpanString(
                     minOf(s.latest.at * 1000, System.currentTimeMillis()), System.currentTimeMillis(),
                     android.text.format.DateUtils.MINUTE_IN_MILLIS).toString()
+                    // Mid-sentence: the platform capitalises the phrase on its own ("Vor 6 Tagen").
+                    .replaceFirstChar { it.lowercase(java.util.Locale.getDefault()) }
                 Text(stringResource(R.string.wt_last_weigh_in, ago),
                      style = Forge.type.footnote, color = colors.textSecondary)
             }
@@ -377,6 +381,8 @@ private fun EventsCard(s: CoreWeight.Snapshot, fmt: WeightFormat, onEvent: (Even
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.weight(1f)) { SectionTitle(stringResource(R.string.wt_dates)) }
         TextButton(onClick = { onEvent(EventDraft(null, "", LocalDate.now().plusMonths(1))) }) {
+            Icon(Icons.Rounded.Add, contentDescription = null, tint = WEIGHT_TINT.resolve(), modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(4.dp))
             Text(stringResource(R.string.wt_add), color = WEIGHT_TINT.resolve(), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold))
         }
     }
@@ -483,7 +489,7 @@ private fun WeekFigure(label: String, value: String, tint: Color) {
  */
 @Composable
 private fun WeightLines(readings: List<CoreWeight.Point>, trend: List<CoreWeight.Point>, goalKg: Double?, band: Double?,
-                        modifier: Modifier, dots: Boolean = true, labels: Boolean = dots) {
+                        modifier: Modifier, dots: Boolean = true, labels: Boolean = dots, dateTicks: DateTimeFormatter? = null) {
     val colors = Forge.colors
     val tint = WEIGHT_TINT.resolve()
     val goalColor = ForgeTokens.Color.systemGreen.resolve()
@@ -492,6 +498,7 @@ private fun WeightLines(readings: List<CoreWeight.Point>, trend: List<CoreWeight
     val goalWord = stringResource(R.string.wt_goal_word)
     val density = androidx.compose.ui.platform.LocalDensity.current
     val labelPx = with(density) { 11.sp.toPx() }
+    val monthFmt = remember { DateTimeFormatter.ofPattern("LLL", Locale.getDefault()) }
     Canvas(modifier) {
         val all = readings + trend
         if (all.isEmpty()) return@Canvas
@@ -500,27 +507,53 @@ private fun WeightLines(readings: List<CoreWeight.Point>, trend: List<CoreWeight
         val hi = values.max() + 0.5
         val t0 = all.minOf { it.at }.toFloat()
         val t1 = all.maxOf { it.at }.toFloat().coerceAtLeast(t0 + 1f)
-        fun x(t: Long) = (t - t0) / (t1 - t0) * size.width
-        fun y(v: Double) = ((hi - v) / (hi - lo)).toFloat() * size.height
-        // The axis: a few round values on the left, as iOS's chart labels them, and the goal line named.
+        // The axes as iOS's chart draws them: round values in a gutter on the left, months along the bottom.
+        val paint = android.graphics.Paint().apply { color = labelColor; textSize = labelPx; isAntiAlias = true }
+        val step = listOf(0.5, 1.0, 2.0, 5.0, 10.0, 20.0).firstOrNull { (hi - lo) / it <= 5 } ?: 50.0
+        val ticks = generateSequence(kotlin.math.ceil(lo / step) * step) { it + step }.takeWhile { it <= hi }.toList()
+        fun tickText(v: Double) = if (step < 1) "%.1f".format(v) else "%.0f".format(v)
+        val left = if (labels) (ticks.maxOfOrNull { paint.measureText(tickText(it)) } ?: 0f) + 6.dp.toPx() else 0f
+        val bottom = if (labels || dateTicks != null) labelPx + 6.dp.toPx() else 0f
+        val plotW = size.width - left
+        val plotH = size.height - bottom
+        fun x(t: Long) = left + (t - t0) / (t1 - t0) * plotW
+        fun y(v: Double) = ((hi - v) / (hi - lo)).toFloat() * plotH
+        // A report's period: four dates along the bottom, as iOS's report chart marks it.
+        if (dateTicks != null && !labels) {
+            val zone = ZoneId.systemDefault()
+            (0 until 4).forEach { i ->
+                val t = t0 + (t1 - t0) * (i + 0.5f) / 4f
+                val text = Instant.ofEpochSecond(t.toLong()).atZone(zone).format(dateTicks)
+                drawContext.canvas.nativeCanvas.drawText(text, x(t.toLong()) - paint.measureText(text) / 2, size.height - 2f, paint)
+            }
+        }
         if (labels) {
-            val paint = android.graphics.Paint().apply { color = labelColor; textSize = labelPx; isAntiAlias = true }
-            val step = listOf(0.5, 1.0, 2.0, 5.0, 10.0, 20.0).firstOrNull { (hi - lo) / it <= 4 } ?: 50.0
-            var v = kotlin.math.ceil(lo / step) * step
-            while (v <= hi) {
-                drawLine(faint.copy(alpha = 0.25f), Offset(0f, y(v)), Offset(size.width, y(v)), 1f)
-                drawContext.canvas.nativeCanvas.drawText(if (step < 1) "%.1f".format(v) else "%.0f".format(v), 0f, y(v) - 4f, paint)
-                v += step
+            ticks.forEach { v ->
+                drawLine(faint.copy(alpha = 0.25f), Offset(left, y(v)), Offset(size.width, y(v)), 1f)
+                drawContext.canvas.nativeCanvas.drawText(tickText(v), 0f, y(v) + labelPx / 3, paint)
+            }
+            // A dotted rule at each month's start, named below the plot; a span of a day or two has none.
+            val zone = ZoneId.systemDefault()
+            val month = Instant.ofEpochSecond(t0.toLong()).atZone(zone).toLocalDate().withDayOfMonth(1).plusMonths(1)
+            val lastDay = Instant.ofEpochSecond(t1.toLong()).atZone(zone).toLocalDate()
+            val months = generateSequence(month) { it.plusMonths(1) }.takeWhile { !it.isAfter(lastDay) }.toList()
+            val every = ((months.size + 5) / 6).coerceAtLeast(1)
+            months.forEachIndexed { i, m ->
+                if (i % every != 0) return@forEachIndexed
+                val mx = x(m.atStartOfDay(zone).toEpochSecond())
+                drawLine(faint.copy(alpha = 0.35f), Offset(mx, 0f), Offset(mx, plotH), 1f,
+                         pathEffect = PathEffect.dashPathEffect(floatArrayOf(3f, 5f)))
+                drawContext.canvas.nativeCanvas.drawText(m.format(monthFmt), mx + 4f, size.height - 2f, paint)
             }
             if (goalKg != null) {
                 paint.color = goalColor.toArgb(); paint.isFakeBoldText = true
-                drawContext.canvas.nativeCanvas.drawText(goalWord, size.width - paint.measureText(goalWord), y(goalKg) - 6f, paint)
+                drawContext.canvas.nativeCanvas.drawText(goalWord, left + 4f, y(goalKg) - 6f, paint)
             }
         }
         if (goalKg != null) {
-            if (band != null) drawRect(goalColor.copy(alpha = 0.12f), Offset(0f, y(goalKg + band)),
-                                       androidx.compose.ui.geometry.Size(size.width, y(goalKg - band) - y(goalKg + band)))
-            drawLine(goalColor, Offset(0f, y(goalKg)), Offset(size.width, y(goalKg)), 1.5.dp.toPx(),
+            if (band != null) drawRect(goalColor.copy(alpha = 0.12f), Offset(left, y(goalKg + band)),
+                                       androidx.compose.ui.geometry.Size(plotW, y(goalKg - band) - y(goalKg + band)))
+            drawLine(goalColor, Offset(left, y(goalKg)), Offset(size.width, y(goalKg)), 1.5.dp.toPx(),
                      pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f)))
         }
         if (dots) readings.forEach { drawCircle(faint, 2.dp.toPx(), Offset(x(it.at), y(it.kg))) }
@@ -560,9 +593,9 @@ private fun History(p: CoreWeight.Page, s: CoreWeight.Snapshot, fmt: WeightForma
     ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
         Row(Modifier.padding(horizontal = ForgeMetrics.space4, vertical = ForgeMetrics.space2)) {
             Text(stringResource(R.string.wt_col_day), style = Forge.type.caption, color = colors.textSecondary, modifier = Modifier.weight(1f))
-            Text(stringResource(R.string.wt_col_scale), style = Forge.type.caption, color = colors.textSecondary, modifier = Modifier.width(76.dp), textAlign = TextAlign.End)
+            Text(stringResource(R.string.wt_col_scale), style = Forge.type.caption, color = colors.textSecondary, modifier = Modifier.width(72.dp), textAlign = TextAlign.End)
             Text(stringResource(R.string.wt_col_trend), style = Forge.type.caption, color = colors.textSecondary, modifier = Modifier.width(64.dp), textAlign = TextAlign.End)
-            Text(stringResource(R.string.wt_col_week), style = Forge.type.caption, color = colors.textSecondary, modifier = Modifier.width(56.dp), textAlign = TextAlign.End)
+            Text(stringResource(R.string.wt_col_week), style = Forge.type.caption, color = colors.textSecondary, modifier = Modifier.width(60.dp), textAlign = TextAlign.End)
         }
         s.log.take(400).forEach { row ->
             HorizontalDivider(color = colors.divider, modifier = Modifier.padding(start = ForgeMetrics.space4))
@@ -576,12 +609,12 @@ private fun History(p: CoreWeight.Page, s: CoreWeight.Snapshot, fmt: WeightForma
                             Text(stringResource(R.string.wt_src_health), style = Forge.type.caption, color = colors.textTertiary)
                         }
                     }
-                    Text(fmt.number(row.reading.kg), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text,
-                         modifier = Modifier.width(76.dp), textAlign = TextAlign.End)
-                    Text(fmt.number(row.trendKg), style = Forge.type.subhead, color = colors.textSecondary,
-                         modifier = Modifier.width(64.dp), textAlign = TextAlign.End)
+                    Text(fmt.mass(row.reading.kg), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text,
+                         modifier = Modifier.width(72.dp), textAlign = TextAlign.End, maxLines = 1)
+                    Text(fmt.mass(row.trendKg), style = Forge.type.subhead, color = colors.textSecondary,
+                         modifier = Modifier.width(64.dp), textAlign = TextAlign.End, maxLines = 1)
                     Text(row.weeklyRateKg?.let { fmt.signedNumber(it) } ?: "—", style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
-                         color = deltaColor(row.weeklyRateKg, s.goal), modifier = Modifier.width(56.dp), textAlign = TextAlign.End)
+                         color = deltaColor(row.weeklyRateKg, s.goal), modifier = Modifier.width(60.dp), textAlign = TextAlign.End)
                 }
                 row.reading.note?.takeIf { it.isNotBlank() }?.let { Text(it, style = Forge.type.footnote, color = colors.textSecondary) }
                 row.milestoneKg?.let { m ->
@@ -617,7 +650,8 @@ private fun ReportCard(r: CoreWeight.Report, goal: CoreWeight.Goal?, fmt: Weight
     val title = Instant.ofEpochSecond(r.start).atZone(ZoneId.systemDefault()).format(if (r.period == "month") fmt.monthYear else fmt.year)
     ForgeCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(title.replaceFirstChar { it.titlecase() }, style = Forge.type.headline, color = colors.text, modifier = Modifier.weight(1f))
+            Text(title.replaceFirstChar { it.titlecase() }, style = Forge.type.headline.copy(fontWeight = FontWeight.SemiBold), color = colors.text,
+                 modifier = Modifier.weight(1f))
             Text(pluralStringResource(R.plurals.wt_weigh_ins, r.count, r.count), style = Forge.type.footnote, color = colors.textSecondary)
         }
         Spacer(Modifier.height(ForgeMetrics.space3))
@@ -639,7 +673,8 @@ private fun ReportCard(r: CoreWeight.Report, goal: CoreWeight.Goal?, fmt: Weight
         // The goal line only near the period's own values; far below, it flattens the period into a straight line.
         val lo = r.trend.minOfOrNull { it.kg }; val hi = r.trend.maxOfOrNull { it.kg }
         val goalNear = goal?.target?.takeIf { lo != null && hi != null && it >= lo - 2 && it <= hi + 2 }
-        WeightLines(emptyList(), r.trend, goalNear, null, Modifier.fillMaxWidth().height(80.dp), labels = false)
+        WeightLines(emptyList(), r.trend, goalNear, null, Modifier.fillMaxWidth().height(96.dp), labels = false,
+                    dateTicks = if (r.period == "month") fmt.dayMonth else fmt.monthShort)
     }
 }
 
@@ -648,7 +683,7 @@ private fun ReportFigure(label: String, value: String, sub: String?, modifier: M
     val colors = Forge.colors
     Column(modifier) {
         Text(label, style = Forge.type.caption.copy(fontWeight = FontWeight.SemiBold), color = colors.textSecondary)
-        Text(value, style = Forge.type.headline, color = colors.text)
+        Text(value, style = Forge.type.headline.copy(fontWeight = FontWeight.Bold), color = colors.text)
         sub?.let { Text(it, style = Forge.type.caption, color = colors.textSecondary) }
     }
 }

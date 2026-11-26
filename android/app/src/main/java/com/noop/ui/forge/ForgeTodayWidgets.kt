@@ -839,8 +839,16 @@ private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?,
     // The measure's own fact first; the usual-and-range line stays for the measures whose fact is not
     // built yet, so nothing loses what it already said.
     val facts = if (detailed) rememberFactsLine(key, factSeries[key], today, t.unit.orEmpty()) else null
+    // Weight over two columns says what lies ahead, as iOS: the next date with its expected weight, else the trend's
+    // weekly change, both worded by the weight page from its one snapshot.
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val weightLine = if (detailed && metric == KeyMetric.WEIGHT) remember(today) {
+        com.noop.widget.WeightWidgets.stored(context)?.let { p ->
+            p.events.firstOrNull()?.let { "${it.name}: ${it.expected ?: "—"} ${p.unit}" } ?: p.rateLine
+        }
+    } else null
     ForgeTodayTile(metric.icon, metric.tileTint(), metric.tileLabel(), t.value, t.unit.orEmpty(),
-                   if (detailed) (facts ?: change?.summary?.let { summaryLine(it, t.unit.orEmpty()) }) else null, noData, dense,
+                   if (detailed) (weightLine ?: facts ?: change?.summary?.let { summaryLine(it, t.unit.orEmpty()) }) else null, noData, dense,
                    // Weight opens its own page (trend, forecast, dates, reports), as on iOS.
                    modifier.then(if (metric == KeyMetric.WEIGHT) Modifier.clickable { onOpenWeight() }
                                  else t.opens?.let { m -> Modifier.clickable { onOpen(m) } } ?: Modifier),

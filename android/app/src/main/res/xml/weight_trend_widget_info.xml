@@ -7,6 +7,7 @@
     android:targetCellWidth="2"
     android:targetCellHeight="2"
     android:resizeMode="horizontal|vertical"
+    android:description="@string/wt_widget_desc_trend"
     android:widgetCategory="home_screen"
     android:updatePeriodMillis="1800000"
     android:configure="com.noop.widget.WeightWidgetConfigureActivity"

@@ -83,23 +83,45 @@ private func weightTimeline(_ entry: WeightEntry) -> Timeline<WeightEntry> {
     return Timeline(entries: [entry, next], policy: .after(midnight))
 }
 
-struct WeightTintIntent: WidgetConfigurationIntent {
-    static let title: LocalizedStringResource = "Weight widget"
-    static let description = IntentDescription("Choose the widget's colour.")
-    @Parameter(title: "Colour", default: .pink) var tint: WeightWidgetTint
-    init() {}
-    init(tint: WeightWidgetTint) { self.tint = tint }
+/// A weight widget's colour choice; each widget starts in its own colour (owner decision 2026-11-26), as Android's.
+protocol WeightTintConfiguring: WidgetConfigurationIntent {
+    var tint: WeightWidgetTint { get }
+    static var startColour: WeightWidgetTint { get }
 }
 
-struct WeightTintProvider: AppIntentTimelineProvider {
+struct WeightTintIntent: WeightTintConfiguring {
+    static let title: LocalizedStringResource = "Weight widget"
+    static let description = IntentDescription("Choose the widget's colour.")
+    static let startColour = WeightWidgetTint.pink
+    @Parameter(title: "Colour", default: .pink) var tint: WeightWidgetTint
+    init() {}
+}
+
+struct WeightMonthTintIntent: WeightTintConfiguring {
+    static let title: LocalizedStringResource = "Weight widget"
+    static let description = IntentDescription("Choose the widget's colour.")
+    static let startColour = WeightWidgetTint.orange
+    @Parameter(title: "Colour", default: .orange) var tint: WeightWidgetTint
+    init() {}
+}
+
+struct WeightFiguresTintIntent: WeightTintConfiguring {
+    static let title: LocalizedStringResource = "Weight widget"
+    static let description = IntentDescription("Choose the widget's colour.")
+    static let startColour = WeightWidgetTint.indigo
+    @Parameter(title: "Colour", default: .indigo) var tint: WeightWidgetTint
+    init() {}
+}
+
+struct WeightTintProvider<Intent: WeightTintConfiguring>: AppIntentTimelineProvider {
     func placeholder(in context: Context) -> WeightEntry {
-        WeightEntry(date: Date(), snapshot: .placeholder, tint: .pink)
+        WeightEntry(date: Date(), snapshot: .placeholder, tint: Intent.startColour.color)
     }
-    func snapshot(for configuration: WeightTintIntent, in context: Context) async -> WeightEntry {
+    func snapshot(for configuration: Intent, in context: Context) async -> WeightEntry {
         WeightEntry(date: Date(), snapshot: WeightWidgetSnapshot.load() ?? (context.isPreview ? .placeholder : nil),
                     tint: configuration.tint.color)
     }
-    func timeline(for configuration: WeightTintIntent, in context: Context) async -> Timeline<WeightEntry> {
+    func timeline(for configuration: Intent, in context: Context) async -> Timeline<WeightEntry> {
         weightTimeline(WeightEntry(date: Date(), snapshot: WeightWidgetSnapshot.load(), tint: configuration.tint.color))
     }
 }
@@ -108,7 +130,7 @@ struct WeightTintProvider: AppIntentTimelineProvider {
 
 struct NOOPWeightTrendWidget: Widget {
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: "NOOPWeightTrendWidget", intent: WeightTintIntent.self, provider: WeightTintProvider()) { entry in
+        AppIntentConfiguration(kind: "NOOPWeightTrendWidget", intent: WeightTintIntent.self, provider: WeightTintProvider<WeightTintIntent>()) { entry in
             WeightTrendWidgetView(entry: entry).appGroupNotice()
                 .containerBackground(for: .widget) { WeightWidgetBackground(tint: entry.tint) }
         }
@@ -159,7 +181,7 @@ struct WeightTrendWidgetView: View {
 
 struct NOOPWeightMonthWidget: Widget {
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: "NOOPWeightMonthWidget", intent: WeightTintIntent.self, provider: WeightTintProvider()) { entry in
+        AppIntentConfiguration(kind: "NOOPWeightMonthWidget", intent: WeightMonthTintIntent.self, provider: WeightTintProvider<WeightMonthTintIntent>()) { entry in
             WeightMonthWidgetView(entry: entry).appGroupNotice()
                 .containerBackground(for: .widget) { WeightWidgetBackground(tint: entry.tint) }
         }
@@ -204,7 +226,7 @@ struct WeightMonthWidgetView: View {
 
 struct NOOPWeightFiguresWidget: Widget {
     var body: some WidgetConfiguration {
-        AppIntentConfiguration(kind: "NOOPWeightFiguresWidget", intent: WeightTintIntent.self, provider: WeightTintProvider()) { entry in
+        AppIntentConfiguration(kind: "NOOPWeightFiguresWidget", intent: WeightFiguresTintIntent.self, provider: WeightTintProvider<WeightFiguresTintIntent>()) { entry in
             WeightFiguresWidgetView(entry: entry).appGroupNotice()
                 .containerBackground(for: .widget) { WeightWidgetBackground(tint: entry.tint) }
         }

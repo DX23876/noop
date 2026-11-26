@@ -1229,13 +1229,14 @@ struct ForgeMeasureWidget: View {
     }
 
     private func caption(_ m: MetricDescriptor?) -> String? {
-        // Weight says what lies ahead (owner, 2026-11-26): the next date with its expected weight, else the trend's
-        // weekly change, both worded by the weight page for the widgets from its one snapshot.
+        guard detailed else { return nil }
+        // Weight says what lies ahead over two columns (owner, 2026-11-26): the next date with its expected weight,
+        // else the trend's weekly change, both worded by the weight page from its one snapshot. Not on the small
+        // tile: there it sat beside the week's change chip, cut short, a second weekly figure next to the first.
         if key == "weight", let w = WeightWidgetSnapshot.load() {
             if let e = w.events.first { return "\(e.name): \(e.expected ?? "—") \(w.unit)" }
             if let rate = w.rateLine { return rate }
         }
-        guard detailed else { return nil }
         if key == "stress" {
             // What two columns add for stress (owner's table): the word alone says what today is, the
             // share says how it got there.

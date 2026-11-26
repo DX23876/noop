@@ -7916,10 +7916,10 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="wt_change">Изменение</string>
     <string name="wt_since_start">с начала</string>
     <string name="wt_this_week">Эта неделя</string>
-    <string name="wt_high">Максимум</string>
+    <string name="wt_high">Высокий</string>
     <string name="wt_latest">Последнее</string>
     <string name="wt_trend_label">Тренд</string>
-    <string name="wt_low">Минимум</string>
+    <string name="wt_low">Низкий</string>
     <string name="wt_one_year">1 год</string>
     <string name="wt_all">Всё</string>
     <string name="wt_chart_legend">Точки: показания весов. Линия: тренд.</string>
@@ -7993,6 +7993,10 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="wt_widget_name_month">Вес в этом месяце</string>
     <string name="wt_widget_name_figures">Показатели веса</string>
     <string name="wt_widget_name_event">Вес к дате</string>
+    <string name="wt_widget_desc_trend">Тренд за ежедневными колебаниями и то, как быстро он меняется.</string>
+    <string name="wt_widget_desc_month">Минимум и среднее за месяц в сравнении с прошлым месяцем.</string>
+    <string name="wt_widget_desc_figures">Последнее взвешивание, тренд, изменение за неделю и прогресс одним взглядом.</string>
+    <string name="wt_widget_desc_event">Сколько вы, вероятно, будете весить к выбранной дате, с обратным отсчётом.</string>
     <plurals name="wt_days">
         <item quantity="one">%1$d день</item>
         <item quantity="few">%1$d дня</item>

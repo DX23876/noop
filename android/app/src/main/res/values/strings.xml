@@ -8026,6 +8026,10 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="wt_widget_name_month">Weight this month</string>
     <string name="wt_widget_name_figures">Weight figures</string>
     <string name="wt_widget_name_event">Weight on a date</string>
+    <string name="wt_widget_desc_trend">The trend behind the daily ups and downs, and how fast it moves.</string>
+    <string name="wt_widget_desc_month">This month\'s lowest weigh-in and average against last month.</string>
+    <string name="wt_widget_desc_figures">Latest weigh-in, trend, weekly change and your progress at a glance.</string>
+    <string name="wt_widget_desc_event">What you are likely to weigh on a date you set, counting down.</string>
     <plurals name="wt_days">
         <item quantity="one">%1$d day</item>
         <item quantity="other">%1$d days</item>
