@@ -15,6 +15,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Psychology
+import androidx.compose.material.icons.rounded.TrackChanges
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.noop.ui.forge.ForgeCard
+import com.noop.ui.forge.ForgeMetrics
+import com.noop.ui.forge.ForgeTokens
+import com.noop.ui.forge.HubDivider
+import com.noop.ui.forge.HubRow
+import com.noop.ui.forge.resolve
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -103,17 +115,25 @@ fun CoachSettingsScreen(vm: CoachViewModel, onOpenIdentity: (() -> Unit)? = null
                 // "Enable AI Coach" switch (the bottom-bar coach button) sits above them.
                 CoachSettingsSection.Hub -> {
                     CoachFeatureCard(vm = vm)
+                    // The five pages as one grouped card of Settings rows (icon tile, title, subtitle, chevron).
                     val open = onOpenSection
-                    if (open != null) {
-                        CoachNavRow(stringResource(R.string.fsp6_coach_conn), stringResource(R.string.fsp6_coach_conn_detail)) { open(CoachSettingsSection.Connection) }
-                    }
-                    if (onOpenGoals != null) CoachNavRow(stringResource(R.string.coach_goals_journey), stringResource(R.string.coach_goals_journey_subtitle), onOpenGoals)
-                    if (open != null) {
-                        CoachNavRow(stringResource(R.string.fsp6_coach_coaching), stringResource(R.string.fsp6_coach_coaching_detail)) { open(CoachSettingsSection.Coaching) }
-                    }
-                    if (onOpenMemory != null) CoachNavRow(stringResource(R.string.coach_memory), stringResource(R.string.coach_memory_subtitle), onOpenMemory)
-                    if (open != null) {
-                        CoachNavRow(stringResource(R.string.fsp6_coach_privacy), stringResource(R.string.fsp6_coach_privacy_detail)) { open(CoachSettingsSection.Privacy) }
+                    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
+                        var first = true
+                        @Composable fun hubRow(icon: ImageVector, tint: Color, title: String, subtitle: String, onOpen: () -> Unit) {
+                            if (!first) HubDivider()
+                            first = false
+                            HubRow(icon, tint, title, subtitle, onOpen)
+                        }
+                        if (open != null) hubRow(Icons.Rounded.Link, ForgeTokens.Color.systemBlue.resolve(),
+                            stringResource(R.string.fsp6_coach_conn), stringResource(R.string.fsp6_coach_conn_detail)) { open(CoachSettingsSection.Connection) }
+                        if (onOpenGoals != null) hubRow(Icons.Rounded.TrackChanges, ForgeTokens.Color.systemGreen.resolve(),
+                            stringResource(R.string.coach_goals_journey), stringResource(R.string.coach_goals_journey_subtitle), onOpenGoals)
+                        if (open != null) hubRow(Icons.Rounded.Tune, ForgeTokens.Color.systemOrange.resolve(),
+                            stringResource(R.string.fsp6_coach_coaching), stringResource(R.string.fsp6_coach_coaching_detail)) { open(CoachSettingsSection.Coaching) }
+                        if (onOpenMemory != null) hubRow(Icons.Rounded.Psychology, ForgeTokens.Color.systemPurple.resolve(),
+                            stringResource(R.string.coach_memory), stringResource(R.string.coach_memory_subtitle), onOpenMemory)
+                        if (open != null) hubRow(Icons.Rounded.Lock, ForgeTokens.Color.systemIndigo.resolve(),
+                            stringResource(R.string.fsp6_coach_privacy), stringResource(R.string.fsp6_coach_privacy_detail)) { open(CoachSettingsSection.Privacy) }
                     }
                 }
                 CoachSettingsSection.Connection -> {

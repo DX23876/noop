@@ -7465,6 +7465,13 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="import_depth_one_year">1 год</string>
     <string name="import_depth_three_years">3 года</string>
     <string name="import_depth_ten_years">10 лет</string>
+    <!-- settings-parity:w8:begin -->
+    <string name="fsw8_strap_conn_title">Подключение и шаги</string>
+    <string name="fsw8_strap_conn_sub">Подключение, шаги и передача пульса</string>
+    <string name="fsw8_today_footer">Дополнительные карточки. Всё остаётся на этом телефоне.</string>
+    <string name="fsw8_power_footer">Браслет продолжает сам сохранять данные, поэтому ничего не теряется. NOOP просто реже обращается к нему, чтобы он дотянул до зарядки: пока заряд браслета низкий, фоновая синхронизация идёт раз в 45 минут вместо 15.</string>
+    <string name="fsw8_restore_from_backup">Восстановить из резервной копии</string>
+    <!-- settings-parity:w8:end -->
     <!-- settings-parity:w5:begin -->
     <string name="fsw5_haptics">Вибрация</string>
     <!-- settings-parity:w5:end -->
@@ -7488,7 +7495,7 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="fsw4_export">Экспорт…</string>
     <string name="fsw4_import">Импортировать…</string>
     <string name="fsw4_csv">Экспортировать CSV…</string>
-    <string name="fsw4_backup_sync">Резервное копирование и синхронизация в папку…</string>
+    <string name="fsw4_backup_sync">Резервное копирование и синхронизация в папку</string>
     <string name="fsw4_tc_strap_log">Журнал стрэпа</string>
     <string name="fsw4_tc_strap_log_hint">Возьмите это при сообщении об ошибке. Это покажет мне, что видело приложение.</string>
     <string name="fsw4_tc_report_hint">Создаёт очищенный .zip и показывает его содержимое.</string>
@@ -7497,7 +7504,7 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="fsw4_imports_group">Health Connect и импорт</string>
     <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
-    <string name="fsw3_tc_blurb">Включите тест для того, что не работает, наденьте браслет и нажмите «Сообщить». Всё остаётся на этом телефоне.</string>
+    <string name="fsw3_tc_blurb">Включите тест для того, что не работает, наденьте браслет и нажмите «Поделиться». Всё остаётся на этом телефоне.</string>
     <string name="fsw3_report_footer">Создаёт .zip со скрытыми личными данными и показывает его содержимое, прежде чем что-либо будет отправлено.</string>
     <string name="fsw3_report_detail">Очищенный .zip, который вы проверяете заранее, и ежедневный экспорт</string>
     <string name="fsw3_group_testing">Тесты</string>
@@ -7847,7 +7854,7 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="fsp6_sub_strap">Подключение, запись, батарея, двойное касание, шаги</string>
     <string name="fsp6_sub_battery">Экономия энергии и непрерывная ВСР</string>
     <string name="fsp6_sub_actions">Двойное касание, вибрация и сигналы пульса</string>
-    <string name="fsp6_sub_today">Карточки, порядок и стиль</string>
+    <string name="fsp6_sub_today">Дополнительные карточки на «Сегодня»</string>
     <string name="fsp6_sub_coach">Провайдер, модель и память</string>
     <string name="fsp6_sub_language">Язык, часы, начало недели и единицы</string>
     <string name="fsp6_sub_appearance">Тема, фон, графики и движение</string>
@@ -7873,7 +7880,7 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="fsp6_ack_adopted_header">Люди, чью работу перенял NOOP Forge</string>
     <string name="fsp6_ack_unavailable">Не удалось загрузить список благодарностей.</string>
     <string name="fsp6_ack_licence_missing">Текст лицензии недоступен в этой сборке.</string>
-    <string name="fsp6_help_tc_blurb">Включите тест для проблемы, наденьте браслет, затем нажмите «Отчёт». Здесь же находятся журнал браслета, повторная калибровка, запланированный экспорт и экспериментальные пробы.</string>
+    <string name="fsp6_help_tc_blurb">Включите тест для проблемы, наденьте браслет, затем нажмите «Поделиться». Здесь же находятся журнал браслета, повторная калибровка, запланированный экспорт и экспериментальные пробы.</string>
     <string name="fsp6_help_open_tc">Открыть тестовый центр</string>
     <string name="fsp6_help_diag_blurb">Экспорт только для чтения декодированных потоков датчиков, которые NOOP уже хранит. Работает с любым браслетом. На устройство ничего не записывается, никуда ничего не загружается.</string>
     <string name="fsp6_coach_conn">Подключение и модель</string>

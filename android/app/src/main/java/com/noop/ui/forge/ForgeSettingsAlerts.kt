@@ -137,12 +137,14 @@ private fun DoubleTapCard(viewModel: AppViewModel) {
                        onSelect = { viewModel.setDoubleTapAction(it) })
         }
         RowDivider()
+        val bonded = live.bonded
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { viewModel.testDoubleTapAction() }, enabled = action != DoubleTapAction.NONE) {
-                Text(stringResource(R.string.l10n_automations_screen_test_action_266df314), color = Forge.colors.accent)
+            val canTest = bonded && action != DoubleTapAction.NONE
+            TextButton(onClick = { viewModel.testDoubleTapAction() }, enabled = canTest) {
+                Text(stringResource(R.string.l10n_automations_screen_test_action_266df314),
+                     color = if (canTest) Forge.colors.accent else Forge.colors.textSecondary.copy(alpha = 0.5f))
             }
             Spacer(Modifier.weight(1f))
-            val bonded = live.bonded
             Box(Modifier.size(8.dp).background(if (bonded) ForgeTokens.Color.systemGreen.resolve() else ForgeTokens.Color.systemOrange.resolve(), CircleShape))
             Spacer(Modifier.width(ForgeMetrics.space2))
             Text(stringResource(if (bonded) R.string.fsp3_dt_bonded else R.string.forge_w_strap_not_connected),

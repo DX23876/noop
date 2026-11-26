@@ -446,7 +446,7 @@ private fun DashboardStyleSection(change: (() -> Unit) -> Unit) {
 @Composable
 internal fun TodayCardsSection(change: (() -> Unit) -> Unit) {
     val context = LocalContext.current
-    SettingsCard(title = stringResource(R.string.forge_settings_today_cards), blurb = null) {
+    SettingsCard(title = null, blurb = stringResource(R.string.fsw8_today_footer)) {
         ToggleRow(stringResource(R.string.forge_settings_water), stringResource(R.string.forge_settings_water_detail),
                   NoopPrefs.hydrationTracking(context)) { on -> change { NoopPrefs.setHydrationTracking(context, on) } }
         RowDivider()

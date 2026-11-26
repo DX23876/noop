@@ -7425,6 +7425,13 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="import_depth_one_year">1 anno</string>
     <string name="import_depth_three_years">3 anni</string>
     <string name="import_depth_ten_years">10 anni</string>
+    <!-- settings-parity:w8:begin -->
+    <string name="fsw8_strap_conn_title">Connessione e passi</string>
+    <string name="fsw8_strap_conn_sub">Connessione, passi e condivisione del battito</string>
+    <string name="fsw8_today_footer">Schede facoltative. Tutto resta su questo telefono.</string>
+    <string name="fsw8_power_footer">La fascia continua a salvare i dati da sola, quindi non si perde nulla. NOOP le parla solo meno spesso perché duri fino alla ricarica: finché la batteria della fascia è scarica, la sincronizzazione in background avviene ogni 45 minuti invece di ogni 15.</string>
+    <string name="fsw8_restore_from_backup">Ripristina da un backup</string>
+    <!-- settings-parity:w8:end -->
     <!-- settings-parity:w5:begin -->
     <string name="fsw5_haptics">Feedback aptico</string>
     <!-- settings-parity:w5:end -->
@@ -7448,7 +7455,7 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="fsw4_export">Esporta…</string>
     <string name="fsw4_import">Importa…</string>
     <string name="fsw4_csv">Esporta CSV…</string>
-    <string name="fsw4_backup_sync">Backup e sincronizzazione in una cartella…</string>
+    <string name="fsw4_backup_sync">Backup e sincronizzazione in una cartella</string>
     <string name="fsw4_tc_strap_log">Log dello strap</string>
     <string name="fsw4_tc_strap_log_hint">Prendi questo quando segnali un bug. Mi dice cosa ha visto l\'app.</string>
     <string name="fsw4_tc_report_hint">Crea un .zip oscurato e ti mostra cosa contiene.</string>
@@ -7457,7 +7464,7 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="fsw4_imports_group">Health Connect e importazioni</string>
     <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
-    <string name="fsw3_tc_blurb">Attiva un test per ciò che non va, indossa la fascia e tocca Segnala. Tutto resta su questo telefono.</string>
+    <string name="fsw3_tc_blurb">Attiva un test per ciò che non va, indossa la fascia e tocca Condividi. Tutto resta su questo telefono.</string>
     <string name="fsw3_report_footer">Crea uno .zip con i dati oscurati e ti mostra cosa contiene prima di condividere qualsiasi cosa.</string>
     <string name="fsw3_report_detail">Uno .zip oscurato che controlli prima, e l\'esportazione giornaliera</string>
     <string name="fsw3_group_testing">Test</string>
@@ -7805,7 +7812,7 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="fsp6_sub_strap">Connessione, registrazione, batteria, doppio tocco, passi</string>
     <string name="fsp6_sub_battery">Risparmio energetico e HRV continua</string>
     <string name="fsp6_sub_actions">Doppio tocco, vibrazioni e avvisi del battito</string>
-    <string name="fsp6_sub_today">Schede, ordine e stile</string>
+    <string name="fsp6_sub_today">Schede facoltative in Oggi</string>
     <string name="fsp6_sub_coach">Fornitore, modello e memoria</string>
     <string name="fsp6_sub_language">Lingua, orologio, inizio settimana e unità</string>
     <string name="fsp6_sub_appearance">Tema, sfondo, grafici e movimento</string>
@@ -7831,7 +7838,7 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="fsp6_ack_adopted_header">Persone di cui NOOP Forge ha adottato il lavoro</string>
     <string name="fsp6_ack_unavailable">Impossibile caricare i riconoscimenti.</string>
     <string name="fsp6_ack_licence_missing">Il testo della licenza non è disponibile in questa versione.</string>
-    <string name="fsp6_help_tc_blurb">Attiva un test per ciò che non va, indossa la fascia, poi tocca Report. Anche il registro della fascia, la ricalibrazione, l\'esportazione pianificata e le sonde sperimentali si trovano qui.</string>
+    <string name="fsp6_help_tc_blurb">Attiva un test per ciò che non va, indossa la fascia, poi tocca Condividi. Anche il registro della fascia, la ricalibrazione, l\'esportazione pianificata e le sonde sperimentali si trovano qui.</string>
     <string name="fsp6_help_open_tc">Apri il Centro test</string>
     <string name="fsp6_help_diag_blurb">Un\'esportazione in sola lettura degli stream dei sensori decodificati che NOOP già memorizza. Funziona con qualsiasi fascia, niente viene scritto sul tuo dispositivo e niente viene caricato.</string>
     <string name="fsp6_coach_conn">Connessione e modello</string>

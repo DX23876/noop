@@ -330,7 +330,7 @@ private fun GoalNotifyOffer(today: List<CoreGoals.Action>) {
  * each off until switched on. Switching one on asks for Android's notification permission where the system needs it.
  */
 @Composable
-internal fun GoalNotificationsCard() {
+internal fun GoalNotificationsCard(inSettings: Boolean = false) {
     val context = LocalContext.current
     val kinds = com.noop.notif.GoalNoticeNotifier.Kind.values()
     var on by remember { mutableStateOf(kinds.associateWith { com.noop.notif.GoalNoticeNotifier.isOn(context, it) }) }
@@ -338,8 +338,9 @@ internal fun GoalNotificationsCard() {
     var periodOn by remember { mutableStateOf(periodKinds.associateWith { com.noop.notif.GoalNoticeNotifier.isOn(context, it) }) }
     val permission = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) {}
-    GoalSectionHeader(stringResource(R.string.forge_gn_title))
-    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+    // The rows are the same on the goals page and in Settings; Settings (iOS `SettingsSection`) puts the header above
+    // the card in its own alignment and the explanation under it as a footer.
+    val rows: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
         kinds.forEachIndexed { i, kind ->
             ToggleRow(stringResource(when (kind) {
                 com.noop.notif.GoalNoticeNotifier.Kind.Reached -> R.string.forge_gn_reached
@@ -374,7 +375,15 @@ internal fun GoalNotificationsCard() {
                 }
             }
         }
-        Text(stringResource(R.string.forge_gn_footer), style = Forge.type.caption, color = Forge.colors.textTertiary)
+    }
+    if (inSettings) {
+        SettingsCard(stringResource(R.string.forge_gn_title), stringResource(R.string.forge_gn_footer), content = rows)
+    } else {
+        GoalSectionHeader(stringResource(R.string.forge_gn_title))
+        ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
+            rows()
+            Text(stringResource(R.string.forge_gn_footer), style = Forge.type.caption, color = Forge.colors.textTertiary)
+        }
     }
 }
 

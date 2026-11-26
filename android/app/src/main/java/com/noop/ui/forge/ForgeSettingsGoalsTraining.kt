@@ -57,7 +57,7 @@ internal fun GoalsSettingsSection(viewModel: com.noop.ui.AppViewModel) {
     }
     fun save(key: String, value: Any) = CorePrefs.write(context, key, value)
 
-    SettingsCard(stringResource(R.string.forge_sg_how_many), null) {
+    SettingsCard(stringResource(R.string.forge_sg_how_many), stringResource(R.string.forge_sg_limit_note)) {
         SettingRow(stringResource(R.string.forge_sg_long_term_limit, longTerm)) {
             Stepper("", onMinus = { if (longTerm > 1 && save(CorePrefs.LONG_TERM_LIMIT, longTerm - 1)) longTerm-- },
                     onPlus = { if (longTerm < 10 && save(CorePrefs.LONG_TERM_LIMIT, longTerm + 1)) longTerm++ })
@@ -67,21 +67,20 @@ internal fun GoalsSettingsSection(viewModel: com.noop.ui.AppViewModel) {
             Stepper("", onMinus = { if (period > 1 && save(CorePrefs.PERIOD_LIMIT, period - 1)) period-- },
                     onPlus = { if (period < 12 && save(CorePrefs.PERIOD_LIMIT, period + 1)) period++ })
         }
-        Note(stringResource(R.string.forge_sg_limit_note))
     }
-    SettingsCard(stringResource(R.string.forge_sg_rest_days), null) {
+    SettingsCard(stringResource(R.string.forge_sg_rest_days), stringResource(R.string.forge_sg_rest_days_note)) {
         RestDaysPicker(context, restDays) { days -> if (save(CorePrefs.REST_WEEKDAYS, days.sorted())) restDays = days }
-        Note(stringResource(R.string.forge_sg_rest_days_note))
     }
-    SettingsCard(stringResource(R.string.forge_sg_step_goal), null) {
+    SettingsCard(stringResource(R.string.forge_sg_step_goal), stringResource(R.string.forge_sg_step_goal_note)) {
         SettingRow(if (stepGoal > 0) stringResource(R.string.forge_sg_steps, stepGoal) else stringResource(R.string.forge_sg_not_set)) {
             Stepper("", onMinus = { val v = (stepGoal - 500).coerceAtLeast(0); if (save(CorePrefs.STEP_GOAL, v)) stepGoal = v },
                     onPlus = { val v = (stepGoal + 500).coerceAtMost(30_000); if (save(CorePrefs.STEP_GOAL, v)) stepGoal = v })
         }
-        Note(stringResource(R.string.forge_sg_step_goal_note))
     }
-    GoalNotificationsCard()
-    SettingsCard(stringResource(R.string.forge_sg_motivation), null) {
+    GoalNotificationsCard(inSettings = true)
+    val longestText = if (streaks.longest == 1) stringResource(R.string.forge_sg_longest_one)
+                      else stringResource(R.string.forge_sg_longest_n, streaks.longest)
+    SettingsCard(stringResource(R.string.forge_sg_motivation), longestText) {
         ToggleRow(stringResource(R.string.forge_sg_motivation_switch), stringResource(R.string.forge_sg_motivation_note),
                   motivation) { on -> if (save(CorePrefs.MOTIVATION, on)) motivation = on }
         RowDivider()
@@ -91,8 +90,6 @@ internal fun GoalsSettingsSection(viewModel: com.noop.ui.AppViewModel) {
                  else stringResource(R.string.forge_sg_streak_n, streaks.current),
                  style = Forge.type.footnote, color = Forge.colors.accent)
         }
-        Note(if (streaks.longest == 1) stringResource(R.string.forge_sg_longest_one)
-             else stringResource(R.string.forge_sg_longest_n, streaks.longest))
     }
     SettingsCard(null, null) {
         ToggleRow(stringResource(R.string.forge_sg_invite), null, invite) { on ->
@@ -127,9 +124,6 @@ private fun RestDaysPicker(context: Context, selected: Set<Int>, onChange: (Set<
         }
     }
 }
-
-@Composable
-private fun Note(text: String) = Text(text, style = Forge.type.caption, color = Forge.colors.textTertiary)
 
 /**
  * Fork (DX23876), Android parity plan 2.3: Settings › Training as iOS has it (`trainingCard`, `guidedTrainingCard`),

@@ -7500,6 +7500,13 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="import_depth_one_year">1 year</string>
     <string name="import_depth_three_years">3 years</string>
     <string name="import_depth_ten_years">10 years</string>
+    <!-- settings-parity:w8:begin -->
+    <string name="fsw8_strap_conn_title">Connection &amp; steps</string>
+    <string name="fsw8_strap_conn_sub">Connection, steps and heart rate sharing</string>
+    <string name="fsw8_today_footer">Optional cards. Everything stays on this phone.</string>
+    <string name="fsw8_power_footer">The strap keeps banking data on its own, so nothing is lost. NOOP just talks to it less often to help it last until you can charge it: while the strap\'s battery is low, background sync runs every 45 minutes instead of every 15.</string>
+    <string name="fsw8_restore_from_backup">Restore from a backup</string>
+    <!-- settings-parity:w8:end -->
     <!-- settings-parity:w5:begin -->
     <string name="fsw5_haptics">Haptics</string>
     <!-- settings-parity:w5:end -->
@@ -7523,7 +7530,7 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="fsw4_export">Export…</string>
     <string name="fsw4_import">Import…</string>
     <string name="fsw4_csv">Export CSV…</string>
-    <string name="fsw4_backup_sync">Backup &amp; Sync to a folder…</string>
+    <string name="fsw4_backup_sync">Backup &amp; Sync to a folder</string>
     <string name="fsw4_tc_strap_log">Strap log</string>
     <string name="fsw4_tc_strap_log_hint">Grab this when you report a bug. It tells me what the app saw.</string>
     <string name="fsw4_tc_report_hint">Builds a redacted .zip and shows you what it contains.</string>
@@ -7532,7 +7539,7 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="fsw4_imports_group">Health Connect &amp; imports</string>
     <!-- settings-parity:w4:end -->
     <!-- settings-parity:w3:begin -->
-    <string name="fsw3_tc_blurb">Turn on a test for the thing that\'s wrong, wear the strap, then tap Report. Everything stays on this phone.</string>
+    <string name="fsw3_tc_blurb">Turn on a test for the thing that\'s wrong, wear the strap, then tap Share. Everything stays on this phone.</string>
     <string name="fsw3_report_footer">Builds a redacted .zip and shows you what it contains before anything is shared.</string>
     <string name="fsw3_report_detail">Redacted .zip you review first, and the daily export</string>
     <string name="fsw3_group_testing">Testing</string>
@@ -7880,7 +7887,7 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="fsp6_sub_strap">Connection, recording, battery, double-tap, steps</string>
     <string name="fsp6_sub_battery">Power saving and continuous HRV</string>
     <string name="fsp6_sub_actions">Double-tap, buzzes and heart-rate alerts</string>
-    <string name="fsp6_sub_today">Cards, order and style</string>
+    <string name="fsp6_sub_today">Optional cards on Today</string>
     <string name="fsp6_sub_coach">Provider, model and memory</string>
     <string name="fsp6_sub_language">Language, clock, week start and units</string>
     <string name="fsp6_sub_appearance">Theme, background, charts and motion</string>
@@ -7906,7 +7913,7 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="fsp6_ack_adopted_header">People whose work NOOP Forge adopted</string>
     <string name="fsp6_ack_unavailable">The credits could not be loaded.</string>
     <string name="fsp6_ack_licence_missing">The licence text is not available in this build.</string>
-    <string name="fsp6_help_tc_blurb">Turn on a test for the thing that\'s wrong, wear the strap, then tap Report. Your strap log, recalibrate, scheduled export and experimental probes all live here too.</string>
+    <string name="fsp6_help_tc_blurb">Turn on a test for the thing that\'s wrong, wear the strap, then tap Share. Your strap log, recalibrate, scheduled export and experimental probes all live here too.</string>
     <string name="fsp6_help_open_tc">Open Test Centre</string>
     <string name="fsp6_help_diag_blurb">A read-only export of the decoded sensor streams NOOP already stores. Works on any strap. Nothing is written to your device, and nothing is uploaded.</string>
     <string name="fsp6_coach_conn">Connection &amp; model</string>
