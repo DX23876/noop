@@ -1610,8 +1610,8 @@ private struct SettingsPageContent: View, Equatable {
             blurb: "Only changes what you see. NOOP always stores the same values."
         ) {
             VStack(alignment: .leading, spacing: 0) {
-                FormRow(label: "Body") {
-                    Picker("Body", selection: $unitSystemRaw) {
+                FormRow(label: "Body measurements") {
+                    Picker("Body measurements", selection: $unitSystemRaw) {
                         Text("Metric").tag(UnitSystem.metric.rawValue)
                         Text("Imperial").tag(UnitSystem.imperial.rawValue)
                     }
@@ -1713,7 +1713,8 @@ private struct SettingsPageContent: View, Equatable {
         SettingsSection(
             icon: "globe",
             title: "Language",
-            blurb: "Language, clock and the first day of the week."
+            blurb: "Language, clock and the first day of the week.",
+            forgeBlurbHidden: true
         ) {
             VStack(alignment: .leading, spacing: 0) {
                 // App-owned copy language. Apple binds a bundle localization at process launch, so this
@@ -2572,7 +2573,9 @@ private struct SettingsPageContent: View, Equatable {
         SettingsSection(
             icon: "testtube.2",
             title: "Test Centre",
-            blurb: "Turn on a test for the thing that's wrong, wear the strap, then tap Report. Your strap log, recalibrate, scheduled export and experimental probes all live here too."
+            blurb: NoopVisualStyle.skin == .forge
+                ? "Turn on a test for the thing that's wrong, wear the strap, then tap “Report a bug with my log”. Your strap log, recalibrate, scheduled export and experimental probes all live here too."
+                : "Turn on a test for the thing that's wrong, wear the strap, then tap Report. Your strap log, recalibrate, scheduled export and experimental probes all live here too."
         ) {
             SettingsNavRow(title: "Open Test Centre", route: .testCentre)
         }
@@ -3290,7 +3293,8 @@ private struct SettingsPageContent: View, Equatable {
                 // Reach the scheduled / folder-based Backup & Sync screen (back up to a chosen folder on
                 // demand or about once a day, restore from a snapshot in that folder).
                 SettingsNavRow(icon: (symbol: "externaldrive.fill.badge.icloud", id: "backupSync"),
-                               title: "Backup & Sync to a folder…",
+                               title: NoopVisualStyle.skin == .forge ? "Backup & Sync to a folder" : "Backup & Sync to a folder…",
+                               subtitle: NoopVisualStyle.skin == .forge ? "Daily dated backup into a folder" : nil,
                                accessibilityLabel: "Open Backup and Sync to a folder",
                                route: .backupSync)
             }
@@ -3388,7 +3392,8 @@ private struct SettingsPageContent: View, Equatable {
                 // Reach the scheduled / folder-based Backup & Sync screen (back up to a chosen folder on
                 // demand or about once a day, restore from a snapshot in that folder).
                 SettingsNavRow(icon: (symbol: "externaldrive.fill.badge.icloud", id: "backupSync"),
-                               title: "Backup & Sync to a folder…",
+                               title: NoopVisualStyle.skin == .forge ? "Backup & Sync to a folder" : "Backup & Sync to a folder…",
+                               subtitle: NoopVisualStyle.skin == .forge ? "Daily dated backup into a folder" : nil,
                                accessibilityLabel: "Open Backup and Sync to a folder",
                                route: .backupSync)
             }

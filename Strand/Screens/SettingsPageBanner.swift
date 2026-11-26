@@ -8,14 +8,26 @@ struct SettingsPageBanner: View {
     let page: SettingsPage
 
     var body: some View {
+        SettingsSymbolBanner(symbol: page.icon, tint: page.forgeTint, text: Text(page.subtitle))
+    }
+}
+
+/// The same head for a page below a Settings page (Test Centre, Data sources): the symbol and colour are
+/// handed in because such a page has no row of its own in the Settings index.
+struct SettingsSymbolBanner: View {
+    let symbol: String
+    let tint: Color
+    let text: Text
+
+    var body: some View {
         VStack(spacing: NoopMetrics.space3) {
-            Image(systemName: page.icon)
+            Image(systemName: symbol)
                 .font(.system(.title, weight: .semibold))
                 .foregroundStyle(.white)
                 .frame(width: 60, height: 60)
-                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(page.forgeTint))
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(tint))
                 .accessibilityHidden(true)
-            Text(page.subtitle)
+            text
                 .font(StrandFont.body)
                 .foregroundStyle(StrandPalette.textSecondary)
                 .multilineTextAlignment(.center)

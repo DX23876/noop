@@ -75,7 +75,12 @@ struct DataSourcesView: View {
                        // card, so a ~1 Hz tick still re-evaluates the built cards (see the lane-B2 note).
                        lazy: true) {
             VStack(alignment: .leading, spacing: NoopVisualStyle.skin == .forge ? NoopMetrics.gap : NoopMetrics.sectionSpacing) {
-                if NoopVisualStyle.skin == .forge { liveCard }
+                if NoopVisualStyle.skin == .forge {
+                    SettingsSymbolBanner(
+                        symbol: "tray.and.arrow.down.fill", tint: .blue,
+                        text: Text("Everything stays on \(Platform.deviceNounPhrase). Bring your history in once, then it's yours."))
+                    liveCard
+                }
                 whoopCard.staggeredAppear(index: 0)
                 appleHealthCard.staggeredAppear(index: 1)
                 xiaomiCard.staggeredAppear(index: 2)
@@ -90,7 +95,7 @@ struct DataSourcesView: View {
                 if NoopVisualStyle.skin != .forge { liveCard.staggeredAppear(index: 10) }
             }
         }
-        .pagePicture("tray.and.arrow.down.fill", accent: "doc.fill", tint: .blue)
+        .pagePicture("tray.and.arrow.down.fill", accent: "doc.fill", tint: .blue, forgeUsesBanner: true)
         // A single target-aware importer avoids SwiftUI collapsing competing importers on the same screen.
         .fileImporter(isPresented: $showingImporter,
                       allowedContentTypes: importTarget.allowedContentTypes,

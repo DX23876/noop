@@ -35,14 +35,14 @@ struct PowerSavingView: View {
     /// The new design's Power saving: the master switch and its sub-options on one card, what they do as the
     /// footer under it (the master's explanation first, then each sub-option's, in the order of the rows).
     private var powerSavingGroup: some View {
-        let intro = Text("The strap keeps banking data on its own, so nothing is lost — NOOP just talks to it less often to help it last until you can charge it.")
-        let master = Text("Slows background strap-sync (every 45 min instead of 15) while your strap's battery is low. No data loss — the strap banks everything, so sync just batches into larger, less frequent pulls.")
+        // One paragraph: the master's second sentence only repeated that nothing is lost.
+        let intro = Text("The strap keeps banking data on its own, so nothing is lost — NOOP just talks to it less often to help it last until you can charge it. Slows background strap-sync (every 45 min instead of 15) while your strap's battery is low.")
         let pause = Text("While your strap's battery is low, stop the always-on background HRV stream — the biggest continuous drain on the strap. A Live screen still shows heart rate, and it re-arms automatically once the strap is charged.")
         let refresh = Text("Sync in the background every hour instead of every 15 minutes, whatever the strap's charge — fewer reconnections is the biggest saving on a WHOOP 4.0. Nothing is lost: the strap banks everything and hands it over in larger batches. Pull to sync still runs straight away, and live heart rate is untouched.")
         let gap = Text.paragraphBreak
         let footer = powerSavingEnabled
-            ? intro + gap + master + gap + pause + gap + refresh
-            : intro + gap + master
+            ? intro + gap + pause + gap + refresh
+            : intro
         return SettingsSubGroup(footer: footer) {
             powerSavingToggle
             if powerSavingEnabled {

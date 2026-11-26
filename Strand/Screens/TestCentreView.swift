@@ -166,7 +166,12 @@ struct TestCentreView: View {
         ScreenScaffold(title: "Test Centre",
                        subtitle: classicOnlySubtitle("Turn on a test for the thing that's wrong, wear the strap, then tap Report. All on \(Platform.deviceNounPhrase).")) {
             if NoopVisualStyle.skin == .forge {
-                forgeBody
+                VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+                    SettingsSymbolBanner(
+                        symbol: "stethoscope", tint: .indigo,
+                        text: Text("Turn on a test for the thing that's wrong, wear the strap, then tap “Report a bug with my log”. Everything stays on \(Platform.deviceNounPhrase)."))
+                    forgeBody
+                }
             } else {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
                 domainModesCard.staggeredAppear(index: 0)
@@ -183,7 +188,7 @@ struct TestCentreView: View {
             }
             }
         }
-        .pagePicture("stethoscope", accent: "wrench.and.screwdriver.fill", tint: .indigo)
+        .pagePicture("stethoscope", accent: "wrench.and.screwdriver.fill", tint: .indigo, forgeUsesBanner: true)
         .id(refreshToken)
         .onAppear {
             refreshToken &+= 1
