@@ -181,6 +181,34 @@ stream is empty here, so the RSA term is silent in all of this; on a WHOOP night
 
 ---
 
+### 8. Restless wake (#59), and a second dataset
+
+`--section restless` scores #59's small-movement term as filed and with two changes meant to keep a calm
+night from being stretched by its own z-score: `sustained` counts only movement that lasts longer than a REM
+twitch (3 s or less, Reiter et al. 2020, Nat Sci Sleep 12:13–22), and `others` scales the density against
+the other subjects instead of the night itself (leave one subject out). `over+5` counts subjects whose
+predicted wake share exceeds their PSG wake share by more than 5 points; `--csv` writes every subject's
+wake and REM share per variant.
+
+The same section runs on a second, independent PSG set: the Newcastle PSG + accelerometer study (28 sleep
+clinic patients, GENEActiv on both wrists at 85.7 Hz, no heart rate; CC BY 4.0, cite
+[doi:10.5281/zenodo.1160410](https://doi.org/10.5281/zenodo.1160410)). Convert it into the layout above:
+
+```bash
+mkdir -p ~/datasets/newcastle && cd ~/datasets/newcastle
+curl -L -o newcastle.zip \
+  https://zenodo.org/api/records/1160410/files/dataset_psgnewcastle2015_v1.0.zip/content
+md5 -q newcastle.zip    # 8ebadbc55cb0e76230f293fc6d53f504
+unzip -q newcastle.zip
+python3 -I Tools/SleepPSG/newcastle_to_sleepaccel.py \
+  ~/datasets/newcastle/dataset_psgnewcastle2015_v1.0 ~/datasets/newcastle-sa-nondominant nondominant
+```
+
+The converter takes the non-dominant wrist from each file's handedness code, writes per-second mean
+acceleration on the PSG clock and leaves `heart_rate/` empty. Participant 29 is skipped: none of its
+accelerometer seconds overlap its PSG night. With no heart rate the recipe runs on motion alone there, so
+Newcastle tests the movement terms, not the recipe.
+
 ## The self-check, and what it found
 
 This tool replaces one that was deleted. Section 3 prints its measured values beside the figures that

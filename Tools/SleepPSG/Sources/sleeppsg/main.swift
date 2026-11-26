@@ -549,6 +549,13 @@ if want("restless") {
     }
     var filed = Variants.restlessWake59.config
     var sustained = filed; sustained.smallMoveMinRun = 5
+    // The pooled reference itself, so two datasets (two devices) can be compared: a fixed reference in the
+    // app is only defensible if the density means roughly the same thing on different wrists.
+    for (label, cfg) in [("every jerk", filed), ("sustained", sustained)] {
+        let t = moments(cfg).reduce(Moments()) { Moments(n: $0.n + $1.n, sum: $0.sum + $1.sum, sq: $0.sq + $1.sq) }
+        let mu = t.sum / t.n
+        print("    pooled density (\(label)): mean \(f(mu, 7, 4))  sd \(f(max(0, t.sq / t.n - mu * mu).squareRoot(), 7, 4))  over \(Int(t.n)) epochs")
+    }
     let variants: [(String, [Scored])] = [
         ("incumbent (shipped)", shipped),
         ("#59 as filed", subjects.map { score($0, using: stageVariant(filed)) }),
@@ -571,6 +578,19 @@ if want("restless") {
         print("    \(name.padding(toLength: 25, withPad: " ", startingAt: 0))\(f(sm.kappa, 6, 3)) \(f(sm.conf.prf("rem").f1, 6, 3))  \(f(sm.conf.prf("wake").recall * 100, 6, 1))  "
               + "\(f(p["wake"]!, 5, 1))\(f(p["wake"]! - t["wake"]!, 5, 1))  \(f(p["rem"]!, 5, 1))\(f(p["rem"]! - t["rem"]!, 5, 1))  "
               + "\(f(mean(perK), 6, 3))   \(over)/\(rows.count)   \(f(worst.0, 5, 1)) (\(f(worst.1, 4, 1))/\(f(worst.2, 4, 1))/\(f(worst.3, 4, 1)))")
+    }
+    // Per subject and variant, so a reader can look at the calm sleepers rather than at a pooled row.
+    if let path = a.csv {
+        var lines = ["variant,subject,truth_wake_pct,pred_wake_pct,truth_rem_pct,pred_rem_pct,kappa"]
+        for (name, rows) in variants {
+            for r in rows {
+                let t = stagePercentages(r.truth), p = stagePercentages(r.pred)
+                lines.append("\(name),\(r.subject.id),\(t["wake"] ?? 0),\(p["wake"] ?? 0),\(t["rem"] ?? 0),\(p["rem"] ?? 0),"
+                             + "\(confusion(ref: r.truth, pred: r.pred).kappa)")
+            }
+        }
+        try? lines.joined(separator: "\n").write(toFile: path, atomically: true, encoding: .utf8)
+        print("    per-subject CSV written to \(path)")
     }
 }
 
