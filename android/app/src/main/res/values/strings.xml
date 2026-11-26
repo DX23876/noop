@@ -2850,7 +2850,7 @@
     <string name="coach_voice_permission_denied">Microphone permission denied. Enable it in Settings to use voice input.</string>
     <string name="units_settings_blurb">Choose body measurements and exercise distance separately. Your data is always stored the same way; these settings only change its display.</string>
     <string name="units_body_measurements">Body measurements</string>
-    <string name="units_exercise_distance_pace">Exercise distance &amp; pace</string>
+    <string name="units_exercise_distance_pace">Distance &amp; pace</string>
     <string name="units_kilometres">Kilometres</string>
     <string name="units_miles">Miles</string>
     <string name="units_follow_body">Follow body</string>
