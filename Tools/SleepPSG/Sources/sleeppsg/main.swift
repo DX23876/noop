@@ -562,6 +562,10 @@ if want("restless") {
         ("#59 sustained", subjects.map { score($0, using: stageVariant(sustained)) }),
         ("#59 others", rowsLeavingOneOut(filed)),
         ("#59 sustained + others", rowsLeavingOneOut(sustained)),
+        ("  ... against REM only", rowsLeavingOneOut({ var c = sustained; c.smallMoveAwakeWeight = 0; return c }())),
+        ("  ... wake only if HR up", rowsLeavingOneOut({ var c = sustained; c.smallMoveAwakeNeedsRaisedHR = true; return c }())),
+        ("#59 sustained, REM only", subjects.map { score($0, using: stageVariant({ var c = sustained; c.smallMoveAwakeWeight = 0; return c }())) }),
+        ("#59 sustained, HR-gated", subjects.map { score($0, using: stageVariant({ var c = sustained; c.smallMoveAwakeNeedsRaisedHR = true; return c }())) }),
     ]
     filed.smallMoveMinRun = 1
     print("    variant                    kappa  REM F1 wakeSens  wake% bias   REM% bias  mean κ  over+5  max wake +pp (truth/before/after)")
@@ -585,7 +589,7 @@ if want("restless") {
         for (name, rows) in variants {
             for r in rows {
                 let t = stagePercentages(r.truth), p = stagePercentages(r.pred)
-                lines.append("\(name),\(r.subject.id),\(t["wake"] ?? 0),\(p["wake"] ?? 0),\(t["rem"] ?? 0),\(p["rem"] ?? 0),"
+                lines.append("\"\(name)\",\(r.subject.id),\(t["wake"] ?? 0),\(p["wake"] ?? 0),\(t["rem"] ?? 0),\(p["rem"] ?? 0),"
                              + "\(confusion(ref: r.truth, pred: r.pred).kappa)")
             }
         }

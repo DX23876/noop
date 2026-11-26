@@ -101,6 +101,10 @@ struct RecipeConfig: Equatable {
     /// When set, the density is scaled against this reference (mean, sd) instead of the night's own spread, so a
     /// calm night is no longer stretched until its quietest restlessness reads as an outlier.
     var smallMoveReference: (mean: Double, sd: Double)? = nil
+    /// When true, the restless term argues for wake only on an epoch whose heart rate sits above the night's
+    /// mean; on a lower-HR epoch it only argues against REM. A position change in sleep is usually not followed
+    /// by the heart-rate rise an awakening brings.
+    var smallMoveAwakeNeedsRaisedHR: Bool = false
 
     static func == (a: RecipeConfig, b: RecipeConfig) -> Bool {
         a.priorLight == b.priorLight && a.priorDeep == b.priorDeep && a.priorRem == b.priorRem
@@ -119,6 +123,7 @@ struct RecipeConfig: Equatable {
             && a.smallMoveAwakeWeight == b.smallMoveAwakeWeight && a.smallMoveMinRun == b.smallMoveMinRun
             && a.smallMoveReference?.mean == b.smallMoveReference?.mean
             && a.smallMoveReference?.sd == b.smallMoveReference?.sd
+            && a.smallMoveAwakeNeedsRaisedHR == b.smallMoveAwakeNeedsRaisedHR
     }
 
     /// Which REM-latency guard the recipe runs. Shipped is `.gradedFromOnset` (#930). The pre-#930 step is
@@ -549,7 +554,9 @@ enum V2Recipe {
             if f.jerkMax > f.jerkScale * cfg.jerkFloorGateMult { em["awake"]! += cfg.motionGateBoost }
             if let rg = f.respReg { let z = zrg(rg); em["deep"]! += cfg.respWeight * z; em["rem"]! -= cfg.respWeight * z }
             em["rem"]! -= cfg.smallMoveRemWeight * restless[fi]
-            em["awake"]! += cfg.smallMoveAwakeWeight * restless[fi]
+            if !cfg.smallMoveAwakeNeedsRaisedHR || zhrv > 0 {
+                em["awake"]! += cfg.smallMoveAwakeWeight * restless[fi]
+            }
             seq.append(em)
         }
 
