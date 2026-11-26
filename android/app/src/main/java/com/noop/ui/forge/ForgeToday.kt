@@ -442,6 +442,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             if (shown == today && timelineFirst) ForgeTodayTimeline(viewModel, onSleep = { selectTab(ForgeTab.Sleep) })
             ForgeTodayWidgetArea(model, viewModel, width, editing = editingWidgets, onEditing = { editingWidgets = it },
                                  onOpenTrainingLoad = { more.push(MoreRoute.Dest(MoreDest.TrainingLoad)) },
+                                 onOpenWeight = { more.push(MoreRoute.Dest(MoreDest.Weight)) },
                                  onOpenSleep = { selectTab(ForgeTab.Sleep) },
                                  onOpenAlarms = { more.push(MoreRoute.Dest(MoreDest.Alarms)) },
                                  onOpenTraining = { selectTab(ForgeTab.Training) },

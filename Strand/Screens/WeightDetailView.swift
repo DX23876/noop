@@ -360,7 +360,8 @@ struct WeightDetailView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(e.event.name).font(StrandFont.body.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
                     Text(e.phase == .upcoming
-                         ? (e.daysAway == 0 ? String(localized: "\(date), today") : String(localized: "\(date), in \(e.daysAway) days"))
+                         ? (e.daysAway == 0 ? String(localized: "\(date), today")
+                                            : date + ", " + String(localized: "in \(e.daysAway) days"))
                          : date)
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                 }
@@ -414,6 +415,8 @@ struct WeightDetailView: View {
             sectionTitle("This week")
             NoopCard {
                 HStack(alignment: .center, spacing: 14) {
+                    // A line needs two points; a week with one weigh-in shows its figures alone.
+                    if w.readings.count > 1 || w.trend.count > 1 {
                     Chart {
                         ForEach(Array(w.readings.enumerated()), id: \.offset) { _, p in
                             LineMark(x: .value("Day", p.date), y: .value("Weight", p.kg), series: .value("Line", "scale"))
@@ -430,13 +433,14 @@ struct WeightDetailView: View {
                     .frame(height: 110)
                     .clipped()
                     .accessibilityHidden(true)
+                    }
                     VStack(alignment: .leading, spacing: 8) {
                         weekFigure("High", w.high.kg, StrandPalette.statusWarning)
                         weekFigure("Last", w.latest.kg, StrandPalette.textPrimary)
                         weekFigure("Trend", w.trendKg, Self.weightTint)
                         weekFigure("Low", w.low.kg, StrandPalette.statusPositive)
                     }
-                    .frame(width: 132, alignment: .leading)
+                    .frame(maxWidth: w.readings.count > 1 || w.trend.count > 1 ? 132 : .infinity, alignment: .leading)
                 }
             }
         }
@@ -542,8 +546,10 @@ struct WeightDetailView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(row.reading.date.formatted(.dateTime.day().month(.abbreviated).locale(AppLanguage.activeLocale)))
                         .font(StrandFont.subhead.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
-                    Text(row.reading.source == "noop" ? String(localized: "Logged in NOOP") : String(localized: "Apple Health"))
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    // Only an imported reading names its source: on every row of one's own it was noise.
+                    if row.reading.source != "noop" {
+                        Text("Apple Health").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Text(mass(row.reading.kg)).font(StrandFont.subhead.weight(.semibold)).monospacedDigit()

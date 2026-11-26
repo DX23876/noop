@@ -193,6 +193,17 @@ internal fun ForgeWeeklyReportPage(viewModel: AppViewModel, onBack: () -> Unit, 
             tiles += { m -> Highlight(m, stringResource(R.string.forge_wr_sleep), colors.rest, TodayTimeline.hoursMinutes(asleep),
                 stringResource(R.string.forge_wr_h_avg), detail?.let { d -> stringResource(R.string.forge_wr_min_vs, if (d >= 0) "+" else "−", abs(d)) }) }
         }
+        // The week's change on the weight trend, from the weight page's own snapshot (owner, 2026-11-26).
+        val weightPage by produceState<com.noop.core.CoreWeight.Page?>(null, coreRevision) {
+            value = withContext(Dispatchers.IO) { runCatching { com.noop.core.CoreWeight.page(context) }.getOrNull() }
+        }
+        val weightFmt = rememberWeightFormat(com.noop.ui.UnitPrefs.system(context))
+        weightPage?.snapshot?.let { w ->
+            w.changes.firstOrNull { it.days == 7 }?.let { change ->
+                tiles += { m -> Highlight(m, stringResource(R.string.wt_title), WEIGHT_TINT.resolve(), weightFmt.mass(w.trendKg), null,
+                    stringResource(R.string.wt_week_trend_change, weightFmt.signed(change.kg))) }
+            }
+        }
         thisWeek.mean { it.steps }?.let { steps ->
             val pct = lastWeek.mean { it.steps }?.takeIf { it > 0 }?.let { ((steps - it) / it * 100).roundToInt() }
             tiles += { m -> Highlight(m, stringResource(R.string.forge_wr_steps), colors.charge, "%,d".format(locale, steps.roundToInt()),

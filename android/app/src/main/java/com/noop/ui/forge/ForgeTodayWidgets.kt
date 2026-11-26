@@ -427,6 +427,7 @@ internal object TodayWidgets {
 @Composable
 internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, width: ForgeWidth, editing: Boolean,
                                   onEditing: (Boolean) -> Unit, onOpenTrainingLoad: () -> Unit, onOpenSleep: () -> Unit = {},
+                                  onOpenWeight: () -> Unit = {},
                                   onOpenAlarms: () -> Unit = {}, onOpenTraining: () -> Unit = {},
                                   onOpenBreathe: () -> Unit = {}, onOpenStrap: () -> Unit = {},
                                   onOpenInsights: () -> Unit = {}, onOpenTrends: () -> Unit = {},
@@ -655,7 +656,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                                                                      dense = columns > 2, Modifier.fillMaxSize(),
                                                                      detailed = w.size == TodayWidget.Size.Medium,
                                                                      wide = w.size == TodayWidget.Size.Wide,
-                                                                     onOpenSleep = onOpenSleep) { open = it }
+                                                                     onOpenSleep = onOpenSleep, onOpenWeight = onOpenWeight) { open = it }
                             TodayWidget.Kind.TrainingLoad -> TodayTrainingLoadForge(onOpenTrainingLoad)
                             TodayWidget.Kind.Goals -> TodayGoals()
                             TodayWidget.Kind.Energy -> TodayEnergy(w.compactSize)
@@ -795,7 +796,7 @@ private suspend fun skinTempSeries(viewModel: AppViewModel, from: String, to: St
 private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?, sleepTrend: List<Double>,
                         factSeries: Map<String, CoreTile.History>, today: String, noData: String,
                         dense: Boolean, modifier: Modifier, detailed: Boolean = false, wide: Boolean = false,
-                        onOpenSleep: () -> Unit = {}, onOpen: (CoreRead.Metric) -> Unit) {
+                        onOpenSleep: () -> Unit = {}, onOpenWeight: () -> Unit = {}, onOpen: (CoreRead.Metric) -> Unit) {
     // The row-wide form, and its two named exceptions (2026-11-18). For sleep and stress thirty days is
     // the weaker answer, so each shows the card this app already draws for it: a choice of card, not a
     // second way of drawing the same thing.
@@ -840,7 +841,9 @@ private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?,
     val facts = if (detailed) rememberFactsLine(key, factSeries[key], today, t.unit.orEmpty()) else null
     ForgeTodayTile(metric.icon, metric.tileTint(), metric.tileLabel(), t.value, t.unit.orEmpty(),
                    if (detailed) (facts ?: change?.summary?.let { summaryLine(it, t.unit.orEmpty()) }) else null, noData, dense,
-                   modifier.then(t.opens?.let { m -> Modifier.clickable { onOpen(m) } } ?: Modifier),
+                   // Weight opens its own page (trend, forecast, dates, reports), as on iOS.
+                   modifier.then(if (metric == KeyMetric.WEIGHT) Modifier.clickable { onOpenWeight() }
+                                 else t.opens?.let { m -> Modifier.clickable { onOpen(m) } } ?: Modifier),
                    delta = change?.text, deltaTone = change?.tone, trend = spark?.takeLast(30))
 }
 

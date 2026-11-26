@@ -7893,7 +7893,9 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="fsp6_lab_blurb">Unfinished features. Off by default; turn one off again any time.</string>
     <string name="fsp6_ss_motion">Motion</string>
     <!-- Owner decisions 2026-11-26: the weight page (ForgeWeight.kt) and its widgets. -->
+    <string name="wt_goal_word">Goal</string>
     <string name="wt_title">Weight</string>
+    <string name="wt_week_trend_change">%1$s on the trend this week</string>
     <string name="wt_open_page">Weight trend, forecast and reports</string>
     <string name="wt_settings">Weight settings</string>
     <string name="wt_overview">Overview</string>

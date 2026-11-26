@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AddCircle
 import androidx.compose.material.icons.rounded.Flag
 import androidx.compose.material.icons.rounded.Tune
 import androidx.compose.material.icons.rounded.Warning
@@ -41,6 +42,9 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -153,6 +157,13 @@ internal fun ForgeWeightPage(onBack: () -> Unit) {
     }
 }
 
+/** The core's names for a forecast's start and its planned rate's source (`WeightTracker`). */
+private const val BASIS_LOW = "tenDayLow"
+private const val WISH_PLAN = "dietPlan"
+private const val WISH_GOAL = "goal"
+private const val WISH_MANUAL = "manual"
+private const val SOURCE_NOOP = "noop"
+
 /** The page's one colour: the pink of its picture, as on iOS. */
 internal val WEIGHT_TINT = ForgeTokens.Color.systemPink
 
@@ -193,7 +204,11 @@ private fun Hero(s: CoreWeight.Snapshot, fromPlan: Boolean, fmt: WeightFormat) {
         Row(verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f)) {
                 Text(fmt.mass(s.latest.kg), style = Forge.type.heroNumber, color = colors.text, maxLines = 1)
-                Text(stringResource(R.string.wt_last_weigh_in, fmt.day(s.latest.at, fmt.dayMonthYear)),
+                // Relative, as iOS says it ("2 hours ago"), so a stale weigh-in reads as stale at a glance.
+                val ago = android.text.format.DateUtils.getRelativeTimeSpanString(
+                    minOf(s.latest.at * 1000, System.currentTimeMillis()), System.currentTimeMillis(),
+                    android.text.format.DateUtils.MINUTE_IN_MILLIS).toString()
+                Text(stringResource(R.string.wt_last_weigh_in, ago),
                      style = Forge.type.footnote, color = colors.textSecondary)
             }
             Column(horizontalAlignment = Alignment.End) {
@@ -219,9 +234,14 @@ private fun SectionTitle(text: String) {
 @Composable
 private fun LogButton(onClick: () -> Unit) {
     val tint = WEIGHT_TINT.resolve()
-    Box(Modifier.fillMaxWidth().height(50.dp).background(tint, RoundedCornerShape(14.dp)).clickable(onClick = onClick),
-        contentAlignment = Alignment.Center) {
-        Text(stringResource(R.string.wt_log), style = Forge.type.headline, color = Color.White)
+    // Tinted, as iOS's prominent button draws it in the new design: a wash of the page colour, the label in it.
+    Box(Modifier.fillMaxWidth().height(50.dp).background(tint.copy(alpha = 0.18f), RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick), contentAlignment = Alignment.Center) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Rounded.AddCircle, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.wt_log), style = Forge.type.headline, color = tint)
+        }
     }
 }
 
@@ -262,7 +282,8 @@ private fun MilestonesCard(m: CoreWeight.Milestones, fmt: WeightFormat) {
                     drawArc(tint, 135f, 270f * m.progress.toFloat().coerceIn(0f, 1f), false, style = stroke)
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("${(m.progress * 100).toInt()} %", style = Forge.type.headline, color = colors.text)
+                    Text(NumberFormat.getPercentInstance(Locale.getDefault()).format(m.progress.coerceIn(0.0, 1.0)),
+                         style = Forge.type.headline, color = colors.text)
                     Text(stringResource(R.string.wt_of_the_way), style = Forge.type.caption, color = colors.textSecondary)
                 }
             }
@@ -305,14 +326,16 @@ private fun ForecastCard(s: CoreWeight.Snapshot, fmt: WeightFormat, onRate: (Str
         Spacer(Modifier.height(ForgeMetrics.space3))
         Text(forecastSentence(s, fmt), style = Forge.type.body, color = colors.text)
         Spacer(Modifier.height(ForgeMetrics.space2))
-        Text(if (f.basis == "tenDayLow") stringResource(R.string.wt_basis_low, fmt.mass(f.startKg), fmt.day(f.startAt))
-             else stringResource(R.string.wt_basis_trend, fmt.mass(f.startKg)),
-             style = Forge.type.footnote, color = colors.textSecondary)
+        val fromLow = f.basis == BASIS_LOW
+        val basisLine = if (fromLow) stringResource(R.string.wt_basis_low, fmt.mass(f.startKg), fmt.day(f.startAt))
+                        else stringResource(R.string.wt_basis_trend, fmt.mass(f.startKg))
+        Text(basisLine, style = Forge.type.footnote, color = colors.textSecondary)
         if (f.rateMode == "wish") {
-            Text(stringResource(when (s.rates.wishSource) {
-                "dietPlan" -> R.string.wt_wish_plan; "goal" -> R.string.wt_wish_goal; "manual" -> R.string.wt_wish_manual
+            val wishLine = when (s.rates.wishSource) {
+                WISH_PLAN -> R.string.wt_wish_plan; WISH_GOAL -> R.string.wt_wish_goal; WISH_MANUAL -> R.string.wt_wish_manual
                 else -> R.string.wt_wish_none
-            }), style = Forge.type.footnote, color = colors.textSecondary)
+            }
+            Text(stringResource(wishLine), style = Forge.type.footnote, color = colors.textSecondary)
             if (s.rates.wishIsSteep) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.Warning, null, tint = ForgeTokens.Color.systemOrange.resolve(), modifier = Modifier.size(16.dp))
@@ -430,9 +453,13 @@ private fun WeekCard(w: CoreWeight.Week, fmt: WeightFormat) {
     SectionTitle(stringResource(R.string.wt_this_week))
     ForgeCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            WeightLines(w.readings, w.trend, null, null, Modifier.weight(1f).height(110.dp), dots = false)
-            Spacer(Modifier.width(ForgeMetrics.space3))
-            Column(Modifier.width(120.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            // A line needs two points; a week with one weigh-in shows its figures alone.
+            if (w.readings.size > 1 || w.trend.size > 1) {
+                WeightLines(w.readings, w.trend, null, null, Modifier.weight(1f).height(110.dp), dots = false)
+                Spacer(Modifier.width(ForgeMetrics.space3))
+            }
+            Column(if (w.readings.size > 1 || w.trend.size > 1) Modifier.width(132.dp) else Modifier.fillMaxWidth(),
+                   verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 WeekFigure(stringResource(R.string.wt_high), fmt.mass(w.high.kg), ForgeTokens.Color.systemOrange.resolve())
                 WeekFigure(stringResource(R.string.wt_latest), fmt.mass(w.latest.kg), colors.text)
                 WeekFigure(stringResource(R.string.wt_trend_label), fmt.mass(w.trendKg), tint)
@@ -456,11 +483,15 @@ private fun WeekFigure(label: String, value: String, tint: Color) {
  */
 @Composable
 private fun WeightLines(readings: List<CoreWeight.Point>, trend: List<CoreWeight.Point>, goalKg: Double?, band: Double?,
-                        modifier: Modifier, dots: Boolean = true) {
+                        modifier: Modifier, dots: Boolean = true, labels: Boolean = dots) {
     val colors = Forge.colors
     val tint = WEIGHT_TINT.resolve()
     val goalColor = ForgeTokens.Color.systemGreen.resolve()
     val faint = colors.textTertiary
+    val labelColor = colors.textSecondary.toArgb()
+    val goalWord = stringResource(R.string.wt_goal_word)
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val labelPx = with(density) { 11.sp.toPx() }
     Canvas(modifier) {
         val all = readings + trend
         if (all.isEmpty()) return@Canvas
@@ -471,6 +502,21 @@ private fun WeightLines(readings: List<CoreWeight.Point>, trend: List<CoreWeight
         val t1 = all.maxOf { it.at }.toFloat().coerceAtLeast(t0 + 1f)
         fun x(t: Long) = (t - t0) / (t1 - t0) * size.width
         fun y(v: Double) = ((hi - v) / (hi - lo)).toFloat() * size.height
+        // The axis: a few round values on the left, as iOS's chart labels them, and the goal line named.
+        if (labels) {
+            val paint = android.graphics.Paint().apply { color = labelColor; textSize = labelPx; isAntiAlias = true }
+            val step = listOf(0.5, 1.0, 2.0, 5.0, 10.0, 20.0).firstOrNull { (hi - lo) / it <= 4 } ?: 50.0
+            var v = kotlin.math.ceil(lo / step) * step
+            while (v <= hi) {
+                drawLine(faint.copy(alpha = 0.25f), Offset(0f, y(v)), Offset(size.width, y(v)), 1f)
+                drawContext.canvas.nativeCanvas.drawText(if (step < 1) "%.1f".format(v) else "%.0f".format(v), 0f, y(v) - 4f, paint)
+                v += step
+            }
+            if (goalKg != null) {
+                paint.color = goalColor.toArgb(); paint.isFakeBoldText = true
+                drawContext.canvas.nativeCanvas.drawText(goalWord, size.width - paint.measureText(goalWord), y(goalKg) - 6f, paint)
+            }
+        }
         if (goalKg != null) {
             if (band != null) drawRect(goalColor.copy(alpha = 0.12f), Offset(0f, y(goalKg + band)),
                                        androidx.compose.ui.geometry.Size(size.width, y(goalKg - band) - y(goalKg + band)))
@@ -525,8 +571,10 @@ private fun History(p: CoreWeight.Page, s: CoreWeight.Snapshot, fmt: WeightForma
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(fmt.day(row.reading.at), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
-                        Text(stringResource(if (row.reading.source == "noop") R.string.wt_src_noop else R.string.wt_src_health),
-                             style = Forge.type.caption, color = colors.textTertiary)
+                        // Only an imported reading names its source: on every row of one's own it was noise.
+                        if (row.reading.source != SOURCE_NOOP) {
+                            Text(stringResource(R.string.wt_src_health), style = Forge.type.caption, color = colors.textTertiary)
+                        }
                     }
                     Text(fmt.number(row.reading.kg), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text,
                          modifier = Modifier.width(76.dp), textAlign = TextAlign.End)
@@ -588,7 +636,10 @@ private fun ReportCard(r: CoreWeight.Report, goal: CoreWeight.Goal?, fmt: Weight
             ReportFigure(stringResource(R.string.wt_per_week_label), r.ratePerWeekKg?.let { fmt.signed(it) } ?: "—", null, Modifier.weight(1f))
         }
         Spacer(Modifier.height(ForgeMetrics.space3))
-        WeightLines(emptyList(), r.trend, goal?.target, null, Modifier.fillMaxWidth().height(80.dp))
+        // The goal line only near the period's own values; far below, it flattens the period into a straight line.
+        val lo = r.trend.minOfOrNull { it.kg }; val hi = r.trend.maxOfOrNull { it.kg }
+        val goalNear = goal?.target?.takeIf { lo != null && hi != null && it >= lo - 2 && it <= hi + 2 }
+        WeightLines(emptyList(), r.trend, goalNear, null, Modifier.fillMaxWidth().height(80.dp), labels = false)
     }
 }
 

@@ -216,7 +216,9 @@ internal fun WeightSettingsPage(settings: CoreWeight.Settings, rates: CoreWeight
                 Row(Modifier.fillMaxWidth().clickable { pickingTime = true }.padding(vertical = ForgeMetrics.space2),
                     verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.wt_time), style = Forge.type.body, color = colors.text, modifier = Modifier.weight(1f))
-                    Text("%02d:%02d".format(minutes / 60, minutes % 60), style = Forge.type.body, color = WEIGHT_TINT.resolve())
+                    val clock = java.time.LocalTime.of(minutes / 60, minutes % 60)
+                        .format(java.time.format.DateTimeFormatter.ofLocalizedTime(java.time.format.FormatStyle.SHORT))
+                    Text(clock, style = Forge.type.body, color = WEIGHT_TINT.resolve())
                 }
                 // Monday first; iOS numbers the weekdays 1 = Sunday ... 7 = Saturday, as the stored set does.
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
