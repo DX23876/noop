@@ -2123,8 +2123,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             if (_hcWriteback.value) {
                 runCatching { HealthConnectWriter.writeExercise(appContext, row, w.sport.exerciseType) }
                 // #528: export the just-captured HR series now (workout row already upserted above, so
-                // the export's window logic keeps these samples at full 1 Hz rather than ~1/30 s).
-                writebackHealthConnectNow()
+                // the export's window logic keeps these samples at full 1 Hz rather than ~1/30 s). Only what
+                // changed: a full write of the 60-day window after every workout is the churn the ledger removed.
+                writebackHealthConnectNow(everything = false)
             }
         }
     }
@@ -3053,11 +3054,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         NoopPrefs.setHcWriteback(appContext, enabled)
     }
 
-    /** One immediate writeback (permissions assumed granted — the UI gates on that). */
-    fun writebackHealthConnectNow() {
+    /** One immediate writeback (permissions assumed granted — the UI gates on that). [everything] writes every
+     *  record of the window, for the wearer's own requests; the post-workout write leaves it off and sends only
+     *  what changed, mostly the new heart rate. */
+    fun writebackHealthConnectNow(everything: Boolean = true) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                runCatching { HealthConnectWriter.write(appContext, repository, deviceId) }
+                runCatching { HealthConnectWriter.write(appContext, repository, deviceId, everything = everything) }
             }
             refreshHcWritebackStatus()   // #660: surface the just-recorded outcome in Data Sources
         }
