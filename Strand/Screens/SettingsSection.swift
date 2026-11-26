@@ -117,6 +117,14 @@ private struct SettingsCaptionStyle: ViewModifier {
     }
 }
 
+extension Text {
+    /// A blank line between two explanations joined into one footer.
+    static var paragraphBreak: Text {
+        let gap = "\n\n"
+        return Text(verbatim: gap)
+    }
+}
+
 extension View {
     /// Styles a line of explanation under a setting (see `SettingsCaptionStyle`).
     func settingsCaption() -> some View { modifier(SettingsCaptionStyle()) }

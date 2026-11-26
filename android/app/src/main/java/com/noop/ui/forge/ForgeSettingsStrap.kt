@@ -433,20 +433,25 @@ internal fun BatteryRecordingSettings(viewModel: AppViewModel) {
     val context = LocalContext.current
     var continuous by remember { mutableStateOf(com.noop.ui.NoopPrefs.continuousHrv(context)) }
     var nightsOnly by remember { mutableStateOf(com.noop.ui.NoopPrefs.continuousHrvOvernight(context)) }
-    SettingsCard(title = stringResource(R.string.fsp2_chrv_title), blurb = stringResource(R.string.fsp2_chrv_blurb)) {
+    // iOS `forgeGroup`: the switch and its Nights-only option alone on the card, what they do as the footer under it
+    // (the paragraphs in the order of the rows; Android's own background-link note last).
+    val chrvFooter = listOfNotNull(
+        stringResource(R.string.fsp2_chrv_blurb),
+        if (continuous) stringResource(R.string.fsp2_chrv_nights_note) else null,
+        stringResource(R.string.fsp2_chrv_needs_background), // Android keeps the stream on the background link, so the switch does nothing without it.
+    ).joinToString("\n\n")
+    SettingsCard(title = null, blurb = chrvFooter) {
         ToggleRow(stringResource(R.string.fsp2_chrv_title), null, continuous) {
             continuous = it
             viewModel.setContinuousHrv(it)
         }
         if (continuous) {
+            RowDivider()
             ToggleRow(stringResource(R.string.fsp2_chrv_nights), null, nightsOnly) {
                 nightsOnly = it
                 viewModel.setContinuousHrvOvernight(it)
             }
-            Text(stringResource(R.string.fsp2_chrv_nights_note), style = Forge.type.footnote, color = Forge.colors.textSecondary)
         }
-        // Android keeps the stream on the background link, so the switch above does nothing without it.
-        Text(stringResource(R.string.fsp2_chrv_needs_background), style = Forge.type.footnote, color = Forge.colors.textSecondary)
     }
 
     var powerSaving by remember { mutableStateOf(com.noop.ui.NoopPrefs.powerSaving(context)) }
@@ -454,8 +459,16 @@ internal fun BatteryRecordingSettings(viewModel: AppViewModel) {
     var pauseHrv by remember { mutableStateOf(com.noop.ui.NoopPrefs.pauseHrvOnPowerSave(context)) }
     var lowRefresh by remember { mutableStateOf(com.noop.ui.NoopPrefs.lowRefresh(context)) }
     val colors = Forge.colors
-    SettingsCard(title = stringResource(R.string.power_saving), blurb = stringResource(R.string.fsp2_power_blurb)) {
-        ToggleRow(stringResource(R.string.power_saving_mode), stringResource(R.string.power_saving_mode_desc), powerSaving) {
+    // iOS `powerSavingGroup`: the master switch and its sub-options on one card, the page's note and then each
+    // explanation, in the order of the rows, as the footer under it.
+    val powerFooter = listOfNotNull(
+        stringResource(R.string.fsp2_power_blurb),
+        stringResource(R.string.power_saving_mode_desc),
+        if (powerSaving) stringResource(R.string.power_saving_hrv_pause_desc) else null,
+        if (powerSaving) stringResource(R.string.power_saving_low_refresh_desc) else null,
+    ).joinToString("\n\n")
+    SettingsCard(title = null, blurb = powerFooter) {
+        ToggleRow(stringResource(R.string.power_saving_mode), null, powerSaving) {
             powerSaving = it
             viewModel.setPowerSaving(it)
         }
@@ -472,12 +485,12 @@ internal fun BatteryRecordingSettings(viewModel: AppViewModel) {
                    colors = SliderDefaults.colors(thumbColor = colors.accent, activeTrackColor = colors.accent,
                                                   inactiveTrackColor = colors.inset))
             RowDivider()
-            ToggleRow(stringResource(R.string.power_saving_hrv_pause), stringResource(R.string.power_saving_hrv_pause_desc), pauseHrv) {
+            ToggleRow(stringResource(R.string.power_saving_hrv_pause), null, pauseHrv) {
                 pauseHrv = it
                 viewModel.setPauseHrvOnPowerSave(it)
             }
             RowDivider()
-            ToggleRow(stringResource(R.string.power_saving_low_refresh), stringResource(R.string.power_saving_low_refresh_desc), lowRefresh) {
+            ToggleRow(stringResource(R.string.power_saving_low_refresh), null, lowRefresh) {
                 lowRefresh = it
                 viewModel.setLowRefresh(it)
             }
