@@ -78,11 +78,21 @@ object BodyMeasurementReminder {
         } else manager.cancelUniqueWork(WEEKLY_ID)
         if (dailyEnabled(c)) {
             // The shared rule (owner, 2026-11-26): the chosen weekdays, and a day with a weigh-in stays quiet.
-            val next = com.noop.core.CoreWeight.nextReminder(c, dailyMinutes(c), dailyWeekdays(c), now.toInstant())
-            if (next != null) arm(manager, DAILY_ID, next.atZone(now.zone), now, daily = true)
-            else manager.cancelUniqueWork(DAILY_ID)
+            when (val next = com.noop.core.CoreWeight.nextReminder(c, dailyMinutes(c), dailyWeekdays(c), now.toInstant())) {
+                is com.noop.core.CoreWeight.NextReminder.At -> arm(manager, DAILY_ID, next.instant.atZone(now.zone), now, daily = true)
+                com.noop.core.CoreWeight.NextReminder.None -> manager.cancelUniqueWork(DAILY_ID)
+                // The core could not answer (app start, store not open): arm by time and weekday alone; the
+                // firing itself still stays quiet on a day that has a weigh-in.
+                com.noop.core.CoreWeight.NextReminder.Unknown ->
+                    fallbackNext(now, dailyMinutes(c), dailyWeekdays(c))?.let { arm(manager, DAILY_ID, it, now, daily = true) }
+            }
         } else manager.cancelUniqueWork(DAILY_ID)
     }
+
+    /** The next moment at [minutes] on a chosen weekday (1 = Sunday ... 7 = Saturday, empty = every day). */
+    internal fun fallbackNext(now: ZonedDateTime, minutes: Int, weekdays: Set<Int>): ZonedDateTime? =
+        (0..7).asSequence().map { now.toLocalDate().plusDays(it.toLong()).atStartOfDay(now.zone).plusMinutes(minutes.toLong()) }
+            .firstOrNull { it.isAfter(now) && (weekdays.isEmpty() || (it.dayOfWeek.value % 7 + 1) in weekdays) }
 
     private fun arm(manager: WorkManager, id: String, at: ZonedDateTime, now: ZonedDateTime, daily: Boolean) {
         val delay = at.toInstant().toEpochMilli() - now.toInstant().toEpochMilli()

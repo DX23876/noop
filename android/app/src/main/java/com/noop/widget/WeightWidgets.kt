@@ -92,9 +92,20 @@ object WeightWidgets {
     fun eventChoice(context: Context, id: Int): String? =
         context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(eventKey(id), null)
 
-    private fun placed(context: Context): Boolean {
+    internal fun placed(context: Context): Boolean {
         val manager = AppWidgetManager.getInstance(context)
         return defaults.keys.any { manager.getAppWidgetIds(ComponentName(context, it)).isNotEmpty() }
+    }
+
+    /**
+     * Republishes from a fresh snapshot when a weight widget is placed: when the app comes to the front, as iOS does,
+     * so a weigh-in logged anywhere (or a countdown's new day) reaches the home screen without visiting the page.
+     */
+    suspend fun refresh(context: Context) {
+        val app = context.applicationContext
+        if (!placed(app)) return
+        runCatching { com.noop.core.CoreRead.open(app) }
+        publish(app, CoreWeight.page(app))
     }
 
     /** Words the page's snapshot for the widgets and redraws them, only when one is placed and something changed. */

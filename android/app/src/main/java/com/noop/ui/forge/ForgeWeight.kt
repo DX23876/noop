@@ -126,7 +126,7 @@ internal fun ForgeWeightPage(onBack: () -> Unit) {
 
     SettingsColumn {
         PageTitle(stringResource(R.string.wt_title), onBack) {
-            IconButton(onClick = { settings = true }) {
+            if (page != null) IconButton(onClick = { settings = true }) {
                 Icon(Icons.Rounded.Tune, contentDescription = stringResource(R.string.wt_settings), tint = WEIGHT_TINT.resolve())
             }
         }

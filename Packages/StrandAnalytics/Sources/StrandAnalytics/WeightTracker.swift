@@ -447,8 +447,14 @@ public enum WeightTracker {
             } else {
                 let toward = goal.target > goal.baseline ? 1.0 : -1.0
                 let remaining = goal.target - start.kg
-                if remaining * toward <= 0 {
+                // Reached is judged on the trend, as goal progress always is; the start point (possibly the
+                // ten-day low) only feeds the arithmetic below.
+                if (goal.target - trendNow) * toward <= 0 {
                     state = .reached
+                } else if remaining * toward <= 0 {
+                    // A dry morning already below the goal while the trend is not: the goal is days away.
+                    state = .arriving
+                    arrival = inputs.now
                 } else if let r = rate {
                     let perDay = r / 7
                     if perDay * toward <= 1e-9 {

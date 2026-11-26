@@ -36,6 +36,9 @@ enum StaleBatteryBackgroundScheduler {
                 // re-arming means one expiry leaves the warning permanently unscheduled, which is the
                 // failure mode this whole task exists to avoid.
                 schedule()
+                // The weigh-in reminder arms single dates ahead (so a day with a weigh-in stays quiet); this
+                // periodic wake keeps that window full while the app stays closed.
+                BodyMeasurementReminder.refresh()
                 await operation()
                 guard !Task.isCancelled else { return }
                 completion.finish(success: true)

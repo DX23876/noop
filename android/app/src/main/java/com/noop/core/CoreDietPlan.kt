@@ -85,8 +85,14 @@ object CoreDietPlan {
     data class Suggestion(val form: String, val reason: String)
     data class Outcome(val changeKcal: Double, val hold: String?, val trendKgPerWeek: Double?, val plannedKgPerWeek: Double)
 
-    /** The stored plan, read through the weight goal: its target is the plan's goal weight (one goal weight, 2026-11-26). */
-    fun load(context: Context): Plan? {
+    /** The stored plan as saved. A plain prefs read, safe on the main thread; the core's calls link it to the goal. */
+    fun load(context: Context): Plan? = Plan.parse(NoopPrefs.of(context).getString(KEY, null))
+
+    /**
+     * The stored plan read through the weight goal: its target is the plan's goal weight (one goal weight,
+     * 2026-11-26). Blocking (it asks the core); call off the main thread.
+     */
+    fun loadLinked(context: Context): Plan? {
         val raw = NoopPrefs.of(context).getString(KEY, null) ?: return null
         val linked = if (SwiftCore.available) SwiftCore.call("weight.linkedPlan", JSONObject().put("plan", raw).toString()) else null
         return Plan.parse(linked?.takeIf { it != "null" } ?: raw)

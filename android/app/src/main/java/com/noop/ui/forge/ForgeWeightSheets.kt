@@ -58,7 +58,8 @@ internal fun WeighInEditor(draft: WeighInDraft, fmt: WeightFormat, onCancel: () 
     var note by remember { mutableStateOf(draft.note ?: "") }
     var day by remember { mutableStateOf(draft.at.atZone(ZoneId.systemDefault()).toLocalDate()) }
     var picking by remember { mutableStateOf(false) }
-    val kg = weightForStore(text, fmt.units)?.takeIf { it in 20.0..400.0 }
+    // The core's plausibility bounds (GoalMeasure.weightTrend, 25 to 400 kg): a value outside is dropped there.
+    val kg = weightForStore(text, fmt.units)?.takeIf { it in 25.0..400.0 }
     SettingsColumn {
         PageTitle(stringResource(if (draft.id == null) R.string.wt_log else R.string.wt_edit_weigh_in), onCancel)
         ForgeCard(Modifier.fillMaxWidth()) {

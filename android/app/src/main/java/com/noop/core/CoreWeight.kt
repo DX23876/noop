@@ -77,14 +77,26 @@ object CoreWeight {
 
     fun deleteWeight(id: String): Boolean = ok(SwiftCore.call("body.deleteWeight", JSONObject().put("id", id).toString()))
 
-    /** The daily weigh-in reminder's next moment by the shared rule, or null when none falls in the next three weeks. */
-    fun nextReminder(context: Context, minutes: Int, weekdays: Set<Int>, now: Instant): Instant? {
-        if (!SwiftCore.available) return null
-        CoreUserInputs.ensure(context)
+    /** What the core said about the next weigh-in reminder: a moment, none in three weeks, or no answer at all. */
+    sealed interface NextReminder {
+        data class At(val instant: Instant) : NextReminder
+        data object None : NextReminder
+        data object Unknown : NextReminder
+    }
+
+    /**
+     * The daily weigh-in reminder's next moment by the shared rule. [NextReminder.Unknown] when the core cannot
+     * answer (not loaded yet, store not open): the caller then arms by time and weekday alone rather than cancel.
+     */
+    fun nextReminder(context: Context, minutes: Int, weekdays: Set<Int>, now: Instant): NextReminder {
+        if (!SwiftCore.available) return NextReminder.Unknown
+        runCatching { CoreRead.open(context); CoreUserInputs.ensure(context) }
         val json = SwiftCore.call("weight.nextReminder", JSONObject().put("minutes", minutes)
-            .put("weekdays", JSONArray(weekdays.sorted())).put("now", now.epochSecond).toString()) ?: return null
-        val o = runCatching { JSONObject(json) }.getOrNull() ?: return null
-        return if (o.isNull("at")) null else Instant.ofEpochSecond(o.getLong("at"))
+            .put("weekdays", JSONArray(weekdays.sorted())).put("now", now.epochSecond).toString())
+            ?: return NextReminder.Unknown
+        val o = runCatching { JSONObject(json) }.getOrNull() ?: return NextReminder.Unknown
+        if (!o.has("at")) return NextReminder.Unknown
+        return if (o.isNull("at")) NextReminder.None else NextReminder.At(Instant.ofEpochSecond(o.getLong("at")))
     }
 
     fun weighedToday(context: Context): Boolean {

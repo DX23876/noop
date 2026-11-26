@@ -160,4 +160,16 @@ final class WeightTrackerTests: XCTestCase {
                                                   calendar: cal)
         XCTAssertEqual(mondays.map { cal.component(.day, from: $0) }, [30, 7])
     }
+
+    /// Reached is the trend's verdict: one dry morning below the goal is not the goal reached.
+    func testADryMorningBelowTheGoalIsNotTheGoalReached() {
+        var readings = line(days: 30, start: 86, perDay: 0.02)
+        readings[28].kg = 84.6
+        var settings = WeightTracker.Settings.standard
+        settings.basis = .tenDayLow
+        let s = snap(readings, goal: .init(baseline: 90, target: 85, createdAt: now.addingTimeInterval(-60 * 86_400)),
+                     settings: settings)
+        XCTAssertGreaterThan(s.trendKg, 85)
+        XCTAssertNotEqual(s.forecast.state, .reached)
+    }
 }

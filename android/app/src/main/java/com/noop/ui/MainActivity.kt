@@ -81,6 +81,12 @@ class MainActivity : ComponentActivity() {
         com.noop.notif.SessionRatingNavigation.accept(intent)
     }
 
+    /** The weight widgets follow the app to the front, as iOS's do (`WeightWidgets.refresh`). */
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch(Dispatchers.IO) { runCatching { com.noop.widget.WeightWidgets.refresh(applicationContext) } }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         com.noop.notif.SessionRatingNavigation.accept(intent)

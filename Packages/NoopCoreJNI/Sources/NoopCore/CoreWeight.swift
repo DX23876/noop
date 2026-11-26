@@ -86,8 +86,14 @@ enum CoreWeight {
                   GoalMeasure.isPlausible(kg, cfg: GoalMeasure.weightTrend) else { return #"{"ok":false}"# }
             let at = Date(timeIntervalSince1970: (args["takenAt"] as? NSNumber)?.doubleValue ?? Date().timeIntervalSince1970)
             let note = (args["note"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            // As Apple's `updateWeight`: the row keeps its source (a coach weigh-in stays the coach's), and it is
+            // deleted then written again, because the natural key carries the instant and the delete re-projects
+            // the day being left behind.
+            guard let existing = (try? await store.bodyWeights(deviceId: WhoopStore.noopWeightSourceId))?
+                .first(where: { $0.id == id }) else { return #"{"ok":false}"# }
+            _ = try? await store.deleteBodyWeight(id: id)
             let row = BodyWeightRow(id: id, deviceId: WhoopStore.noopWeightSourceId, day: StoreReader.localDayKey(at),
-                                    takenAt: Int(at.timeIntervalSince1970), weightKg: kg, source: "manual", note: note)
+                                    takenAt: Int(at.timeIntervalSince1970), weightKg: kg, source: existing.source, note: note)
             return (try? await store.upsertBodyWeights([row])) != nil ? #"{"ok":true}"# : #"{"ok":false}"#
         case "weight.deleteEvent":
             let id = args["id"] as? String ?? ""
