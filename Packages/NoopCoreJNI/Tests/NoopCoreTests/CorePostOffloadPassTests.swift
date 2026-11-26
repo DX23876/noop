@@ -19,6 +19,12 @@ final class CorePostOffloadPassTests: XCTestCase {
         return (0..<(12 * 60)).map { HRSample(ts: start + $0 * 60, bpm: 70 + ($0 % 30)) }
     }
 
+    /// One reading a minute over the hour that just ended.
+    private func lastHourHeartRate() -> [HRSample] {
+        let start = Int(Date().timeIntervalSince1970) - 3_600
+        return (0..<60).map { HRSample(ts: start + $0 * 60, bpm: 70 + ($0 % 30)) }
+    }
+
     private func settings(afterOffload: Bool) -> CoreAnalysis.Settings {
         var settings = CoreAnalysis.Settings.standard
         settings.afterOffload = afterOffload
@@ -41,7 +47,9 @@ final class CorePostOffloadPassTests: XCTestCase {
         XCTAssertTrue(unchanged.contains { $0.contains("newData=no") && $0.contains("skipped") },
                       "an offload that banked nothing new scores nothing: \(unchanged)")
 
-        try await store.insert(Streams(hr: daytimeHeartRate(daysAgo: 0)), deviceId: "my-whoop")
+        // The hour before now, never the day's 08:00 to 20:00: run shortly after midnight, those readings lay in
+        // the future, and a full pass and a post-offload pass bound "today" differently for samples not yet taken.
+        try await store.insert(Streams(hr: lastHourHeartRate()), deviceId: "my-whoop")
         _ = await CoreAnalysis.run(store: store, deviceId: "my-whoop", profile: profile,
                                    settings: settings(afterOffload: true), days: 5)
         let summary = try XCTUnwrap(CoreAnalysis.PassLog.drain().first { $0.hasPrefix("reuse summary:") })
