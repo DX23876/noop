@@ -3049,7 +3049,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun writebackHealthConnectNow() {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                runCatching { HealthConnectWriter.write(appContext, repository, deviceId) }
+                // Asked for by the wearer: every record again, not only the ones the ledger says changed.
+                runCatching { HealthConnectWriter.write(appContext, repository, deviceId, everything = true) }
             }
             refreshHcWritebackStatus()   // #660: surface the just-recorded outcome in Data Sources
         }

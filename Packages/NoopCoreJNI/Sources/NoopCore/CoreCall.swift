@@ -543,6 +543,9 @@ public enum CoreCall {
             guard let kg = (args["kg"] as? NSNumber)?.doubleValue else { return #"{"error":"invalid"}"# }
             let epoch = (args["takenAt"] as? NSNumber)?.doubleValue ?? Date().timeIntervalSince1970
             return ok(await CoreBody.logWeight(store: store, kg: kg, at: Date(timeIntervalSince1970: epoch), note: args["note"] as? String))
+        case "health.planExports": return await CoreHealthExport.plan(store: store, args: args)
+        case "health.commitExports": return await CoreHealthExport.commit(store: store, args: args)
+        case "health.invalidateExports": return await CoreHealthExport.invalidate(store: store, args: args)
         case "body.deleteWeight":
             return ok(await CoreBody.deleteWeight(store: store, id: string("id")))
         case "energy.plan":

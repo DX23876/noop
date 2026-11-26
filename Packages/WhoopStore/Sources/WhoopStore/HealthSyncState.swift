@@ -13,5 +13,11 @@ public enum HealthSyncState {
         public let id: String
         public let revision: Int
         public let needsSave: Bool
+
+        public init(id: String, revision: Int, needsSave: Bool) {
+            self.id = id
+            self.revision = revision
+            self.needsSave = needsSave
+        }
     }
 }
