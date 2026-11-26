@@ -27,7 +27,7 @@ while let k = it.next() {
     case "--seed": a.seed = UInt64(it.next() ?? "") ?? a.seed
     case "-h", "--help":
         print("""
-        usage: sleeppsg --dataset <sleep-accel root> [--section all|port|baseline|strata|rem|variants|priors]
+        usage: sleeppsg --dataset <sleep-accel root> [--section all|port|baseline|strata|rem|variants|priors|restless]
                         [--subjects N] [--csv <path>] [--seed <n>]
 
           --dataset   PhysioNet sleep-accel v1.0.0, extracted. See README.md for the download step and the
@@ -511,6 +511,66 @@ if want("priors") {
               + "\(f(meanAbs("wake"), 5, 2)) \(f(meanAbs("deep"), 5, 2)) \(f(meanAbs("rem"), 5, 2)) \(f(meanAbs("light"), 5, 2))      "
               + "\(better("wake"))/\(n) \(better("deep"))/\(n) \(better("rem"))/\(n) \(better("light"))/\(n)   "
               + "\(f(zip(ps, base).map { ($0.0.bias["wake"] ?? 0) - ($0.1.bias["wake"] ?? 0) }.max() ?? 0, 6, 2))")
+    }
+}
+
+if want("restless") {
+    print("""
+
+    ================================================================================
+    8. RESTLESS WAKE (#59) AND TWO DEFENCES FOR CALM SLEEPERS
+    ================================================================================
+    #59 as filed z-scores the small-movement density within each night, so a calm sleeper's mildest stretch
+    reads as restless. `sustained` counts only movement that lasts longer than a REM twitch (3 s or less,
+    Reiter 2020). `others` scales the density against the OTHER 30 subjects instead of the night itself
+    (leave-one-subject-out), standing in for a wearer's own earlier nights. `over+5` counts subjects whose
+    predicted wake share exceeds their PSG wake share by more than 5 points.
+    """)
+    struct Moments { var n = 0.0, sum = 0.0, sq = 0.0 }
+    func moments(_ cfg: RecipeConfig) -> [Moments] {
+        subjects.map { sub in
+            let (ep, _) = V2Recipe.stageEpochsDetailed(start: sub.start, end: sub.end, grav: sub.grav, hr: sub.hr,
+                                                       rr: [], resp: [], cfg: cfg)
+            var m = Moments()
+            for d in V2Recipe.restlessDensity(ep, cfg) { m.n += 1; m.sum += d; m.sq += d * d }
+            return m
+        }
+    }
+    func rowsLeavingOneOut(_ cfg: RecipeConfig) -> [Scored] {
+        let ms = moments(cfg)
+        let tot = ms.reduce(Moments()) { Moments(n: $0.n + $1.n, sum: $0.sum + $1.sum, sq: $0.sq + $1.sq) }
+        return subjects.indices.map { i in
+            let n = tot.n - ms[i].n, sm = tot.sum - ms[i].sum, sq = tot.sq - ms[i].sq
+            let mu = sm / n
+            var c = cfg
+            c.smallMoveReference = (mu, max(0, sq / n - mu * mu).squareRoot())
+            return score(subjects[i], using: stageVariant(c))
+        }
+    }
+    var filed = Variants.restlessWake59.config
+    var sustained = filed; sustained.smallMoveMinRun = 5
+    let variants: [(String, [Scored])] = [
+        ("incumbent (shipped)", shipped),
+        ("#59 as filed", subjects.map { score($0, using: stageVariant(filed)) }),
+        ("#59 sustained", subjects.map { score($0, using: stageVariant(sustained)) }),
+        ("#59 others", rowsLeavingOneOut(filed)),
+        ("#59 sustained + others", rowsLeavingOneOut(sustained)),
+    ]
+    filed.smallMoveMinRun = 1
+    print("    variant                    kappa  REM F1 wakeSens  wake% bias   REM% bias  mean κ  over+5  max wake +pp (truth/before/after)")
+    for (name, rows) in variants {
+        let sm = summarise(rows)
+        let p = pooledPct(rows) { $0.pred }, t = pooledPct(rows) { $0.truth }
+        let perK = rows.map { confusion(ref: $0.truth, pred: $0.pred).kappa }
+        let wakeOf: (Scored) -> (truth: Double, pred: Double) = {
+            (stagePercentages($0.truth)["wake"] ?? 0, stagePercentages($0.pred)["wake"] ?? 0)
+        }
+        let over = rows.filter { let w = wakeOf($0); return w.pred - w.truth > 5 }.count
+        let rises = zip(rows, shipped).map { (wakeOf($0.0).pred - wakeOf($0.1).pred, wakeOf($0.0).truth, wakeOf($0.1).pred, wakeOf($0.0).pred) }
+        let worst = rises.max { $0.0 < $1.0 }!
+        print("    \(name.padding(toLength: 25, withPad: " ", startingAt: 0))\(f(sm.kappa, 6, 3)) \(f(sm.conf.prf("rem").f1, 6, 3))  \(f(sm.conf.prf("wake").recall * 100, 6, 1))  "
+              + "\(f(p["wake"]!, 5, 1))\(f(p["wake"]! - t["wake"]!, 5, 1))  \(f(p["rem"]!, 5, 1))\(f(p["rem"]! - t["rem"]!, 5, 1))  "
+              + "\(f(mean(perK), 6, 3))   \(over)/\(rows.count)   \(f(worst.0, 5, 1)) (\(f(worst.1, 4, 1))/\(f(worst.2, 4, 1))/\(f(worst.3, 4, 1)))")
     }
 }
 

@@ -94,6 +94,32 @@ struct RecipeConfig: Equatable {
     var smallMoveHalfWindow: Int = 5
     var smallMoveRemWeight: Double = 0.5
     var smallMoveAwakeWeight: Double = 0.75
+    /// Count only jerks inside a run of at least this many consecutive above-threshold seconds. 1 counts every
+    /// jerk (the proposal as filed). REM carries brief distal twitches of 3 s or less (Reiter 2020); a run of 5
+    /// per-second jerks is a movement lasting longer than that, since one movement lifts the jerk on both sides.
+    var smallMoveMinRun: Int = 1
+    /// When set, the density is scaled against this reference (mean, sd) instead of the night's own spread, so a
+    /// calm night is no longer stretched until its quietest restlessness reads as an outlier.
+    var smallMoveReference: (mean: Double, sd: Double)? = nil
+
+    static func == (a: RecipeConfig, b: RecipeConfig) -> Bool {
+        a.priorLight == b.priorLight && a.priorDeep == b.priorDeep && a.priorRem == b.priorRem
+            && a.priorAwake == b.priorAwake && a.deepGateThresh == b.deepGateThresh
+            && a.deepGateSlope == b.deepGateSlope && a.jerkFloorMoveMult == b.jerkFloorMoveMult
+            && a.jerkFloorGateMult == b.jerkFloorGateMult && a.motionGateBoost == b.motionGateBoost
+            && a.respWeight == b.respWeight && a.awakeDeadzone == b.awakeDeadzone
+            && a.deepZhv == b.deepZhv && a.deepZhr == b.deepZhr && a.deepZmv == b.deepZmv
+            && a.remZhv == b.remZhv && a.remZmv == b.remZmv && a.remZhr == b.remZhr
+            && a.awakeZmv == b.awakeZmv && a.awakeZhv == b.awakeZhv && a.awakeZhr == b.awakeZhr
+            && a.transition == b.transition && a.remLatencyPenalty == b.remLatencyPenalty
+            && a.remLatencyMinutes == b.remLatencyMinutes && a.onsetSustainedEpochs == b.onsetSustainedEpochs
+            && a.remLatencyMode == b.remLatencyMode && a.deepLatencyPenalty == b.deepLatencyPenalty
+            && a.deepLatencyMinutes == b.deepLatencyMinutes && a.smallMoveMult == b.smallMoveMult
+            && a.smallMoveHalfWindow == b.smallMoveHalfWindow && a.smallMoveRemWeight == b.smallMoveRemWeight
+            && a.smallMoveAwakeWeight == b.smallMoveAwakeWeight && a.smallMoveMinRun == b.smallMoveMinRun
+            && a.smallMoveReference?.mean == b.smallMoveReference?.mean
+            && a.smallMoveReference?.sd == b.smallMoveReference?.sd
+    }
 
     /// Which REM-latency guard the recipe runs. Shipped is `.gradedFromOnset` (#930). The pre-#930 step is
     /// kept because the reference numbers this harness was rebuilt to reproduce were measured against it —
@@ -328,7 +354,7 @@ enum V2Recipe {
         feats.reserveCapacity(raws.count)
         for r in raws {
             let moves = r.jerks.reduce(0) { $0 + ($1 > moveThr ? 1 : 0) }
-            let small = cfg.smallMoveMult > 0 ? r.jerks.reduce(0) { $0 + ($1 > smallThr ? 1 : 0) } : 0
+            let small = cfg.smallMoveMult > 0 ? smallMoveCount(r.jerks, above: smallThr, minRun: cfg.smallMoveMinRun) : 0
             feats.append(Epoch(
                 start: r.start, hr: r.hr, hrVar: r.hrVar, hrFlat11: r.hrFlat11,
                 moveFrac: Double(moves) / Double(r.gapSec), jerkMax: r.jerkMax, respReg: r.respReg,
@@ -336,6 +362,25 @@ enum V2Recipe {
                 smallMoveFrac: Double(small) / Double(r.gapSec)))
         }
         return feats
+    }
+
+    /// Jerks above `thr` that sit in a run of at least `minRun` consecutive above-threshold seconds.
+    static func smallMoveCount(_ jerks: [Double], above thr: Double, minRun: Int) -> Int {
+        if minRun <= 1 { return jerks.reduce(0) { $0 + ($1 > thr ? 1 : 0) } }
+        var total = 0, run = 0
+        for j in jerks {
+            if j > thr { run += 1 } else { if run >= minRun { total += run }; run = 0 }
+        }
+        return run >= minRun ? total + run : total
+    }
+
+    /// #59's windowed small-movement density: the mean `smallMoveFrac` over `smallMoveHalfWindow` epochs either side.
+    static func restlessDensity(_ feats: [Epoch], _ cfg: RecipeConfig) -> [Double] {
+        let h = cfg.smallMoveHalfWindow
+        return feats.indices.map { i in
+            let lo = max(0, i - h), hi = min(feats.count - 1, i + h)
+            return feats[lo...hi].reduce(0.0) { $0 + $1.smallMoveFrac } / Double(hi - lo + 1)
+        }
     }
 
     static func respRegularity(_ beats: [(Double, Double)]) -> Double? {
@@ -465,10 +510,10 @@ enum V2Recipe {
         // #59: the restless neighbourhood, as a positive-only z-score of the windowed small-movement density.
         let restless: [Double] = {
             guard cfg.smallMoveMult > 0 else { return [Double](repeating: 0, count: feats.count) }
-            let h = cfg.smallMoveHalfWindow
-            let density: [Double] = feats.indices.map { i in
-                let lo = max(0, i - h), hi = min(feats.count - 1, i + h)
-                return feats[lo...hi].reduce(0.0) { $0 + $1.smallMoveFrac } / Double(hi - lo + 1)
+            let density = restlessDensity(feats, cfg)
+            if let ref = cfg.smallMoveReference {
+                let sd = ref.sd > 0 ? ref.sd : 1.0
+                return density.map { max(0.0, ($0 - ref.mean) / sd) }
             }
             let zd = zfun(density.map { Optional($0) })
             return density.map { max(0.0, zd($0)) }
