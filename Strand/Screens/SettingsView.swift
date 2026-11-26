@@ -1771,126 +1771,173 @@ private struct SettingsPageContent: View, Equatable {
 
     // MARK: - Appearance
 
+    @ViewBuilder
     private var designCard: some View {
+        if NoopVisualStyle.skin == .forge {
+            designGroups
+        } else {
+            designClassicCard
+        }
+    }
+
+    /// The menus of the Style card (shared by both looks): preset, theme, colour profile, accent and app icon.
+    @ViewBuilder
+    private var designMenuRows: some View {
+            // Theme presets — one-tap bundles coordinating accent + chart world + backdrop + card
+            // opacity. Derived (no stored value): tweaking any control below flips this to Custom.
+            FormRow(label: "Preset") {
+                Picker("Preset", selection: themePresetBinding) {
+                    ForEach(ThemePreset.allCases) { p in
+                        Text(p.label).tag(p)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .tint(StrandPalette.accent)
+                .accessibilityLabel("Theme preset")
+            }
+            rowDivider
+            FormRow(label: "Theme") {
+                Picker("Theme", selection: $appearanceRaw) {
+                    ForEach(AppearanceMode.allCases) { mode in
+                        Text(mode.label).tag(mode.rawValue)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .appleInspiredTint("settings.controls")
+                .accessibilityLabel("Theme")
+            }
+            rowDivider
+            #if os(iOS)
+            if NoopVisualStyle.skin == .forge {
+                FormRow(label: "Color profile") {
+                    Picker("Color profile", selection: $forgeProfileRaw) {
+                        Text("Colorful").tag(NoopVisualStyle.ForgeColorProfile.colorful.rawValue)
+                        Text("Stone").tag(NoopVisualStyle.ForgeColorProfile.stone.rawValue)
+                        Text("Slate").tag(NoopVisualStyle.ForgeColorProfile.slate.rawValue)
+                        Text("Sage").tag(NoopVisualStyle.ForgeColorProfile.sage.rawValue)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .tint(StrandPalette.accent)
+                    .accessibilityLabel("Color profile")
+                    .onChangeCompat(of: forgeProfileRaw) { raw in
+                        // The profile brings its backdrop along; the switch stays the person's after that.
+                        showDayCycleBackground = NoopVisualStyle.ForgeColorProfile.resolve(raw) == .colorful
+                        NoopVisualStyle.forgeProfile = NoopVisualStyle.ForgeColorProfile.resolve(raw)
+                        ForgeDesignPrefs.mirrorToAppGroup()
+                    }
+                }
+                rowDivider
+            }
+            #endif
+            // Accent controls links, buttons, focus, and selection. Chart colours controls health data
+            // only (recovery, strain, sleep); it never changes chrome. Custom reveals a colour well.
+            // A calm profile brings its own accent, so there is nothing to choose then.
+            if NoopVisualStyle.skin != .forge || NoopVisualStyle.forgeProfile == .colorful {
+            FormRow(label: "Accent") {
+                Picker("Accent", selection: $accentRaw) {
+                    ForEach(AccentColor.allCases) { c in
+                        Text(c.label).tag(c.rawValue)
+                    }
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .tint(StrandPalette.accent)
+                .accessibilityLabel("Accent colour")
+            }
+            if AccentColor.resolve(accentRaw) == .custom {
+                rowDivider
+                FormRow(label: "Custom colour") {
+                    ColorPicker("Custom colour", selection: customAccentBinding, supportsOpacity: false)
+                        .labelsHidden()
+                        .accessibilityLabel("Custom accent colour")
+                }
+            }
+            }
+            #if os(iOS)
+            rowDivider   // #79: separator before App icon (inside #if so macOS keeps a single divider)
+            FormRow(label: "App icon") {
+                Picker("App icon", selection: $useNavyIcon) {
+                    Text("Default").tag(false)
+                    Text("Navy").tag(true)
+                }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .appleInspiredTint("settings.controls")
+                .accessibilityLabel("App icon")
+                .onChangeCompat(of: useNavyIcon) { applyAppIcon($0) }
+            }
+            #endif
+    }
+
+    /// The tab-bar switches of the Style card (shared by both looks); they carry no explanation of their own.
+    @ViewBuilder
+    private var designTabRows: some View {
+        #if os(iOS)
+        // #1841: the same preference Android drives its own bar with, by name and meaning. Here
+        // the SYSTEM owns the behaviour — iOS 26 minimises the tab bar to a pill on scroll rather
+        // than sliding it away — so this asks for the platform's reading of the intent rather
+        // than reproducing ours. Below iOS 26 the modifier is inert and the row simply does
+        // nothing, which is why it is not offered there.
+        if #available(iOS 26.0, *) {
+            FormRow(label: "Hide tab bar") {
+                Toggle("", isOn: $bottomBarAutoHide)
+                    .labelsHidden()
+                    .tint(StrandPalette.accent)
+                    .accessibilityLabel("Hide tab bar when scrolling")
+            }
+            rowDivider
+        }
+        // Off by default: a sideways swipe inside routines, charts or a carousel also changed the
+        // tab (tester report, 2026-11-25). For those who want it back, at the risk of that.
+        FormRow(label: "Swipe between tabs") {
+            Toggle("", isOn: $tabSwipeEnabled)
+                .labelsHidden()
+                .tint(StrandPalette.accent)
+                .accessibilityLabel("Swipe between tabs")
+        }
+        #endif
+    }
+
+    /// The new design's Style: the menus together on one card, then the coloured-icons switch as its own group
+    /// with what it does as the footer under it.
+    private var designGroups: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+            SettingsSection(
+                icon: "circle.lefthalf.filled",
+                title: "Style",
+                blurb: "Light, dark or your system setting, plus accent and icons."
+            ) {
+                VStack(alignment: .leading, spacing: 0) {
+                    designMenuRows
+                    #if os(iOS)
+                    rowDivider
+                    designTabRows
+                    #endif
+                }
+            }
+            SettingsSubGroup(footer: Text("Colours the icons in Settings, More, Coach and Goals like Apple Health. Charts and warnings keep their colours. Off keeps blue controls.")) {
+                appIconColorToggle
+            }
+        }
+    }
+
+    /// The classic look's Style card (the new design draws `designGroups`).
+    private var designClassicCard: some View {
         SettingsSection(
             icon: "circle.lefthalf.filled",
             title: "Style",
             blurb: "Light, dark or your system setting, plus accent and icons."
         ) {
             VStack(alignment: .leading, spacing: 0) {
-                // Theme presets — one-tap bundles coordinating accent + chart world + backdrop + card
-                // opacity. Derived (no stored value): tweaking any control below flips this to Custom.
-                FormRow(label: "Preset") {
-                    Picker("Preset", selection: themePresetBinding) {
-                        ForEach(ThemePreset.allCases) { p in
-                            Text(p.label).tag(p)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .tint(StrandPalette.accent)
-                    .accessibilityLabel("Theme preset")
-                }
-                rowDivider
-                FormRow(label: "Theme") {
-                    Picker("Theme", selection: $appearanceRaw) {
-                        ForEach(AppearanceMode.allCases) { mode in
-                            Text(mode.label).tag(mode.rawValue)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .appleInspiredTint("settings.controls")
-                    .accessibilityLabel("Theme")
-                }
-                rowDivider
-                #if os(iOS)
-                if NoopVisualStyle.skin == .forge {
-                    FormRow(label: "Color profile") {
-                        Picker("Color profile", selection: $forgeProfileRaw) {
-                            Text("Colorful").tag(NoopVisualStyle.ForgeColorProfile.colorful.rawValue)
-                            Text("Stone").tag(NoopVisualStyle.ForgeColorProfile.stone.rawValue)
-                            Text("Slate").tag(NoopVisualStyle.ForgeColorProfile.slate.rawValue)
-                            Text("Sage").tag(NoopVisualStyle.ForgeColorProfile.sage.rawValue)
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .tint(StrandPalette.accent)
-                        .accessibilityLabel("Color profile")
-                        .onChangeCompat(of: forgeProfileRaw) { raw in
-                            // The profile brings its backdrop along; the switch stays the person's after that.
-                            showDayCycleBackground = NoopVisualStyle.ForgeColorProfile.resolve(raw) == .colorful
-                            NoopVisualStyle.forgeProfile = NoopVisualStyle.ForgeColorProfile.resolve(raw)
-                            ForgeDesignPrefs.mirrorToAppGroup()
-                        }
-                    }
-                    rowDivider
-                }
-                #endif
-                // Accent controls links, buttons, focus, and selection. Chart colours controls health data
-                // only (recovery, strain, sleep); it never changes chrome. Custom reveals a colour well.
-                // A calm profile brings its own accent, so there is nothing to choose then.
-                if NoopVisualStyle.skin != .forge || NoopVisualStyle.forgeProfile == .colorful {
-                FormRow(label: "Accent") {
-                    Picker("Accent", selection: $accentRaw) {
-                        ForEach(AccentColor.allCases) { c in
-                            Text(c.label).tag(c.rawValue)
-                        }
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .tint(StrandPalette.accent)
-                    .accessibilityLabel("Accent colour")
-                }
-                if AccentColor.resolve(accentRaw) == .custom {
-                    rowDivider
-                    FormRow(label: "Custom colour") {
-                        ColorPicker("Custom colour", selection: customAccentBinding, supportsOpacity: false)
-                            .labelsHidden()
-                            .accessibilityLabel("Custom accent colour")
-                    }
-                }
-                }
-                #if os(iOS)
-                rowDivider   // #79: separator before App icon (inside #if so macOS keeps a single divider)
-                FormRow(label: "App icon") {
-                    Picker("App icon", selection: $useNavyIcon) {
-                        Text("Default").tag(false)
-                        Text("Navy").tag(true)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .appleInspiredTint("settings.controls")
-                    .accessibilityLabel("App icon")
-                    .onChangeCompat(of: useNavyIcon) { applyAppIcon($0) }
-                }
-                #endif
+                designMenuRows
                 rowDivider
                 appIconColorSection
                 #if os(iOS)
                 rowDivider
-                // #1841: the same preference Android drives its own bar with, by name and meaning. Here
-                // the SYSTEM owns the behaviour — iOS 26 minimises the tab bar to a pill on scroll rather
-                // than sliding it away — so this asks for the platform's reading of the intent rather
-                // than reproducing ours. Below iOS 26 the modifier is inert and the row simply does
-                // nothing, which is why it is not offered there.
-                if #available(iOS 26.0, *) {
-                    FormRow(label: "Hide tab bar") {
-                        Toggle("", isOn: $bottomBarAutoHide)
-                            .labelsHidden()
-                            .tint(StrandPalette.accent)
-                            .accessibilityLabel("Hide tab bar when scrolling")
-                    }
-                }
-                rowDivider
-                // Off by default: a sideways swipe inside routines, charts or a carousel also changed the
-                // tab (tester report, 2026-11-25). For those who want it back, at the risk of that.
-                FormRow(label: "Swipe between tabs") {
-                    Toggle("", isOn: $tabSwipeEnabled)
-                        .labelsHidden()
-                        .tint(StrandPalette.accent)
-                        .accessibilityLabel("Swipe between tabs")
-                }
+                designTabRows
                 #endif
             }
         }
@@ -1950,77 +1997,125 @@ private struct SettingsPageContent: View, Equatable {
         }
     }
 
+    @ViewBuilder
     private var motionCard: some View {
+        if NoopVisualStyle.skin == .forge {
+            motionGroups
+        } else {
+            motionClassicCard
+        }
+    }
+
+    /// The reduce-motion switch (shared by both looks): pose every looping animation still and stop the tilt
+    /// sensor, WITHOUT requiring system Low Power Mode. Off by default; system Reduce Motion and Low Power
+    /// Mode already force the same behaviour, this is the third, in-app signal.
+    private var reduceMotionToggle: some View {
+        Toggle(isOn: $quietMotion) {
+            Text("Reduce motion")
+                .font(SettingsRowFont.value)
+                .foregroundStyle(StrandPalette.textPrimary)
+        }
+        .toggleStyle(.switch)
+        .tint(StrandPalette.accent)
+    }
+
+    /// The score-rings menu (shared by both looks): living organic rings or still classic arcs, for Today,
+    /// the score pages, Sleep and the weekly report alike.
+    private var scoreRingsRow: some View {
+        FormRow(label: "Score rings") {
+            Picker("Score rings", selection: $scoreRingStyleRaw) {
+                Text("Living").tag(ScoreRingStyle.organic.rawValue)
+                Text("Classic").tag(ScoreRingStyle.classic.rawValue)
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .appleInspiredTint("settings.controls")
+            .accessibilityLabel("Score rings")
+        }
+    }
+
+    #if os(iOS)
+    /// The hero-movement switch (shared by both looks), display only. Off keeps the Today rings breathing on
+    /// their own but stops them leaning with the phone; the global switch above still wins.
+    private var heroMovementToggle: some View {
+        Toggle(isOn: $heroReactsToMovement) {
+            Text("Motion effect")
+                .font(SettingsRowFont.value)
+                .foregroundStyle(StrandPalette.textPrimary)
+        }
+        .toggleStyle(.switch)
+        .tint(StrandPalette.accent)
+        .disabled(quietMotion || ScoreRingStyle.resolve(scoreRingStyleRaw) == .classic)
+    }
+    #endif
+
+    /// The breathing coach tile switch (shared by both looks): the one continuously animating element on
+    /// Today. Subtle by design, but a permanently moving thing in peripheral vision genuinely bothers some
+    /// people, so it gets its own switch (Reduce Motion suppresses it either way).
+    private var coachAnimationToggle: some View {
+        Toggle(isOn: $coachTileBreathing) {
+            Text("Coach animation")
+                .font(SettingsRowFont.value)
+                .foregroundStyle(StrandPalette.textPrimary)
+        }
+        .toggleStyle(.switch)
+        .appleInspiredTint("settings.controls")
+    }
+
+    /// The new design's Motion: one group per setting, its control on the card and what it does as the footer
+    /// under it. The first group carries the page's header, as the Style card does.
+    private var motionGroups: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+            SettingsSubGroup(title: "Motion",
+                             footer: Text("Holds the liquid gauges, the sky and the tilt response still, and turns off the motion sensor that drives them. Saves battery. Low Power Mode and the system Reduce Motion setting already do this.")) {
+                reduceMotionToggle
+            }
+            SettingsSubGroup(footer: Text("Living rings move and breathe. Classic rings stand still and use less battery.")) {
+                scoreRingsRow
+            }
+            #if os(iOS)
+            SettingsSubGroup(footer: Text("The Today rings lean and ripple as you move your phone. Off, they keep their own slow movement.")) {
+                heroMovementToggle
+            }
+            #endif
+            SettingsSubGroup(footer: Text("The coach tile on Today pulses gently. Off keeps it still.")) {
+                coachAnimationToggle
+            }
+        }
+    }
+
+    /// The classic look's Motion card (the new design draws `motionGroups`).
+    private var motionClassicCard: some View {
         SettingsSection(
             icon: "wind",
             title: "Motion",
             blurb: "Animations and movement on screen."
         ) {
             VStack(alignment: .leading, spacing: 0) {
-                // MARK: Reduce motion in NOOP — pose every looping animation still and stop the tilt
-                // sensor, WITHOUT requiring system Low Power Mode. Off by default; system Reduce Motion
-                // and Low Power Mode already force the same behaviour, this is the third, in-app signal.
-                Toggle(isOn: $quietMotion) {
-                    Text("Reduce motion")
-                        .font(SettingsRowFont.value)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                reduceMotionToggle
                 Text("Holds the liquid gauges, the sky and the tilt response still, and turns off the motion sensor that drives them. Saves battery. Low Power Mode and the system Reduce Motion setting already do this.")
                     .settingsCaption()
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 rowDivider
-                // MARK: Score rings — living organic rings or still classic arcs, for Today, the score pages,
-                // Sleep and the weekly report alike.
-                FormRow(label: "Score rings") {
-                    Picker("Score rings", selection: $scoreRingStyleRaw) {
-                        Text("Living").tag(ScoreRingStyle.organic.rawValue)
-                        Text("Classic").tag(ScoreRingStyle.classic.rawValue)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .appleInspiredTint("settings.controls")
-                    .accessibilityLabel("Score rings")
-                }
+                scoreRingsRow
                 Text("Living rings move and breathe. Classic rings stand still and use less battery.")
                     .settingsCaption()
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 #if os(iOS)
                 rowDivider
-                // MARK: Hero device movement — display only. Off keeps the Today rings breathing on their
-                // own but stops them leaning with the phone; the global switch above still wins.
-                Toggle(isOn: $heroReactsToMovement) {
-                    Text("Motion effect")
-                        .font(SettingsRowFont.value)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
-                .disabled(quietMotion || ScoreRingStyle.resolve(scoreRingStyleRaw) == .classic)
+                heroMovementToggle
                 Text("The Today rings lean and ripple as you move your phone. Off, they keep their own slow movement.")
                     .settingsCaption()
                     .frame(maxWidth: .infinity, alignment: .leading)
                 #endif
 
-
                 rowDivider
-                // MARK: Breathing coach tile — the one continuously animating element on Today. Subtle by
-                // design, but a permanently moving thing in peripheral vision genuinely bothers some
-                // people, so it gets its own switch (Reduce Motion suppresses it either way).
-                Toggle(isOn: $coachTileBreathing) {
-                    Text("Coach animation")
-                        .font(SettingsRowFont.value)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch)
-                .appleInspiredTint("settings.controls")
+                coachAnimationToggle
                 Text("The coach tile on Today pulses gently. Off keeps it still.")
                     .settingsCaption()
                     .frame(maxWidth: .infinity, alignment: .leading)
-
             }
         }
     }
@@ -2215,15 +2310,19 @@ private struct SettingsPageContent: View, Equatable {
     /// glyphs, warnings, and destructive actions retain their own semantic colours.
     @AppStorage(AppleInspiredColorsPrefs.enabledKey) private var appleInspiredColors = AppleInspiredColorsPrefs.defaultEnabled
 
+    private var appIconColorToggle: some View {
+        Toggle(isOn: $appleInspiredColors) {
+            Text("Coloured icons")
+                .font(SettingsRowFont.value)
+                .foregroundStyle(StrandPalette.textPrimary)
+        }
+        .toggleStyle(.switch)
+        .appleInspiredTint("settings.appearance")
+    }
+
     private var appIconColorSection: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Toggle(isOn: $appleInspiredColors) {
-                Text("Coloured icons")
-                    .font(SettingsRowFont.value)
-                    .foregroundStyle(StrandPalette.textPrimary)
-            }
-            .toggleStyle(.switch)
-            .appleInspiredTint("settings.appearance")
+            appIconColorToggle
             Text("Colours the icons in Settings, More, Coach and Goals like Apple Health. Charts and warnings keep their colours. Off keeps blue controls.")
                 .settingsCaption()
         }
@@ -2253,67 +2352,112 @@ private struct SettingsPageContent: View, Equatable {
 
     // MARK: - Strap
 
+    @ViewBuilder
     private var strapCard: some View {
+        if NoopVisualStyle.skin == .forge {
+            strapGroups
+        } else {
+            strapClassicCard
+        }
+    }
+
+    /// The status block of the strap card (shared by both looks): the pills, what they mean, Re-scan and
+    /// Disconnect, the diagnostics row and, on a connected WHOOP 4.0, the strap name.
+    @ViewBuilder
+    private var strapConnectionRows: some View {
+        HStack(spacing: 12) {
+            StatePill(LocalizedStringKey(strapStatusTitle), tone: strapTone, pulsing: live.connected)
+            if let pct = live.batteryPct {
+                StatePill(live.charging == true
+                          ? "Battery \(Int(pct.rounded()))% · Charging"
+                          : "Battery \(Int(pct.rounded()))%",
+                          tone: batteryTone(pct), showsDot: false)
+            }
+            Spacer(minLength: 0)
+        }
+        Text(strapStatusDetail)
+            .font(StrandFont.subhead)
+            .foregroundStyle(StrandPalette.textSecondary)
+        HStack(spacing: NoopMetrics.space3) {
+            NoopButton("Re-scan", systemImage: "arrow.clockwise", kind: .primary) {
+                model.scan()
+            }
+
+            NoopButton("Disconnect", systemImage: "xmark.circle", kind: .secondary) {
+                model.disconnect()
+            }
+            .disabled(!live.connected && !live.bonded)
+        }
+
+        rowDivider
+        // Analysis migration required: no. Diagnostics live in one dedicated place while every
+        // existing copy/export action remains available in Test Centre.
+        SettingsNavRow(
+            icon: (symbol: "stethoscope", id: "testCentre"),
+            title: "Connection diagnostics",
+            subtitle: "Strap log, connection readouts and exports",
+            route: .testCentre
+        )
+
+        // Continuous HRV lives on the Battery & Recording page and the HRV window under
+        // Calculations (2026-10 Settings reorganisation); same keys, same BLE + re-score wiring.
+
+        // MARK: Strap name — rename the WHOOP 4.0's BLE advertising name (Harvard command set).
+        if live.connected && selectedWhoopModelRaw == WhoopModel.whoop4.rawValue {
+            rowDivider
+            strapNameControl
+        }
+    }
+
+    #if os(iOS)
+    /// The keep-screen-on switch (shared by both looks). `SyncKeepAwake` reads the same key. Its own Sync card
+    /// until the 2026-10 reorganisation.
+    private var syncKeepScreenOnToggle: some View {
+        Toggle(isOn: $syncKeepScreenOn) {
+            Text("Keep screen on while syncing")
+                .font(SettingsRowFont.value)
+                .foregroundStyle(StrandPalette.textPrimary)
+        }
+        .toggleStyle(.switch)
+        .appleInspiredTint("settings.controls")
+        .accessibilityHint("Stops the screen locking while your strap's history syncs")
+    }
+    #endif
+
+    /// The new design's Strap page: the status card with its buttons and the diagnostics row, then one group
+    /// per switch with what it does as the footer under it.
+    private var strapGroups: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+            SettingsSection(
+                icon: "antenna.radiowaves.left.and.right",
+                title: "Strap",
+                blurb: "NOOP pairs directly with your WHOOP over Bluetooth: no WHOOP app, no cloud."
+            ) {
+                VStack(alignment: .leading, spacing: 16) {
+                    strapConnectionRows
+                }
+            }
+            #if os(iOS)
+            SettingsSubGroup(footer: Text("Only while a sync runs and NOOP is open. Uses a little more battery.")) {
+                syncKeepScreenOnToggle
+            }
+            #endif
+        }
+    }
+
+    /// The classic look's Strap card (the new design draws `strapGroups`).
+    private var strapClassicCard: some View {
         SettingsSection(
             icon: "antenna.radiowaves.left.and.right",
             title: "Strap",
             blurb: "NOOP pairs directly with your WHOOP over Bluetooth: no WHOOP app, no cloud."
         ) {
             VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 12) {
-                    StatePill(LocalizedStringKey(strapStatusTitle), tone: strapTone, pulsing: live.connected)
-                    if let pct = live.batteryPct {
-                        StatePill(live.charging == true
-                                  ? "Battery \(Int(pct.rounded()))% · Charging"
-                                  : "Battery \(Int(pct.rounded()))%",
-                                  tone: batteryTone(pct), showsDot: false)
-                    }
-                    Spacer(minLength: 0)
-                }
-                Text(strapStatusDetail)
-                    .font(StrandFont.subhead)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                HStack(spacing: NoopMetrics.space3) {
-                    NoopButton("Re-scan", systemImage: "arrow.clockwise", kind: .primary) {
-                        model.scan()
-                    }
-
-                    NoopButton("Disconnect", systemImage: "xmark.circle", kind: .secondary) {
-                        model.disconnect()
-                    }
-                    .disabled(!live.connected && !live.bonded)
-                }
-
-                rowDivider
-                // Analysis migration required: no. Diagnostics live in one dedicated place while every
-                // existing copy/export action remains available in Test Centre.
-                SettingsNavRow(
-                    icon: (symbol: "stethoscope", id: "testCentre"),
-                    title: "Connection diagnostics",
-                    subtitle: "Strap log, connection readouts and exports",
-                    route: .testCentre
-                )
-
-                // Continuous HRV lives on the Battery & Recording page and the HRV window under
-                // Calculations (2026-10 Settings reorganisation); same keys, same BLE + re-score wiring.
-
-                // MARK: Strap name — rename the WHOOP 4.0's BLE advertising name (Harvard command set).
-                if live.connected && selectedWhoopModelRaw == WhoopModel.whoop4.rawValue {
-                    rowDivider
-                    strapNameControl
-                }
+                strapConnectionRows
 
                 #if os(iOS)
                 rowDivider
-                // `SyncKeepAwake` reads the same key. Its own Sync card until the 2026-10 reorganisation.
-                Toggle(isOn: $syncKeepScreenOn) {
-                    Text("Keep screen on while syncing")
-                        .font(SettingsRowFont.value)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch)
-                .appleInspiredTint("settings.controls")
-                .accessibilityHint("Stops the screen locking while your strap's history syncs")
+                syncKeepScreenOnToggle
                 Text("Only while a sync runs and NOOP is open. Uses a little more battery.")
                     .settingsCaption()
                 #endif
@@ -3031,7 +3175,130 @@ private struct SettingsPageContent: View, Equatable {
     }
     #endif
 
+    @ViewBuilder
     private var backupCard: some View {
+        if NoopVisualStyle.skin == .forge {
+            backupGroups
+        } else {
+            backupClassicCard
+        }
+    }
+
+    /// The two notes under the backup actions (shared by both looks): what an import does, and that the
+    /// archive is not encrypted.
+    private var backupNotes: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space4) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "info.circle.fill")
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .font(.system(size: 13))
+                    .accessibilityHidden(true)
+                Text("Importing overwrites everything currently on \(Platform.deviceNounPhrase). Your old data is kept in a side file just in case. NOOP needs a relaunch for an import to take effect. Export CSV writes a WHOOP-format zip of your days, sleeps, workouts and journal that re-imports into NOOP on Mac, iPhone, or Android. On-device computed rows are marked APPROXIMATE in its Source column; the full backup stays the lossless restore path.")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            // #644: .noopbak is a plain ZIP, not an encrypted container — anyone who gets the file
+            // can open it in any archive tool. Say so plainly next to the Export button, rather than
+            // let people assume the file itself is protected once it leaves the device (e.g. dropped
+            // into a cloud-synced folder).
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
+                    .font(.system(size: 13))
+                    .accessibilityHidden(true)
+                Text("This is a plain, unencrypted archive — anyone who gets the file can open it with any zip tool. Store it somewhere you trust.")
+                    .font(StrandFont.footnote)
+                    .foregroundStyle(StrandPalette.statusWarningForeground)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    /// The new design's Backup & restore: the actions on the card, and the import explanation and the
+    /// unencrypted-archive warning as footers under it, as iOS Settings sets a group's footnotes.
+    private var backupGroups: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+            backupCardSection
+            backupNotes
+                .padding(.horizontal, NoopMetrics.space4)
+        }
+    }
+
+    private var backupCardSection: some View {
+        SettingsSection(
+            icon: "externaldrive.fill",
+            title: "Backup & restore",
+            blurb: "Move all your NOOP data to another machine. Export saves everything (history, sleeps, workouts, settings) to a single file you can copy across; import replaces \(Platform.deviceNounPhrase)'s data with a backup."
+        ) {
+            VStack(alignment: .leading, spacing: NoopMetrics.space4) {
+                // Three labelled buttons must share a narrow iPhone row without wrapping mid-word
+                // (the labels otherwise broke to one character per line). Equal width + shrink-to-fit
+                // keeps each on a single line. On iPhone the SF Symbol icons were the main space-thief
+                // (~90pt/button) and there's no room for them in a 3-up row, so we drop to icon-less
+                // text there; macOS is wide enough to keep the icons. No trailing Spacer/ProgressView
+                // inside this HStack — either would steal a share of the equal-width row. (#188)
+                if NoopVisualStyle.skin == .forge {
+                    // The new design lists the three actions as rows, as iOS Settings lists actions: each
+                    // label stays whole in every language instead of shrinking into a third of a row.
+                    VStack(spacing: 0) {
+                        backupActionRow(String(localized: "Export…"), systemImage: "square.and.arrow.up") { runExport() }
+                        rowDivider
+                        backupActionRow(String(localized: "Import…"), systemImage: "square.and.arrow.down") { runImport() }
+                        rowDivider
+                        backupActionRow(String(localized: "Export CSV…"), systemImage: "tablecells") { runCsvExport() }
+                    }
+                    .disabled(backupBusy)
+                } else {
+                    HStack(spacing: NoopMetrics.space3) {
+                        Button {
+                            runExport()
+                        } label: {
+                            backupButtonLabel(String(localized: "Export…"), systemImage: "square.and.arrow.up")
+                        }
+                        .buttonStyle(NoopButtonStyle(.primary, fullWidth: true))
+                        .disabled(backupBusy)
+
+                        Button {
+                            runImport()
+                        } label: {
+                            backupButtonLabel(String(localized: "Import…"), systemImage: "square.and.arrow.down")
+                        }
+                        .buttonStyle(NoopButtonStyle(.secondary, fullWidth: true))
+                        .disabled(backupBusy)
+
+                        Button {
+                            runCsvExport()
+                        } label: {
+                            backupButtonLabel(String(localized: "Export CSV…"), systemImage: "tablecells")
+                        }
+                        .buttonStyle(NoopButtonStyle(.secondary, fullWidth: true))
+                        .disabled(backupBusy)
+                    }
+                }
+
+                if backupBusy {
+                    HStack(spacing: NoopMetrics.space2) {
+                        ProgressView().controlSize(.small)
+                        Text("Working…")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                    }
+                }
+
+                // Reach the scheduled / folder-based Backup & Sync screen (back up to a chosen folder on
+                // demand or about once a day, restore from a snapshot in that folder).
+                SettingsNavRow(icon: (symbol: "externaldrive.fill.badge.icloud", id: "backupSync"),
+                               title: "Backup & Sync to a folder…",
+                               accessibilityLabel: "Open Backup and Sync to a folder",
+                               route: .backupSync)
+            }
+        }
+    }
+
+
+    private var backupClassicCard: some View {
         SettingsSection(
             icon: "externaldrive.fill",
             title: "Backup & restore",
@@ -3607,61 +3874,97 @@ private struct SettingsPageContent: View, Equatable {
     /// Step counting, moved off Profile in the 2026-10 Settings reorganisation: these correct what the
     /// strap measures, they are not facts about the wearer. No Edit lock here — the Profile card's lock
     /// guards body values a stray tap could silently change, which a two-way stepper is not.
+    @ViewBuilder
     private var stepsCard: some View {
+        if NoopVisualStyle.skin == .forge {
+            stepsGroups
+        } else {
+            stepsClassicCard
+        }
+    }
+
+    /// The step-correction stepper (shared by both looks).
+    private var stepCorrectionRow: some View {
+        // Step calibration (#139/#132): daily steps = @57 counter ticks ÷ this divisor.
+        // 1.0 = raw pass-through until the true 5/MG tick rate is known. The divisor goes
+        // up to 30 because a 5/MG motion counter can overcount by ~24×; the stepper uses a
+        // variable increment (fine near 1.0, coarse up top) so high values stay reachable.
+        FormRow(label: "Step correction") {
+            HStack(spacing: 10) {
+                Text(profile.stepTicksPerStep,
+                     format: .number.precision(.fractionLength(1)))
+                    .font(StrandFont.bodyNumber)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .frame(minWidth: 44, alignment: .trailing)
+                Stepper("Step correction") {
+                    profile.stepTicksPerStep = ProfileStore.steppedStepScale(profile.stepTicksPerStep, up: true)
+                } onDecrement: {
+                    profile.stepTicksPerStep = ProfileStore.steppedStepScale(profile.stepTicksPerStep, up: false)
+                }
+                    .labelsHidden()
+                    .accessibilityLabel(
+                        "Step correction, \(profile.stepTicksPerStep.formatted(.number.precision(.fractionLength(1))))"
+                    )
+            }
+        }
+    }
+
+    /// The step-estimate row that opens the calibration screen (shared by both looks).
+    private var stepEstimateButton: some View {
+        // Tap-through to the WHOOP 4.0 steps-ESTIMATE calibration (a SEPARATE thing from the
+        // 5/MG @57 counter divisor above): a 4.0 sends no step count, so NOOP estimates steps
+        // from motion and calibrates that to the phone.
+        Button {
+            presentedSheet = .stepCalibration
+        } label: {
+            FormRow(label: "Step estimate") {
+                HStack(spacing: 8) {
+                    Text(stepsCalibrationSummary)
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(profile.stepsManualCoefficient > 0
+                                         ? StrandPalette.accent : StrandPalette.textTertiary)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(LiquidPressStyle())
+        .accessibilityLabel("Step estimate calibration. \(stepsCalibrationSummary). Opens the calibration screen.")
+    }
+
+    /// The new design's Steps: one group per setting, its control on the card and what it does as the footer
+    /// under it. The page's note leads the first footer.
+    private var stepsGroups: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+            SettingsSubGroup(title: "Steps",
+                             footer: Text("Only needed when your step count looks wrong.")
+                             + Text.paragraphBreak
+                             + Text("Leave this at 1.0 if your step count looks right. If NOOP shows 10,000 steps after a counted 1,000-step walk, set it to 10.0.")) {
+                stepCorrectionRow
+            }
+            SettingsSubGroup(footer: Text("WHOOP 4.0 only. It sends no step count, so NOOP estimates steps from motion and calibrates them to your phone.")) {
+                stepEstimateButton
+            }
+        }
+    }
+
+    /// The classic look's Steps card (the new design draws `stepsGroups`).
+    private var stepsClassicCard: some View {
         SettingsSection(
             icon: "figure.walk",
             title: "Steps",
             blurb: "Only needed when your step count looks wrong."
         ) {
             VStack(alignment: .leading, spacing: 0) {
-                // Step calibration (#139/#132): daily steps = @57 counter ticks ÷ this divisor.
-                // 1.0 = raw pass-through until the true 5/MG tick rate is known. The divisor goes
-                // up to 30 because a 5/MG motion counter can overcount by ~24×; the stepper uses a
-                // variable increment (fine near 1.0, coarse up top) so high values stay reachable.
-                FormRow(label: "Step correction") {
-                    HStack(spacing: 10) {
-                        Text(profile.stepTicksPerStep,
-                             format: .number.precision(.fractionLength(1)))
-                            .font(StrandFont.bodyNumber)
-                            .foregroundStyle(StrandPalette.textPrimary)
-                            .frame(minWidth: 44, alignment: .trailing)
-                        Stepper("Step correction") {
-                            profile.stepTicksPerStep = ProfileStore.steppedStepScale(profile.stepTicksPerStep, up: true)
-                        } onDecrement: {
-                            profile.stepTicksPerStep = ProfileStore.steppedStepScale(profile.stepTicksPerStep, up: false)
-                        }
-                            .labelsHidden()
-                            .accessibilityLabel(
-                                "Step correction, \(profile.stepTicksPerStep.formatted(.number.precision(.fractionLength(1))))"
-                            )
-                    }
-                }
+                stepCorrectionRow
                 Text("Leave this at 1.0 if your step count looks right. If NOOP shows 10,000 steps after a counted 1,000-step walk, set it to 10.0.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
                 rowDivider
-                // Tap-through to the WHOOP 4.0 steps-ESTIMATE calibration (a SEPARATE thing from the
-                // 5/MG @57 counter divisor above): a 4.0 sends no step count, so NOOP estimates steps
-                // from motion and calibrates that to the phone.
-                Button {
-                    presentedSheet = .stepCalibration
-                } label: {
-                    FormRow(label: "Step estimate") {
-                        HStack(spacing: 8) {
-                            Text(stepsCalibrationSummary)
-                                .font(StrandFont.footnote)
-                                .foregroundStyle(profile.stepsManualCoefficient > 0
-                                                 ? StrandPalette.accent : StrandPalette.textTertiary)
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundStyle(StrandPalette.textTertiary)
-                        }
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(LiquidPressStyle())
-                .accessibilityLabel("Step estimate calibration. \(stepsCalibrationSummary). Opens the calibration screen.")
+                stepEstimateButton
                 Text("WHOOP 4.0 only. It sends no step count, so NOOP estimates steps from motion and calibrates them to your phone.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textSecondary)

@@ -263,8 +263,13 @@ internal fun DataBackupSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSu
         }
     }
     // The group headers and the three actions as iOS `backupCard` draws them: each action a row with its symbol in the
-    // accent colour, then the two notes (what an import does, the archive is not encrypted) with their marks.
-    SettingsCard(title = stringResource(R.string.fsw4_backup_group), blurb = null) {
+    // accent colour; the two notes (what an import does, the archive is not encrypted) keep their marks and sit as the
+    // footer under the card.
+    SettingsCard(title = stringResource(R.string.fsw4_backup_group), blurb = null, footer = {
+        MarkedNote(stringResource(R.string.l10n_settings_screen_importing_overwrites_everything_currently_on_this_297b76ae),
+                   warning = false)
+        MarkedNote(stringResource(R.string.l10n_settings_screen_this_is_a_plain_unencrypted_archive_b0dfe63d), warning = true)
+    }) {
         ActionRow(Icons.Rounded.IosShare, stringResource(R.string.fsw4_export), onClick = backup.export)
         RowDivider()
         ActionRow(Icons.Rounded.Download, stringResource(R.string.fsw4_import), onClick = backup.import)
@@ -272,11 +277,6 @@ internal fun DataBackupSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSu
         ActionRow(Icons.Rounded.TableChart, stringResource(R.string.fsw4_csv)) {
             csvExport.launch("noop-export-${java.time.LocalDate.now()}.zip")
         }
-        Spacer(Modifier.height(ForgeMetrics.space2))
-        MarkedNote(stringResource(R.string.l10n_settings_screen_importing_overwrites_everything_currently_on_this_297b76ae),
-                   warning = false)
-        Spacer(Modifier.height(ForgeMetrics.space3))
-        MarkedNote(stringResource(R.string.l10n_settings_screen_this_is_a_plain_unencrypted_archive_b0dfe63d), warning = true)
         RowDivider()
         TileLinkRow(Icons.Rounded.CloudSync, ForgeTokens.Color.systemIndigo.resolve(), stringResource(R.string.fsw4_backup_sync),
                     stringResource(R.string.forge_settings_auto_backup_detail)) { onOpen(ForgeSettingsSub.BackupSync) }

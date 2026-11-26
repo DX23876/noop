@@ -266,21 +266,14 @@ private fun KeepConnectedCard(viewModel: AppViewModel) {
     var background by remember { mutableStateOf(com.noop.ui.NoopPrefs.backgroundConnection(context)) }
     var fastHistory by remember { mutableStateOf(com.noop.ui.NoopPrefs.fastHistorySync(context)) }
     var fastLink by remember { mutableStateOf(com.noop.ui.NoopPrefs.fastLinkPhy(context)) }
-    SettingsCard(title = stringResource(R.string.fsp2_keep_title), blurb = null) {
+    // One group per switch, as iOS lists them (`strapGroups`): the switch on the card, what it does as the footer under
+    // it. The first group carries the header; the overnight prompts stay on the background switch's card.
+    SettingsCard(title = stringResource(R.string.fsp2_keep_title),
+                 blurb = stringResource(R.string.l10n_settings_screen_keeps_streaming_from_your_strap_with_d31b4af9)) {
         ToggleRow(stringResource(R.string.l10n_settings_screen_keep_connected_in_the_background_44499d45),
-                  stringResource(R.string.l10n_settings_screen_keeps_streaming_from_your_strap_with_d31b4af9), background) {
+                  null, background) {
             background = it
             viewModel.setBackgroundConnection(it)
-        }
-        RowDivider()
-        ToggleRow(stringResource(R.string.fast_history_sync), stringResource(R.string.fast_history_sync_desc), fastHistory) {
-            fastHistory = it
-            viewModel.setFastHistorySync(it)
-        }
-        RowDivider()
-        ToggleRow(stringResource(R.string.fast_link_phy), stringResource(R.string.fast_link_phy_desc), fastLink) {
-            fastLink = it
-            viewModel.setFastLinkPhy(it)
         }
         // "Keep NOOP alive overnight" (#386): a one-way prompt, shown only where it can change the outcome (a ROM
         // known to kill background work, background connection on, the exemption not yet granted), and gone once
@@ -315,6 +308,18 @@ private fun KeepConnectedCard(viewModel: AppViewModel) {
             }
         }
     }
+    SettingsCard(title = null, blurb = stringResource(R.string.fast_history_sync_desc)) {
+        ToggleRow(stringResource(R.string.fast_history_sync), null, fastHistory) {
+            fastHistory = it
+            viewModel.setFastHistorySync(it)
+        }
+    }
+    SettingsCard(title = null, blurb = stringResource(R.string.fast_link_phy_desc)) {
+        ToggleRow(stringResource(R.string.fast_link_phy), null, fastLink) {
+            fastLink = it
+            viewModel.setFastLinkPhy(it)
+        }
+    }
 }
 
 /** Step correction and the step estimate (iOS `stepsCard`): only needed when the step count looks wrong. */
@@ -330,16 +335,17 @@ private fun StepsCard(onOpen: (ForgeSettingsSub) -> Unit) {
             stringResource(R.string.fsp2_step_auto, stringResource(strapConfidenceRes(profile.stepsCalibrationConfidence)))
         else -> stringResource(R.string.fsp2_step_none)
     }
-    SettingsCard(title = stringResource(R.string.fsp2_steps_title), blurb = stringResource(R.string.fsp2_steps_blurb)) {
+    // One group per setting (iOS `stepsGroups`): the page's note leads the first footer.
+    SettingsCard(title = stringResource(R.string.fsp2_steps_title),
+                 blurb = stringResource(R.string.fsp2_steps_blurb) + "\n\n" + stringResource(R.string.fsp2_step_correction_note)) {
         SettingRow(stringResource(R.string.fsp2_step_correction)) {
             Stepper("%.1f".format(profile.stepTicksPerStep),
                     onMinus = { profile.stepTicksPerStep = ProfileStore.steppedStepScale(profile.stepTicksPerStep, up = false); revision++ },
                     onPlus = { profile.stepTicksPerStep = ProfileStore.steppedStepScale(profile.stepTicksPerStep, up = true); revision++ })
         }
-        Text(stringResource(R.string.fsp2_step_correction_note), style = Forge.type.footnote, color = Forge.colors.textSecondary)
-        RowDivider()
+    }
+    SettingsCard(title = null, blurb = stringResource(R.string.fsp2_step_estimate_note)) {
         LinkRow(stringResource(R.string.fsp2_step_estimate), summary) { onOpen(ForgeSettingsSub.StepsCalibration) }
-        Text(stringResource(R.string.fsp2_step_estimate_note), style = Forge.type.footnote, color = Forge.colors.textSecondary)
     }
 }
 

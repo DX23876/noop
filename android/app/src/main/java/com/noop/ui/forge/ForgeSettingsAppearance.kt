@@ -385,22 +385,24 @@ internal fun AppearanceSection(change: (() -> Unit) -> Unit) {
         }
     }
     BackgroundCard()
-    // iOS's Motion card: hold every looping surface still, and choose living or classic score rings.
-    SettingsCard(title = stringResource(R.string.forge_ap_motion), blurb = null) {
-        var quiet by remember { mutableStateOf(NoopPrefs.quietMotion(context)) }
-        ToggleRow(stringResource(R.string.forge_ap_reduce_motion), stringResource(R.string.forge_ap_reduce_motion_note), quiet) { on ->
+    // iOS's Motion, one group per setting as `motionGroups`: its control on the card, what it does as the footer under it.
+    // The first group carries the header. Reduce motion holds every looping surface still; the rings are living or classic.
+    var quiet by remember { mutableStateOf(NoopPrefs.quietMotion(context)) }
+    SettingsCard(title = stringResource(R.string.forge_ap_motion), blurb = stringResource(R.string.forge_ap_reduce_motion_note)) {
+        ToggleRow(stringResource(R.string.forge_ap_reduce_motion), null, quiet) { on ->
             quiet = on; change { NoopPrefs.setQuietMotion(context, on) }
         }
-        RowDivider()
+    }
+    SettingsCard(title = null, blurb = stringResource(R.string.forge_ap_rings_note)) {
         SettingRow(stringResource(R.string.forge_ap_score_rings)) {
             Segmented(ScoreRingStyle.entries.toList(), ScoreRingStyle.current,
                       label = { stringResource(if (it == ScoreRingStyle.Classic) R.string.forge_ap_classic else R.string.forge_ap_living) },
                       onSelect = { change { ScoreRingStyle.set(context, it) } })
         }
-        Text(stringResource(R.string.forge_ap_rings_note), style = Forge.type.caption, color = Forge.colors.textTertiary)
-        RowDivider()
-        // The coach button's slow pulse (iOS `CoachTilePrefs.breathingKey`); Reduce motion above still holds it still.
-        ToggleRow(stringResource(R.string.fsp4_coach_animation), stringResource(R.string.fsp4_coach_animation_note),
+    }
+    // The coach button's slow pulse (iOS `CoachTilePrefs.breathingKey`); Reduce motion above still holds it still.
+    SettingsCard(title = null, blurb = stringResource(R.string.fsp4_coach_animation_note)) {
+        ToggleRow(stringResource(R.string.fsp4_coach_animation), null,
                   CoachBreathPrefs.enabled(context)) { on -> change { CoachBreathPrefs.set(context, on) } }
     }
 }

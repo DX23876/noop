@@ -217,6 +217,7 @@ internal fun HubDivider() {
 @Composable
 internal fun SettingsCard(title: String?, blurb: String?, icon: ImageVector? = null, tint: Color? = null,
                           active: Boolean = false, headerAction: (@Composable () -> Unit)? = null,
+                          footer: (@Composable ColumnScope.() -> Unit)? = null,
                           content: @Composable ColumnScope.() -> Unit) {
     // iOS `SettingsSection` in the new design, built as iOS Settings builds a group: a small upper-case header
     // above the card, the controls on the card, and the plain explanation as a footer under it. The icon and
@@ -251,6 +252,11 @@ internal fun SettingsCard(title: String?, blurb: String?, icon: ImageVector? = n
         if (blurb != null) {
             Text(blurb, style = Forge.type.footnote, color = Forge.colors.textSecondary,
                  modifier = Modifier.padding(horizontal = ForgeMetrics.space4))
+        }
+        // Notes with a mark of their own (iOS draws them as footnotes under the card): after the blurb, in the footer's inset.
+        if (footer != null) {
+            Column(Modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space4),
+                   verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) { footer() }
         }
     }
 }
