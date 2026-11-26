@@ -193,6 +193,13 @@ enum CoreAnalysisMaintenance {
         switch op {
         case "analysis.maintenance":
             return CoreRead.json(status())
+        case "analysis.background":
+            // The app went to the background or came to the front; in front, a post-offload pass put off in the
+            // background runs now, as Apple settles its debt on the next foreground.
+            if let owed = CoreAnalysis.Background.set(background: args["background"] as? Bool ?? true) {
+                ShadowSession.send(.analyze(owed.profile, owed.settings))
+            }
+            return #"{"ok":true}"#
         case "analysis.passLog":
             // The daily pass's own strap-log lines since the last call, for the Android strap log.
             return CoreRead.json(["lines": CoreAnalysis.PassLog.drain()])

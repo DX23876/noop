@@ -25,10 +25,13 @@ import Foundation
 /// window, because the per-day reuse cache is in-memory and starts empty (`IntelligenceEngine.dayScanCache`).
 /// This changes only WHERE the work runs and how often a doomed attempt is paid for. Making the pass itself
 /// cheap across a process restart is the other half of #1538 and is not attempted here.
-enum RescoreBackgroundPolicy {
+///
+/// Fork: shared since 2026-11-26, so the Android app's core paces and spaces its background passes by the same
+/// rules (`CoreAnalysis.Background`).
+public enum RescoreBackgroundPolicy {
 
     /// What a background-initiated re-score should do.
-    enum Decision: Equatable {
+    public enum Decision: Equatable {
         /// Start the pass now, under an execution assertion.
         case run
         /// Do not start it; leave the work marked pending and let a background-processing task (or the
@@ -45,11 +48,11 @@ enum RescoreBackgroundPolicy {
     /// on one phone in five nights, each leaving the debt for the next attempt to be killed on. Resting as
     /// long as it worked holds the pass near 50%. A suspension between rests is harmless: the pass is not
     /// killed by it, it resumes on the next wake, so a pass longer than any single wake still completes.
-    static let backgroundRestPerWorkSecond: Double = 1.0
+    public static let backgroundRestPerWorkSecond: Double = 1.0
 
     /// The longest single rest. Work measured on the uptime clock can include a suspension the process
     /// spent mid-unit; resting for all of it would stall a pass that has already been idle.
-    static let maxBackgroundRestSeconds: Double = 30
+    public static let maxBackgroundRestSeconds: Double = 30
 
     /// How much work a backgrounded pass does between rests.
     ///
@@ -61,12 +64,12 @@ enum RescoreBackgroundPolicy {
     /// pass in between returned at the lock, so that morning's night was never scored. Working for ten seconds
     /// before resting ten keeps the same ~50% ceiling under iOS's 80%-over-60 s kill, with one suspension
     /// opportunity per ten seconds of work instead of one per night.
-    static let backgroundWorkQuantumSeconds: Double = 10
+    public static let backgroundWorkQuantumSeconds: Double = 10
 
     /// Seconds to rest after `workSeconds` of re-score work done since the last rest. Zero until a quantum of
     /// work has accumulated (`backgroundWorkQuantumSeconds`), and always zero in the foreground, where no CPU
     /// limit applies and the user is waiting on the result. A non-finite measurement rests zero.
-    static func restSeconds(afterWorkSeconds workSeconds: Double, isBackground: Bool) -> Double {
+    public static func restSeconds(afterWorkSeconds workSeconds: Double, isBackground: Bool) -> Double {
         guard isBackground, workSeconds.isFinite, workSeconds >= backgroundWorkQuantumSeconds else { return 0 }
         return min(workSeconds * backgroundRestPerWorkSecond, maxBackgroundRestSeconds)
     }
@@ -89,7 +92,7 @@ enum RescoreBackgroundPolicy {
     ///   - secondsSinceLastAttempt: how long ago the last pass STARTED, nil when unknown. An outstanding
     ///     debt defers only while that attempt is recent (`interruptedRetryCooldownSeconds`), and any
     ///     offload defers while it is under `backgroundSpacingSeconds`.
-    static func decide(isBackground: Bool,
+    public static func decide(isBackground: Bool,
                        isRealUpdate: Bool = true,
                        rescoreAlreadyOwed: Bool,
                        passInProgress: Bool = false,
@@ -124,7 +127,7 @@ enum RescoreBackgroundPolicy {
     /// 11:25 deferred every offload until the app was next opened: 19 hours, with no score for the night
     /// in between. Pacing (`backgroundRestPerWorkSecond`) is what keeps a background attempt under the CPU
     /// limit now, so this only needs to stop a retry on every offload, not forever.
-    static let interruptedRetryCooldownSeconds: Double = 30 * 60
+    public static let interruptedRetryCooldownSeconds: Double = 30 * 60
 
     /// The least time between the starts of two backgrounded offload re-scores.
     ///
@@ -135,5 +138,5 @@ enum RescoreBackgroundPolicy {
     /// at most the spacing plus one offload interval. The work is moved, not dropped: the deferral records
     /// the debt, which the first offload past the spacing, the processing task or the next foreground
     /// settles, and a foregrounded pass is never spaced.
-    static let backgroundSpacingSeconds: Double = 30 * 60
+    public static let backgroundSpacingSeconds: Double = 30 * 60
 }

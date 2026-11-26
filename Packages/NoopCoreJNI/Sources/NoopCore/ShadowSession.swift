@@ -274,7 +274,9 @@ public enum ShadowSession {
                 state.lock.withLock { state.tally = Tally() }
             case .analyze(let profile, let settings):
                 await collector.flush()
-                analyses.request(.init(profile: profile, settings: settings, deviceId: deviceId))
+                let request = AnalysisRuns.Request(profile: profile, settings: settings, deviceId: deviceId)
+                // A post-offload pass in the background may be put off, as Apple spaces them (`Background`).
+                if CoreAnalysis.Background.admit(request) { analyses.request(request) }
             case .barrier(let completed):
                 analyses.whenSettled(completed)
             case .device(let id):

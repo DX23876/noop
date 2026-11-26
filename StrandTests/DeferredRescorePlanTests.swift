@@ -1,4 +1,5 @@
 import XCTest
+import StrandCore
 @testable import Strand
 
 /// Pins the shape of the pass that settles an outstanding re-score debt (#1538).

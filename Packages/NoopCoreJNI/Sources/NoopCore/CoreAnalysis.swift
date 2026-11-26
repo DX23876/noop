@@ -204,7 +204,8 @@ public enum CoreAnalysis {
                 try? await Task.sleep(for: .milliseconds(500))
             }
         }
-        defer { watcher.cancel(); AnalysisMaintenanceState.finish(unless: .today) }
+        Background.passRunning(true)
+        defer { watcher.cancel(); AnalysisMaintenanceState.finish(unless: .today); Background.passRunning(false) }
         if settings.historyRescore {
             await engine.reanalyzeHistoryReusingUnchangedDays()
         } else if settings.afterOffload {
@@ -450,25 +451,56 @@ public enum CoreAnalysis {
             if domain == nil { PassLog.append(line) }
         }
         func storedBool(_ key: String) -> Bool { bools[key] ?? false }
-        func storedString(_ key: String) -> String? { strings[key] }
+        func storedString(_ key: String) -> String? {
+            strings[key] ?? (CoreAnalysis.persistedKeys.contains(key)
+                ? CoreAnalysis.bookkeepingDefaults?.string(forKey: key) : nil)
+        }
         func store(_ value: Bool, forKey key: String) { bools[key] = value }
-        func store(_ value: String?, forKey key: String) { strings[key] = value }
+        func store(_ value: String?, forKey key: String) {
+            strings[key] = value
+            guard CoreAnalysis.persistedKeys.contains(key), let defaults = CoreAnalysis.bookkeepingDefaults else { return }
+            if let value { defaults.set(value, forKey: key) } else { defaults.removeObject(forKey: key) }
+            CoreDefaults.save()
+        }
         func store(_ value: Double, forKey key: String) {}
         func passWillStart() -> AnalysisPassTicket {
-            AnalysisPassTicket(owedToken: nil, cpuSecondsAtStart: CoreAnalysis.processCPUSeconds(),
-                               assertionExpiriesAtStart: 0)
+            Background.passWillWork()
+            return AnalysisPassTicket(owedToken: nil, cpuSecondsAtStart: CoreAnalysis.processCPUSeconds(),
+                                      assertionExpiriesAtStart: 0)
         }
         func passDidFinish(_ ticket: AnalysisPassTicket, elapsedSeconds: Double) -> AnalysisPassReport {
             let cpu = CoreAnalysis.processCPUSeconds().flatMap { end in ticket.cpuSecondsAtStart.map { end - $0 } }
             return AnalysisPassReport(settled: true,
                                       costLine: CoreAnalysis.passCostLine(cpuSeconds: cpu, elapsedSeconds: elapsedSeconds))
         }
-        nonisolated func paceIfBackgrounded(since mark: inout UInt64) async {}
+        nonisolated func paceIfBackgrounded(since mark: inout UInt64) async { await Background.pace(since: &mark) }
         func costReading() -> (cpuSeconds: Double?, batteryPercent: Int?) { (CoreAnalysis.processCPUSeconds(), nil) }
     }
 }
 
 extension CoreAnalysis {
+    /// The pass's bookkeeping that has to outlive the process, as Apple keeps it in UserDefaults: the raw-input
+    /// watermark, so the first offload after a restart that banked nothing new still skips its pass. The rest
+    /// stays per process, as before (the measured maximum heart rate is filled again by the first pass).
+    static let persistedKeys: Set<String> = [DailyAnalysis.analyzeWatermarkKey]
+
+    /// Where those keys live: the core's UserDefaults on Android, which `CoreDefaults` writes to disk. Nil on
+    /// Apple, where this package only runs in tests, so a test run leaves the machine's defaults alone.
+    nonisolated(unsafe) static var bookkeepingDefaults: UserDefaults? = {
+        #if canImport(Darwin)
+        return nil
+        #else
+        return .standard
+        #endif
+    }()
+
+    /// Forgets what this process kept, as a restart does; for tests.
+    @MainActor
+    static func forgetProcessBookkeepingForTesting() {
+        Host.bools = [:]
+        Host.strings = [:]
+    }
+
     /// CPU seconds this process has used, user plus system, across all threads (Apple:
     /// `RescoreBackgroundScheduler.processCPUSeconds`). Process-wide, so it includes the strap's frames beside a
     /// pass; nil if the kernel refuses the read.

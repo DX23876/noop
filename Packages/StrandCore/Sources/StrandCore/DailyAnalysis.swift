@@ -4327,7 +4327,9 @@ public final class DailyAnalysis {
     /// UserDefaults key for the #836 idle-tick gate: the `(count:maxTs)` HR fingerprint the last completed
     /// `analyzeRecent` scored against. A non-forced tick whose current fingerprint equals this skips the
     /// 21-day rescore; cleared implicitly by any HR insert/delete (the fingerprint moves), so it self-heals.
-    private static let analyzeWatermarkKey = "noop.analyzeWatermark"
+    /// Public so a host that keeps its bookkeeping elsewhere (the Android core) can name the one key that has to
+    /// outlive the process.
+    public static let analyzeWatermarkKey = "noop.analyzeWatermark"
 
     /// CAPTURE-B (#814/#799): build the universal `dayOwner …` self-diagnostic line VERBATIM (the Test
     /// Centre export parser depends on this exact shape). `readId` is the owner this day was read+scored

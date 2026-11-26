@@ -65,6 +65,60 @@ final class CorePostOffloadPassTests: XCTestCase {
         XCTAssertEqual(afterReuse, afterFull, "the post-offload pass stores what a full pass stores")
     }
 
+    /// Apple keeps the watermark in UserDefaults; the core kept it for the process only, so the first offload after
+    /// a restart scored again even when it had banked nothing new.
+    func testTheWatermarkOutlivesTheProcess() async throws {
+        let suite = "core-bookkeeping-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        CoreAnalysis.bookkeepingDefaults = defaults
+        defer { CoreAnalysis.bookkeepingDefaults = nil; defaults.removePersistentDomain(forName: suite) }
+        let store = try await WhoopStore.inMemory()
+        try await store.insert(Streams(hr: daytimeHeartRate(daysAgo: 1)), deviceId: "my-whoop")
+        _ = await CoreAnalysis.run(store: store, deviceId: "my-whoop", profile: profile,
+                                   settings: settings(afterOffload: false), days: 3)
+        XCTAssertNotNil(defaults.string(forKey: DailyAnalysis.analyzeWatermarkKey))
+
+        CoreAnalysis.forgetProcessBookkeepingForTesting()
+        _ = CoreAnalysis.PassLog.drain()
+        _ = await CoreAnalysis.run(store: store, deviceId: "my-whoop", profile: profile,
+                                   settings: settings(afterOffload: true), days: 3)
+        let lines = CoreAnalysis.PassLog.drain()
+        XCTAssertTrue(lines.contains { $0.contains("newData=no") && $0.contains("skipped") },
+                      "after a restart an offload with nothing new still skips: \(lines)")
+    }
+
+    /// Apple's background rules (`RescoreBackgroundPolicy`): a post-offload pass in the background starts at most
+    /// every 30 minutes, the one put off runs when the app comes to the front, and nothing else is ever put off.
+    func testABackgroundOffloadPassIsSpacedAndRunsInFront() {
+        CoreAnalysis.Background.resetForTesting(background: true)
+        defer { CoreAnalysis.Background.resetForTesting(background: true) }
+        _ = CoreAnalysis.PassLog.drain()
+        func request(afterOffload: Bool) -> AnalysisRuns.Request {
+            .init(profile: profile, settings: settings(afterOffload: afterOffload), deviceId: "a")
+        }
+        XCTAssertTrue(CoreAnalysis.Background.admit(request(afterOffload: true)), "the first pass runs")
+        let started = Date()
+        CoreAnalysis.Background.passWillWork(now: started)
+
+        XCTAssertFalse(CoreAnalysis.Background.admit(request(afterOffload: true), now: started.addingTimeInterval(600)),
+                       "ten minutes later, in the background, the next one waits")
+        XCTAssertTrue(CoreAnalysis.PassLog.drain().contains { $0.hasPrefix("re-score: deferred (post-offload)") })
+        XCTAssertTrue(CoreAnalysis.Background.admit(request(afterOffload: false), now: started.addingTimeInterval(600)),
+                      "a setting or a repair is never put off")
+        XCTAssertNil(CoreAnalysis.Background.set(background: true))
+        XCTAssertNotNil(CoreAnalysis.Background.set(background: false), "in front, the put-off pass is handed back")
+        XCTAssertNil(CoreAnalysis.Background.set(background: false), "once")
+        XCTAssertTrue(CoreAnalysis.Background.admit(request(afterOffload: true), now: started.addingTimeInterval(700)),
+                      "in front nothing waits")
+
+        _ = CoreAnalysis.Background.set(background: true)
+        XCTAssertFalse(CoreAnalysis.Background.admit(request(afterOffload: true), now: started.addingTimeInterval(900)))
+        XCTAssertTrue(CoreAnalysis.Background.admit(request(afterOffload: true),
+                                                    now: started.addingTimeInterval(RescoreBackgroundPolicy.backgroundSpacingSeconds + 60)),
+                      "past the spacing the next offload runs and settles the put-off one")
+        XCTAssertNil(CoreAnalysis.Background.set(background: false), "nothing is owed any more")
+    }
+
     func testOnlyThePostOffloadPassReusesDays() throws {
         var settings = CoreAnalysis.Settings.standard
         var profile = profile
