@@ -912,6 +912,13 @@ object NoopPrefs {
     }
 
     /** Like [hcVo2MaxAsked], for the GPS route permission: asked once, a decline is respected. */
+    /** Whether the one-shot ask for writing weigh-ins to Health Connect (2026-11-26) has been made. */
+    const val KEY_HC_WEIGHT_ASKED = "noop.hcWeightAsked"
+    fun hcWeightAsked(context: Context): Boolean = of(context).getBoolean(KEY_HC_WEIGHT_ASKED, false)
+    fun setHcWeightAsked(context: Context, asked: Boolean) {
+        of(context).edit().putBoolean(KEY_HC_WEIGHT_ASKED, asked).apply()
+    }
+
     fun hcRouteAsked(context: Context): Boolean = of(context).getBoolean(KEY_HC_ROUTE_ASKED, false)
 
     fun setHcRouteAsked(context: Context, asked: Boolean) {

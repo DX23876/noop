@@ -327,6 +327,26 @@ public enum WeightTracker {
     public static let overallMinimumDays = 14
     public static let overallMinimumReadings = 8
 
+    // MARK: - Weigh-in reminder
+
+    /// The next moments the daily weigh-in reminder fires: at `minutes` past midnight on the chosen weekdays
+    /// (1 = Sunday ... 7 = Saturday, empty = every day), skipping a day that already has a weigh-in. Up to `count`
+    /// moments within the next three weeks, so Apple can arm them ahead and Android the next one.
+    public static func reminderTimes(after now: Date, minutes: Int, weekdays: Set<Int>, weighedInDays: Set<String>,
+                                     count: Int = 1, calendar: Calendar = .current) -> [Date] {
+        let start = calendar.startOfDay(for: now)
+        var out: [Date] = []
+        for offset in 0..<21 where out.count < count {
+            guard let day = calendar.date(byAdding: .day, value: offset, to: start),
+                  let fire = calendar.date(byAdding: .minute, value: min(max(minutes, 0), 24 * 60 - 1), to: day),
+                  fire > now else { continue }
+            if !weekdays.isEmpty && !weekdays.contains(calendar.component(.weekday, from: day)) { continue }
+            if weighedInDays.contains(dayKey(day, calendar)) { continue }
+            out.append(fire)
+        }
+        return out
+    }
+
     // MARK: - Derivation
 
     public static func snapshot(_ inputs: Inputs) -> Snapshot? {

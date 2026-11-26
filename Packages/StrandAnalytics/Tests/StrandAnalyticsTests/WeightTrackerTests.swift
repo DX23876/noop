@@ -148,4 +148,16 @@ final class WeightTrackerTests: XCTestCase {
         XCTAssertEqual(odd.settings.basis, .trend)
         XCTAssertEqual(WeightTracker.Stored.decode(nil), WeightTracker.Stored())
     }
+
+    func testTheReminderSkipsAWeighedDayAndTheDaysNotChosen() {
+        // 2026-11-26 is a Thursday (weekday 5). Seven o'clock has passed at noon.
+        let next = WeightTracker.reminderTimes(after: now, minutes: 7 * 60, weekdays: [], weighedInDays: [], count: 2, calendar: cal)
+        XCTAssertEqual(next.map { cal.component(.day, from: $0) }, [27, 28])
+        let evening = WeightTracker.reminderTimes(after: now, minutes: 20 * 60, weekdays: [], weighedInDays: ["2026-11-26"],
+                                                  calendar: cal)
+        XCTAssertEqual(evening.map { cal.component(.day, from: $0) }, [27], "today has a weigh-in already")
+        let mondays = WeightTracker.reminderTimes(after: now, minutes: 7 * 60, weekdays: [2], weighedInDays: [], count: 2,
+                                                  calendar: cal)
+        XCTAssertEqual(mondays.map { cal.component(.day, from: $0) }, [30, 7])
+    }
 }

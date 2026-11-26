@@ -426,6 +426,7 @@ fun DataSourcesScreen(vm: AppViewModel) {
         // The same one-shot ask carries the GPS route permission for installs set up before routes went out.
         NoopPrefs.setHcVo2MaxAsked(context, true)
         NoopPrefs.setHcRouteAsked(context, true)
+        NoopPrefs.setHcWeightAsked(context, true)
         vm.writebackHealthConnectNow()
     }
 
@@ -449,10 +450,14 @@ fun DataSourcesScreen(vm: AppViewModel) {
                     !NoopPrefs.hcVo2MaxAsked(context)
                 val askRoute = !granted.containsAll(HealthConnectWriter.EXERCISE_ROUTE_PERMISSIONS) &&
                     !NoopPrefs.hcRouteAsked(context)
-                if (askVo2 || askRoute) {
+                // Weigh-ins typed into NOOP (2026-11-26), asked once like VO2 max: a decline costs only them.
+                val askWeight = !granted.containsAll(HealthConnectWriter.WEIGHT_PERMISSIONS) &&
+                    !NoopPrefs.hcWeightAsked(context)
+                if (askVo2 || askRoute || askWeight) {
                     hcVo2MaxPermissionLauncher.launch(
                         (if (askVo2) HealthConnectWriter.VO2MAX_PERMISSIONS else emptySet()) +
-                            (if (askRoute) HealthConnectWriter.EXERCISE_ROUTE_PERMISSIONS else emptySet()),
+                            (if (askRoute) HealthConnectWriter.EXERCISE_ROUTE_PERMISSIONS else emptySet()) +
+                            (if (askWeight) HealthConnectWriter.WEIGHT_PERMISSIONS else emptySet()),
                     )
                 } else {
                     vm.writebackHealthConnectNow()
@@ -463,7 +468,8 @@ fun DataSourcesScreen(vm: AppViewModel) {
                 // exercise writeback is opt-in + non-fatal if the user declines it). v1.71 / #412.
                 hcWritePermissionLauncher.launch(
                     HealthConnectWriter.PERMISSIONS + HealthConnectWriter.EXERCISE_PERMISSIONS +
-                        HealthConnectWriter.VO2MAX_PERMISSIONS + HealthConnectWriter.EXERCISE_ROUTE_PERMISSIONS,
+                        HealthConnectWriter.VO2MAX_PERMISSIONS + HealthConnectWriter.EXERCISE_ROUTE_PERMISSIONS +
+                        HealthConnectWriter.WEIGHT_PERMISSIONS,
                 )
             }
         }

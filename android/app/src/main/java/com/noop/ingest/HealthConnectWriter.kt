@@ -16,6 +16,8 @@ import androidx.health.connect.client.records.RespiratoryRateRecord
 import androidx.health.connect.client.records.RestingHeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.Vo2MaxRecord
+import androidx.health.connect.client.records.WeightRecord
+import androidx.health.connect.client.units.Mass
 import com.noop.data.MetricSeriesRow
 import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.units.Length
@@ -244,6 +246,10 @@ object HealthConnectWriter {
         // missing permission there loses resting HR, HRV, SpO2 and respiratory rate together. On its own,
         // an ungranted VO2 max permission costs only VO2 max and is categorized like any other failure.
         runCatching { writeVo2Max(client, repo, deviceId, version, run) }
+            .fold({ total += it }, { failures += it.writebackCategory() })
+        // Weigh-ins typed into NOOP (2026-11-26), as the iPhone writes them to Apple Health. Their own attempt and
+        // their own permission, so a decline costs only them.
+        runCatching { writeWeight(client, context, deviceId, version, run) }
             .fold({ total += it }, { failures += it.writebackCategory() })
         val result = WritebackResult(total, failures.distinct(), fullWrite = run.everything, planMissed = run.planMissed)
         // The daily repair counts as done only when every concern landed; a failed one tries again next pass.
@@ -512,6 +518,55 @@ object HealthConnectWriter {
     }
 
     // --- Workout (ExerciseSession) writeback (GPS workouts, v1.71) ---
+
+    /** Write permission for NOOP's weigh-ins, asked once and kept out of [PERMISSIONS] for the reason VO2 max is. */
+    val WEIGHT_PERMISSIONS: Set<String> = setOf(HealthPermission.getWritePermission(WeightRecord::class))
+
+    /**
+     * NOOP's own weigh-ins of the window as weight records, only what changed ([HealthExportLedger]). A weigh-in
+     * deleted or moved in NOOP is retracted by its old id, as the nights are. An empty read writes and retracts
+     * nothing: "no weigh-ins" and "the read failed" must not look the same to a deletion.
+     */
+    private suspend fun writeWeight(
+        client: HealthConnectClient,
+        context: Context,
+        deviceId: String,
+        version: Long,
+        run: ExportRun,
+    ): Int {
+        val granted = client.permissionController.getGrantedPermissions()
+        if (!granted.containsAll(WEIGHT_PERMISSIONS)) return 0
+        val now = System.currentTimeMillis() / 1000
+        val floor = now - WINDOW_DAYS * 86_400
+        val weighIns = com.noop.core.CoreBody.snapshot(context, days = WINDOW_DAYS.toInt())?.weighIns.orEmpty()
+            .filter { val t = it.takenAt; t != null && t in floor..now }
+        if (weighIns.isEmpty()) return 0
+        val zone = ZoneId.systemDefault()
+        val entries = weighIns.mapNotNull { w ->
+            val at = Instant.ofEpochSecond(w.takenAt!!)
+            HealthExportLedger.entry { v ->
+                WeightRecord(time = at, zoneOffset = zone.rules.getOffset(at), weight = Mass.kilograms(w.value),
+                             metadata = Metadata(clientRecordId = HealthConnectLedger.WEIGHT_PREFIX + w.takenAt,
+                                                 clientRecordVersion = v))
+            }
+        }
+        val currentIds = entries.map { it.id }.toSet()
+        val stale = HealthConnectLedger.staleClientIds(
+            previous = HealthConnectLedger.previouslyWritten(context, deviceId, HealthConnectLedger.WEIGHT_PREFIX),
+            current = currentIds, prefix = HealthConnectLedger.WEIGHT_PREFIX, windowStartSec = floor, nowSec = now,
+        )
+        val unretracted = LinkedHashSet<String>()
+        if (stale.isNotEmpty()) {
+            runCatching {
+                client.deleteRecords(WeightRecord::class, recordIdsList = emptyList(), clientRecordIdsList = stale)
+            }.onFailure { unretracted += stale }
+        }
+        HealthExportLedger.invalidate(stale.filterNot { it in unretracted })
+        val written = insertChanged(client, entries, version, run)
+        HealthConnectLedger.remember(context, deviceId, HealthConnectLedger.WEIGHT_PREFIX,
+                                     HealthConnectLedger.ledgerAfterExport(currentIds, unretracted))
+        return written
+    }
 
     /**
      * Write permission for VO2 max (#1525). Deliberately NOT in [WRITE_RECORDS]: that set feeds both the

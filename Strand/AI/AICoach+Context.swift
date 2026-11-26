@@ -262,6 +262,14 @@ extension AICoachEngine {
         lines.append(body.isEmpty
                      ? "Body: nothing recorded."
                      : "Body: " + body.joined(separator: "; "))
+        // The weight page's own derivation, so the coach and the page cannot read the scale differently.
+        if let store = await repo.storeHandle(),
+           let tracker = await WeightTrackerPreparation.snapshot(
+               store: store, reader: StoreReader(store: store, activeDeviceId: repo.deviceId, registeredWhoopIds: []),
+               goals: CoachGoalStore.shared, prefs: GoalPreferences.standard,
+               plan: DietPlan.decode(UserDefaults.standard.string(forKey: DietPlan.storageKey))) {
+            lines.append(WeightTrackerPreparation.coachLines(tracker))
+        }
 
         let profile = repo.coachProfile().analytics
         let summaries = await repo.energySummaries(days: 30, profile: profile)

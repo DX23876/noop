@@ -85,10 +85,22 @@ object CoreDietPlan {
     data class Suggestion(val form: String, val reason: String)
     data class Outcome(val changeKcal: Double, val hold: String?, val trendKgPerWeek: Double?, val plannedKgPerWeek: Double)
 
-    fun load(context: Context): Plan? = Plan.parse(NoopPrefs.of(context).getString(KEY, null))
+    /** The stored plan, read through the weight goal: its target is the plan's goal weight (one goal weight, 2026-11-26). */
+    fun load(context: Context): Plan? {
+        val raw = NoopPrefs.of(context).getString(KEY, null) ?: return null
+        val linked = if (SwiftCore.available) SwiftCore.call("weight.linkedPlan", JSONObject().put("plan", raw).toString()) else null
+        return Plan.parse(linked?.takeIf { it != "null" } ?: raw)
+    }
 
+    /** Stores the plan; a goal weight set here moves the weight goal, or creates one (`weight.adoptPlanGoal`). */
     fun save(context: Context, plan: Plan?) {
         NoopPrefs.of(context).edit().apply { if (plan == null) remove(KEY) else putString(KEY, plan.json()) }.apply()
+        if (plan != null && SwiftCore.available) {
+            val json = plan.json()
+            kotlin.concurrent.thread(name = "plan-goal-link", isDaemon = true) {
+                runCatching { SwiftCore.call("weight.adoptPlanGoal", JSONObject().put("plan", json).toString()) }
+            }
+        }
     }
 
     private fun base(person: Person, burnKcal: Double?, kcalPerKg: Double?) = JSONObject().apply {

@@ -64,12 +64,35 @@ enum CoreWeight {
             } catch {
                 return #"{"ok":false}"#
             }
+        case "weight.nextReminder":
+            // The daily weigh-in reminder's next moment (shared rule `WeightTracker.reminderTimes`): the chosen
+            // weekdays, and a day that already has a NOOP weigh-in stays quiet.
+            let now = Date(timeIntervalSince1970: (args["now"] as? NSNumber)?.doubleValue ?? Date().timeIntervalSince1970)
+            let weekdays = Set(((args["weekdays"] as? [Any]) ?? []).compactMap { ($0 as? NSNumber)?.intValue })
+            let weighed = await weighedDays(store: store, now: now)
+            let next = WeightTracker.reminderTimes(after: now, minutes: (args["minutes"] as? NSNumber)?.intValue ?? 7 * 60,
+                                                   weekdays: weekdays, weighedInDays: weighed).first
+            return next.map { #"{"at":\#(Int($0.timeIntervalSince1970))}"# } ?? #"{"at":null}"#
+        case "weight.weighedToday":
+            let today = StoreReader.localDayKey(Date())
+            return await weighedDays(store: store, now: Date()).contains(today) ? #"{"weighed":true}"# : #"{"weighed":false}"#
+        case "weight.linkedPlan":
+            guard let plan = DietPlan.decode(args["plan"] as? String) else { return "null" }
+            return await linkedPlan(plan, store: store).encoded() ?? "null"
         case "weight.deleteEvent":
             let id = args["id"] as? String ?? ""
             return await change(store: store) { $0.events.removeAll { $0.id == id } }
         default:
             return nil
         }
+    }
+
+    /// Days of the last and the next day with a weigh-in logged in NOOP.
+    private static func weighedDays(store: WhoopStore, now: Date) async -> Set<String> {
+        let from = StoreReader.localDayKey(now.addingTimeInterval(-86_400))
+        let to = StoreReader.localDayKey(now.addingTimeInterval(86_400))
+        let rows = (try? await store.bodyWeights(deviceId: WhoopStore.noopWeightSourceId, from: from, to: to)) ?? []
+        return Set(rows.map(\.day))
     }
 
     /// The plan with the weight goal's target as its goal weight; the plan unchanged when the goals cannot be read.

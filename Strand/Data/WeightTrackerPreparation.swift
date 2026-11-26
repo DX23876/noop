@@ -91,6 +91,9 @@ enum WeightTrackerPreparation {
         }
     }
 
+    /// A local day key, yyyy-MM-dd, for an event's date.
+    nonisolated static func dayKey(_ date: Date) -> String { StoreReader.localDayKey(date) }
+
     static func stored(_ prefs: any GoalPreferenceStorage) -> WeightTracker.Stored {
         WeightTracker.Stored.decode(prefs.string(forKey: WeightTracker.storageKey))
     }
@@ -114,5 +117,49 @@ enum WeightTrackerPreparation {
         return WeightTracker.snapshot(.init(readings: readings, goal: goal(goals: goals, plan: plan),
                                             planKgPerWeek: planKgPerWeek(plan, currentKg: latest), settings: stored.settings,
                                             events: stored.events, now: now, calendar: calendar))
+    }
+
+    // MARK: Coach
+
+    /// What the coach is told about the scale (only when the coach is on, like every other block): the trend and
+    /// its rates, the forecast as arithmetic on the chosen rate, the milestones and the wearer's dates. It is told
+    /// never to turn these into a diet or a calorie target of its own.
+    static func coachLines(_ s: WeightTracker.Snapshot, now: Date = Date()) -> String {
+        func kg(_ v: Double) -> String { String(format: "%.1f kg", v) }
+        func signed(_ v: Double) -> String { String(format: "%+.1f", v) }
+        let age = max(0, Int(now.timeIntervalSince(s.latest.date) / 86_400))
+        var lines = ["Weight trend \(kg(s.trendKg))\(s.trendSettled ? "" : " (still settling)"); latest weigh-in \(kg(s.latest.kg)), \(age)d ago."]
+        let changes = s.changes.map { "\($0.days.map { "\($0)d" } ?? "since start") \(signed($0.kg))" }
+        if !changes.isEmpty { lines.append("Trend change: " + changes.joined(separator: ", ") + " kg.") }
+        var rates: [String] = []
+        if let r = s.rates.currentKgPerWeek { rates.append("current \(signed(r)) kg/week") }
+        if let r = s.rates.overallKgPerWeek { rates.append("overall \(signed(r)) kg/week") }
+        if let r = s.rates.wishKgPerWeek {
+            rates.append("planned \(signed(r)) kg/week (\(s.rates.wishSource?.rawValue ?? "plan")\(s.rates.wishIsSteep ? ", steep" : ""))")
+        }
+        if !rates.isEmpty { lines.append("Rates: " + rates.joined(separator: "; ") + ".") }
+        if let goal = s.goal {
+            let date = s.forecast.targetDate.map { StoreReader.localDayKey($0) }
+            let state: String = switch s.forecast.state {
+            case .arriving: "reaches it around \(date ?? "?") at the \(s.forecast.rateMode.rawValue) rate"
+            case .reached: "reached on the trend"
+            case .movingAway: "the \(s.forecast.rateMode.rawValue) rate points away from it, so no date"
+            case .tooSlow: "the rate is too slow for a useful date"
+            case .notEnoughData: "too few weigh-ins for a rate"
+            case .withinBand: "inside the band"
+            case .outsideBand: "outside the band"
+            case .noGoal: ""
+            }
+            lines.append("Weight goal \(kg(goal.target)): \(state).")
+        }
+        if let m = s.milestones {
+            lines.append("Milestones: \(m.reachedCount) of \(m.route.count) reached\(m.next.map { ", next \(kg($0))" } ?? "").")
+        }
+        let upcoming = s.events.filter { $0.phase == .upcoming }.prefix(3).map { e in
+            "\(e.event.name) on \(e.event.day) (in \(e.daysAway) days)\(e.predictedKg.map { ": expected \(kg($0))" } ?? "")"
+        }
+        if !upcoming.isEmpty { lines.append("Dates the wearer set: " + upcoming.joined(separator: "; ") + ".") }
+        lines.append("Forecasts are arithmetic on one rate, not promises. Never derive a diet or a calorie target from them.")
+        return lines.joined(separator: "\n")
     }
 }

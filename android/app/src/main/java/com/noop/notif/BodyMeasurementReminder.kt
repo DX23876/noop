@@ -34,11 +34,23 @@ object BodyMeasurementReminder {
     private const val WEEKLY_MINUTES = "body.reminder.weekly.minutes"
     private const val DAILY_ENABLED = "body.reminder.daily.enabled"
     private const val DAILY_MINUTES = "body.reminder.daily.minutes"
+    /** Weekdays the weigh-in reminder comes on, as iOS: 1 = Sunday ... 7 = Saturday, comma separated; empty = every day. */
+    private const val DAILY_WEEKDAYS = "body.reminder.daily.weekdays"
     internal const val WEEKLY_ID = "body-measurement-weekly"
     internal const val DAILY_ID = "body-weigh-in-daily"
 
     fun weeklyEnabled(c: Context) = NoopPrefs.of(c).getBoolean(WEEKLY_ENABLED, false)
     fun dailyEnabled(c: Context) = NoopPrefs.of(c).getBoolean(DAILY_ENABLED, false)
+    fun dailyMinutes(c: Context) = NoopPrefs.of(c).getInt(DAILY_MINUTES, 7 * 60).coerceIn(0, 24 * 60 - 1)
+    fun dailyWeekdays(c: Context): Set<Int> = NoopPrefs.of(c).getString(DAILY_WEEKDAYS, "").orEmpty()
+        .split(',').mapNotNull { it.trim().toIntOrNull() }.filter { it in 1..7 }.toSet()
+
+    /** The weigh-in reminder's time (minutes past midnight) and weekdays; re-arms at once. */
+    fun setDaily(c: Context, minutes: Int, weekdays: Set<Int>) {
+        NoopPrefs.of(c).edit().putInt(DAILY_MINUTES, minutes.coerceIn(0, 24 * 60 - 1))
+            .putString(DAILY_WEEKDAYS, weekdays.filter { it in 1..7 }.sorted().joinToString(",")).apply()
+        refresh(c)
+    }
 
     /**
      * Turns a reminder on or off. Returns false when notifications are off for NOOP, so nothing is armed that would
@@ -65,10 +77,10 @@ object BodyMeasurementReminder {
             arm(manager, WEEKLY_ID, next, now, daily = false)
         } else manager.cancelUniqueWork(WEEKLY_ID)
         if (dailyEnabled(c)) {
-            val minutes = prefs.getInt(DAILY_MINUTES, 7 * 60).coerceIn(0, 24 * 60 - 1)
-            var next = now.toLocalDate().atStartOfDay(now.zone).plusMinutes(minutes.toLong())
-            if (!next.isAfter(now)) next = next.plusDays(1)
-            arm(manager, DAILY_ID, next, now, daily = true)
+            // The shared rule (owner, 2026-11-26): the chosen weekdays, and a day with a weigh-in stays quiet.
+            val next = com.noop.core.CoreWeight.nextReminder(c, dailyMinutes(c), dailyWeekdays(c), now.toInstant())
+            if (next != null) arm(manager, DAILY_ID, next.atZone(now.zone), now, daily = true)
+            else manager.cancelUniqueWork(DAILY_ID)
         } else manager.cancelUniqueWork(DAILY_ID)
     }
 
@@ -83,7 +95,9 @@ class BodyReminderWorker(context: Context, parameters: WorkerParameters) : Corou
     override suspend fun doWork(): Result {
         val daily = inputData.getBoolean("daily", false)
         val on = if (daily) BodyMeasurementReminder.dailyEnabled(applicationContext) else BodyMeasurementReminder.weeklyEnabled(applicationContext)
-        if (on) post(applicationContext, daily)
+        // A weigh-in logged since the reminder was armed takes it back.
+        val weighed = daily && com.noop.core.CoreWeight.weighedToday(applicationContext)
+        if (on && !weighed) post(applicationContext, daily)
         // Arms the next one a minute on, so this firing is never picked again.
         BodyMeasurementReminder.refresh(applicationContext, ZonedDateTime.now(ZoneId.systemDefault()).plusMinutes(1))
         return Result.success()

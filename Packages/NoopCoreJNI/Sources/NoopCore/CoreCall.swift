@@ -433,7 +433,8 @@ public enum CoreCall {
         case "provider.accept":
             return ok((try? await CoreExerciseProvider.shared.accept(store: store, requested: string("token"),
                 ids: args["ids"] as? [String] ?? [])) ?? false)
-        case "weight.snapshot", "weight.saveSettings", "weight.saveEvent", "weight.deleteEvent", "weight.adoptPlanGoal":
+        case "weight.snapshot", "weight.saveSettings", "weight.saveEvent", "weight.deleteEvent", "weight.adoptPlanGoal",
+             "weight.nextReminder", "weight.weighedToday", "weight.linkedPlan":
             return await CoreWeight.run(op, args, store: store, reader: reader) ?? #"{"error":"unknown"}"#
         case "goals.snapshot", "goals.setup":
             let settings = CoreGoalEnergy.settings(args)
