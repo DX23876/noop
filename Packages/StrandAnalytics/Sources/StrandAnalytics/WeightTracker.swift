@@ -118,7 +118,7 @@ public enum WeightTracker {
 
     // MARK: - Inputs
 
-    public struct Reading: Equatable, Sendable {
+    public struct Reading: Equatable, Sendable, Encodable {
         public var date: Date
         public var kg: Double
         public var note: String?
@@ -130,7 +130,7 @@ public enum WeightTracker {
         }
     }
 
-    public struct Goal: Equatable, Sendable {
+    public struct Goal: Equatable, Sendable, Encodable {
         public var baseline: Double
         public var target: Double
         public var createdAt: Date
@@ -165,19 +165,19 @@ public enum WeightTracker {
 
     // MARK: - Output
 
-    public struct Point: Equatable, Sendable {
+    public struct Point: Equatable, Sendable, Encodable {
         public var date: Date
         public var kg: Double
     }
 
-    public struct Change: Equatable, Sendable {
+    public struct Change: Equatable, Sendable, Encodable {
         /// 7, 30 or 90; nil for "since the first weigh-in".
         public var days: Int?
         public var kg: Double
     }
 
     /// The last seven days: highest and lowest reading, the latest, and the trend.
-    public struct Week: Equatable, Sendable {
+    public struct Week: Equatable, Sendable, Encodable {
         public var high: Point
         public var low: Point
         public var latest: Point
@@ -186,7 +186,7 @@ public enum WeightTracker {
         public var trend: [Point]
     }
 
-    public struct Rates: Equatable, Sendable {
+    public struct Rates: Equatable, Sendable, Encodable {
         public var currentKgPerWeek: Double?
         public var overallKgPerWeek: Double?
         public var wishKgPerWeek: Double?
@@ -195,7 +195,7 @@ public enum WeightTracker {
         public var wishIsSteep: Bool
     }
 
-    public enum ForecastState: String, Equatable, Sendable {
+    public enum ForecastState: String, Equatable, Sendable, Codable {
         /// The rate reaches the goal; `targetDate` says when.
         case arriving
         /// The goal is already reached on the trend.
@@ -214,7 +214,7 @@ public enum WeightTracker {
         case noGoal
     }
 
-    public struct Forecast: Equatable, Sendable {
+    public struct Forecast: Equatable, Sendable, Encodable {
         /// The value the forecast starts from, and what it is.
         public var startKg: Double
         public var basis: TrendBasis
@@ -227,9 +227,9 @@ public enum WeightTracker {
         public var targetDate: Date?
     }
 
-    public enum EventPhase: String, Equatable, Sendable { case upcoming, passed, archived }
+    public enum EventPhase: String, Equatable, Sendable, Codable { case upcoming, passed, archived }
 
-    public struct EventForecast: Equatable, Sendable, Identifiable {
+    public struct EventForecast: Equatable, Sendable, Identifiable, Encodable {
         public var event: Event
         public var phase: EventPhase
         public var daysAway: Int
@@ -242,13 +242,13 @@ public enum WeightTracker {
         public var id: String { event.id }
     }
 
-    public struct Milestone: Equatable, Sendable {
+    public struct Milestone: Equatable, Sendable, Encodable {
         public var kg: Double
         /// The day a weigh-in first passed it since the goal began; nil while ahead.
         public var reachedDay: String?
     }
 
-    public struct Milestones: Equatable, Sendable {
+    public struct Milestones: Equatable, Sendable, Encodable {
         public var route: [Milestone]
         public var reachedCount: Int
         public var next: Double?
@@ -258,7 +258,7 @@ public enum WeightTracker {
         public var progress: Double
     }
 
-    public struct LogRow: Equatable, Sendable, Identifiable {
+    public struct LogRow: Equatable, Sendable, Identifiable, Encodable {
         public var reading: Reading
         public var day: String
         public var trendKg: Double
@@ -269,9 +269,9 @@ public enum WeightTracker {
         public var id: String { reading.id ?? "\(reading.source)-\(reading.date.timeIntervalSince1970)" }
     }
 
-    public enum Period: String, Equatable, Sendable { case month, year }
+    public enum Period: String, Equatable, Sendable, Codable { case month, year }
 
-    public struct Report: Equatable, Sendable, Identifiable {
+    public struct Report: Equatable, Sendable, Identifiable, Encodable {
         public var period: Period
         /// "2026-11" or "2026".
         public var key: String
@@ -290,7 +290,7 @@ public enum WeightTracker {
         public var id: String { "\(period.rawValue)-\(key)" }
     }
 
-    public struct Snapshot: Equatable, Sendable {
+    public struct Snapshot: Equatable, Sendable, Encodable {
         public var latest: Point
         public var trendKg: Double
         /// False while the smoothing is still cold-starting.
