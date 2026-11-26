@@ -60,6 +60,37 @@ enum WeightTrackerPreparation {
         }
     }
 
+    // MARK: One goal weight (F26)
+
+    /// The plan as the screens read it: a plan that moves the weight takes the weight goal's target as its goal
+    /// weight, so the plan and the goal cannot name two different weights. Only a goal pointing the plan's way
+    /// counts; a maintain goal and a goal on the wrong side of the plan's start leave the plan's own value.
+    static func planWithGoalWeight(_ plan: DietPlan?, goals: CoachGoalStore) -> DietPlan? {
+        guard var plan, plan.goal == .lose || plan.goal == .gain,
+              let goal = goals.activeGoals.first(where: { $0.kind == .weight }), goal.measure?.band == nil,
+              let target = goal.target else { return plan }
+        guard plan.goal == .lose ? target < plan.startWeightKg : target > plan.startWeightKg else { return plan }
+        plan.goalWeightKg = target
+        return plan
+    }
+
+    /// A plan saved with a goal weight sets the weight goal: it moves the target of the active one, or creates one
+    /// when there is none and a goal slot is free.
+    static func adoptPlanGoal(_ plan: DietPlan?, goals: CoachGoalStore, now: Date = Date()) {
+        guard let plan, plan.goal == .lose || plan.goal == .gain, let target = plan.goalWeightKg else { return }
+        if var goal = goals.activeGoals.first(where: { $0.kind == .weight }) {
+            guard goal.measure?.band == nil, goal.target.map({ abs($0 - target) > 0.05 }) ?? true else { return }
+            goal.target = target
+            goals.commit(goal, editingId: goal.id)
+        } else {
+            guard goals.canAdd(kind: .weight) == nil else { return }
+            let template = GoalCatalog.template(plan.goal == .lose ? .weightLose : .weightGain)
+            goals.commit(CoachGoal(kind: .weight, title: template?.title.localizedCatalogValue ?? "Weight",
+                                   baseline: plan.startWeightKg, target: target, createdAt: now,
+                                   templateId: template?.id.rawValue))
+        }
+    }
+
     static func stored(_ prefs: any GoalPreferenceStorage) -> WeightTracker.Stored {
         WeightTracker.Stored.decode(prefs.string(forKey: WeightTracker.storageKey))
     }

@@ -138,7 +138,9 @@ final class ForgeFoodModel {
     // MARK: Diet plan (decision 2026-11-09)
 
     /// The wearer's diet plan, nil until they made one in the planner.
-    private(set) var plan: DietPlan? = DietPlan.decode(UserDefaults.standard.string(forKey: DietPlan.storageKey))
+    /// Read through the weight goal (one goal weight, 2026-11-26): its target is the plan's goal weight.
+    private(set) var plan: DietPlan? = WeightTrackerPreparation.planWithGoalWeight(
+        DietPlan.decode(UserDefaults.standard.string(forKey: DietPlan.storageKey)), goals: CoachGoalStore.shared)
     private(set) var planResult: DietTargets.Result?
     /// This week's look at the plan: a change Forge made (simple mode, with undo) or proposes (advanced mode).
     private(set) var planWeek: DietAdjust.Outcome?
@@ -190,6 +192,8 @@ final class ForgeFoodModel {
     }
 
     private func resolvePlan() {
+        // The weight goal may have moved since the plan was read.
+        plan = WeightTrackerPreparation.planWithGoalWeight(plan, goals: CoachGoalStore.shared)
         resultByPhase = [:]
         goalReachedDay = plan.flatMap { p in
             DietProgram.goalReachedDay(plan: p, goalWeightKg: person.flatMap { DietTargets.plannedGoalWeight(p, person: $0) },
@@ -216,7 +220,9 @@ final class ForgeFoodModel {
         } else {
             UserDefaults.standard.removeObject(forKey: DietPlan.storageKey)
         }
-        plan = next
+        // A goal weight set in the planner is the weight goal's target from now on.
+        WeightTrackerPreparation.adoptPlanGoal(next, goals: CoachGoalStore.shared)
+        plan = WeightTrackerPreparation.planWithGoalWeight(next, goals: CoachGoalStore.shared)
         planWeek = nil
         resolvePlan()
     }

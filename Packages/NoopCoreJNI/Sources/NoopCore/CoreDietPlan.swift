@@ -140,7 +140,13 @@ enum CoreDietPlan {
         return (DietAdvice.suggestions(inputs, dismissed: dismissed), proteinMean)
     }
 
-    static func run(_ op: String, args: [String: Any], store: WhoopStore, reader: StoreReader) async -> String {
+    static func run(_ op: String, args incoming: [String: Any], store: WhoopStore, reader: StoreReader) async -> String {
+        // One goal weight (owner, 2026-11-26): the plan the host stored reads the weight goal's target.
+        var args = incoming
+        if let plan = DietPlan.decode(args["plan"] as? String),
+           let encoded = await CoreWeight.linkedPlan(plan, store: store).encoded() {
+            args["plan"] = encoded
+        }
         func double(_ k: String) -> Double? { (args[k] as? NSNumber)?.doubleValue }
         let sex = (args["sex"] as? String ?? "").lowercased()
         let person = DietPerson(weightKg: double("weightKg") ?? 80, heightCm: double("heightCm").flatMap { $0 > 0 ? $0 : nil },

@@ -96,4 +96,36 @@ final class CoreWeightTests: XCTestCase {
         let invalid = await CoreWeight.run("weight.saveEvent", ["name": " ", "day": "2027-03-02"], store: store, reader: reader)
         XCTAssertEqual(invalid, #"{"error":"invalid"}"#)
     }
+
+    /// One goal weight (F26): the plan reads the weight goal's target, and a plan saved with a goal weight sets it.
+    func testThePlanAndTheWeightGoalShareOneGoalWeight() async throws {
+        let (store, reader) = try await seeded()
+        let plan = DietPlan(goal: .lose, pacePercent: 0.5, form: .balanced, goalWeightKg: 92, startDay: "2026-10-01",
+                            startWeightKg: 100)
+        _ = await CoreWeight.run("weight.adoptPlanGoal", ["plan": plan.encoded()!], store: store, reader: reader)
+        var targets = try await CoreGoalState.read(store: store) { ctx in
+            ctx.goals.activeGoals.filter { $0.kind == .weight }.map(\.target) }
+        XCTAssertEqual(targets, [92], "a plan without a weight goal creates it")
+
+        try await CoreGoalState.change(store: store) { ctx in
+            var goal = ctx.goals.activeGoals.first { $0.kind == .weight }!
+            goal.target = 88
+            ctx.goals.commit(goal, editingId: goal.id)
+        }
+        let linked = await CoreWeight.linkedPlan(plan, store: store)
+        XCTAssertEqual(linked.goalWeightKg, 88, "the plan reads the goal's target")
+
+        var moved = plan
+        moved.goalWeightKg = 90
+        _ = await CoreWeight.run("weight.adoptPlanGoal", ["plan": moved.encoded()!], store: store, reader: reader)
+        targets = try await CoreGoalState.read(store: store) { ctx in
+            ctx.goals.activeGoals.filter { $0.kind == .weight }.map(\.target) }
+        XCTAssertEqual(targets, [90], "the planner moves the one goal, it does not add a second")
+
+        let gain = DietPlan(goal: .gain, pacePercent: 0.3, form: .balanced, goalWeightKg: 105, startDay: "2026-10-01",
+                            startWeightKg: 100)
+        let gainLinked = await CoreWeight.linkedPlan(gain, store: store)
+        XCTAssertEqual(gainLinked.goalWeightKg, 105,
+                       "a goal on the other side of the plan's start leaves the plan's own value")
+    }
 }

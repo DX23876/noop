@@ -55,12 +55,29 @@ enum CoreWeight {
                     stored.events.append(.init(name: name, day: day))
                 }
             }
+        case "weight.adoptPlanGoal":
+            // A plan saved with a goal weight moves the weight goal, or creates one (one goal weight, F26).
+            let plan = DietPlan.decode(args["plan"] as? String)
+            do {
+                try await CoreGoalState.change(store: store) { ctx in WeightTrackerPreparation.adoptPlanGoal(plan, goals: ctx.goals) }
+                return #"{"ok":true}"#
+            } catch {
+                return #"{"ok":false}"#
+            }
         case "weight.deleteEvent":
             let id = args["id"] as? String ?? ""
             return await change(store: store) { $0.events.removeAll { $0.id == id } }
         default:
             return nil
         }
+    }
+
+    /// The plan with the weight goal's target as its goal weight; the plan unchanged when the goals cannot be read.
+    static func linkedPlan(_ plan: DietPlan, store: WhoopStore) async -> DietPlan {
+        let linked = try? await CoreGoalState.read(store: store) { ctx in
+            WeightTrackerPreparation.planWithGoalWeight(plan, goals: ctx.goals)
+        }
+        return (linked ?? plan) ?? plan
     }
 
     private static func change(store: WhoopStore, _ body: @escaping (inout WeightTracker.Stored) -> Void) async -> String {
