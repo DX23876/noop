@@ -24,7 +24,9 @@ enum CoreHealthExport {
         }
         guard !items.isEmpty else { return #"{"versions":[]}"# }
         do {
-            let versions = try await store.planHealthExports(items)
+            // In seconds, the unit Android's Health Connect versions have always used: an older build that a
+            // tester goes back to must still be able to replace what this one wrote.
+            let versions = try await store.planHealthExports(items, versionFloor: Int(Date().timeIntervalSince1970))
             return CoreRead.json(Plan(versions: versions.map {
                 .init(id: String($0.id.dropFirst(idPrefix.count)), revision: $0.revision, needsSave: $0.needsSave)
             }))

@@ -44,6 +44,27 @@ class HealthExportLedgerTest {
         assertEquals(listOf(plan[1]), versions)
     }
 
+    @Test fun aFullWriteSendsEveryRecordAtItsPlannedRevision() {
+        val entries = listOf(rhr("2026-11-24", 50), rhr("2026-11-25", 52))
+        val plan = listOf(
+            HealthExportLedger.Version("noop-rhr-2026-11-24", 7, needsSave = false),
+            HealthExportLedger.Version("noop-rhr-2026-11-25", 9, needsSave = true),
+        )
+        val (records, versions) = HealthExportLedger.changed(entries, fallbackVersion = 1, plan = plan, everything = true)
+        assertEquals("a record Health Connect lost is created again", 2, records.size)
+        assertEquals("an unchanged one keeps its version, so Health Connect leaves it as it is",
+            listOf(7L, 9L), records.map { it.metadata.clientRecordVersion })
+        assertEquals(plan, versions)
+    }
+
+    @Test fun theFullWriteComesOnceADay() {
+        val day = HealthExportLedger.FULL_WRITE_INTERVAL_MS
+        assertTrue("never written in full, as on a restored phone", HealthExportLedger.fullWriteDue(0, 1_000))
+        assertTrue(!HealthExportLedger.fullWriteDue(1_000, 1_000 + day - 1))
+        assertTrue(HealthExportLedger.fullWriteDue(1_000, 1_000 + day))
+        assertTrue("a clock that went back", HealthExportLedger.fullWriteDue(5_000, 1_000))
+    }
+
     @Test fun withoutAPlanEverythingIsWrittenAsBefore() {
         val entries = listOf(rhr("2026-11-24", 50), rhr("2026-11-25", 52))
         val (records, versions) = HealthExportLedger.changed(entries, fallbackVersion = 42, plan = null)

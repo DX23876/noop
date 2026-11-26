@@ -24,6 +24,9 @@ final class CoreHealthExportTests: XCTestCase {
         let first = try await plan(store, [("noop-rhr-2026-11-25", "rhr|1|52"), ("noop-hrv-2026-11-25", "hrv|1|61.0")])
         XCTAssertEqual(first.map(\.id), ["noop-rhr-2026-11-25", "noop-hrv-2026-11-25"], "ids come back in order, unprefixed")
         XCTAssertTrue(first.allSatisfy(\.needsSave), "nothing was written yet")
+        let nowSeconds = Int(Date().timeIntervalSince1970)
+        XCTAssertTrue(first.allSatisfy { $0.revision >= nowSeconds - 2 && $0.revision < nowSeconds + 60 },
+                      "revisions are in seconds, so an older build that stamps seconds still replaces them")
         await commit(store, first)
 
         let again = try await plan(store, [("noop-rhr-2026-11-25", "rhr|1|52"), ("noop-hrv-2026-11-25", "hrv|1|61.0")])

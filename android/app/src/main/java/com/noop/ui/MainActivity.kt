@@ -957,6 +957,16 @@ object NoopPrefs {
         of(context).edit().putLong(KEY_HC_HR_FRONTIER, tsSec).apply()
     }
 
+    /** When the Health Connect writeback last wrote every record of its window (`HealthExportLedger`). Kept out
+     *  of backups on purpose: a restored phone has an empty Health Connect and must write everything once. */
+    const val KEY_HC_FULL_WRITE_AT = "noop.hcFullWriteAtMs"
+
+    fun hcFullWriteAtMs(context: Context): Long = of(context).getLong(KEY_HC_FULL_WRITE_AT, 0L)
+
+    fun setHcFullWriteAtMs(context: Context, atMs: Long) {
+        of(context).edit().putLong(KEY_HC_FULL_WRITE_AT, atMs).apply()
+    }
+
     /** Smart alarm: arm the strap's firmware alarm to buzz at a wake time. Default off; default time 07:00. */
     const val KEY_SMART_ALARM = "noop.smartAlarmEnabled"
     const val KEY_SMART_ALARM_MINUTES = "noop.smartAlarmMinutes"

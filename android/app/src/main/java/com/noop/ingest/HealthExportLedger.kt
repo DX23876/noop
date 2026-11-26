@@ -24,6 +24,18 @@ internal object HealthExportLedger {
 
     data class Version(val id: String, val revision: Long, val needsSave: Boolean)
 
+    /** How often every record is written again although the ledger says Health Connect holds it. */
+    const val FULL_WRITE_INTERVAL_MS = 24L * 60 * 60 * 1000
+
+    /**
+     * Whether this export writes every record again. The ledger cannot see what happened inside Health Connect:
+     * the wearer clearing NOOP's data there, or a backup restored onto a phone whose Health Connect is empty.
+     * Before the ledger every pass rewrote everything and so repaired that by itself; once a day keeps the
+     * repair at a small fraction of the old cost. A clock that went backwards counts as due.
+     */
+    fun fullWriteDue(lastFullWriteMs: Long, nowMs: Long): Boolean =
+        lastFullWriteMs <= 0 || nowMs < lastFullWriteMs || nowMs - lastFullWriteMs >= FULL_WRITE_INTERVAL_MS
+
     /** An entry for [build], or null for a record without an id or of a kind this ledger does not cover. */
     fun entry(build: (Long) -> Record): Entry? {
         val probe = build(0)
@@ -80,13 +92,19 @@ internal object HealthExportLedger {
     }
 
     /**
-     * The records to insert for [entries] and the versions to commit once they landed. Without a plan from the
-     * core every record is written at [fallbackVersion], as before the ledger, so a broken core never stops an
-     * export.
+     * The records to insert for [entries] and the versions to commit once they landed. [everything] writes each
+     * entry at the revision the plan gives it: a record Health Connect still holds keeps its version, so it is
+     * left as it is, and one that went missing is created again. Without a plan from the core every record is
+     * written at [fallbackVersion], as before the ledger, so a broken core never stops an export.
      */
-    fun changed(entries: List<Entry>, fallbackVersion: Long, plan: List<Version>?): Pair<List<Record>, List<Version>> {
+    fun changed(
+        entries: List<Entry>,
+        fallbackVersion: Long,
+        plan: List<Version>?,
+        everything: Boolean = false,
+    ): Pair<List<Record>, List<Version>> {
         if (plan == null) return entries.map { it.build(fallbackVersion) } to emptyList()
-        val due = entries.zip(plan).filter { (_, v) -> v.needsSave }
+        val due = entries.zip(plan).filter { (_, v) -> everything || v.needsSave }
         return due.map { (e, v) -> e.build(v.revision) } to due.map { it.second }
     }
 }
