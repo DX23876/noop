@@ -20,8 +20,16 @@ enum WeightWidgetPublisher {
         publish(snapshot)
     }
 
+    /// `nil` means the store answered and holds no weigh-ins: the widgets and Today's tile then drop what they
+    /// showed rather than keep a deleted weight on the home screen. Callers that could not reach the store do not
+    /// publish at all.
     static func publish(_ s: WeightTracker.Snapshot?, now: Date = Date()) {
-        guard let s else { return }
+        guard let s else {
+            if WeightWidgetSnapshot.clear() {
+                for kind in WeightWidgetSnapshot.kinds { WidgetCenter.shared.reloadTimelines(ofKind: kind) }
+            }
+            return
+        }
         let units = UnitSystem(rawValue: UserDefaults.standard.string(forKey: UnitPrefs.systemKey) ?? "") ?? .metric
         let unit = units == .imperial ? "lb" : "kg"
         func number(_ kg: Double) -> String {

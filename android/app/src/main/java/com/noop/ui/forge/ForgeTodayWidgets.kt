@@ -842,7 +842,8 @@ private fun MeasureTile(key: String?, keyTiles: KeyTiles, sleepMinutes: Double?,
     // Weight over two columns says what lies ahead, as iOS: the next date with its expected weight, else the trend's
     // weekly change, both worded by the weight page from its one snapshot.
     val context = androidx.compose.ui.platform.LocalContext.current
-    val weightLine = if (detailed && metric == KeyMetric.WEIGHT) remember(today) {
+    // Read on every draw, as iOS does: a date added on the weight page shows the moment Today is back.
+    val weightLine = if (detailed && metric == KeyMetric.WEIGHT) {
         com.noop.widget.WeightWidgets.stored(context)?.let { p ->
             p.events.firstOrNull()?.let { "${it.name}: ${it.expected ?: "—"} ${p.unit}" } ?: p.rateLine
         }

@@ -34,11 +34,11 @@ final class WeightTrackerModel: ObservableObject {
         if let store = await repo.storeHandle() {
             snapshot = await WeightTrackerPreparation.snapshot(store: store, reader: repo.storeReader(store), goals: goals,
                                                                prefs: prefs, plan: plan)
+            #if os(iOS)
+            WeightWidgetPublisher.publish(snapshot)
+            #endif
         }
         loaded = true
-        #if os(iOS)
-        WeightWidgetPublisher.publish(snapshot)
-        #endif
     }
 
     func save(_ next: WeightTracker.Stored, repo: Repository) async {

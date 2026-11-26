@@ -72,6 +72,15 @@ public struct WeightWidgetSnapshot: Codable, Equatable {
         return true
     }
 
+    /// Removes the payload once the wearer has no weigh-ins left; false when there was none to remove.
+    @discardableResult
+    public static func clear() -> Bool {
+        guard let defaults = UserDefaults(suiteName: WidgetSnapshot.suiteName),
+              defaults.data(forKey: storageKey) != nil else { return false }
+        defaults.removeObject(forKey: storageKey)
+        return true
+    }
+
     /// The widget gallery's stand-in.
     public static var placeholder: WeightWidgetSnapshot {
         WeightWidgetSnapshot(

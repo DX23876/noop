@@ -19,6 +19,8 @@ import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.layout.ContentScale
 import androidx.glance.LocalContext
+import androidx.glance.LocalSize
+import androidx.glance.appwidget.SizeMode
 import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
@@ -126,7 +128,17 @@ object WeightWidgets {
     /** Words the page's snapshot for the widgets and Today's tile, and redraws placed widgets when something changed. */
     suspend fun publish(context: Context, page: CoreWeight.Page?, redrawAfter: Boolean = true) {
         val app = context.applicationContext
-        val s = page?.snapshot ?: return
+        // No page: the core did not answer, so what is shown stays. A page without a snapshot: no weigh-ins are
+        // left, so the widgets and Today's tile drop the weight they showed instead of keeping a deleted one.
+        if (page == null) return
+        val s = page.snapshot ?: run {
+            val prefs = app.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            if (prefs.contains(KEY)) {
+                prefs.edit().remove(KEY).commit()
+                if (redrawAfter && placed(app)) redraw(app)
+            }
+            return
+        }
         // Worded even with no widget placed: Today's two-column weight tile reads the same lines.
         val units = UnitPrefs.system(app)
         val unit = UnitFormatter.massUnit(units)
@@ -284,6 +296,9 @@ private fun EmptyNote(icon: Int, text: Int, dark: Boolean) {
 }
 
 class WeightTrendWidget : WeightGlanceWidget(WeightWidgets.Tint.Pink) {
+    // The line is a bitmap: drawn at the size the launcher gives, a resized widget would stretch its stroke.
+    override val sizeMode: SizeMode = SizeMode.Exact
+
     @Composable
     override fun content(p: WeightWidgets.Payload, tint: Color, dark: Boolean, chosenEvent: String?) {
         val context = LocalContext.current
@@ -299,7 +314,8 @@ class WeightTrendWidget : WeightGlanceWidget(WeightWidgets.Tint.Pink) {
         // The last 30 days of the trend as a line, as iOS's `WidgetLineChart`; the latest weigh-in when there is
         // too little to draw.
         val density = context.resources.displayMetrics.density
-        val line = trendLine(p.line, (150 * density).toInt(), (34 * density).toInt(), tint, 2.2f * density)
+        val widthDp = (LocalSize.current.width.value - 28f).coerceAtLeast(60f)  // less the frame's padding
+        val line = trendLine(p.line, (widthDp * density).toInt(), (34 * density).toInt(), tint, 2.2f * density)
         if (line != null) {
             Image(ImageProvider(line), contentDescription = null, contentScale = ContentScale.FillBounds,
                   modifier = GlanceModifier.fillMaxWidth().height(34.dp))
