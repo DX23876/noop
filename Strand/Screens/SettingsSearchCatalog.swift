@@ -89,7 +89,7 @@ enum SettingsPage: String, CaseIterable, Identifiable, Hashable, Sendable {
         case .batteryRecording: return "Power saving and continuous HRV"
         case .strapActions: return "Double-tap, buzzes and heart-rate alerts"
         case .training: return "Sets, rest timers and weights"
-        case .todayTrends: return "Cards, order and style"
+        case .todayTrends: return "Optional cards on Today"
         case .notifications: return "Lock Screen, wrist alerts and reminders"
         case .coach: return "Provider, model and memory"
         case .siri: return "Voice commands and shortcuts"

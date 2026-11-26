@@ -10,6 +10,8 @@ struct SettingsSection<Content: View>: View {
     let title: LocalizedStringKey
     let blurb: LocalizedStringKey
     var headerAction: (label: LocalizedStringKey, perform: () -> Void)? = nil
+    /// The new design leaves the footer out when the page's own head already says the same thing.
+    var forgeBlurbHidden = false
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -43,9 +45,11 @@ struct SettingsSection<Content: View>: View {
                     }
                     .font(SettingsRowFont.value)
                 }
-                Text(blurb)
-                    .settingsCaption()
-                    .padding(.horizontal, NoopMetrics.space4)
+                if !forgeBlurbHidden {
+                    Text(blurb)
+                        .settingsCaption()
+                        .padding(.horizontal, NoopMetrics.space4)
+                }
             }
         } else {
             standardBody
