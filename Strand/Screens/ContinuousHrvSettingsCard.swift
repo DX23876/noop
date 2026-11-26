@@ -41,9 +41,7 @@ struct ContinuousHrvSettingsCard: View {
                         model.ble.setKeepRealtimeForData(PuffinExperiment.keepRealtimeForDataEnabled)
                     }
                     Text("Records only in your quiet hours (22:00 to 07:00 by default), which roughly halves the battery cost. Daytime stress and naps get fewer readings. For a daytime reading, use \"Take an HRV reading\" on Live.")
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .settingsCaption()
                 }
             }
         }

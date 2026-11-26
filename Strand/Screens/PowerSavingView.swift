@@ -42,9 +42,7 @@ struct PowerSavingView: View {
                         .tint(StrandPalette.accent)
                         .onChangeCompat(of: powerSavingEnabled) { _ in model.applyPowerSaving() }
                         Text("Slows background strap-sync (every 45 min instead of 15) while your strap's battery is low. No data loss — the strap banks everything, so sync just batches into larger, less frequent pulls.")
-                            .font(StrandFont.caption)
-                            .foregroundStyle(StrandPalette.textTertiary)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .settingsCaption()
 
                         if powerSavingEnabled {
                             rowDivider
@@ -78,9 +76,7 @@ struct PowerSavingView: View {
                             .tint(StrandPalette.accent)
                             .onChangeCompat(of: pauseHrvDisabled) { _ in model.applyPowerSaving() }
                             Text("While your strap's battery is low, stop the always-on background HRV stream — the biggest continuous drain on the strap. A Live screen still shows heart rate, and it re-arms automatically once the strap is charged.")
-                                .font(StrandFont.caption)
-                                .foregroundStyle(StrandPalette.textTertiary)
-                                .fixedSize(horizontal: false, vertical: true)
+                                .settingsCaption()
 
                             rowDivider
                             // Low refresh: a sub-option that applies at ANY charge, not just below the threshold.
@@ -93,9 +89,7 @@ struct PowerSavingView: View {
                             .tint(StrandPalette.accent)
                             .onChangeCompat(of: lowRefreshEnabled) { _ in model.applyPowerSaving() }
                             Text("Sync in the background every hour instead of every 15 minutes, whatever the strap's charge — fewer reconnections is the biggest saving on a WHOOP 4.0. Nothing is lost: the strap banks everything and hands it over in larger batches. Pull to sync still runs straight away, and live heart rate is untouched.")
-                                .font(StrandFont.caption)
-                                .foregroundStyle(StrandPalette.textTertiary)
-                                .fixedSize(horizontal: false, vertical: true)
+                                .settingsCaption()
                         }
                     }
                 }

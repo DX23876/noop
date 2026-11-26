@@ -234,46 +234,53 @@ internal fun HelpSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> 
 @Composable
 internal fun LabSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Unit) {
     val context = LocalContext.current
-    // No header: "Labor" under the Labor page head would only repeat it (iOS hides it the same way).
-    SettingsCard(title = null, blurb = stringResource(R.string.fsp6_lab_blurb)) {
-        // The redesign's switch stood here until 2026-11-20. It is gone, not hidden: the design ships to
-        // everyone and the screens under it are not maintained any more, so a way back only produces
-        // reports from pages nobody is looking at (`ForgeDesign.retireTheOldDesign`).
-        // iOS order: the personal stress baseline (display only, one home since 2026-11-25: Calculations no longer
-        // carries it), the training-based VO2max, strength in Effort, AgeLess, the daily rhythm.
-        var stressBaseline by remember { mutableStateOf(com.noop.ui.NoopPrefs.stressPersonalBaseline(context)) }
-        ToggleRow(stringResource(R.string.forge_lab_stress_baseline), stringResource(R.string.forge_lab_stress_baseline_note),
-                  stressBaseline) { on -> stressBaseline = on; com.noop.ui.NoopPrefs.setStressPersonalBaseline(context, on) }
-        RowDivider()
-        var exerciseVO2max by remember { mutableStateOf(com.noop.core.CoreFeatures.exerciseVO2max(context)) }
-        ToggleRow(stringResource(R.string.forge_lab_xvo2), stringResource(R.string.forge_lab_xvo2_detail), exerciseVO2max) {
+    // iOS `labGroups`: the page's note first, then one group per feature, its switch on the card and what it does as
+    // the footer under it, as iOS Settings lists independent switches.
+    // The redesign's switch stood here until 2026-11-20. It is gone, not hidden: the design ships to everyone and the
+    // screens under it are not maintained any more, so a way back only produces reports from pages nobody is looking at
+    // (`ForgeDesign.retireTheOldDesign`). iOS order: the personal stress baseline (display only, one home since
+    // 2026-11-25: Calculations no longer carries it), the training-based VO2max, strength in Effort, AgeLess, the daily rhythm.
+    Text(stringResource(R.string.fsp6_lab_blurb), style = Forge.type.footnote, color = Forge.colors.textSecondary,
+         modifier = Modifier.padding(horizontal = ForgeMetrics.space4))
+    var stressBaseline by remember { mutableStateOf(com.noop.ui.NoopPrefs.stressPersonalBaseline(context)) }
+    SettingsCard(title = null, blurb = stringResource(R.string.forge_lab_stress_baseline_note)) {
+        ToggleRow(stringResource(R.string.forge_lab_stress_baseline), null, stressBaseline) { on ->
+            stressBaseline = on; com.noop.ui.NoopPrefs.setStressPersonalBaseline(context, on)
+        }
+    }
+    var exerciseVO2max by remember { mutableStateOf(com.noop.core.CoreFeatures.exerciseVO2max(context)) }
+    SettingsCard(title = null, blurb = stringResource(R.string.forge_lab_xvo2_detail)) {
+        ToggleRow(stringResource(R.string.forge_lab_xvo2), null, exerciseVO2max) {
             exerciseVO2max = it
             com.noop.core.CoreFeatures.setExerciseVO2max(context, it)
         }
-        RowDivider()
-        // #2438: rated strength sessions add to Effort, as iOS's Lab switch; the flip rescores the whole history.
-        var strengthEffort by remember { mutableStateOf(com.noop.core.CoreFeatures.effortStrengthBonus(context)) }
-        ToggleRow(stringResource(R.string.forge_lab_strength_effort),
-                  stringResource(R.string.forge_lab_strength_effort_detail), strengthEffort) {
+    }
+    // #2438: rated strength sessions add to Effort, as iOS's Lab switch; the flip rescores the whole history.
+    var strengthEffort by remember { mutableStateOf(com.noop.core.CoreFeatures.effortStrengthBonus(context)) }
+    SettingsCard(title = null, blurb = stringResource(R.string.forge_lab_strength_effort_detail)) {
+        ToggleRow(stringResource(R.string.forge_lab_strength_effort), null, strengthEffort) {
             strengthEffort = it
             viewModel.setEffortStrengthBonus(it)
         }
-        RowDivider()
-        // The two Lab passes of the shared core, as on iOS: off by default, scored at the next analysis.
-        var ageless by remember { mutableStateOf(com.noop.core.CoreFeatures.healthspan(context)) }
-        ToggleRow(stringResource(R.string.forge_lab_ageless), stringResource(R.string.forge_lab_ageless_detail), ageless) {
+    }
+    // The two Lab passes of the shared core, as on iOS: off by default, scored at the next analysis.
+    var ageless by remember { mutableStateOf(com.noop.core.CoreFeatures.healthspan(context)) }
+    SettingsCard(title = null, blurb = stringResource(R.string.forge_lab_ageless_detail)) {
+        ToggleRow(stringResource(R.string.forge_lab_ageless), null, ageless) {
             ageless = it
             com.noop.core.CoreFeatures.setHealthspan(context, it)
         }
-        RowDivider()
-        var rhythm by remember { mutableStateOf(com.noop.core.CoreFeatures.rhythmAge(context)) }
-        ToggleRow(stringResource(R.string.forge_lab_rhythm), stringResource(R.string.forge_lab_rhythm_detail), rhythm) {
+    }
+    var rhythm by remember { mutableStateOf(com.noop.core.CoreFeatures.rhythmAge(context)) }
+    SettingsCard(title = null, blurb = stringResource(R.string.forge_lab_rhythm_detail)) {
+        ToggleRow(stringResource(R.string.forge_lab_rhythm), null, rhythm) {
             rhythm = it
             com.noop.core.CoreFeatures.setRhythmAge(context, it)
         }
-        RowDivider()
-        // Parity plan 1.3: the check that the classic screens' rows and the core's agree. Since Android has no
-        // Room store the classic rows come from the core as well (CORE-ONLY-PLAN), so the switch is gone.
+    }
+    // Parity plan 1.3: the check that the classic screens' rows and the core's agree. Since Android has no Room store
+    // the classic rows come from the core as well (CORE-ONLY-PLAN), so the switch is gone.
+    SettingsCard(title = null, blurb = null) {
         val scope = rememberCoroutineScope()
         var comparison by remember { mutableStateOf<String?>(null) }
         val same = stringResource(R.string.forge_lab_compare_same)

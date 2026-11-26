@@ -1032,9 +1032,7 @@ private struct SettingsPageContent: View, Equatable {
             }
 
             Text("Your own photo behind every screen, in place of the sky. It stays on \(Platform.deviceNounPhrase) and is never uploaded. Turn on Transparent cards to let it show through.")
-                .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.textTertiary)
-                .fixedSize(horizontal: false, vertical: true)
+                .settingsCaption()
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         // Load the picked photo's bytes, hand them to the store (which downscales + persists), then clear
@@ -1836,9 +1834,7 @@ private struct SettingsPageContent: View, Equatable {
                 .toggleStyle(.switch)
                 .tint(StrandPalette.accent)
                 Text("Holds the liquid gauges, the sky and the tilt response still, and turns off the motion sensor that drives them. Saves battery. Low Power Mode and the system Reduce Motion setting already do this.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 rowDivider
@@ -1855,9 +1851,7 @@ private struct SettingsPageContent: View, Equatable {
                     .accessibilityLabel("Score rings")
                 }
                 Text("Living rings move and breathe. Classic rings stand still and use less battery.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 #if os(iOS)
@@ -1873,9 +1867,7 @@ private struct SettingsPageContent: View, Equatable {
                 .tint(StrandPalette.accent)
                 .disabled(quietMotion || ScoreRingStyle.resolve(scoreRingStyleRaw) == .classic)
                 Text("The Today rings lean and ripple as you move your phone. Off, they keep their own slow movement.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
                     .frame(maxWidth: .infinity, alignment: .leading)
                 #endif
 
@@ -1968,9 +1960,7 @@ private struct SettingsPageContent: View, Equatable {
                 .toggleStyle(.switch)
                 .tint(StrandPalette.accent)
                 Text("Let the background show through every card. Tune how much just below.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 // MARK: Card transparency — fade every frosted card's glass toward the background. Reactive
@@ -2131,9 +2121,7 @@ private struct SettingsPageContent: View, Equatable {
                 .appleInspiredTint("settings.controls")
                 .accessibilityHint("Stops the screen locking while your strap's history syncs")
                 Text("Only while a sync runs and NOOP is open. Uses a little more battery.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
                 #endif
 
             }
@@ -2478,9 +2466,7 @@ private struct SettingsPageContent: View, Equatable {
                 .toggleStyle(.switch)
                 .tint(StrandPalette.accent)
                 Text("Your strap listed its own device-config keys, and one of them is enable_raw_data_w_ecg. On an MG with no ECG subscription it reads '0' — while all three ECG commands answer SUCCESS and send no data at all (#891). This is the leading guess for what's holding ECG shut. Nobody knows whether flipping it actually produces ECG data: finding out is the point, and \"still nothing\" is a useful answer worth posting to #891.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
 
                 if ecgRawDataEnabled {
                     HStack(alignment: .top, spacing: 8) {
@@ -2504,9 +2490,7 @@ private struct SettingsPageContent: View, Equatable {
                     }
                     .disabled(!ecgGateReady)
                     Text(ecgGateReason)
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .settingsCaption()
 
                     // The read-back — the ONLY thing reported as a result. The write's own ack is in the
                     // strap log for the record and is deliberately not surfaced as an outcome here.
@@ -2536,9 +2520,7 @@ private struct SettingsPageContent: View, Equatable {
                 // `reportsResult: false`: switching a setting off must not pop the Devices result sheet.
                 .onChangeCompat(of: ecgEnabled) { on in if !on { model.ecgStopCapture(reportsResult: false) } }
                 Text("The WHOOP MG has ECG electrodes in its clasp. This unlocks a gated, hand-run probe on the Devices screen that asks the strap to start its ECG subsystem and logs whatever comes back. MG only — a plain WHOOP 5.0 has no electrodes, and NOOP will refuse to send unless your strap identifies itself as an MG. Nobody has confirmed a strap honours these commands, so it may simply do nothing. Turn on “Record puffin frames to a file” below first if you want a complete byte-level capture to share.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
 
                 if ecgEnabled {
                     HStack(alignment: .top, spacing: 8) {
@@ -2646,9 +2628,7 @@ private struct SettingsPageContent: View, Equatable {
                 .toggleStyle(.switch)
                 .tint(StrandPalette.accent)
                 Text("Your Oura ring only measures daytime heart rate while NOOP keeps it in that mode, and NOOP stops asking whenever the screen has been off for five minutes — which protects the ring's own sleep tracking at night, but also leaves a pocketed phone's day blank on the Heart Rate and HRV charts. On, NOOP keeps asking through the day and stops only for your usual night, learned from your sleep history (an hour before your typical bedtime to an hour after your usual wake), so the night is unchanged. Costs ring battery: the ring runs its own optical sensor all day. Until enough nights are learned it behaves as if off. Off by default.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
             }
         }
     }
@@ -3529,9 +3509,7 @@ private struct SettingsPageContent: View, Equatable {
                 .toggleStyle(.switch)
                 .appleInspiredTint("settings.controls")
                 Text("Shows a start button on Today, in Coach and in More. During the session the strap only buzzes when you leave your heart-rate range. Beta.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
 
                 rowDivider
 
@@ -3548,9 +3526,7 @@ private struct SettingsPageContent: View, Equatable {
                     Task { await model.repo.refreshActivitySuggestions(hrMax: profile.maxHeartRate.wholeBpm) }
                 }
                 Text("After a sync, NOOP looks for walks and for stretches of raised heart rate and asks what they were. Nothing is saved until you answer. Times that already have a workout are skipped. Beta.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
 
                 rowDivider
 
@@ -3567,9 +3543,7 @@ private struct SettingsPageContent: View, Equatable {
                 }
                 .buttonStyle(.plain)
                 Text("Record short stretches of how you move during a workout, and send them so NOOP can learn to recognise sports on its own. Off until you tick a sport.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
                 if autoDetectWorkoutsEnabled {
                     let noSteps = selectedWhoopModelRaw == WhoopModel.whoop4.rawValue
                     Toggle(isOn: noSteps ? .constant(false) : $activityWalks) {
@@ -3631,14 +3605,10 @@ private struct SettingsPageContent: View, Equatable {
                 .accessibilityHint("Adds a water-log card to your dashboard")
                 #if os(iOS)
                 Text("A water log with a daily goal that grows with your effort. Also reads water from Apple Health when allowed; drinks logged in NOOP are not written back.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
                 #else
                 Text("A water log with a daily goal that grows with your effort.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
                 #endif
 
                 rowDivider
@@ -3651,9 +3621,7 @@ private struct SettingsPageContent: View, Equatable {
                 .toggleStyle(.switch)
                 .appleInspiredTint("settings.controls")
                 Text("Shows your last 7 journal days and reminds you when today is still missing.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
             }
         }
     }
@@ -3755,9 +3723,7 @@ private struct SettingsPageContent: View, Equatable {
                     }
                 }
                 Text("Deep sleep gives lower values. Switching recalculates your recent nights.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
                 rowDivider
                 FormRow(label: "Sleep stage method") {
                     Picker("Sleep stage method", selection: Binding(
@@ -3806,7 +3772,74 @@ private struct SettingsPageContent: View, Equatable {
     /// Unfinished features anyone can try, whatever their strap (2026-10 Settings reorganisation).
     /// Stress baseline, training-based VO₂max and AgeLess sat inside the WHOOP 5/MG card before, which
     /// only renders for a 5/MG — so a WHOOP 4.0 owner could not reach them at all.
+    @ViewBuilder
     private var labCard: some View {
+        if NoopVisualStyle.skin == .forge {
+            labGroups
+        } else {
+            labClassicCard
+        }
+    }
+
+    /// The new design's Lab, as iOS Settings lists independent switches: one group per feature, its switch
+    /// on the card and what it does as the footer under it, so each explanation sits with its own switch.
+    private var labGroups: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+            Text("Unfinished features. Off by default; turn one off again any time.")
+                .settingsCaption()
+                .padding(.horizontal, NoopMetrics.space4)
+            #if os(iOS) && DEBUG
+            SettingsSection(icon: "square.grid.2x2", title: "Tile board",
+                            blurb: "Every Today tile at every size, drawn by the views Today uses. Debug builds only.") {
+                Button { showsTileBoard = true } label: {
+                    Text("Tile board").font(SettingsRowFont.value).foregroundStyle(StrandPalette.accent)
+                }
+                .buttonStyle(.plain)
+            }
+            .environment(\.settingsSectionHeaderHidden, true)
+            #endif
+            labToggle("Personal stress baseline", isOn: $stressPersonalBaselineEnabled,
+                      blurb: "Compares your hourly stress with how your days usually run, instead of with the calm hours of the same day. Needs a few worn days. Tuned on one person so far. Never feeds recovery or illness scores.")
+            labToggle("Training-based VO₂max", isOn: $exerciseVO2maxEnabled,
+                      blurb: "Estimates VO₂max from runs and walks with distance and heart rate, including measured climbs. Shown on Training Load beside the weekly estimate, compared with Apple Watch. Not counted as evidence until that comparison passes.")
+            labToggle("Strength in Effort", isOn: $effortStrengthBonusEnabled,
+                      blurb: "Strength sessions you rate after training add to Effort beyond your heart rate, more for a harder rating and a longer session. Unrated sessions add nothing. Calibrated against WHOOP on an assumed effort of 7 out of 10.")
+                .onChangeCompat(of: effortStrengthBonusEnabled) { _ in
+                    // Only days with a rated strength session change; every other day is reused.
+                    Task { await model.intelligence.reanalyzeHistoryReusingUnchangedDays(); await model.repo.refresh() }
+                }
+            labToggle("AgeLess", isOn: $healthspanEnabled,
+                      blurb: "Beta. An age from nine measures of sleep, activity and fitness over six months, with the steps that would help most. Replaces Body Age on Health. Needs 30 nights. A motivation tool, not a medical age.")
+                .onChangeCompat(of: healthspanEnabled) { on in
+                    // Compute right away instead of at the next analysis loop, so the card fills on the flip.
+                    if on { Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() } }
+                }
+            labToggle("Daily rhythm", isOn: $rhythmAgeEnabled,
+                      blurb: "WHOOP 5.0 and MG. How your day moves over a week, compared with a large study, as a rhythm age. Shown on Health. Needs three days worn day and night. Beta, not a medical age.")
+                .onChangeCompat(of: rhythmAgeEnabled) { on in
+                    // Score today right away instead of at the next analysis pass, so the card fills on the flip.
+                    if on { Task { await model.intelligence.rescoreRhythmAgeNow(); await model.repo.refresh() } }
+                }
+        }
+        #if os(iOS) && DEBUG
+        .sheet(isPresented: $showsTileBoard) { ForgeTileBoardView() }
+        #endif
+    }
+
+    /// One Lab feature in the new design: its switch alone on a card, its explanation as the footer.
+    private func labToggle(_ title: LocalizedStringKey, isOn: Binding<Bool>, blurb: LocalizedStringKey) -> some View {
+        SettingsSection(icon: "flask", title: title, blurb: blurb) {
+            Toggle(isOn: isOn) {
+                Text(title).font(SettingsRowFont.value).foregroundStyle(StrandPalette.textPrimary)
+            }
+            .toggleStyle(.switch)
+            .tint(StrandPalette.accent)
+        }
+        .environment(\.settingsSectionHeaderHidden, true)
+    }
+
+    /// The classic look's Lab card (the new design draws `labGroups`).
+    private var labClassicCard: some View {
         SettingsSection(
             icon: "flask",
             title: "Lab",
@@ -3827,9 +3860,7 @@ private struct SettingsPageContent: View, Equatable {
                 }
                 .buttonStyle(.plain)
                 Text("Every Today tile at every size, drawn by the views Today uses. Debug builds only.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
                 Divider().overlay(StrandPalette.hairline)
                 #endif
 
@@ -3843,9 +3874,7 @@ private struct SettingsPageContent: View, Equatable {
                 .toggleStyle(.switch)
                 .tint(StrandPalette.accent)
                 Text("Compares your hourly stress with how your days usually run, instead of with the calm hours of the same day. Needs a few worn days. Tuned on one person so far. Never feeds recovery or illness scores.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
 
                 // MARK: Training-based VO₂max — an instrument beside the weekly estimate. Off by default.
                 Divider().overlay(StrandPalette.hairline)
@@ -3858,9 +3887,7 @@ private struct SettingsPageContent: View, Equatable {
                 .toggleStyle(.switch)
                 .tint(StrandPalette.accent)
                 Text("Estimates VO₂max from runs and walks with distance and heart rate, including measured climbs. Shown on Training Load beside the weekly estimate, compared with Apple Watch. Not counted as evidence until that comparison passes.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
 
                 // MARK: Strength share of Effort (#2438). Off by default.
                 Divider().overlay(StrandPalette.hairline)
@@ -3877,9 +3904,7 @@ private struct SettingsPageContent: View, Equatable {
                     Task { await model.intelligence.reanalyzeHistoryReusingUnchangedDays(); await model.repo.refresh() }
                 }
                 Text("Strength sessions you rate after training add to Effort beyond your heart rate, more for a harder rating and a longer session. Unrated sessions add nothing. Calibrated against WHOOP on an assumed effort of 7 out of 10.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
 
                 // MARK: Fork — AgeLess, a healthspan age from published mortality studies. Off by default; replaces Body Age.
                 Divider().overlay(StrandPalette.hairline)
@@ -3896,9 +3921,7 @@ private struct SettingsPageContent: View, Equatable {
                     if on { Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() } }
                 }
                 Text("Beta. An age from nine measures of sleep, activity and fitness over six months, with the steps that would help most. Replaces Body Age on Health. Needs 30 nights. A motivation tool, not a medical age.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
 
                 // MARK: Fork — daily rhythm (CosinorAge beta), WHOOP 5.0 and MG. Off by default.
                 Divider().overlay(StrandPalette.hairline)
@@ -3915,9 +3938,7 @@ private struct SettingsPageContent: View, Equatable {
                     if on { Task { await model.intelligence.rescoreRhythmAgeNow(); await model.repo.refresh() } }
                 }
                 Text("WHOOP 5.0 and MG. How your day moves over a week, compared with a large study, as a rhythm age. Shown on Health. Needs three days worn day and night. Beta, not a medical age.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
             }
         }
         #if os(iOS) && DEBUG
@@ -4232,9 +4253,7 @@ private struct AnalysisMaintenanceSettingsCard: View {
                 .disabled(busy)
 
                 Text("This updates calculated scores only. Raw data and your sleep or workout corrections stay unchanged.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
 
                 Divider().overlay(StrandPalette.hairline)
 
@@ -4242,9 +4261,7 @@ private struct AnalysisMaintenanceSettingsCard: View {
                     onResetBaseline()
                 }
                 Text("Restarts the roughly 4-night build-up for Charge and your HRV baseline from tonight. Use it if a bad first week, like wearing it while sick, set your baseline off. Your history stays.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
+                    .settingsCaption()
             }
         }
         .confirmationDialog("Recalculate the last 21 days?",

@@ -1664,8 +1664,7 @@ struct CoachSettingsView: View {
 
                 if let outcome = summarizeOutcome {
                     Text(Self.summarizeOutcomeLine(outcome))
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .settingsCaption()
                         .frame(maxWidth: .infinity, alignment: .trailing)
                         .accessibilityLabel(Self.summarizeOutcomeLine(outcome))
                 }

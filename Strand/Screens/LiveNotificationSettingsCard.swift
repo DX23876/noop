@@ -56,9 +56,7 @@ struct LiveNotificationSettingsCard: View {
             .toggleStyle(.switch)
             .appleInspiredTint("settings.controls")
             Text(detail)
-                .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.textTertiary)
-                .fixedSize(horizontal: false, vertical: true)
+                .settingsCaption()
         }
     }
 }
