@@ -1,11 +1,17 @@
 {
   "counts": {
     "fixed": 5,
-    "reported": 1,
+    "reported": 0,
     "working": 0
   },
   "decided": [],
   "fixed": [
+    {
+      "closed": "2026-11-26",
+      "n": 49,
+      "status": "fixed",
+      "title": "Nap algorithm"
+    },
     {
       "closed": "2026-11-21",
       "n": 42,
@@ -29,23 +35,10 @@
       "n": 51,
       "status": "fixed",
       "title": "Native training sessions show no HR / Effort in workout lists (grey on Today)"
-    },
-    {
-      "closed": "2026-11-20",
-      "n": 48,
-      "status": "fixed",
-      "title": "UI: Syncing bar stops working if I switch to other views"
     }
   ],
-  "generated": "2026-11-21T10:42:55Z",
-  "issues": [
-    {
-      "n": 49,
-      "opened": "2026-11-14",
-      "status": "reported",
-      "title": "Nap algorithm"
-    }
-  ],
+  "generated": "2026-11-26T18:21:43Z",
+  "issues": [],
   "schema": 1,
   "service": "https://noop-relay.noop-relay.workers.dev",
   "suggestions": []
