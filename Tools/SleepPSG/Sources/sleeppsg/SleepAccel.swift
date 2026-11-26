@@ -44,6 +44,9 @@ struct PSGSubject {
     let end: Int
     let grav: [GravitySample]
     let hr: [HRSample]
+    /// Beat-to-beat intervals, from an optional `rr/<id>_rr.txt` ("t rr_ms", the beat's whole second). sleep-accel
+    /// and Newcastle carry none, so the recipe's beat-interval terms are silent there; Wearanize+ carries the E4's.
+    var rr: [RRInterval] = []
     /// One entry per 30 s epoch of `[start, end)`. `nil` = the epoch carries no PSG score and is excluded
     /// from every metric rather than silently counted as wake.
     let truth: [String?]
@@ -152,7 +155,13 @@ enum SleepAccel {
         let grav = readAccelerationPerSecond((root as NSString)
             .appendingPathComponent("motion/\(id)_acceleration.txt"), loSec: loSec, hiSec: hiSec)
 
-        return PSGSubject(id: id, start: start, end: end, grav: grav, hr: hr, truth: truth)
+        let rr = readRows((root as NSString).appendingPathComponent("rr/\(id)_rr.txt"), expecting: 2)
+            .compactMap { r -> RRInterval? in
+                let ms = Int(r[1].rounded()), sec = wholeSecond(r[0])
+                guard ms >= 250, ms <= 2500, sec >= loSec, sec < hiSec else { return nil }
+                return RRInterval(ts: timeBase + sec, rrMs: ms)
+            }
+        return PSGSubject(id: id, start: start, end: end, grav: grav, hr: hr, rr: rr, truth: truth)
     }
 
     // MARK: - Parsing
