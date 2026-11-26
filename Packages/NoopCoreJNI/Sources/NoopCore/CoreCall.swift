@@ -156,6 +156,9 @@ public enum CoreCall {
         // The Roadmap page needs no store and no session: it reads two files from the repository.
         if op.hasPrefix("project."), let answer = await CoreProject.run(op, args) { return answer }
         if op.hasPrefix("donation."), let answer = await CoreDonation.run(op, args) { return answer }
+        if op.hasPrefix("analysis."), let answer = await CoreAnalysisMaintenance.run(op, args) { return answer }
+        if op.hasPrefix("storage."), let answer = await CoreStorage.run(op, args) { return answer }
+        if op.hasPrefix("about."), let answer = CoreAcknowledgements.run(op, args) { return answer }
         func string(_ k: String) -> String { args[k] as? String ?? "" }
         func int(_ k: String, _ fallback: Int) -> Int { (args[k] as? NSNumber)?.intValue ?? fallback }
         func ok(_ done: Bool) -> String { done ? #"{"ok":true}"# : #"{"ok":false}"# }
@@ -356,6 +359,10 @@ public enum CoreCall {
         // The pull gesture's rules: pure policy, answered before the store is needed, because a wearer
         // can pull on a phone whose store has not opened yet.
         if let answer = CoreSourceRefresh.run(op, args) { return answer }
+        // The Profile page's facts (maximum heart rate, the VO₂max hint, the zone editor) need no open session.
+        if op.hasPrefix("profile."), let answer = await CoreProfile.run(op, args) { return answer }
+        // The alert settings' decisions (Training Load alert, heart-rate ceiling) are pure too.
+        if op.hasPrefix("alerts."), let answer = CoreAlerts.run(op, args) { return answer }
         guard let (store, _) = ShadowSession.storeAndPath, let reader = ShadowSession.reader else {
             return #"{"error":"noStore"}"#
         }
@@ -496,9 +503,14 @@ public enum CoreCall {
             return CoreRead.json(await CoreGoals.changeMotivation(store: store, seen: args["seen"] as? [String] ?? [],
                                                                   enabled: args["enabled"] as? Bool))
         case "goals.notices":
-            let host = CoreGoalNotices.Host(kinds: args["kinds"] as? [String] ?? [], quiet: args["quiet"] as? Bool ?? false,
+            var host = CoreGoalNotices.Host(kinds: args["kinds"] as? [String] ?? [], quiet: args["quiet"] as? Bool ?? false,
                 eveningMinute: int("eveningMinute", 19 * 60), workoutInProgress: args["workoutInProgress"] as? Bool ?? false,
                 appIsActive: args["appIsActive"] as? Bool ?? false, state: args["noticeState"] as? String)
+            host.periodKinds = args["periodKinds"] as? [String] ?? []
+            host.firstWeekday = int("firstWeekday", 2)
+            host.quietEnabled = args["quietEnabled"] as? Bool ?? false
+            host.quietStartMinutes = int("quietStartMinutes", 22 * 60)
+            host.quietEndMinutes = int("quietEndMinutes", 7 * 60)
             do {
                 return CoreRead.json(try await CoreGoalNotices.evaluate(reader: reader, settings: CoreGoalEnergy.settings(args),
                                                                         host: host))

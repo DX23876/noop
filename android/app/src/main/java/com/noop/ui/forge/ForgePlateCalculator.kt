@@ -108,7 +108,7 @@ internal fun ForgePlateCalculator(targetKg: Double, onClose: () -> Unit) {
 
     SettingsColumn {
         PageTitle(stringResource(R.string.forge_pl_title), onClose)
-        SettingsCard(stringResource(R.string.forge_pl_profiles), null) {
+        ForgeTitledCard(stringResource(R.string.forge_pl_profiles), null) {
             profiles.sortedBy { it.name.lowercase() }.forEach { profile ->
                 Row(Modifier.fillMaxWidth().clickable {
                         saveBar(profile.barKg); saveAvailable(profile.platesKg)
@@ -135,21 +135,21 @@ internal fun ForgePlateCalculator(targetKg: Double, onClose: () -> Unit) {
                 saveProfiles(profiles.filterNot { it.id == profile.id } + profile, profile.id)
             }) { Text(stringResource(R.string.forge_pl_save), color = Forge.colors.accent) }
         }
-        SettingsCard(stringResource(R.string.forge_pl_target), null) {
+        ForgeTitledCard(stringResource(R.string.forge_pl_target), null) {
             WeightField(stringResource(R.string.forge_pl_total), target, units) { target = it }
             RowDivider()
             WeightField(stringResource(R.string.forge_pl_bar), bar, units) { saveBar(it) }
         }
-        SettingsCard(stringResource(R.string.forge_pl_available), null) {
+        ForgeTitledCard(stringResource(R.string.forge_pl_available), null) {
             PlatePrefs.standard(pounds).forEachIndexed { i, plate ->
                 if (i > 0) RowDivider()
                 val on = available.any { kotlin.math.abs(it - plate) < 1e-6 }
-                ToggleRow(weight(plate), null, on) { enable ->
+                ForgeToggleRow(weight(plate), null, on) { enable ->
                     saveAvailable(if (enable) available + plate else available.filterNot { kotlin.math.abs(it - plate) < 1e-6 })
                 }
             }
         }
-        SettingsCard(stringResource(R.string.forge_pl_each_side), null) {
+        ForgeTitledCard(stringResource(R.string.forge_pl_each_side), null) {
             val l = loading
             if (l == null) {
                 Text(stringResource(R.string.forge_pl_min_bar), style = Forge.type.body, color = Forge.colors.textSecondary)

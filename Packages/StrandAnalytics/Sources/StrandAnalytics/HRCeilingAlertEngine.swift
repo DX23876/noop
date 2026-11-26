@@ -30,6 +30,33 @@ public struct HRCeilingAlertEngine {
 
     public init() {}
 
+    /// The engine's whole memory, so a caller that cannot hold the struct between samples (the Android core call)
+    /// can carry it as plain values and rebuild an identical engine.
+    public struct State: Equatable, Sendable {
+        public var recoverySince: Int?
+        public var lastWarningAt: Int?
+        public var lastSampleAt: Int?
+        public var warningCount: Int
+
+        public init(recoverySince: Int? = nil, lastWarningAt: Int? = nil, lastSampleAt: Int? = nil, warningCount: Int = 0) {
+            self.recoverySince = recoverySince
+            self.lastWarningAt = lastWarningAt
+            self.lastSampleAt = lastSampleAt
+            self.warningCount = warningCount
+        }
+    }
+
+    public init(state: State) {
+        recoverySince = state.recoverySince
+        lastWarningAt = state.lastWarningAt
+        lastSampleAt = state.lastSampleAt
+        warningCount = state.warningCount
+    }
+
+    public var state: State {
+        State(recoverySince: recoverySince, lastWarningAt: lastWarningAt, lastSampleAt: lastSampleAt, warningCount: warningCount)
+    }
+
     /// Whether the current continuous episode has already produced a warning and therefore owns the
     /// high-heart-rate haptic vocabulary over a concurrent Live Session cue.
     public var episodeActive: Bool { warningCount > 0 }

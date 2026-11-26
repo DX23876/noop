@@ -1,6 +1,354 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Backup & Sync to a folder" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sicherung & Sync in einen Ordner"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copia y sincronización a una carpeta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sauvegarde et synchronisation vers un dossier"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backup e sincronizzazione in una cartella"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopia zapasowa i synchronizacja z folderem"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Faça cópia de segurança e sincronize com uma pasta"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Резервное копирование и синхронизация в папку"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "备份并同步到文件夹"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "備份並同步到資料夾"
+          }
+        }
+      }
+    },
+    "Daily dated backup into a folder" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Täglich eine datierte Sicherung in einen Ordner"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una copia de seguridad con fecha al día en una carpeta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une sauvegarde datée par jour dans un dossier"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un backup con data al giorno in una cartella"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codziennie datowana kopia zapasowa w folderze"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma cópia de segurança datada por dia numa pasta"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ежедневная резервная копия с датой в папку"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天向文件夹备份一份带日期的副本"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天向資料夾備份一份帶日期的副本"
+          }
+        }
+      }
+    },
+    "Optional cards on Today" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optionale Karten auf Heute"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tarjetas opcionales en Hoy"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cartes facultatives dans Aujourd'hui"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schede facoltative in Oggi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opcjonalne karty w Dzisiaj"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cartões opcionais em Hoje"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Дополнительные карточки на экране «Сегодня»"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「今天」上的可选卡片"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「今天」上的可選卡片"
+          }
+        }
+      }
+    },
+    "The strap keeps banking data on its own, so nothing is lost — NOOP just talks to it less often to help it last until you can charge it. Slows background strap-sync (every 45 min instead of 15) while your strap's battery is low." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Strap speichert seine Daten weiterhin selbst, es geht also nichts verloren. NOOP spricht nur seltener mit ihm, damit er bis zum Laden durchhält. Synchronisiert im Hintergrund seltener (alle 45 statt 15 Minuten), solange der Akku deines Straps niedrig ist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La banda sigue guardando los datos por su cuenta, así que no se pierde nada: NOOP simplemente habla con ella menos a menudo para que aguante hasta que puedas cargarla. Lenta la correa de fondo sincronía (cada 45 min en lugar de 15) mientras que la batería de la correa es baja."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le bracelet continue d’enregistrer ses données de son côté, donc rien n’est perdu — NOOP lui parle simplement moins souvent pour qu’il tienne jusqu’à la recharge. Lentifie le sangle de fond (toutes les 45 min au lieu de 15) tandis que la batterie de votre sangle est basse."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fascia continua a memorizzare i dati da sola, quindi non si perde nulla — NOOP comunica con lei meno spesso per farla durare finché non puoi caricarla. Rallenta la sincronizzazione in background della fascia (ogni 45 min invece di 15) quando la batteria della fascia è scarica."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opaska nadal zapisuje dane samodzielnie, więc nic nie ginie — NOOP po prostu rzadziej się z nią komunikuje, aby wystarczyła do naładowania. Spowalnia synchronizację paska w tle (co 45 minut zamiast 15), gdy bateria paska jest słaba."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A pulseira continua a guardar os dados sozinha, por isso nada se perde — o NOOP apenas fala com ela menos vezes para durar até a poderes carregar. Retarda a sincronização da bracelete em segundo plano (a cada 45 minutos em vez de 15) enquanto a bateria da bracelete está fraca."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Браслет продолжает копить данные сам, поэтому ничего не теряется — NOOP просто обращается к нему реже, чтобы его хватило до зарядки. Снижает частоту синхронизации с устройством в фоне (каждые 45 минут вместо 15 минут), когда батарея низкая."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手环会自行继续存储数据，因此不会丢失任何内容 — NOOP 只是减少与它通信的频率，帮它撑到你能充电为止。当手环电量偏低时，减缓后台同步频率（从每15分钟一次降为每45分钟一次）。绝对不会丢失数据——手环会缓存一切记录，同步只是变成了更大批次、更低频的拉取动作。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手環會自行繼續儲存資料，因此不會遺失任何內容 — NOOP 只是減少與它通訊的頻率，幫它撐到你能充電為止。延緩背景同步頻率（每 45 分鐘，而非每 15 分鐘），當手環電量低時。無資料丟失——手環會儲存所有資訊，同步僅會匯入較大且較頻率較低的資料包。"
+          }
+        }
+      }
+    },
+    "Turn on a test for the thing that's wrong, wear the strap, then tap “Report a bug with my log”. Your strap log, recalibrate, scheduled export and experimental probes all live here too." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schalte einen Test für das ein, was nicht stimmt, trage den Strap und tippe dann auf „Fehler mit meinem Log melden“. Dein Strap-Log, Neukalibrierung, geplanter Export und experimentelle Sonden leben auch hier."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activa una prueba para lo que va mal, ponte la pulsera y luego toca «Reportar un error con mi registro». El registro de tu pulsera, la recalibración, la exportación programada y las sondas experimentales también viven aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activez un test pour ce qui ne va pas, portez le bracelet, puis touchez « Signaler un bug avec mon journal ». Le journal de votre bracelet, le recalibrage, l'export programmé et les sondes expérimentales se trouvent aussi ici."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attiva un test per ciò che non va, indossa la fascia, poi tocca «Segnala un bug con il mio log». Anche il registro della fascia, la ricalibrazione, l'esportazione pianificata e le sonde sperimentali si trovano qui."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Włącz test na to, co jest nie tak, załóż pasek, a następnie dotknij „Zgłoś błąd w moim logu”. Twój dziennik paska, ponowna kalibracja, zaplanowany eksport i sondy eksperymentalne również znajdują się tutaj."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ative um teste para detetar o que está errado, utilize a bracelete e toque em «Reportar um erro com o meu registo». O teu registo de bracelete, recalibração, exportação programada e sondas experimentais também estão aqui."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Включите тест для проблемы, наденьте браслет, затем нажмите «Сообщить об ошибке, приложив журнал». Здесь же находятся журнал браслета, повторная калибровка, запланированный экспорт и экспериментальные пробы."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为出问题的部分开启一项测试，佩戴手环，然后点击「附上我的日志报告一个错误」。你的手环日志、重新校准、定时导出和实验性探测也都在这里。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "為出問題的部分開啟一項測試，佩戴手環，然後點擊「附上我的日誌報告一個錯誤」。你的手環日誌、重新校準、定時匯出和實驗性探測也都在這裡。"
+          }
+        }
+      }
+    },
+    "Turn on a test for the thing that's wrong, wear the strap, then tap “Report a bug with my log”. Everything stays on %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schalte einen Test für das ein, was nicht stimmt, trage den Strap und tippe dann auf „Fehler mit meinem Log melden“. Alles bleibt auf %@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activa una prueba para lo que va mal, ponte la pulsera y luego toca «Reportar un error con mi registro». Todo se queda en %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activez un test pour ce qui ne va pas, portez le bracelet, puis touchez « Signaler un bug avec mon journal ». Tout reste sur %@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attiva un test per ciò che non va, indossa la fascia, poi tocca «Segnala un bug con il mio log». Tutto resta su %@."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Włącz test na to, co jest nie tak, załóż pasek, a następnie dotknij „Zgłoś błąd w moim logu”. Wszystko zostaje na %@."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ative um teste para detetar o que está errado, utilize a bracelete e toque em «Reportar um erro com o meu registo». Tudo fica em %@."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Включите тест для проблемы, наденьте браслет, затем нажмите «Сообщить об ошибке, приложив журнал». Всё остаётся на %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为出问题的部分开启一项测试，佩戴手环，然后点击「附上我的日志报告一个错误」。所有内容都保留在 %@ 上。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "為出問題的部分開啟一項測試，佩戴手環，然後點擊「附上我的日誌報告一個錯誤」。所有內容都保留在 %@ 上。"
+          }
+        }
+      }
+    },
     "%1$@ of %2$@ kcal eaten" : {
       "localizations" : {
         "de" : {
@@ -125254,7 +125602,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Backups werden in NOOP gespeichert. Öffnen Sie die Dateien-App → Auf meinem iPhone → NOOP → Backups, um sie anzuzeigen, oder ziehen Sie den Ordner in iCloud Drive, um ihn auf Ihrem Mac zu lesen. Um später einen anderen Ordner zu verwenden, tippen Sie auf Ordner ändern."
+            "value" : "Sicherungen werden in NOOP gespeichert. Öffne die Dateien-App → Auf meinem iPhone → NOOP → Backups, um sie anzuzeigen, oder ziehe den Ordner in iCloud Drive, um ihn auf deinem Mac zu lesen. Um später einen anderen Ordner zu verwenden, tippe auf Ordner ändern."
           }
         },
         "en" : {
@@ -159720,7 +160068,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Coach Einstiegspunkte und optionale Check-ins sind verfügbar. Die gemeinsame Nutzung von Daten ist immer noch eine separate Wahl."
+            "value" : "Coach-Einstiegspunkte und optionale Check-ins sind verfügbar. Die gemeinsame Nutzung von Daten ist immer noch eine separate Wahl."
           }
         },
         "en" : {
@@ -183981,7 +184329,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Standard: Schritte und laufende Effort starten am Anfang des erkannten Hauptschlafs. Nickerchen starten keinen neuen Tag; fehlende Schlafdauer wird auf Mitternacht vor Ort zurückgesetzt."
+            "value" : "Standard: Schritte und der laufende Effort starten am Anfang des erkannten Hauptschlafs. Nickerchen starten keinen neuen Tag; fehlende Schlafdauer wird auf Mitternacht vor Ort zurückgesetzt."
           }
         },
         "es" : {
@@ -204274,7 +204622,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "KI aktivieren Coach"
+            "value" : "KI-Coach aktivieren"
           }
         },
         "en" : {
@@ -258413,7 +258761,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Beim Import ist die Integritätsprüfung nach der Wiederherstellung fehlgeschlagen (SQLite-Berichte: %@). Ihre vorherigen Daten wurden automatisch zurückgesetzt und bleiben unverändert."
+            "value" : "Beim Import ist die Integritätsprüfung nach der Wiederherstellung fehlgeschlagen (SQLite-Berichte: %@). Deine vorherigen Daten wurden automatisch zurückgesetzt und bleiben unverändert."
           }
         },
         "en" : {
@@ -268578,7 +268926,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Letzte Snapshots behalten"
+            "value" : "Letzte Sicherungen behalten"
           }
         },
         "es" : {
@@ -332151,7 +332499,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Metrik"
+            "value" : "Metrisch"
           }
         },
         "en" : {
@@ -359029,7 +359377,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kein Strap verbunden. Leg dein WHOOP in die Nähe und tippe auf „Neu scannen“ zum Koppeln."
+            "value" : "Kein Strap verbunden. Leg dein WHOOP in die Nähe und tippe auf „Erneut suchen“, um ihn zu koppeln."
           }
         },
         "es" : {
@@ -363450,7 +363798,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOP hat keinen Ordner von der Auswahl zurückbekommen. Wenn die Schaltfläche „Öffnen“ nichts bewirkt, tippen Sie unten auf „Eigenen Ordner von NOOP verwenden“, um stattdessen ein Backup in NOOP zu erstellen – Sie können diese Backups über die Dateien-App lesen."
+            "value" : "NOOP hat keinen Ordner von der Auswahl zurückbekommen. Wenn die Schaltfläche „Öffnen“ nichts bewirkt, tippe unten auf „Verwende den eigenen Ordner von NOOP“, um stattdessen in NOOP zu sichern – du kannst diese Sicherungen über die Dateien-App lesen."
           }
         },
         "en" : {
@@ -416011,7 +416359,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lies deine Herzfrequenz, HRV, Blutsauerstoff, Atemfrequenz, Schlaf, Schritte und Energie direkt von Apple Health und schreibe NOOP's Banddaten zurück: Schlafe mit vollen Stadien, kontinuierlicher Herzfrequenz, Workouts und nächtlichen Vitalen. Alles bleibt auf %1$@."
+            "value" : "Lies deine Herzfrequenz, HRV, Blutsauerstoff, Atemfrequenz, Schlaf, Schritte und Energie direkt aus Apple Health und schreibe die Strap-Daten von NOOP zurück: Schlaf mit allen Phasen, durchgehende Herzfrequenz, Workouts und nächtliche Vitalwerte. Alles bleibt auf %1$@."
           }
         },
         "es" : {
@@ -416069,7 +416417,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lesen Sie Ihre Herzfrequenz, HRV, Blutsauerstoff, Atemfrequenz, Schlaf, Schritte und Energie direkt von Apple Health und schreiben Sie NOOP's Banddaten zurück: Schlafen Sie mit vollen Stadien, kontinuierlicher Herzfrequenz, Workouts, nächtlichen Vitalen und Ihrem Profilgewicht. Alles bleibt auf %1$@."
+            "value" : "Lies deine Herzfrequenz, HRV, Blutsauerstoff, Atemfrequenz, Schlaf, Schritte und Energie direkt aus Apple Health und schreibe die Strap-Daten von NOOP zurück: Schlaf mit allen Phasen, durchgehende Herzfrequenz, Workouts, nächtliche Vitalwerte und dein Profilgewicht. Alles bleibt auf %1$@."
           }
         },
         "en" : {
@@ -423754,7 +424102,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zeichnet bereits eintreffende Frames auf, startet keine Sensoren und kann große Dateien erzeugen. Der Export unten fügt das Bandprotokoll hinzu."
+            "value" : "Zeichnet bereits eintreffende Frames auf, startet keine Sensoren und kann große Dateien erzeugen. Der Export unten fügt das Strap-Log hinzu."
           }
         },
         "es" : {
@@ -490176,7 +490524,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bandprotokoll, Verbindungswerte und Exporte"
+            "value" : "Strap-Log, Verbindungswerte und Exporte"
           }
         },
         "es" : {
@@ -510474,7 +510822,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die Datenbank NOOP hat ihre Integritätsprüfung nicht bestanden (SQLite-Berichte: %@). Eine Sicherung davon ließe sich nicht wiederherstellen. Exportieren Sie die CSV-Datei im WHOOP-Format (Einstellungen → Daten exportieren), um zu speichern, was noch lesbar ist."
+            "value" : "Die Datenbank NOOP hat ihre Integritätsprüfung nicht bestanden (SQLite-Berichte: %@). Eine Sicherung davon ließe sich nicht wiederherstellen. Exportiere die CSV-Datei im WHOOP-Format (Einstellungen → Daten exportieren), um zu speichern, was noch lesbar ist."
           }
         },
         "en" : {
@@ -517176,7 +517524,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Diese Sicherungsdatei ist beschädigt und kann nicht wiederhergestellt werden (SQLite-Berichte: %@). Ihre aktuellen Daten blieben unberührt. Versuchen Sie es mit einer früheren Sicherungsdatei."
+            "value" : "Diese Sicherungsdatei ist beschädigt und kann nicht wiederhergestellt werden (SQLite-Berichte: %@). Deine aktuellen Daten blieben unberührt. Versuche es mit einer früheren Sicherungsdatei."
           }
         },
         "en" : {
@@ -527771,7 +528119,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Today zeigt immer die drei wichtigsten. Weniger Ziele hält man leichter."
+            "value" : "Heute zeigt immer die drei wichtigsten. Weniger Ziele hält man leichter."
           }
         },
         "es" : {
@@ -528242,7 +528590,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Today zeigt die ersten drei."
+            "value" : "Heute zeigt die ersten drei."
           }
         },
         "es" : {
@@ -544605,7 +544953,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verwenden Sie den eigenen Ordner von NOOP (in Dateien durchsuchen)"
+            "value" : "Verwende den eigenen Ordner von NOOP (in Dateien durchsuchen)"
           }
         },
         "en" : {
@@ -567720,7 +568068,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "WHOOP 5.0/MG unterstützt Live-Daten und Bandverlauf. Protokollwerkzeuge sind separat im Testcenter."
+            "value" : "WHOOP 5.0/MG unterstützt Live-Daten und den Strap-Verlauf. Werkzeuge zur Protokollforschung findest du separat im Testzentrum."
           }
         },
         "es" : {

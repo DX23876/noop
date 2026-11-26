@@ -581,7 +581,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                     columnsChoice = choices[i]; com.noop.ui.KeyMetricPrefs.setColumns(context, choices[i])
                 }
                 Spacer(Modifier.height(ForgeMetrics.space2))
-                ToggleRow(stringResource(R.string.forge_w_show_timeline), null, showsTimeline != false) {
+                ForgeToggleRow(stringResource(R.string.forge_w_show_timeline), null, showsTimeline != false) {
                     TodayWidgets.setShowsTimeline(context, it)
                 }
                 if (showsTimeline != false) {

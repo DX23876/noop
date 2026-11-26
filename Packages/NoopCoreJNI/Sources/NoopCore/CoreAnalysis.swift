@@ -153,10 +153,11 @@ public enum CoreAnalysis {
         }
     }
 
-    /// Runs the standard daily pass over the last `days` days on `store` and returns today's computed scores.
+    /// The engine the Apple apps run, over the core's store: the profile and the wearer's choices handed in, the
+    /// store's own services. One construction for the daily pass and the Settings repair actions.
     @MainActor
-    public static func run(store: WhoopStore, deviceId: String, profile: Profile, settings: Settings = .standard,
-                           days: Int = 21) async -> Today? {
+    private static func makeEngine(store: WhoopStore, deviceId: String, profile: Profile, settings: Settings)
+        -> (engine: DailyAnalysis, services: StoreServices) {
         let reader = StoreReader(store: store, activeDeviceId: deviceId, registeredWhoopIds: [])
         let host = Host(settings)
         let source = ProfileSource(profile)
@@ -166,6 +167,32 @@ public enum CoreAnalysis {
                                      profile: { [source] in source.analyticsProfile() })
         let engine = DailyAnalysis(services: services, profile: source, deviceId: deviceId, host: host,
                                    messages: { "\($0)" })
+        return (engine, services)
+    }
+
+    /// Settings › Calculations › "Refresh today": the engine's current-day activity refresh, which raises the
+    /// stored Effort of the running day from the raw heart rate without a full pass. False when the day has none.
+    @MainActor
+    static func refreshToday(store: WhoopStore, deviceId: String, profile: Profile, settings: Settings) async -> Bool {
+        let (engine, _) = makeEngine(store: store, deviceId: deviceId, profile: profile, settings: settings)
+        return await engine.refreshCurrentDayActivity()
+    }
+
+    /// Runs the standard daily pass over the last `days` days on `store` and returns today's computed scores.
+    @MainActor
+    public static func run(store: WhoopStore, deviceId: String, profile: Profile, settings: Settings = .standard,
+                           days: Int = 21) async -> Today? {
+        let (engine, _) = makeEngine(store: store, deviceId: deviceId, profile: profile, settings: settings)
+        // The page "If scores look wrong" shows what the pass is doing, as the iPhone card reads the engine's
+        // progress: one read twice a second while a pass is in flight, which costs nothing next to it.
+        AnalysisMaintenanceState.passStarted()
+        let watcher = Task { @MainActor in
+            while !Task.isCancelled {
+                AnalysisMaintenanceState.note(progress: engine.analysisProgress)
+                try? await Task.sleep(for: .milliseconds(500))
+            }
+        }
+        defer { watcher.cancel(); AnalysisMaintenanceState.finish(unless: .today) }
         if settings.historyRescore {
             await engine.reanalyzeHistoryReusingUnchangedDays()
         } else {
@@ -382,6 +409,12 @@ public enum CoreAnalysis {
     public static func passHRmax(overrideBpm: Int, age: Int) -> MaxHeartRate.Resolved {
         MaxHeartRate.resolve(overrideBpm: overrideBpm, age: Double(age),
                              measured: MaxHeartRate.Level(stored: Host.strings[MaxHeartRate.measuredLevelKey])?.bpm)
+    }
+
+    /// The measured maximum heart rate the last pass confirmed, nil until one has (`MaxHeartRate.measuredLevels`).
+    @MainActor
+    public static var measuredMaxHeartRate: MaxHeartRate.Level? {
+        MaxHeartRate.Level(stored: Host.strings[MaxHeartRate.measuredLevelKey])
     }
 
     @MainActor

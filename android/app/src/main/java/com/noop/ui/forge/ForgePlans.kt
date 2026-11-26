@@ -60,7 +60,6 @@ import java.util.Locale
 private const val SHOWN_FINDINGS = 3
 
 private const val AVAILABLE_EQUIPMENT = "training.availableEquipment"
-private const val WEIGHT_INCREMENT = "training.weightIncrementKg"
 
 /**
  * Training plans on Android, feature for feature with the Apple app's plan list, plan page, builder and
@@ -452,18 +451,14 @@ private fun formatSets(value: Double): String =
 internal fun ForgePlanBuilder(onBack: () -> Unit, onSaved: (String) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    // The same two settings the iPhone's wizard reads, so the same answers give the same plan: the
-    // equipment the exercise library already knows about, and the wearer's own weight step under the
-    // key Apple writes. Android has no screen for the step yet, so there it falls back to 2.5 kg; the
-    // key is read rather than the number hard-coded, so the day it gains one, this follows.
+    // The same two settings the iPhone's wizard reads, so the same answers give the same plan: the equipment
+    // the exercise library already knows about, and the wearer's own weight step (Settings › Training).
     val prefs = remember(context) { NoopPrefs.of(context) }
     val equipment = remember(prefs) {
         prefs.getString(AVAILABLE_EQUIPMENT, "").orEmpty()
             .lineSequence().filter { it.isNotBlank() }.toList()
     }
-    val weightStepKg = remember(prefs) {
-        prefs.getString(WEIGHT_INCREMENT, null)?.toDoubleOrNull() ?: 2.5
-    }
+    val weightStepKg = remember(prefs) { TrainingStepPrefs.weightIncrementKg(context) }
     var days by remember { mutableStateOf(3) }
     var minutes by remember { mutableStateOf(60) }
     var experience by remember { mutableStateOf("beginner") }
@@ -586,9 +581,7 @@ internal fun ForgePlanBuilder(onBack: () -> Unit, onSaved: (String) -> Unit) {
 internal fun ForgePlanTemplates(onBack: () -> Unit, onSaved: (String) -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val weightStepKg = remember(context) {
-        NoopPrefs.of(context).getString(WEIGHT_INCREMENT, null)?.toDoubleOrNull() ?: 2.5
-    }
+    val weightStepKg = remember(context) { TrainingStepPrefs.weightIncrementKg(context) }
     var templates by remember { mutableStateOf<List<CorePlans.Template>>(emptyList()) }
     var busy by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { templates = core(context) { CorePlans.snapshot() }?.templates.orEmpty() }

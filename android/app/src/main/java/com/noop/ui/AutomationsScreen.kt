@@ -58,13 +58,16 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.noop.analytics.ClockFormat
 
+/** Which cards [AutomationsScreen] draws: all of them, or only the nap detection (the one control with no iOS twin). */
+enum class AutomationsScope { All, NapDetection }
+
 /**
  * Automations — turn the strap's physical inputs (double-tap, wrist on/off) and live
  * biometrics into on-device actions and haptic coaching. HR-zone coaching, the smart alarm
  * and the illness watch are real + persisted (ViewModel-backed).
  */
 @Composable
-fun AutomationsScreen(viewModel: AppViewModel) {
+fun AutomationsScreen(viewModel: AppViewModel, scope: AutomationsScope = AutomationsScope.All) {
     val live by viewModel.live.collectAsStateWithLifecycle()
 
     // Double-tap action (parity since 4.2.8) — real + persisted via the ViewModel (NoopPrefs). The
@@ -122,6 +125,12 @@ fun AutomationsScreen(viewModel: AppViewModel) {
         title = uiString(R.string.l10n_automations_screen_automations_82542d6d),
         subtitle = "Make the strap do things: tap to act, walk away to lock, train by feel.",
     ) {
+        // Settings parity: Strap Actions and Notifications are Forge pages now (`ForgeSettingsAlerts.kt`), so the nap
+        // detection, which iOS has no twin for, can be opened on its own.
+        if (scope == AutomationsScope.NapDetection) {
+            item { NapDetectionSection(viewModel) }
+            return@LazyScreenScaffold
+        }
         // #haptics (#1115): per-event in-session haptic toggles, default ON (opt-out) — turn off any cue you
         // find noisy; the feature keeps working, just without that wrist buzz.
         item {

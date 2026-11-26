@@ -1,6 +1,14 @@
 package com.noop.ui.forge
 
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.graphicsLayer
+import com.noop.ui.rememberPoseStill
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -105,12 +113,22 @@ internal fun ForgeCoachButton(viewModel: AppViewModel) {
         val y by animateFloatAsState(baseY, label = ANIM_Y)
         val cx = (x + drag.x).coerceIn(leading, trailing)
         val cy = (y + drag.y).coerceIn(half + margin, h - half - margin)
+        // iOS's coach breath (`CoachBreath.isActive`): about 3 % over a 4 s cycle with the shadow swelling in step,
+        // when the wearer left "Coach animation" on and nothing asks the app to hold still.
+        val still = rememberPoseStill()
+        val breathing = CoachBreathPrefs.enabled(context) && !still
+        val breath = if (breathing) {
+            rememberInfiniteTransition(label = ANIM_BREATH)
+                .animateFloat(0f, 1f, infiniteRepeatable(tween(BREATH_HALF_MS, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+                              label = ANIM_BREATH).value
+        } else 0f
 
         Box(
             Modifier
                 .offset { IntOffset((cx - half).roundToInt(), (cy - half).roundToInt()) }
                 .size(SIZE)
-                .shadow(10.dp, CircleShape)
+                .graphicsLayer { scaleX = 1f + BREATH_SCALE * breath; scaleY = 1f + BREATH_SCALE * breath }
+                .shadow(10.dp + BREATH_GLOW * breath, CircleShape)
                 .background(colors.accent, CircleShape)
                 .border(1.dp, Color.White.copy(alpha = 0.18f), CircleShape)
                 .pointerInput(locked, baseX, baseY, w, h) {
@@ -161,3 +179,9 @@ private val TOP_CHROME = 100.dp
 /** Animation labels for the layout inspector, not shown to anyone. */
 private const val ANIM_X = "coachButtonX"
 private const val ANIM_Y = "coachButtonY"
+private const val ANIM_BREATH = "coachButtonBreath"
+
+/** The breath: half a cycle in milliseconds, how far it swells (3 %), and how much the shadow grows with it. */
+private const val BREATH_HALF_MS = 2_000
+private const val BREATH_SCALE = 0.03f
+private val BREATH_GLOW = 6.dp

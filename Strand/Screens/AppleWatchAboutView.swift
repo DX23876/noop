@@ -103,6 +103,9 @@ struct AppleWatchAboutView: View {
                        subtitle: classicOnlySubtitle("What your watch is great at, where it's lighter than a chest strap, and how sure NOOP is."),
                        lazy: true) {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+                if NoopVisualStyle.skin == .forge {
+                    forgeBody
+                } else {
                 introCard
                 capabilityCard
                 hrvCard
@@ -111,8 +114,76 @@ struct AppleWatchAboutView: View {
                     startCard(onStartSetup)
                 }
                 footerNote
+                }
             }
         }
+    }
+
+    // MARK: - New design
+
+    /// The page in the new design's settings anatomy: each topic is a small header above a card, its first
+    /// paragraph on the card and the second as the footer under it. The words are the shipped design's.
+    private var forgeBody: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+            SettingsSubGroup(title: "Your Apple Watch as a device",
+                             footer: Text("The honest catch: a watch isn't a chest strap. It's brilliant at sleep, steps, workouts and fitness, and lighter on the dense heart-rate-variability a strap measures all night. So recovery takes about a week to calibrate, and a couple of metrics depend on your watch model. NOOP is upfront about all of it. Every watch-derived number carries a confidence, and where the watch can't be honest, NOOP shows nothing instead of a made-up figure.")) {
+                Text("NOOP can run off only an Apple Watch, no chest strap needed. The watch is the sensor; NOOP does the thinking on your phone, computing Charge, Rest, Effort and your Fitness Age from your Health data, all on-device.")
+                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            SettingsSubGroup(title: "WHAT THE WATCH CAN DO", footer: Text("Each metric, where your Apple Watch sits on it, and why.")) {
+                ForEach(Array(metrics.enumerated()), id: \.element.id) { index, item in
+                    if index > 0 { Divider().overlay(StrandPalette.hairline) }
+                    forgeMetricRow(item)
+                }
+            }
+            SettingsSubGroup(title: "Why recovery calibrates over about a week",
+                             footer: Text("That's why a watch-only Charge starts out \u{201C}Calibrating\u{201D}. NOOP needs about seven nights of your HRV to learn what normal looks like for you. Until it has them it withholds the score rather than guess. Once the baseline is set, your Charge appears with its confidence, on the same 0-100 scale as a strap's.")) {
+                Text("Recovery, NOOP's Charge score, is led by your heart-rate variability measured against your own personal baseline. A chest strap streams beat-to-beat data densely all night, so it can learn that baseline fast. An Apple Watch instead samples HRV, a handful of readings through the day plus overnight, so the signal is real but sparser.")
+                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            SettingsSubGroup(title: "A note on blood oxygen and your model",
+                             footer: Text("Where a sensor isn't on your watch, NOOP reads \u{201C}not available\u{201D} for that metric, never a zero, never an invented number. Everything else keeps working.")) {
+                Text("A couple of metrics depend on which Apple Watch you wear. Wrist temperature, which feeds skin temp, arrived with Series 8, so older watches don't report it. Blood oxygen is the bigger one: Apple removed the SpO₂ sensor from the newest US units over a patent dispute, so those simply don't measure it.")
+                    .font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let onStartSetup {
+                SettingsSubGroup(title: "Ready to connect your watch?",
+                                 footer: Text("NOOP reads your Apple Watch data through Apple Health, on your phone, nothing leaves the device. You choose exactly what to share.")) {
+                    Button(action: onStartSetup) {
+                        Label("Set up Apple Watch", systemImage: "applewatch")
+                    }
+                    .buttonStyle(NoopButtonStyle(.primary, fullWidth: true))
+                    .accessibilityHint("Opens the Apple Watch setup and Health permission")
+                }
+            }
+            Text("These are independent estimates computed on your device from your Apple Health data, not medical advice. Confidence labels are honest about how much NOOP knows so far.")
+                .settingsCaption()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, NoopMetrics.space4)
+        }
+    }
+
+    private func forgeMetricRow(_ item: WatchMetric) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: NoopMetrics.space2) {
+                Image(systemName: item.icon)
+                    .foregroundStyle(item.confidence.accent)
+                    .frame(width: 22)
+                    .accessibilityHidden(true)
+                Text(item.metric)
+                    .font(SettingsRowFont.value)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Spacer(minLength: NoopMetrics.space2)
+                StatePill(LocalizedStringKey(item.confidence.pillLabel),
+                          tone: item.confidence.tone, showsDot: true)
+            }
+            Text(item.detail).settingsCaption()
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(item.metric). \(item.confidence.pillLabel). \(item.detail)")
     }
 
     // MARK: - Intro

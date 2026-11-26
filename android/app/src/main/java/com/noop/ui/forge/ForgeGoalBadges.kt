@@ -157,7 +157,7 @@ internal fun AchievementsCard(motivation: CoreGoals.Motivation?, enabled: Boolea
             }
             RowDivider()
         }
-        ToggleRow(stringResource(R.string.forge_gm_toggle), detail = stringResource(R.string.forge_gm_toggle_detail),
+        ForgeToggleRow(stringResource(R.string.forge_gm_toggle), detail = stringResource(R.string.forge_gm_toggle_detail),
                   checked = enabled, onChange = onSwitch)
     }
 }

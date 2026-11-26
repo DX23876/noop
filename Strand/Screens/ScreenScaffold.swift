@@ -186,7 +186,7 @@ struct ScreenScaffold<Content: View, Trailing: View>: View {
             Spacer(minLength: 0)
             trailing()
             #if os(iOS)
-            if NoopVisualStyle.skin == .forge, let pagePicture {
+            if NoopVisualStyle.skin == .forge, let pagePicture, !pagePicture.forgeUsesBanner {
                 CoachPicture(main: pagePicture.symbol, accentA: pagePicture.accent, accentB: "sparkle",
                              tint: pagePicture.tint)
                     .frame(width: CoachPictureSize.medium, height: CoachPictureSize.medium)
@@ -201,6 +201,8 @@ struct PagePicture {
     let symbol: String
     let accent: String
     let tint: Color
+    /// The page opens with the centred symbol head of a Settings page instead of this picture.
+    var forgeUsesBanner = false
 }
 
 private struct PagePictureKey: EnvironmentKey {
@@ -217,8 +219,8 @@ extension EnvironmentValues {
 extension View {
     /// Gives the `ScreenScaffold` page inside this view its picture beside the title (new design only):
     /// every page carries a picture of what it is about, not only a title over text.
-    func pagePicture(_ symbol: String, accent: String = "sparkle", tint: Color) -> some View {
-        environment(\.pagePicture, PagePicture(symbol: symbol, accent: accent, tint: tint))
+    func pagePicture(_ symbol: String, accent: String = "sparkle", tint: Color, forgeUsesBanner: Bool = false) -> some View {
+        environment(\.pagePicture, PagePicture(symbol: symbol, accent: accent, tint: tint, forgeUsesBanner: forgeUsesBanner))
     }
 }
 

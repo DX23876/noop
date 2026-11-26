@@ -25,6 +25,12 @@ import com.noop.ui.appLaunchIntent
 object GoalNoticeNotifier {
     enum class Kind(val key: String) { Reached("reached"), Streak("streak"), Badge("badge"), Milestone("milestone") }
 
+    /** The optional weekly-goal notices (iOS `GoalPrefs.NotificationKind`): the start of the week, mid-week, the review. */
+    enum class PeriodKind(val key: String, val noticeId: String) {
+        WeekStart("weekStart", "goals.notify.weekStart"), MidWeek("midWeek", "goals.notify.midWeek"),
+        Review("review", "goals.notify.review"),
+    }
+
     private const val CHANNEL_ID = "noop_goals"
     private const val STATE_KEY = "goals.notify.state"
     private const val NOTICE_ID_BASE = 4230
@@ -35,22 +41,68 @@ object GoalNoticeNotifier {
         NoopPrefs.of(context).edit().putBoolean("goals.notify.${kind.key}", on).apply()
     }
 
+    fun isOn(context: Context, kind: PeriodKind): Boolean = NoopPrefs.of(context).getBoolean("goals.notify.${kind.key}", false)
+
+    fun setOn(context: Context, kind: PeriodKind, on: Boolean) {
+        NoopPrefs.of(context).edit().putBoolean("goals.notify.${kind.key}", on).apply()
+    }
+
     fun evaluate(context: Context, dismissedWorkouts: List<String>, workoutInProgress: Boolean) {
         val kinds = Kind.values().filter { isOn(context, it) }.map { it.key }
-        if (kinds.isEmpty() || !CoreRead.isOpen) return
+        val periodKinds = PeriodKind.values().filter { isOn(context, it) }
+        if (!CoreRead.isOpen) return
+        if (kinds.isEmpty() && periodKinds.isEmpty()) { schedulePeriod(context, emptyList()); return }
         val prefs = NoopPrefs.of(context)
+        var planned: List<CoreGoals.PeriodNotice>? = null
         serializedPass(
             read = { prefs.getString(STATE_KEY, null) },
             compute = { state ->
                 CoreGoals.notices(
                     context, dismissedWorkouts, kinds, quiet = NotifPrefs.inQuietHours(context),
                     eveningMinute = eveningMinute(context), workoutInProgress = workoutInProgress,
-                    appIsActive = appIsActive(), state = state,
-                )?.let { it.state to it.messages }
+                    appIsActive = appIsActive(), state = state, periodKinds = periodKinds.map { it.key },
+                    firstWeekday = if (prefs.getString("training.weekStartsOn", null) == "sunday") 1 else 2,
+                    quietWindow = Triple(NotifPrefs.getBool(context, NotifPrefs.QUIET, false),
+                                         NotifPrefs.getInt(context, NotifPrefs.QUIET_START, 22 * 60),
+                                         NotifPrefs.getInt(context, NotifPrefs.QUIET_END, 7 * 60)),
+                )?.let { planned = it.periodNotices; it.state to it.messages }
             },
-            write = { prefs.edit().putString(STATE_KEY, it).commit() },
-            deliver = { messages -> messages.forEachIndexed { index, message -> post(context, NOTICE_ID_BASE + index, message) } },
+            // With no event kind on, nothing is told and the count is left alone: only the weekly notices are planned.
+            write = { if (kinds.isNotEmpty()) prefs.edit().putString(STATE_KEY, it).commit() },
+            deliver = { messages ->
+                if (kinds.isNotEmpty()) messages.forEachIndexed { index, message -> post(context, NOTICE_ID_BASE + index, message) }
+            },
         )
+        // What is planned replaces what was scheduled: a switch turned off, or a week that moved on, drops its alarm.
+        planned?.let { schedulePeriod(context, it.filter { n -> periodKinds.any { k -> k.noticeId == n.id } }) }
+    }
+
+    private const val ACTION_PERIOD = "com.noop.goal.PERIOD"
+    private const val PERIOD_REQUEST_BASE = 4290
+    private const val PERIOD_NOTICE_ID_BASE = 4240
+
+    private fun periodIntent(context: Context, kind: PeriodKind, notice: CoreGoals.PeriodNotice?): PendingIntent {
+        val intent = android.content.Intent(context, GoalNoticeActionReceiver::class.java).setAction(ACTION_PERIOD)
+            .putExtra("kind", kind.key)
+        if (notice != null) intent.putExtra("title", notice.title).putExtra("body", notice.body)
+        return PendingIntent.getBroadcast(context, PERIOD_REQUEST_BASE + kind.ordinal, intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
+    }
+
+    /**
+     * Sets one alarm per planned weekly-goal notice and cancels the rest, as Apple's scheduler removes and re-adds its
+     * three pending notifications. The core decided what to say and when (`PeriodGoalNoticePlan`); this only rings it.
+     */
+    internal fun schedulePeriod(context: Context, notices: List<CoreGoals.PeriodNotice>) {
+        val alarm = context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager
+        PeriodKind.values().forEach { kind ->
+            val notice = notices.firstOrNull { it.id == kind.noticeId }
+            val pending = periodIntent(context, kind, notice)
+            alarm.cancel(pending)
+            if (notice != null && notice.atEpoch * 1000 > System.currentTimeMillis()) {
+                alarm.setAndAllowWhileIdle(android.app.AlarmManager.RTC, notice.atEpoch * 1000, pending)
+            }
+        }
     }
 
     private val passLock = Any()
@@ -157,6 +209,13 @@ object GoalNoticeNotifier {
                 val repost = actionIntent(context, id, ACTION_SNOOZE_FIRE, again)
                 (context.getSystemService(Context.ALARM_SERVICE) as android.app.AlarmManager)
                     .setAndAllowWhileIdle(android.app.AlarmManager.RTC, fire.timeInMillis, repost)
+            }
+            ACTION_PERIOD -> {
+                // The weekly-goal notice is shown only while its switch is still on.
+                val kind = PeriodKind.values().firstOrNull { it.key == intent.getStringExtra("kind") } ?: return
+                if (!isOn(context, kind)) return
+                post(context, PERIOD_NOTICE_ID_BASE + kind.ordinal, CoreGoals.Notice(kind.noticeId,
+                    intent.getStringExtra("title").orEmpty(), intent.getStringExtra("body").orEmpty(), evening = false))
             }
             ACTION_SNOOZE_FIRE -> post(context, id, CoreGoals.Notice(intent.getStringExtra("noticeId").orEmpty(),
                 intent.getStringExtra("title").orEmpty(), intent.getStringExtra("body").orEmpty(), true,

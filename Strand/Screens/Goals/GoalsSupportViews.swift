@@ -573,105 +573,88 @@ struct GoalsSettingsView: View {
     }
 
     var body: some View {
-        ScreenScaffold(title: "Goals", subtitle: "Number of goals, rest days and step goal",
+        ScreenScaffold(title: "Goals", subtitle: classicOnlySubtitle("Number of goals, rest days and step goal"),
                        topBackground: liquidScaffoldSky()) {
-            NoopCard(padding: 14) {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("How many goals").strandOverline()
+            VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+                #if os(iOS)
+                if NoopVisualStyle.skin == .forge { SettingsPageBanner(page: .goals) }
+                #endif
+                SettingsSection(icon: "number", title: "How many goals",
+                                blurb: "Today always shows the three most important. Fewer goals are easier to keep.") {
                     Stepper(value: $longTermLimit, in: GoalPrefs.longTermLimitRange) {
-                        Text("Long-term goals: up to \(longTermLimit)").font(StrandFont.footnote)
+                        Text("Long-term goals: up to \(longTermLimit)").font(SettingsRowFont.value)
                     }
                     Stepper(value: $periodLimit, in: GoalPrefs.periodLimitRange) {
-                        Text("Weekly and monthly goals: up to \(periodLimit)").font(StrandFont.footnote)
+                        Text("Weekly and monthly goals: up to \(periodLimit)").font(SettingsRowFont.value)
                     }
-                    Text("Today always shows the three most important. Fewer goals are easier to keep.")
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                 }
-            }
-            NoopCard(padding: 14) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("My rest days").strandOverline()
+                SettingsSection(icon: "bed.double.fill", title: "My rest days",
+                                blurb: "Training goals spread their pace over the other days. The week starts on the day set under Language & Units.") {
                     RestDaysPicker(selection: $restDays)
                         .onChange(of: restDays) { value in
                             TrainingPreferences.setRestWeekdays(Array(value))
                             Task { await GoalTrackingStore.shared.refresh(repo: repo) }
                         }
-                    Text("Training goals spread their pace over the other days. The week starts on the day set under Language & Units.")
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
-            }
-            NoopCard(padding: 14) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Daily step goal").strandOverline()
+                SettingsSection(icon: "figure.walk", title: "Daily step goal",
+                                blurb: "Momentum counts down to it during the day. Not set, it compares your day with your own recent normal.") {
                     Stepper(value: $momentumStepGoal, in: 0...30_000, step: 500) {
                         Text(momentumStepGoal > 0 ? String(localized: "\(momentumStepGoal) steps") : String(localized: "Not set"))
-                            .font(StrandFont.footnote)
+                            .font(SettingsRowFont.value)
                     }
                     .accessibilityHint("Momentum counts down to this goal during the day")
-                    Text("Momentum counts down to it during the day. Not set, it compares your day with your own recent normal.")
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
-            }
-            NoopCard(padding: 14) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Notifications").strandOverline()
+                SettingsSection(icon: "bell.fill", title: "Notifications",
+                                blurb: "Off by default. At most two goal notifications a day, never after 21:00 or during a workout. Hints and reviews always appear in the app. Quiet hours from the notification settings apply.") {
                     ForEach(GoalEventNotifier.Kind.allCases) { kind in
                         Toggle(kind.label, isOn: Binding(
                             get: { eventNotify[kind] ?? GoalEventNotifier.isOn(kind) },
                             set: { eventNotify[kind] = $0; GoalEventNotifier.setOn(kind, $0)
                                 UserDefaults.standard.set(true, forKey: GoalEventNotifier.consentAskedKey)
                                 if $0 { GoalNotifier.requestAuthorization() } }))
-                            .font(StrandFont.footnote)
+                            .font(SettingsRowFont.value)
                     }
                     ForEach(GoalPrefs.NotificationKind.allCases) { kind in
                         Toggle(kind.label.localizedCatalogValue, isOn: Binding(
                             get: { notify[kind] ?? GoalPrefs.notifies(kind) },
                             set: { notify[kind] = $0; GoalPrefs.setNotifies(kind, $0)
                                 if $0 { GoalNotifier.requestAuthorization() } }))
-                            .font(StrandFont.footnote)
+                            .font(SettingsRowFont.value)
                     }
-                    Text("Off by default. At most two goal notifications a day, never after 21:00 or during a workout. Hints and reviews always appear in the app. Quiet hours from the notification settings apply.")
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
-            }
-            NoopCard(padding: 14) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Motivation").strandOverline()
+                SettingsSection(icon: "rosette", title: "Motivation",
+                                blurb: "Badges for steps, streaks and reached goals, your personal records and a cheering line near the goal. Worked out on this device from your own data.") {
                     Toggle("Badges, streaks and records", isOn: Binding(
                         get: { motivationOn },
                         set: { motivationOn = $0; UserDefaults.standard.set($0, forKey: GoalPrefs.motivationEnabledKey)
                             Task { await GoalTrackingStore.shared.refresh(repo: repo) } }))
-                        .font(StrandFont.footnote)
-                    Text("Badges for steps, streaks and reached goals, your personal records and a cheering line near the goal. Worked out on this device from your own data.")
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .font(SettingsRowFont.value)
                     let streak = streak
                     HStack(alignment: .firstTextBaseline) {
-                        Text("Streak").font(StrandFont.footnote)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Streak").font(SettingsRowFont.value)
+                            Text(streak.longest == 1 ? "Longest: 1 day" : "Longest: \(streak.longest) days")
+                                .settingsCaption()
+                        }
                         Spacer()
                         Text(streak.current == 1 ? "1 day in a row" : "\(streak.current) days in a row")
-                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
+                            .font(SettingsRowFont.value).foregroundStyle(StrandPalette.textSecondary)
                     }
-                    Text(streak.longest == 1 ? "Longest: 1 day" : "Longest: \(streak.longest) days")
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
                 }
-            }
-            NoopCard(padding: 14) {
-                VStack(alignment: .leading, spacing: 10) {
-                    Toggle("Goal invitation on Today", isOn: Binding(get: { !inviteDismissed }, set: { inviteDismissed = !$0 }))
-                        .font(StrandFont.footnote)
-                    #if os(iOS)
-                    if #available(iOS 26.1, *) {
-                        Toggle("Week bar above the tab bar", isOn: $weekBar).font(StrandFont.footnote)
+                NoopCard(padding: 14) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Toggle("Goal invitation on Today", isOn: Binding(get: { !inviteDismissed }, set: { inviteDismissed = !$0 }))
+                            .font(SettingsRowFont.value)
+                        #if os(iOS)
+                        if #available(iOS 26.1, *) {
+                            Toggle("Week bar above the tab bar", isOn: $weekBar).font(SettingsRowFont.value)
+                        }
+                        #endif
+                        Button("Show the explainer again") {
+                            UserDefaults.standard.set(false, forKey: GoalPrefs.introSeenKey)
+                        }
+                        .font(SettingsRowFont.value).foregroundStyle(StrandPalette.accent)
                     }
-                    #endif
-                    Button("Show the explainer again") {
-                        UserDefaults.standard.set(false, forKey: GoalPrefs.introSeenKey)
-                    }
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.accent)
                 }
             }
         }

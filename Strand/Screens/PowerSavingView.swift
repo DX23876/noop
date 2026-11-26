@@ -27,77 +27,120 @@ struct PowerSavingView: View {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
                 if NoopVisualStyle.skin == .forge { SettingsPageBanner(page: .batteryRecording) }
                 ContinuousHrvSettingsCard()
-                SettingsSection(
-                    icon: "battery.25",
-                    title: "Power saving",
-                    blurb: "The strap keeps banking data on its own, so nothing is lost — NOOP just talks to it less often to help it last until you can charge it."
-                ) {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Toggle(isOn: $powerSavingEnabled) {
-                            Text("Power saving mode")
-                                .font(StrandFont.subhead)
-                                .foregroundStyle(StrandPalette.textPrimary)
-                        }
-                        .toggleStyle(.switch)
-                        .tint(StrandPalette.accent)
-                        .onChangeCompat(of: powerSavingEnabled) { _ in model.applyPowerSaving() }
-                        Text("Slows background strap-sync (every 45 min instead of 15) while your strap's battery is low. No data loss — the strap banks everything, so sync just batches into larger, less frequent pulls.")
-                            .font(StrandFont.caption)
-                            .foregroundStyle(StrandPalette.textTertiary)
-                            .fixedSize(horizontal: false, vertical: true)
+                if NoopVisualStyle.skin == .forge { powerSavingGroup } else { powerSavingClassicCard }
+            }
+        }
+    }
 
-                        if powerSavingEnabled {
-                            rowDivider
-                            HStack {
-                                Text("Kick in at (strap battery)")
-                                    .font(StrandFont.subhead)
-                                    .foregroundStyle(StrandPalette.textPrimary)
-                                Spacer()
-                                Text(verbatim: "\(powerSavingPct)%")
-                                    .font(StrandFont.subhead)
-                                    .foregroundStyle(StrandPalette.accent)
-                            }
-                            // 10…35 in 5s. 35 buys one more step of strap life than the old 30 ceiling:
-                            // the levers engage ~5% earlier in the discharge, at the cost of a slightly
-                            // longer stretch of quieter syncing.
-                            Slider(
-                                value: Binding(get: { Double(powerSavingPct) }, set: { powerSavingPct = Int($0) }),
-                                in: 10...35, step: 5,
-                                onEditingChanged: { editing in if !editing { model.applyPowerSaving() } }
-                            )
-                            .tint(StrandPalette.accent)
+    /// The new design's Power saving: the master switch and its sub-options on one card, what they do as the
+    /// footer under it (the master's explanation first, then each sub-option's, in the order of the rows).
+    private var powerSavingGroup: some View {
+        // One paragraph: the master's second sentence only repeated that nothing is lost.
+        let intro = Text("The strap keeps banking data on its own, so nothing is lost — NOOP just talks to it less often to help it last until you can charge it. Slows background strap-sync (every 45 min instead of 15) while your strap's battery is low.")
+        let pause = Text("While your strap's battery is low, stop the always-on background HRV stream — the biggest continuous drain on the strap. A Live screen still shows heart rate, and it re-arms automatically once the strap is charged.")
+        let refresh = Text("Sync in the background every hour instead of every 15 minutes, whatever the strap's charge — fewer reconnections is the biggest saving on a WHOOP 4.0. Nothing is lost: the strap banks everything and hands it over in larger batches. Pull to sync still runs straight away, and live heart rate is untouched.")
+        let gap = Text.paragraphBreak
+        let footer = powerSavingEnabled
+            ? intro + gap + pause + gap + refresh
+            : intro
+        return SettingsSubGroup(footer: footer) {
+            powerSavingToggle
+            if powerSavingEnabled {
+                rowDivider
+                powerSavingThreshold
+                rowDivider
+                pauseHrvToggle
+                rowDivider
+                lowRefreshToggle
+            }
+        }
+    }
 
-                            rowDivider
-                            // HRV pause: a sub-option, ON by default when the master is on (stored inverted).
-                            Toggle(isOn: Binding(get: { !pauseHrvDisabled }, set: { pauseHrvDisabled = !$0 })) {
-                                Text("Pause HRV capture")
-                                    .font(StrandFont.subhead)
-                                    .foregroundStyle(StrandPalette.textPrimary)
-                            }
-                            .toggleStyle(.switch)
-                            .tint(StrandPalette.accent)
-                            .onChangeCompat(of: pauseHrvDisabled) { _ in model.applyPowerSaving() }
-                            Text("While your strap's battery is low, stop the always-on background HRV stream — the biggest continuous drain on the strap. A Live screen still shows heart rate, and it re-arms automatically once the strap is charged.")
-                                .font(StrandFont.caption)
-                                .foregroundStyle(StrandPalette.textTertiary)
-                                .fixedSize(horizontal: false, vertical: true)
+    private var powerSavingToggle: some View {
+        Toggle(isOn: $powerSavingEnabled) {
+            Text("Power saving mode")
+                .font(SettingsRowFont.value)
+                .foregroundStyle(StrandPalette.textPrimary)
+        }
+        .toggleStyle(.switch)
+        .tint(StrandPalette.accent)
+        .onChangeCompat(of: powerSavingEnabled) { _ in model.applyPowerSaving() }
+    }
 
-                            rowDivider
-                            // Low refresh: a sub-option that applies at ANY charge, not just below the threshold.
-                            Toggle(isOn: $lowRefreshEnabled) {
-                                Text("Low refresh")
-                                    .font(StrandFont.subhead)
-                                    .foregroundStyle(StrandPalette.textPrimary)
-                            }
-                            .toggleStyle(.switch)
-                            .tint(StrandPalette.accent)
-                            .onChangeCompat(of: lowRefreshEnabled) { _ in model.applyPowerSaving() }
-                            Text("Sync in the background every hour instead of every 15 minutes, whatever the strap's charge — fewer reconnections is the biggest saving on a WHOOP 4.0. Nothing is lost: the strap banks everything and hands it over in larger batches. Pull to sync still runs straight away, and live heart rate is untouched.")
-                                .font(StrandFont.caption)
-                                .foregroundStyle(StrandPalette.textTertiary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
+    private var powerSavingThreshold: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("Kick in at (strap battery)")
+                    .font(SettingsRowFont.value)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Spacer()
+                Text(verbatim: "\(powerSavingPct)%")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.accent)
+            }
+            // 10…35 in 5s. 35 buys one more step of strap life than the old 30 ceiling:
+            // the levers engage ~5% earlier in the discharge, at the cost of a slightly
+            // longer stretch of quieter syncing.
+            Slider(
+                value: Binding(get: { Double(powerSavingPct) }, set: { powerSavingPct = Int($0) }),
+                in: 10...35, step: 5,
+                onEditingChanged: { editing in if !editing { model.applyPowerSaving() } }
+            )
+            .tint(StrandPalette.accent)
+        }
+    }
+
+    /// HRV pause: a sub-option, ON by default when the master is on (stored inverted).
+    private var pauseHrvToggle: some View {
+        Toggle(isOn: Binding(get: { !pauseHrvDisabled }, set: { pauseHrvDisabled = !$0 })) {
+            Text("Pause HRV capture")
+                .font(SettingsRowFont.value)
+                .foregroundStyle(StrandPalette.textPrimary)
+        }
+        .toggleStyle(.switch)
+        .tint(StrandPalette.accent)
+        .onChangeCompat(of: pauseHrvDisabled) { _ in model.applyPowerSaving() }
+    }
+
+    /// Low refresh: a sub-option that applies at ANY charge, not just below the threshold.
+    private var lowRefreshToggle: some View {
+        Toggle(isOn: $lowRefreshEnabled) {
+            Text("Low refresh")
+                .font(SettingsRowFont.value)
+                .foregroundStyle(StrandPalette.textPrimary)
+        }
+        .toggleStyle(.switch)
+        .tint(StrandPalette.accent)
+        .onChangeCompat(of: lowRefreshEnabled) { _ in model.applyPowerSaving() }
+    }
+
+    /// The classic look's Power saving card (the new design draws `powerSavingGroup`).
+    private var powerSavingClassicCard: some View {
+        SettingsSection(
+            icon: "battery.25",
+            title: "Power saving",
+            blurb: "The strap keeps banking data on its own, so nothing is lost — NOOP just talks to it less often to help it last until you can charge it."
+        ) {
+            VStack(alignment: .leading, spacing: 16) {
+                powerSavingToggle
+                Text("Slows background strap-sync (every 45 min instead of 15) while your strap's battery is low. No data loss — the strap banks everything, so sync just batches into larger, less frequent pulls.")
+                    .settingsCaption()
+
+                if powerSavingEnabled {
+                    rowDivider
+                    powerSavingThreshold
+
+                    rowDivider
+                    // HRV pause: a sub-option, ON by default when the master is on (stored inverted).
+                    pauseHrvToggle
+                    Text("While your strap's battery is low, stop the always-on background HRV stream — the biggest continuous drain on the strap. A Live screen still shows heart rate, and it re-arms automatically once the strap is charged.")
+                        .settingsCaption()
+
+                    rowDivider
+                    // Low refresh: a sub-option that applies at ANY charge, not just below the threshold.
+                    lowRefreshToggle
+                    Text("Sync in the background every hour instead of every 15 minutes, whatever the strap's charge — fewer reconnections is the biggest saving on a WHOOP 4.0. Nothing is lost: the strap banks everything and hands it over in larger batches. Pull to sync still runs straight away, and live heart rate is untouched.")
+                        .settingsCaption()
                 }
             }
         }

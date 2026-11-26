@@ -55,6 +55,16 @@ object BackupSettingsCodec {
         "profile.waistCm" to Kind.DOUBLE,
         "profile.hrMax" to Kind.INT,
         "profile.hrZoneThresholds" to Kind.STRING,
+        // The zone mode (auto, percent, bpm) and the two bound sets, and the VO₂max the wearer entered with its day
+        // and weight plus the activity category: the same keys the Apple whitelist carries, so a backup restores the
+        // zones and the aerobic ceiling on either platform.
+        "profile.zoneMode" to Kind.STRING,
+        "profile.zonePercentEdges" to Kind.STRING,
+        "profile.zoneBpmEdges" to Kind.STRING,
+        "profile.vo2maxManual" to Kind.DOUBLE,
+        "profile.vo2maxManualDay" to Kind.STRING,
+        "profile.vo2maxManualWeightKg" to Kind.DOUBLE,
+        "profile.activityLevelOverride" to Kind.INT,
         "units.system" to Kind.STRING,
         "units.distance" to Kind.STRING,
         "units.temperature" to Kind.STRING,

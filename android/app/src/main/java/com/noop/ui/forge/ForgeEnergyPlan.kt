@@ -66,8 +66,8 @@ internal fun ForgeEnergyPlanPage(onBack: () -> Unit, onDetail: () -> Unit = {}) 
                  style = Forge.type.body, color = Forge.sceneInk.secondary)
             return@SettingsColumn
         }
-        SettingsCard(title = null, blurb = null) {
-            LinkRow(stringResource(R.string.forge_ed_title), stringResource(R.string.forge_ed_so_far)) { onDetail() }
+        ForgeTitledCard(title = null, blurb = null) {
+            ForgeLinkRow(stringResource(R.string.forge_ed_title), stringResource(R.string.forge_ed_so_far)) { onDetail() }
         }
         BandCard(p)
         TodayCard(p, onSave = { kcal, done ->
@@ -84,7 +84,7 @@ internal fun ForgeEnergyPlanPage(onBack: () -> Unit, onDetail: () -> Unit = {}) 
 
 @Composable
 private fun BandCard(p: CoreEnergyPlan.Plan) {
-    SettingsCard(title = stringResource(R.string.forge_energy_burn_title), blurb = stringResource(R.string.forge_energy_three_routes)) {
+    ForgeTitledCard(title = stringResource(R.string.forge_energy_burn_title), blurb = stringResource(R.string.forge_energy_three_routes)) {
         Route(stringResource(R.string.forge_energy_formula), stringResource(R.string.forge_energy_formula_sub), p.formulaTdeeKcal)
         RowDivider()
         val burnNote = when (p.burnQuality) {
@@ -121,7 +121,7 @@ private fun Route(title: String, note: String, kcal: Double?) {
 private fun TodayCard(p: CoreEnergyPlan.Plan, onSave: (Double, (Boolean) -> Unit) -> Unit) {
     var text by remember(p.todayIntakeKcal) { mutableStateOf(p.todayIntakeKcal?.roundToInt()?.toString() ?: "") }
     var saved by remember { mutableStateOf<Boolean?>(null) }
-    SettingsCard(title = stringResource(R.string.forge_energy_eaten_today), blurb = null) {
+    ForgeTitledCard(title = stringResource(R.string.forge_energy_eaten_today), blurb = null) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(value = text, onValueChange = { text = it.filter(Char::isDigit).take(5); saved = null },
                               singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -164,7 +164,7 @@ private fun TargetCard(p: CoreEnergyPlan.Plan, onRate: (Double) -> Unit) {
         rate < 0 -> stringResource(R.string.forge_energy_lose, kg(-rate))
         else -> stringResource(R.string.forge_energy_gain, kg(rate))
     }
-    SettingsCard(title = null, blurb = null) {
+    ForgeTitledCard(title = null, blurb = null) {
         SettingRow(label) {
             Stepper(kg(rate), onMinus = { onRate((rate - 0.25).coerceAtLeast(-1.0)) }, onPlus = { onRate((rate + 0.25).coerceAtMost(0.5)) })
         }
@@ -187,7 +187,7 @@ private fun ActivityCard(p: CoreEnergyPlan.Plan, onLevel: (String) -> Unit) {
     val levels = listOf("sedentary" to R.string.forge_energy_desk, "light" to R.string.forge_energy_light,
                         "moderate" to R.string.forge_energy_moderate, "high" to R.string.forge_energy_high,
                         "veryHigh" to R.string.forge_energy_very_high)
-    SettingsCard(title = stringResource(R.string.forge_energy_how_active), blurb = null) {
+    ForgeTitledCard(title = stringResource(R.string.forge_energy_how_active), blurb = null) {
         levels.forEachIndexed { i, (level, label) ->
             Choice(stringResource(label), selected = p.activity == level, enabled = true) { onLevel(level) }
             if (i < levels.lastIndex) RowDivider()
@@ -197,7 +197,7 @@ private fun ActivityCard(p: CoreEnergyPlan.Plan, onLevel: (String) -> Unit) {
 
 @Composable
 private fun FormulaCard(p: CoreEnergyPlan.Plan, onFormula: (String) -> Unit) {
-    SettingsCard(title = stringResource(R.string.forge_energy_basal_formula), blurb = null) {
+    ForgeTitledCard(title = stringResource(R.string.forge_energy_basal_formula), blurb = null) {
         p.formulas.forEachIndexed { i, f ->
             val name = when (f.formula) {
                 "revisedHarrisBenedict" -> stringResource(R.string.forge_energy_rhb)

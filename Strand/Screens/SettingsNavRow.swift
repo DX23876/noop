@@ -56,7 +56,7 @@ struct SettingsNavRow: View {
             }
             VStack(alignment: .leading, spacing: NoopMetrics.space1) {
                 Text(title)
-                    .font(StrandFont.body)
+                    .font(SettingsRowFont.title)
                     .foregroundStyle(StrandPalette.textPrimary)
                 if let subtitle {
                     Text(subtitle)

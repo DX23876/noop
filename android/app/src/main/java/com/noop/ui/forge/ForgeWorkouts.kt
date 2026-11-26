@@ -85,7 +85,7 @@ internal fun ForgeWorkoutsPage(viewModel: AppViewModel, onBack: () -> Unit) {
     val all by viewModel.workouts.collectAsState()
     val zone = ZoneId.systemDefault()
     val today = LocalDate.now(zone)
-    val sundayFirst = remember { NoopPrefs.of(context).getString("training.weekStartsOn", null) == "sunday" }
+    val sundayFirst = WeekStartPrefs.sundayFirst(context)
     val firstDay = if (sundayFirst) DayOfWeek.SUNDAY else DayOfWeek.MONDAY
     fun weekStart(d: LocalDate): LocalDate = d.with(TemporalAdjusters.previousOrSame(firstDay))
     fun dayOf(r: WorkoutRow): LocalDate = Instant.ofEpochSecond(r.startTs).atZone(zone).toLocalDate()

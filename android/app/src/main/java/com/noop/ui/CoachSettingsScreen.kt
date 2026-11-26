@@ -15,6 +15,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Psychology
+import androidx.compose.material.icons.rounded.TrackChanges
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.ui.graphics.vector.ImageVector
+import com.noop.ui.forge.ForgeCard
+import com.noop.ui.forge.ForgeMetrics
+import com.noop.ui.forge.ForgeTokens
+import com.noop.ui.forge.HubDivider
+import com.noop.ui.forge.HubRow
+import com.noop.ui.forge.resolve
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -35,6 +47,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+
+/** Which part of the coach settings a [CoachSettingsScreen] draws: the iOS hub of five pages, or all of it at once. */
+enum class CoachSettingsSection { All, Hub, Connection, Coaching, Privacy }
 
 /**
  * Coach settings, split out of [CoachScreen] so the coach tab is the conversation and nothing else
@@ -67,7 +82,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 // against a second instance persisted to storage and still left the conversation sending on the old
 // one. AppRoot passes the Coach entry's view model.
 fun CoachSettingsScreen(vm: CoachViewModel, onOpenIdentity: (() -> Unit)? = null, onOpenMemory: (() -> Unit)? = null,
-                        onOpenInfo: (() -> Unit)? = null, onOpenGoals: (() -> Unit)? = null) {
+                        onOpenInfo: (() -> Unit)? = null, onOpenGoals: (() -> Unit)? = null,
+                        section: CoachSettingsSection = CoachSettingsSection.All,
+                        onOpenSection: ((CoachSettingsSection) -> Unit)? = null) {
     val context = LocalContext.current
 
     // The brief settings are read from prefs on show, the same as the coach page did before the
@@ -78,8 +95,13 @@ fun CoachSettingsScreen(vm: CoachViewModel, onOpenIdentity: (() -> Unit)? = null
     val skyBehindCards = remember { NoopPrefs.skyBehindCards(context) }
 
     ScreenScaffold(
-        title = stringResource(R.string.coach_settings),
-        subtitle = stringResource(R.string.coach_settings_subtitle),
+        title = stringResource(when (section) {
+            CoachSettingsSection.Connection -> R.string.fsp6_coach_conn
+            CoachSettingsSection.Coaching -> R.string.fsp6_coach_coaching
+            CoachSettingsSection.Privacy -> R.string.fsp6_coach_privacy
+            else -> R.string.coach_settings
+        }),
+        subtitle = if (section == CoachSettingsSection.All) stringResource(R.string.coach_settings_subtitle) else null,
         topBackground = screenBackdropSlot(showDayCycleBackground, skyBehindCards),
         fullBleedBackground = screenBackdropFullBleed(showDayCycleBackground, skyBehindCards),
     ) {
@@ -88,27 +110,112 @@ fun CoachSettingsScreen(vm: CoachViewModel, onOpenIdentity: (() -> Unit)? = null
         // stays on the coach page). A "not connected yet" card would be unreachable, and the Swift twin
         // has no equivalent.
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            CoachFeatureCard(vm = vm)
-            CoachTodayCard(vm = vm)
-            CoachModelCard(vm = vm)
-            CoachBackgroundModelsCard(vm = vm)
-            if (onOpenIdentity != null) CoachIdentityRow(vm, onOpenIdentity)
-            if (onOpenGoals != null) CoachNavRow(stringResource(R.string.coach_goals_journey), stringResource(R.string.coach_goals_journey_subtitle), onOpenGoals)
-            if (onOpenMemory != null) CoachNavRow(stringResource(R.string.coach_memory), stringResource(R.string.coach_memory_subtitle), onOpenMemory)
-            CoachConsentCard(vm = vm)
-            CoachSharedSettingsCards(vm = vm)
-            CoachInstructions(vm = vm)
-            MorningSuggestionSwitch()
-            MorningBriefCard(vm = vm)
-            CoachRemindersCard()
-            CoachUsageCard(vm = vm)
-            if (onOpenInfo != null) {
-                val info by vm.info.collectAsStateWithLifecycle()
-                androidx.compose.runtime.LaunchedEffect(Unit) { vm.loadInfo() }
-                info?.let { CoachNavRow(it.infoTitle, "", onOpenInfo) }
+            when (section) {
+                // The iOS hub (`CoachSettingsView`, configured): five rows, each its own page. Android's own
+                // "Enable AI Coach" switch (the bottom-bar coach button) sits above them.
+                CoachSettingsSection.Hub -> {
+                    CoachFeatureCard(vm = vm)
+                    // The five pages as one grouped card of Settings rows (icon tile, title, subtitle, chevron).
+                    val open = onOpenSection
+                    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
+                        var first = true
+                        @Composable fun hubRow(icon: ImageVector, tint: Color, title: String, subtitle: String, onOpen: () -> Unit) {
+                            if (!first) HubDivider()
+                            first = false
+                            HubRow(icon, tint, title, subtitle, onOpen)
+                        }
+                        if (open != null) hubRow(Icons.Rounded.Link, ForgeTokens.Color.systemBlue.resolve(),
+                            stringResource(R.string.fsp6_coach_conn), stringResource(R.string.fsp6_coach_conn_detail)) { open(CoachSettingsSection.Connection) }
+                        if (onOpenGoals != null) hubRow(Icons.Rounded.TrackChanges, ForgeTokens.Color.systemGreen.resolve(),
+                            stringResource(R.string.coach_goals_journey), stringResource(R.string.coach_goals_journey_subtitle), onOpenGoals)
+                        if (open != null) hubRow(Icons.Rounded.Tune, ForgeTokens.Color.systemOrange.resolve(),
+                            stringResource(R.string.fsp6_coach_coaching), stringResource(R.string.fsp6_coach_coaching_detail)) { open(CoachSettingsSection.Coaching) }
+                        if (onOpenMemory != null) hubRow(Icons.Rounded.Psychology, ForgeTokens.Color.systemPurple.resolve(),
+                            stringResource(R.string.coach_memory), stringResource(R.string.coach_memory_subtitle), onOpenMemory)
+                        if (open != null) hubRow(Icons.Rounded.Lock, ForgeTokens.Color.systemIndigo.resolve(),
+                            stringResource(R.string.fsp6_coach_privacy), stringResource(R.string.fsp6_coach_privacy_detail)) { open(CoachSettingsSection.Privacy) }
+                    }
+                }
+                CoachSettingsSection.Connection -> {
+                    CoachModelCard(vm = vm)
+                    CoachBackgroundModelsCard(vm = vm)
+                    CoachUsageCard(vm = vm)
+                    CoachForgetKeyCard(vm = vm)
+                }
+                CoachSettingsSection.Coaching -> {
+                    CoachTodayCard(vm = vm)
+                    if (onOpenIdentity != null) CoachIdentityRow(vm, onOpenIdentity)
+                    CoachSharedSettingsCards(vm = vm, part = CoachSharedPart.Coaching)
+                    MorningSuggestionSwitch()
+                    MorningBriefCard(vm = vm)
+                    CoachRemindersCard()
+                }
+                CoachSettingsSection.Privacy -> {
+                    CoachConsentCard(vm = vm)
+                    CoachSharedSettingsCards(vm = vm, part = CoachSharedPart.Privacy)
+                    CoachInstructions(vm = vm)
+                    if (onOpenInfo != null) {
+                        val info by vm.info.collectAsStateWithLifecycle()
+                        androidx.compose.runtime.LaunchedEffect(Unit) { vm.loadInfo() }
+                        info?.let { CoachNavRow(it.infoTitle, "", onOpenInfo) }
+                    }
+                }
+                CoachSettingsSection.All -> {
+                    CoachFeatureCard(vm = vm)
+                    CoachTodayCard(vm = vm)
+                    CoachModelCard(vm = vm)
+                    CoachBackgroundModelsCard(vm = vm)
+                    if (onOpenIdentity != null) CoachIdentityRow(vm, onOpenIdentity)
+                    if (onOpenGoals != null) CoachNavRow(stringResource(R.string.coach_goals_journey), stringResource(R.string.coach_goals_journey_subtitle), onOpenGoals)
+                    if (onOpenMemory != null) CoachNavRow(stringResource(R.string.coach_memory), stringResource(R.string.coach_memory_subtitle), onOpenMemory)
+                    CoachConsentCard(vm = vm)
+                    CoachSharedSettingsCards(vm = vm)
+                    CoachInstructions(vm = vm)
+                    MorningSuggestionSwitch()
+                    MorningBriefCard(vm = vm)
+                    CoachRemindersCard()
+                    CoachUsageCard(vm = vm)
+                    if (onOpenInfo != null) {
+                        val info by vm.info.collectAsStateWithLifecycle()
+                        androidx.compose.runtime.LaunchedEffect(Unit) { vm.loadInfo() }
+                        info?.let { CoachNavRow(it.infoTitle, "", onOpenInfo) }
+                    }
+                }
             }
         }
     }
+}
+
+/**
+ * "Forget saved key" (`CoachSettingsView`, Connection & model): deletes the stored key after a confirmation, which is
+ * not Disconnect. Android keeps one key at a time, bound to its provider, so iOS's "Forget every provider's key" is
+ * this same action here.
+ */
+@Composable
+private fun CoachForgetKeyCard(vm: CoachViewModel) {
+    val context = LocalContext.current
+    val keyVersion by vm.keyVersion.collectAsStateWithLifecycle()
+    val provider by vm.provider.collectAsStateWithLifecycle()
+    var ask by remember { mutableStateOf(false) }
+    val hasKey = remember(keyVersion) { vm.hasKey(context) }
+    if (!hasKey || provider == com.noop.ai.AiProvider.CUSTOM) return
+    NoopCard(padding = 14.dp, tint = Palette.chargeColor) {
+        Text(stringResource(R.string.fsp6_coach_forget_key), style = NoopType.subhead, color = Palette.statusCritical,
+             modifier = Modifier.fillMaxWidth().clickable { ask = true })
+    }
+    if (ask) androidx.compose.material3.AlertDialog(
+        onDismissRequest = { ask = false },
+        title = { Text(stringResource(R.string.fsp6_coach_forget_title, provider.displayName)) },
+        text = { Text(stringResource(R.string.fsp6_coach_forget_message)) },
+        confirmButton = {
+            androidx.compose.material3.TextButton(onClick = { ask = false; vm.clearKey(context) }) {
+                Text(stringResource(R.string.fsp6_coach_forget_confirm), color = Palette.statusCritical)
+            }
+        },
+        dismissButton = {
+            androidx.compose.material3.TextButton(onClick = { ask = false }) { Text(stringResource(R.string.forge_cancel)) }
+        },
+    )
 }
 
 /**

@@ -82,7 +82,7 @@ for diagnostics and does not advance the recipe version.
 When the fork takes someone's work directly (a commit from their fork, or a ryanbr/noop pull request
 ryanbr has not merged), the adopting commit says `Adopted from <source> by @handle` and carries their
 `Co-authored-by` line. The same change adds them to `ATTRIBUTION.md` ("NOOP Forge: work adopted from
-other people") and to `AcknowledgementsView.contributors`, and the release notes thank them by handle.
+other people") and to `Acknowledgements.contributors` (StrandCore, read by `AcknowledgementsView` and the Android screen), and the release notes thank them by handle.
 Work that arrives through an ordinary upstream merge is credited upstream and needs none of this.
 
 ## Before pushing app or package code

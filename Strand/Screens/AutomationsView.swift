@@ -113,7 +113,8 @@ struct AutomationsView: View {
         switch scope {
         case .all: return "Automations"
         case .strapActions: return "Strap Actions"
-        case .notifications: return "Notifications"
+        // The page's name in the Settings index, so the row and the page it opens say the same thing.
+        case .notifications: return "Alerts and reminders"
         }
     }
 
@@ -739,11 +740,13 @@ private struct Section2<Content: View>: View {
     @ViewBuilder var content: () -> Content
     var body: some View {
         if NoopVisualStyle.skin == .forge {
-            // The new design's settings group: the name on the page, the switches on one card.
+            // The new design's settings group, as `SettingsSection` draws it: the header above the card,
+            // the switches on the card and the explanation as a footer under it.
             VStack(alignment: .leading, spacing: NoopMetrics.space2) {
                 HStack(spacing: NoopMetrics.space2) {
                     Text(title)
-                        .font(StrandFont.subhead.weight(.semibold))
+                        .font(StrandFont.footnote.weight(.semibold))
+                        .textCase(.uppercase)
                         .foregroundStyle(StrandPalette.textSecondary)
                         .accessibilityAddTraits(.isHeader)
                     if active {
@@ -751,12 +754,17 @@ private struct Section2<Content: View>: View {
                             .accessibilityLabel(Text("ON"))
                     }
                 }
-                .padding(.horizontal, NoopMetrics.space1)
+                .padding(.horizontal, NoopMetrics.space4)
                 NoopCard {
                     VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                        if let blurb { ForgeExpandableText(text: blurb) }
                         content()
                     }
+                    .font(SettingsRowFont.value)
+                }
+                if let blurb {
+                    Text(blurb)
+                        .settingsCaption()
+                        .padding(.horizontal, NoopMetrics.space4)
                 }
             }
         } else {
@@ -797,9 +805,13 @@ private struct ToggleRow: View {
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(label).font(NoopVisualStyle.skin == .forge ? StrandFont.subhead : StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
-                Text(help).font(NoopVisualStyle.skin == .forge ? StrandFont.caption : StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
+                Text(label).font(NoopVisualStyle.skin == .forge ? SettingsRowFont.value : StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
+                if NoopVisualStyle.skin == .forge {
+                    Text(help).settingsCaption()
+                } else {
+                    Text(help).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             Spacer()
             Toggle("", isOn: $isOn).labelsHidden().toggleStyle(.switch).appleInspiredTint("automations")

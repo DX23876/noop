@@ -75,7 +75,12 @@ struct DataSourcesView: View {
                        // card, so a ~1 Hz tick still re-evaluates the built cards (see the lane-B2 note).
                        lazy: true) {
             VStack(alignment: .leading, spacing: NoopVisualStyle.skin == .forge ? NoopMetrics.gap : NoopMetrics.sectionSpacing) {
-                if NoopVisualStyle.skin == .forge { liveCard }
+                if NoopVisualStyle.skin == .forge {
+                    SettingsSymbolBanner(
+                        symbol: "tray.and.arrow.down.fill", tint: .blue,
+                        text: Text("Everything stays on \(Platform.deviceNounPhrase). Bring your history in once, then it's yours."))
+                    liveCard
+                }
                 whoopCard.staggeredAppear(index: 0)
                 appleHealthCard.staggeredAppear(index: 1)
                 xiaomiCard.staggeredAppear(index: 2)
@@ -90,7 +95,7 @@ struct DataSourcesView: View {
                 if NoopVisualStyle.skin != .forge { liveCard.staggeredAppear(index: 10) }
             }
         }
-        .pagePicture("tray.and.arrow.down.fill", accent: "doc.fill", tint: .blue)
+        .pagePicture("tray.and.arrow.down.fill", accent: "doc.fill", tint: .blue, forgeUsesBanner: true)
         // A single target-aware importer avoids SwiftUI collapsing competing importers on the same screen.
         .fileImporter(isPresented: $showingImporter,
                       allowedContentTypes: importTarget.allowedContentTypes,
@@ -933,27 +938,46 @@ struct DataSourcesView: View {
                               status: S = EmptyView(),
                               subtitle: String,
                               @ViewBuilder content: @escaping () -> C) -> some View {
-        let forge = NoopVisualStyle.skin == .forge
-        return NoopCard(padding: 18, tint: forge ? nil : tint) {
-            VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
-                HStack(spacing: NoopMetrics.space2 + 2) {
-                    Image(systemName: icon)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(forge ? StrandPalette.forgeOnAccent : tint)
-                        .frame(width: forge ? 40 : 30, height: forge ? 40 : 30)
-                        .background(forge ? tint : tint.opacity(0.14), in: RoundedRectangle(cornerRadius: forge ? 11 : 9, style: .continuous))
-                        .accessibilityHidden(true)
-                    Text(title).font(forge ? StrandFont.subhead.weight(.semibold) : StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                    Spacer(minLength: 8)
-                    status
+        if NoopVisualStyle.skin == .forge {
+            // The new design's settings group: the source's name as a small header above the card, its
+            // connection state first on the card (a long state no longer squeezes the header), the actions
+            // under it, the explanation as the footer.
+            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                Text(title)
+                    .font(StrandFont.footnote.weight(.semibold))
+                    .textCase(.uppercase)
+                    .foregroundStyle(StrandPalette.textSecondary)
+                    .accessibilityAddTraits(.isHeader)
+                    .padding(.horizontal, NoopMetrics.space4)
+                NoopCard {
+                    VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                        status
+                        content()
+                    }
+                    .font(SettingsRowFont.value)
                 }
-                if forge {
-                    ForgeExpandableText(text: subtitle)
-                } else {
+                Text(subtitle)
+                    .settingsCaption()
+                    .padding(.horizontal, NoopMetrics.space4)
+            }
+        } else {
+            NoopCard(padding: 18, tint: tint) {
+                VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
+                    HStack(spacing: NoopMetrics.space2 + 2) {
+                        Image(systemName: icon)
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundStyle(tint)
+                            .frame(width: 30, height: 30)
+                            .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                            .accessibilityHidden(true)
+                        Text(title).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                        Spacer(minLength: 8)
+                        status
+                    }
                     Text(subtitle).font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
+                    content()
                 }
-                content()
             }
         }
     }

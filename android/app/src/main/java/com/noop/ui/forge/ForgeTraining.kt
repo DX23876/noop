@@ -949,7 +949,7 @@ private fun ScheduleEditor(routines: List<CoreTraining.Routine>, onClose: () -> 
                               contentPadding = ForgeMetrics.space2) {
                         routines.forEachIndexed { i, routine ->
                             Box(Modifier.padding(horizontal = ForgeMetrics.space2)) {
-                                ToggleRow(routine.title, null, routine.id in schedule[day].orEmpty()) { enabled ->
+                                ForgeToggleRow(routine.title, null, routine.id in schedule[day].orEmpty()) { enabled ->
                                     val ids = schedule[day].orEmpty()
                                     schedule[day] = if (enabled) (ids + routine.id).distinct() else ids - routine.id
                                 }
@@ -1047,8 +1047,10 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
             .externalLog("Training: a change did not take — no draft, or the store refused the write")
     }
     // Ticking a set off starts its rest: the exercise's own, or the warm-up rest after a warm-up.
-    fun startRest(exercise: CoreTraining.DraftExercise, set: CoreTraining.DraftSet) {
-        val seconds = if (set.warmup) exercise.warmupRestSeconds else exercise.restSeconds
+    fun startRest(exercise: CoreTraining.DraftExercise, set: CoreTraining.DraftSet, restPause: Boolean = false) {
+        // A rest-pause set rests for the short pause set under Settings › Training, not the exercise's own rest.
+        val seconds = if (restPause) TrainingStepPrefs.restPauseSeconds(context)
+                      else if (set.warmup) exercise.warmupRestSeconds else exercise.restSeconds
         rest = if (seconds > 0) RunningRest(set.id, System.currentTimeMillis() + seconds * 1000L) else null
     }
 
@@ -1074,7 +1076,8 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
                 draft = after
                 after.exercises.forEach { e ->
                     e.sets.firstOrNull { set -> set.done && before?.exercises?.firstOrNull { it.id == e.id }
-                        ?.sets?.firstOrNull { it.id == set.id }?.done == false }?.let { startRest(e, it) }
+                        ?.sets?.firstOrNull { it.id == set.id }?.done == false }
+                        ?.let { startRest(e, it, restPause = step.segment == "restPause") }
                 }
                 host.log("Strength session: double-tap completed the next set")
             }

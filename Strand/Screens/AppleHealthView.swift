@@ -408,7 +408,34 @@ struct AppleHealthView: View {
     #if os(iOS)
     @ViewBuilder
     private var liveSyncCard: some View {
-        StrandCard(padding: 20, tint: NoopVisualStyle.skin == .forge ? nil : StrandPalette.metricCyan) {
+        if NoopVisualStyle.skin == .forge {
+            // The new design's settings group: the name above the card (the connection state at its end),
+            // the controls on the card, and the plain explanation as the footer under it.
+            VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+                HStack(alignment: .firstTextBaseline, spacing: NoopMetrics.space2) {
+                    Text("Apple Health (Live)")
+                        .font(StrandFont.footnote.weight(.semibold))
+                        .textCase(.uppercase)
+                        .foregroundStyle(StrandPalette.textSecondary)
+                        .accessibilityAddTraits(.isHeader)
+                    Spacer(minLength: NoopMetrics.space2)
+                    if health.auth == .authorized {
+                        StatePill(health.syncing ? "Syncing" : "Connected",
+                                  tone: .positive, pulsing: health.syncing)
+                    }
+                }
+                .padding(.horizontal, NoopMetrics.space4)
+                NoopCard {
+                    VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+                        liveSyncContent
+                    }
+                    .font(SettingsRowFont.value)
+                }
+                liveSyncFooter
+                    .padding(.horizontal, NoopMetrics.space4)
+            }
+        } else {
+        StrandCard(padding: 20, tint: StrandPalette.metricCyan) {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 10) {
                     Image(systemName: "heart.text.square.fill")
@@ -426,7 +453,31 @@ struct AppleHealthView: View {
                                   tone: .positive, pulsing: health.syncing)
                     }
                 }
+                liveSyncContent
+            }
+        }
+        }
+    }
 
+    /// The plain explanation under the new design's Apple Health card; the shipped design keeps it inside.
+    @ViewBuilder
+    private var liveSyncFooter: some View {
+        switch health.auth {
+        case .unknown, .denied:
+            Text("Read your heart rate, HRV, blood oxygen, respiratory rate, sleep, steps and energy straight from Apple Health, and write NOOP's strap data back: sleep with full stages, continuous heart rate, workouts, nightly vitals, and your profile weight. Everything stays on \(Platform.deviceNounPhrase).")
+                .settingsCaption()
+        case .authorized:
+            Text("Import all Apple Health history once to make older values available to the Coach. Later syncs only refresh recent changes. Missing a metric like weight? Tap Refresh permissions to grant data types added in a later update. To fully disconnect, use Settings › Health › Data Access & Devices › NOOP.")
+                .settingsCaption()
+        default:
+            EmptyView()
+        }
+    }
+
+    @ViewBuilder
+    private var liveSyncContent: some View {
+        let forge = NoopVisualStyle.skin == .forge
+        Group {
                 switch health.auth {
                 case .unavailable:
                     Text("Apple Health isn't available on \(Platform.deviceNounPhrase).")
@@ -450,10 +501,12 @@ struct AppleHealthView: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                 case .unknown, .denied:
+                    if !forge {
                     Text("Read your heart rate, HRV, blood oxygen, respiratory rate, sleep, steps and energy straight from Apple Health, and write NOOP's strap data back: sleep with full stages, continuous heart rate, workouts, nightly vitals, and your profile weight. Everything stays on \(Platform.deviceNounPhrase).")
                         .font(StrandFont.caption)
                         .foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
+                    }
                     Button {
                         Task {
                             await health.requestAuthorization()
@@ -598,15 +651,17 @@ struct AppleHealthView: View {
                     .buttonStyle(.bordered)
                     .tint(StrandPalette.metricCyan)
                     .disabled(health.syncing)
+                    if !forge {
                     Text("Import all Apple Health history once to make older values available to the Coach. Later syncs only refresh recent changes. Missing a metric like weight? Tap Refresh permissions to grant data types added in a later update. To fully disconnect, use Settings › Health › Data Access & Devices › NOOP.")
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
+                    }
 
                     Divider().overlay(StrandPalette.hairline)
                     VStack(alignment: .leading, spacing: 8) {
                         Label("Diagnostics", systemImage: "waveform.path.ecg.rectangle")
-                            .font(StrandFont.headline)
+                            .font(forge ? SettingsRowFont.value.weight(.semibold) : StrandFont.headline)
                             .foregroundStyle(StrandPalette.textPrimary)
 
                         if let report = health.lastWritebackReport {
@@ -677,7 +732,6 @@ struct AppleHealthView: View {
                         .foregroundStyle(StrandPalette.statusCritical)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-            }
         }
     }
 
