@@ -497,8 +497,10 @@ if want("priors") {
         }
     }
     let base = perSubject(shipped)
-    print("    variant                     mean κ  better κ   mean|bias| wake  deep   REM  light   better |bias| wake deep  REM light")
-    for v in [Variants.incumbent, Variants.deepPriorBefore, Variants.p348Priors] {
+    // `max wake +pp` is the largest rise in one subject's wake share against the incumbent: the #437 failure
+    // was a single healthy night going from 6 % to 23 % awake, which a mean over 31 subjects can hide.
+    print("    variant                     mean κ  better κ   mean|bias| wake  deep   REM  light   better |bias| wake deep  REM light   max wake +pp")
+    for v in [Variants.incumbent, Variants.deepPriorBefore, Variants.p348Priors, Variants.restlessWake59] {
         let rows = v.name.hasPrefix("incumbent") ? shipped : subjects.map { score($0, using: stageVariant(v.config)) }
         let ps = perSubject(rows)
         let n = ps.count
@@ -507,7 +509,8 @@ if want("priors") {
         func better(_ st: String) -> Int { zip(ps, base).filter { abs($0.0.bias[st] ?? 0) < abs($0.1.bias[st] ?? 0) }.count }
         print("    \(v.name.padding(toLength: 26, withPad: " ", startingAt: 0))\(f(mean(ps.map { $0.kappa }), 7, 3))   \(kBetter)/\(n)     "
               + "\(f(meanAbs("wake"), 5, 2)) \(f(meanAbs("deep"), 5, 2)) \(f(meanAbs("rem"), 5, 2)) \(f(meanAbs("light"), 5, 2))      "
-              + "\(better("wake"))/\(n) \(better("deep"))/\(n) \(better("rem"))/\(n) \(better("light"))/\(n)")
+              + "\(better("wake"))/\(n) \(better("deep"))/\(n) \(better("rem"))/\(n) \(better("light"))/\(n)   "
+              + "\(f(zip(ps, base).map { ($0.0.bias["wake"] ?? 0) - ($0.1.bias["wake"] ?? 0) }.max() ?? 0, 6, 2))")
     }
 }
 

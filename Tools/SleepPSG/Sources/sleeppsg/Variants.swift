@@ -156,6 +156,17 @@ enum Variants {
                        note: "c<0.12 step in the fraction domain, single Viterbi pass", config: c)
     }
 
+    /// #59 (andreyeurope): count small movements, so lying awake and restless is not read as REM. A per-second
+    /// jerk counts above 5 × the night's quiescent floor (the "moving" threshold is 38 ×); the share per epoch is
+    /// averaged over ±5 epochs, z-scored within the night and used only above the night's mean. The constants
+    /// are the issue's, picked there from about 30 variants on sleep-accel and DREAMT.
+    static var restlessWake59: Variant {
+        var c = RecipeConfig.shipped
+        c.smallMoveMult = 5.0
+        return Variant(name: "#59 restless-wake density",
+                       note: "jerks >5× floor over ±5 epochs; rem −0.5·z⁺, wake +0.75·z⁺", config: c)
+    }
+
     /// The shipped recipe itself, so a table row exists to difference against.
     static var incumbent: Variant {
         Variant(name: "incumbent (shipped)", note: "SleepStagerV2 as it ships today", config: .shipped)
@@ -163,6 +174,6 @@ enum Variants {
 
     static var all: [Variant] {
         [incumbent, deepPriorBefore, pr987, p348Priors, p348Motion, p348Emissions, p348DeepGate,
-         p348Deadzone, p348OtherRows, p348All, preNine30Guard]
+         p348Deadzone, p348OtherRows, p348All, preNine30Guard, restlessWake59]
     }
 }

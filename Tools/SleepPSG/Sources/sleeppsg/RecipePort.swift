@@ -80,6 +80,21 @@ struct RecipeConfig: Equatable {
     var remLatencyMinutes: Double
     var onsetSustainedEpochs: Int
 
+    /// The deep-latency guard beside the REM one: `deepLatencyPenalty` log-odds off the deep emission at sleep
+    /// onset, decaying linearly to zero `deepLatencyMinutes` later. Applied in the second pass only, once onset
+    /// is known, exactly where `SleepStagerV2.stageEpochs` applies it.
+    var deepLatencyPenalty: Double = 3.0
+    var deepLatencyMinutes: Double = 20.0
+
+    /// #59, restless wake: the share of an epoch's per-second jerks above the night's quiescent floor × this,
+    /// averaged over `smallMoveHalfWindow` epochs either side, z-scored within the night, and only its
+    /// positive part used: `rem -= smallMoveRemWeight · z⁺`, `awake += smallMoveAwakeWeight · z⁺`. A calm
+    /// stretch, and a calm night, stay exactly as they were. 0 disables it, which is the shipped state.
+    var smallMoveMult: Double = 0.0
+    var smallMoveHalfWindow: Int = 5
+    var smallMoveRemWeight: Double = 0.5
+    var smallMoveAwakeWeight: Double = 0.75
+
     /// Which REM-latency guard the recipe runs. Shipped is `.gradedFromOnset` (#930). The pre-#930 step is
     /// kept because the reference numbers this harness was rebuilt to reproduce were measured against it —
     /// see `Variants.preNine30Guard`. It is a diagnostic, not a candidate.
@@ -138,6 +153,8 @@ enum V2Recipe {
         let clock: Double
         let jerkScale: Double
         let minutesSinceOnset: Double
+        /// Share of the epoch's per-second jerks above `jerkScale × smallMoveMult` (#59); 0 when that is off.
+        var smallMoveFrac: Double = 0.0
     }
 
     // MARK: - Entry point
@@ -305,15 +322,18 @@ enum V2Recipe {
             return n % 2 == 1 ? s[n / 2] : 0.5 * (s[n / 2 - 1] + s[n / 2])
         }()
         let moveThr = jerkScale * cfg.jerkFloorMoveMult
+        let smallThr = jerkScale * cfg.smallMoveMult
 
         var feats: [Epoch] = []
         feats.reserveCapacity(raws.count)
         for r in raws {
             let moves = r.jerks.reduce(0) { $0 + ($1 > moveThr ? 1 : 0) }
+            let small = cfg.smallMoveMult > 0 ? r.jerks.reduce(0) { $0 + ($1 > smallThr ? 1 : 0) } : 0
             feats.append(Epoch(
                 start: r.start, hr: r.hr, hrVar: r.hrVar, hrFlat11: r.hrFlat11,
                 moveFrac: Double(moves) / Double(r.gapSec), jerkMax: r.jerkMax, respReg: r.respReg,
-                clock: r.clock, jerkScale: jerkScale, minutesSinceOnset: r.minutes))
+                clock: r.clock, jerkScale: jerkScale, minutesSinceOnset: r.minutes,
+                smallMoveFrac: Double(small) / Double(r.gapSec)))
         }
         return feats
     }
@@ -369,6 +389,10 @@ enum V2Recipe {
 
     static func remLatencyGuard(_ minutesSinceOnset: Double, _ cfg: RecipeConfig) -> Double {
         cfg.remLatencyPenalty * min(1.0, max(0.0, 1.0 - minutesSinceOnset / cfg.remLatencyMinutes))
+    }
+
+    static func deepLatencyGuard(_ minutesSinceOnset: Double, _ cfg: RecipeConfig) -> Double {
+        cfg.deepLatencyPenalty * min(1.0, max(0.0, 1.0 - minutesSinceOnset / cfg.deepLatencyMinutes))
     }
 
     static func cyclePrior(_ c: Double, _ minutesSinceOnset: Double, _ cfg: RecipeConfig) -> [String: Double] {
@@ -438,9 +462,21 @@ enum V2Recipe {
             return Double(lo) / Double(fsorted.count)
         }
 
+        // #59: the restless neighbourhood, as a positive-only z-score of the windowed small-movement density.
+        let restless: [Double] = {
+            guard cfg.smallMoveMult > 0 else { return [Double](repeating: 0, count: feats.count) }
+            let h = cfg.smallMoveHalfWindow
+            let density: [Double] = feats.indices.map { i in
+                let lo = max(0, i - h), hi = min(feats.count - 1, i + h)
+                return feats[lo...hi].reduce(0.0) { $0 + $1.smallMoveFrac } / Double(hi - lo + 1)
+            }
+            let zd = zfun(density.map { Optional($0) })
+            return density.map { max(0.0, zd($0)) }
+        }()
+
         var seq: [[String: Double]] = []
         seq.reserveCapacity(feats.count)
-        for f in feats {
+        for (fi, f) in feats.enumerated() {
             let zhrv = zhr(f.hr), zhvv = zhv(f.hrVar), zmvv = zmv(f.moveFrac)
             let gate = cfg.deepGateSlope * max(0.0, fpct(f.hrFlat11) - cfg.deepGateThresh)
             let awakeCardiac0 = cfg.awakeZhv * dz(zhvv, cfg.awakeDeadzone)
@@ -467,6 +503,8 @@ enum V2Recipe {
             for s in stageNames { em[s]! += pr[s]! }
             if f.jerkMax > f.jerkScale * cfg.jerkFloorGateMult { em["awake"]! += cfg.motionGateBoost }
             if let rg = f.respReg { let z = zrg(rg); em["deep"]! += cfg.respWeight * z; em["rem"]! -= cfg.respWeight * z }
+            em["rem"]! -= cfg.smallMoveRemWeight * restless[fi]
+            em["awake"]! += cfg.smallMoveAwakeWeight * restless[fi]
             seq.append(em)
         }
 
@@ -476,6 +514,7 @@ enum V2Recipe {
         let originMin = sustainedSleepOnset(provisional, cfg).map { feats[$0].minutesSinceOnset } ?? 0.0
         for i in feats.indices {
             seq[i]["rem"]! -= remLatencyGuard(feats[i].minutesSinceOnset - originMin, cfg)
+            seq[i]["deep"]! -= deepLatencyGuard(feats[i].minutesSinceOnset - originMin, cfg)
         }
         return viterbi(seq, cfg)
     }
