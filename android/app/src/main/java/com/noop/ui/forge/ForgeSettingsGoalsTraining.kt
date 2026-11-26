@@ -18,6 +18,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -164,21 +165,23 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit, onOpenEquipment: (
     var level by remember { mutableStateOf(activityPrefs.getString(com.noop.core.CoreActivity.KEY_LEVEL, "balanced") ?: "balanced") }
     var notify by remember { mutableStateOf(activityPrefs.getBoolean(com.noop.core.CoreActivity.KEY_NOTIFY, true)) }
 
-    // No header: it would only repeat the page title "Training" under the page head (iOS hides it the same way).
-    SettingsCard(null, stringResource(R.string.forge_st_blurb)) {
-        Overline(stringResource(R.string.forge_st_logging))
-        val effortIds = listOf("off", "rir", "rpe")
-        val effortLabels = listOf(stringResource(R.string.forge_st_off), "RIR", stringResource(R.string.forge_ef_rpe))
+    // iOS `trainingGroups`: the page's note first, then each sub-group under its header, every explained setting on its
+    // own card with the explanation as the footer under it; settings without one share a card.
+    Text(stringResource(R.string.forge_st_blurb), style = Forge.type.footnote, color = Forge.colors.textSecondary,
+         modifier = Modifier.padding(horizontal = ForgeMetrics.space4))
+    val effortIds = listOf("off", "rir", "rpe")
+    val effortLabels = listOf(stringResource(R.string.forge_st_off), "RIR", stringResource(R.string.forge_ef_rpe))
+    SettingsCard(stringResource(R.string.forge_st_logging), stringResource(R.string.forge_st_set_effort_note)) {
         SettingRow(stringResource(R.string.forge_st_set_effort)) {
             MenuPicker(effortLabels[effortIds.indexOf(effort).coerceAtLeast(0)], effortLabels.indices.toList(), label = { effortLabels[it] }) { i ->
                 if (CorePrefs.write(context, CorePrefs.EFFORT_SCALE, effortIds[i])) effort = effortIds[i]
             }
         }
-        Note(stringResource(R.string.forge_st_set_effort_note))
-        RowDivider()
-        val ratingIds = listOf("off", "whenUseful", "always")
-        val ratingLabels = listOf(stringResource(R.string.forge_rating_reminder_off),
-            stringResource(R.string.forge_rating_reminder_useful), stringResource(R.string.forge_rating_reminder_always))
+    }
+    val ratingIds = listOf("off", "whenUseful", "always")
+    val ratingLabels = listOf(stringResource(R.string.forge_rating_reminder_off),
+        stringResource(R.string.forge_rating_reminder_useful), stringResource(R.string.forge_rating_reminder_always))
+    SettingsCard(null, stringResource(R.string.forge_st_rating_note)) {
         SettingRow(stringResource(R.string.forge_st_rating)) {
             MenuPicker(ratingLabels[ratingIds.indexOf(rating).coerceAtLeast(0)], ratingLabels.indices.toList(), label = { ratingLabels[it] }) { i ->
                 rating = ratingIds[i]
@@ -186,23 +189,23 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit, onOpenEquipment: (
                 scope.launch { withContext(Dispatchers.IO) { SessionRatingReminderWorker.synchronize(context) } }
             }
         }
-        Note(stringResource(R.string.forge_st_rating_note))
-        RowDivider()
-        val unitIds = listOf("kilograms", "pounds")
-        val unitLabels = listOf(stringResource(R.string.forge_st_kg), stringResource(R.string.forge_st_lb))
+    }
+    val unitIds = listOf("kilograms", "pounds")
+    val unitLabels = listOf(stringResource(R.string.forge_st_kg), stringResource(R.string.forge_st_lb))
+    SettingsCard(null, stringResource(R.string.forge_st_weight_unit_note)) {
         SettingRow(stringResource(R.string.forge_st_weight_unit)) {
             MenuPicker(unitLabels[unitIds.indexOf(unit).coerceAtLeast(0)], unitLabels.indices.toList(), label = { unitLabels[it] }) { i ->
                 if (CorePrefs.write(context, CorePrefs.WEIGHT_UNIT, unitIds[i])) unit = unitIds[i]
             }
         }
-        Note(stringResource(R.string.forge_st_weight_unit_note))
-        RowDivider()
-        // The step of the minus and plus buttons for dumbbells, machines and cables (iOS "Weight step"); a pound
-        // wearer picks from pounds, and the choice is stored in kilograms under the key for that unit.
-        val pounds = unit == "pounds"
-        val system = if (pounds) com.noop.ui.UnitSystem.IMPERIAL else com.noop.ui.UnitSystem.METRIC
-        val stepChoices = if (pounds) TrainingStepPrefs.poundChoicesKg else TrainingStepPrefs.kilogramChoices
-        val stepLabels = stepChoices.map { TrainingStepPrefs.label(it, system) }
+    }
+    // The step of the minus and plus buttons for dumbbells, machines and cables (iOS "Weight step"); a pound
+    // wearer picks from pounds, and the choice is stored in kilograms under the key for that unit.
+    val pounds = unit == "pounds"
+    val system = if (pounds) com.noop.ui.UnitSystem.IMPERIAL else com.noop.ui.UnitSystem.METRIC
+    val stepChoices = if (pounds) TrainingStepPrefs.poundChoicesKg else TrainingStepPrefs.kilogramChoices
+    val stepLabels = stepChoices.map { TrainingStepPrefs.label(it, system) }
+    SettingsCard(null, stringResource(R.string.fsp1_weight_step_note)) {
         SettingRow(stringResource(R.string.fsp1_weight_step)) {
             val current = stepChoices.indexOfFirst { kotlin.math.abs(it - weightStepKg) < 1e-6 }.coerceAtLeast(0)
             MenuPicker(stepLabels[current], stepLabels.indices.toList(), label = { stepLabels[it] }) { i ->
@@ -210,14 +213,14 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit, onOpenEquipment: (
                 TrainingStepPrefs.setWeightIncrementKg(context, stepChoices[i], pounds)
             }
         }
-        Note(stringResource(R.string.fsp1_weight_step_note))
-        RowDivider()
+    }
+    SettingsCard(null, null) {
         SettingRow(stringResource(R.string.forge_st_new_sets, sets)) {
             Stepper("", onMinus = { if (sets > 1 && CorePrefs.write(context, CorePrefs.NEW_EXERCISE_SETS, sets - 1)) sets-- },
                     onPlus = { if (sets < 6 && CorePrefs.write(context, CorePrefs.NEW_EXERCISE_SETS, sets + 1)) sets++ })
         }
-        RowDivider()
-        Overline(stringResource(R.string.forge_st_rest_times))
+    }
+    SettingsCard(stringResource(R.string.forge_st_rest_times), null) {
         SettingRow(stringResource(R.string.forge_st_default_rest, rest)) {
             Stepper("", onMinus = { val v = (rest - 15).coerceAtLeast(0); if (CorePrefs.write(context, CorePrefs.DEFAULT_REST, v)) rest = v },
                     onPlus = { val v = (rest + 15).coerceAtMost(600); if (CorePrefs.write(context, CorePrefs.DEFAULT_REST, v)) rest = v })
@@ -232,8 +235,8 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit, onOpenEquipment: (
             Stepper("", onMinus = { val v = (restPause - 5).coerceAtLeast(5); restPause = v; TrainingStepPrefs.setRestPauseSeconds(context, v) },
                     onPlus = { val v = (restPause + 5).coerceAtMost(60); restPause = v; TrainingStepPrefs.setRestPauseSeconds(context, v) })
         }
-        RowDivider()
-        Overline(stringResource(R.string.forge_st_timer_ends))
+    }
+    SettingsCard(stringResource(R.string.forge_st_timer_ends), stringResource(R.string.forge_st_timer_note)) {
         ToggleRow(stringResource(R.string.forge_st_show_notification), null, feedback) {
             feedback = it; prefs.edit().putBoolean(RestTimerPrefs.FEEDBACK, it).apply()
         }
@@ -242,21 +245,19 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit, onOpenEquipment: (
         }
         ToggleRow(stringResource(R.string.forge_st_vibration), null, vibration) { vibration = it; prefs.edit().putBoolean(RestTimerPrefs.HAPTICS, it).apply() }
         ToggleRow(stringResource(R.string.forge_st_strap_buzz), null, strapBuzz) { strapBuzz = it; RestTimerPrefs.setStrapBuzz(context, it) }
-        Note(stringResource(R.string.forge_st_timer_note))
-        RowDivider()
-        Overline(stringResource(R.string.forge_st_strap))
-        ToggleRow(stringResource(R.string.forge_tap_setting), stringResource(R.string.forge_tap_setting_note), doubleTap) {
+    }
+    SettingsCard(stringResource(R.string.forge_st_strap), stringResource(R.string.forge_tap_setting_note)) {
+        ToggleRow(stringResource(R.string.forge_tap_setting), null, doubleTap) {
             doubleTap = it; prefs.edit().putBoolean(RestTimerPrefs.STRAP_DOUBLE_TAP, it).apply()
         }
-        RowDivider()
-        ToggleRow(stringResource(R.string.forge_st_keep_screen), stringResource(R.string.forge_st_keep_screen_note), keepOn) {
-            keepOn = it; prefs.edit().putBoolean(RestTimerPrefs.KEEP_SCREEN_ON, it).apply()
-        }
-        RowDivider()
-        Overline(stringResource(R.string.forge_st_during))
-        val viewIds = listOf("focus", "list", "compact")
-        val viewLabels = listOf(stringResource(R.string.forge_wl_focus_short), stringResource(R.string.forge_wl_list_short),
-                                stringResource(R.string.forge_wl_compact))
+    }
+    val viewIds = listOf("focus", "list", "compact")
+    val viewLabels = listOf(stringResource(R.string.forge_wl_focus_short), stringResource(R.string.forge_wl_list_short),
+                            stringResource(R.string.forge_wl_compact))
+    val mediaIds = listOf("large", "small", "hidden")
+    val mediaLabels = listOf(stringResource(R.string.forge_st_media_large), stringResource(R.string.forge_st_media_small),
+                             stringResource(R.string.forge_st_media_hidden))
+    SettingsCard(stringResource(R.string.forge_st_during), null) {
         SettingRow(stringResource(R.string.forge_wl_view)) {
             MenuPicker(viewLabels[viewIds.indexOf(workoutView).coerceAtLeast(0)], viewLabels.indices.toList(), label = { viewLabels[it] }) { i ->
                 workoutView = viewIds[i]
@@ -264,9 +265,6 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit, onOpenEquipment: (
             }
         }
         RowDivider()
-        val mediaIds = listOf("large", "small", "hidden")
-        val mediaLabels = listOf(stringResource(R.string.forge_st_media_large), stringResource(R.string.forge_st_media_small),
-                                 stringResource(R.string.forge_st_media_hidden))
         SettingRow(stringResource(R.string.forge_st_media)) {
             MenuPicker(mediaLabels[mediaIds.indexOf(media).coerceAtLeast(0)], mediaLabels.indices.toList(), label = { mediaLabels[it] }) { i ->
                 media = mediaIds[i]
@@ -277,9 +275,14 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit, onOpenEquipment: (
         LinkRow(stringResource(R.string.forge_st_manage_media), null, onClick = onOpenMedia)
         RowDivider()
         LinkRow(stringResource(R.string.fsp1_equipment_title), null, onClick = onOpenEquipment)
-        RowDivider()
-        Note(stringResource(R.string.forge_st_units_note))
     }
+    SettingsCard(null, stringResource(R.string.forge_st_keep_screen_note)) {
+        ToggleRow(stringResource(R.string.forge_st_keep_screen), null, keepOn) {
+            keepOn = it; prefs.edit().putBoolean(RestTimerPrefs.KEEP_SCREEN_ON, it).apply()
+        }
+    }
+    Text(stringResource(R.string.forge_st_units_note), style = Forge.type.footnote, color = Forge.colors.textSecondary,
+         modifier = Modifier.padding(horizontal = ForgeMetrics.space4))
     SettingsCard(stringResource(R.string.forge_st_guided), stringResource(R.string.forge_st_guided_blurb)) {
         // Live Sessions (beta): the start button on Today, in the coach and in More (iOS "Guided training").
         ToggleRow(stringResource(R.string.fsp1_guided_switch), stringResource(R.string.fsp1_guided_note), guidedTraining) { on ->
@@ -327,10 +330,6 @@ internal fun TrainingSettingsSection(onOpenMedia: () -> Unit, onOpenEquipment: (
         }
     }
 }
-
-@Composable
-private fun Overline(text: String) =
-    Text(text.uppercase(), style = Forge.type.overline, color = Forge.colors.textSecondary)
 
 /**
  * The training steps Settings sets and the plan builder and the timers read: the step of a weight button (kilograms and

@@ -1341,77 +1341,223 @@ private struct SettingsPageContent: View, Equatable {
 
     // MARK: - Units
 
+    @ViewBuilder
     private var trainingCard: some View {
+        if NoopVisualStyle.skin == .forge {
+            trainingGroups
+        } else {
+            trainingClassicCard
+        }
+    }
+
+    private var trainingSetEffortRow: some View {
+        FormRow(label: "Set effort") {
+            Picker("Set effort", selection: $trainingEffortRaw) {
+                Text("Off").tag(TrainingEffortPreference.off.rawValue)
+                Text("RIR").tag(TrainingEffortPreference.rir.rawValue)
+                Text("RPE").tag(TrainingEffortPreference.rpe.rawValue)
+            }.labelsHidden().pickerStyle(.menu)
+        }
+    }
+
+    private var trainingSessionRatingRow: some View {
+        FormRow(label: "Session rating") {
+            Picker("Session rating", selection: $sessionRatingPromptRaw) {
+                Text("Off").tag(SessionRatingPrompt.off.rawValue)
+                Text("When useful").tag(SessionRatingPrompt.whenUseful.rawValue)
+                Text("Always").tag(SessionRatingPrompt.always.rawValue)
+            }.labelsHidden().pickerStyle(.menu)
+            .onChange(of: sessionRatingPromptRaw) { _ in
+                Task { await model.repo.refreshSessionRatingReminders() }
+            }
+        }
+    }
+
+    private var trainingWeightUnitRow: some View {
+        FormRow(label: "Weight unit") {
+            Picker("Weight unit", selection: $trainingWeightUnitRaw) {
+                ForEach(TrainingWeightUnit.allCases) { unit in
+                    Text(unit.label).tag(unit.rawValue)
+                }
+            }.labelsHidden().pickerStyle(.menu)
+        }
+    }
+
+    private var trainingWeightStepRow: some View {
+        FormRow(label: "Weight step") {
+            Picker("Weight step", selection: trainingWeightIncrementBinding) {
+                ForEach(trainingWeightUnit == .pounds
+                        ? TrainingPreferences.imperialWeightIncrementChoicesKg
+                        : TrainingPreferences.weightIncrementChoices, id: \.self) { value in
+                    Text(TrainingPreferences.formattedWeight(value, unit: trainingWeightUnit)).tag(value)
+                }
+            }.labelsHidden().pickerStyle(.menu)
+        }
+    }
+
+    private var trainingNewExerciseSetsStepper: some View {
+        Stepper("Sets for a new exercise: \(trainingNewExerciseSets)", value: $trainingNewExerciseSets,
+                in: 1...6).font(SettingsRowFont.value)
+    }
+
+    private var trainingDefaultRestStepper: some View {
+        Stepper("Default rest: \(trainingRestSeconds) sec", value: $trainingRestSeconds,
+                in: 0...600, step: 15).font(SettingsRowFont.value)
+    }
+
+    private var trainingWarmupRestStepper: some View {
+        Stepper("Warm-up rest: \(trainingWarmupRestSeconds) sec",
+                value: $trainingWarmupRestSeconds, in: 0...300, step: 15).font(SettingsRowFont.value)
+    }
+
+    private var trainingRestPauseStepper: some View {
+        Stepper("Rest-pause: \(trainingRestPauseSeconds) sec",
+                value: $trainingRestPauseSeconds, in: 5...60, step: 5).font(SettingsRowFont.value)
+    }
+
+    private var trainingTimerToggles: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Toggle("Show a notification", isOn: $trainingTimerFeedback)
+                .accessibilityHint(Text("Notifies you when rest or a timed set ends"))
+            Toggle("Play a sound", isOn: $trainingSound).disabled(!trainingTimerFeedback)
+            Toggle("Vibration", isOn: $trainingHaptics)
+                .accessibilityHint(Text("Vibrates when you complete a set and, with the notification on, when a timer ends"))
+            Toggle("Buzz the strap 5 seconds early", isOn: $trainingStrapRestBuzz)
+                .accessibilityHint(Text("The strap vibrates three times five seconds before a rest ends"))
+        }
+    }
+
+    private var trainingDoubleTapToggle: some View {
+        Toggle("Strap double-tap completes a set", isOn: $trainingStrapDoubleTap)
+            .accessibilityHint(Text("During a strength workout, a double-tap on the strap logs the next set"))
+    }
+
+    private var trainingWorkoutViewRow: some View {
+        FormRow(label: "Workout view") {
+            Picker("Workout view", selection: $trainingLayoutRaw) {
+                Text("Focus").tag("focus"); Text("List").tag("list"); Text("Compact").tag("compact")
+            }.labelsHidden().pickerStyle(.menu)
+        }
+    }
+
+    private var trainingExerciseMediaRow: some View {
+        FormRow(label: "Exercise media") {
+            Picker("Exercise media", selection: $trainingMediaRaw) {
+                Text("Large").tag(TrainingMediaPresentation.large.rawValue)
+                Text("Small").tag(TrainingMediaPresentation.small.rawValue)
+                Text("Hidden").tag(TrainingMediaPresentation.hidden.rawValue)
+            }.labelsHidden().pickerStyle(.menu)
+        }
+    }
+
+    private var trainingKeepScreenOnToggle: some View {
+        Toggle("Keep screen on during a workout", isOn: $workoutKeepScreenOn)
+            .accessibilityHint("Stops the screen dimming while a workout is recording")
+    }
+
+    /// The new design's training page: each sub-group keeps its header, and every explained setting is its own
+    /// card with its explanation as the footer under it. Settings without an explanation share one card.
+    private var trainingGroups: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+            Text("Logging sets, rest timers and the workout screen.")
+                .settingsCaption()
+                .padding(.horizontal, NoopMetrics.space4)
+            SettingsSubGroup(title: "Logging sets", footer: Text("RIR counts the repetitions left in reserve; RPE rates the set from 1 to 10. Off hides per-set effort entry and keeps ratings you already logged.")) {
+                trainingSetEffortRow
+            }
+            SettingsSubGroup(footer: Text("A session rating improves load estimates when heart rate misses muscular effort. “When useful” asks after strength, swimming and other demanding sessions. You can always rate a session later.")) {
+                trainingSessionRatingRow
+            }
+            SettingsSubGroup(footer: Text("Changes training entry and display only. Saved weights remain in kilograms, so switching units never rewrites a workout.")) {
+                trainingWeightUnitRow
+            }
+            SettingsSubGroup(footer: Text("Used by the − and + buttons for dumbbells, machines and cables. Barbell exercises step by two of the smallest plates saved in the plate calculator. You can also type any weight directly.")) {
+                trainingWeightStepRow
+            }
+            SettingsSubGroup {
+                trainingNewExerciseSetsStepper
+            }
+            SettingsSubGroup(title: "Rest times") {
+                trainingDefaultRestStepper
+                rowDivider
+                trainingWarmupRestStepper
+                rowDivider
+                trainingRestPauseStepper
+            }
+            SettingsSubGroup(title: "When a timer ends", footer: Text("While the workout is open, a timer ends with the sound only, without a banner. While it is minimized, the notification shows as usual.")) {
+                trainingTimerToggles
+            }
+            #if os(iOS)
+            SettingsSubGroup {
+                // The Lock Screen display is a Live Activity whose one switch lives on the Notifications
+                // page; this row leads there rather than repeating it (its default follows live heart rate).
+                SettingsNavRow(icon: (symbol: "lock.iphone", id: "notifications"),
+                               title: "Lock Screen display",
+                               subtitle: "Sets and rest countdown while a workout runs. Separate from the notification.",
+                               page: .notifications)
+            }
+            #endif
+            SettingsSubGroup(title: "Strap", footer: Text("During strength training, a double-tap completes the next prepared set and one buzz confirms it. A quick second tap is ignored.")) {
+                trainingDoubleTapToggle
+            }
+            SettingsSubGroup(title: "During a workout") {
+                trainingWorkoutViewRow
+                rowDivider
+                trainingExerciseMediaRow
+                rowDivider
+                SettingsNavRow(icon: (symbol: "arrow.down.circle", id: "exerciseMedia"),
+                               title: "Manage offline exercise media",
+                               accessibilityLabel: "Manage offline exercise media",
+                               route: .exerciseMedia)
+                rowDivider
+                SettingsNavRow(icon: (symbol: "dumbbell", id: "training"),
+                               title: "Available equipment",
+                               route: .equipment)
+            }
+            SettingsSubGroup(footer: Text("Keeps the display awake only while a workout is recording. This uses more battery and leaves the unlocked screen visible.")) {
+                trainingKeepScreenOnToggle
+            }
+            Text("Body weight, distance and temperature units are under Language & Units.")
+                .settingsCaption()
+                .padding(.horizontal, NoopMetrics.space4)
+        }
+        .toggleStyle(.switch)
+        .appleInspiredTint("settings.controls")
+    }
+
+    /// The classic look's training card (the new design draws `trainingGroups`).
+    private var trainingClassicCard: some View {
         SettingsSection(icon: "dumbbell.fill", title: "Training",
                         blurb: "Logging sets, rest timers and the workout screen.") {
             VStack(alignment: .leading, spacing: 0) {
                 trainingGroupLabel("Logging sets")
-                FormRow(label: "Set effort") {
-                    Picker("Set effort", selection: $trainingEffortRaw) {
-                        Text("Off").tag(TrainingEffortPreference.off.rawValue)
-                        Text("RIR").tag(TrainingEffortPreference.rir.rawValue)
-                        Text("RPE").tag(TrainingEffortPreference.rpe.rawValue)
-                    }.labelsHidden().pickerStyle(.menu)
-                }
+                trainingSetEffortRow
                 Text("RIR counts the repetitions left in reserve; RPE rates the set from 1 to 10. Off hides per-set effort entry and keeps ratings you already logged.")
                     .settingsCaption()
                 rowDivider
-                FormRow(label: "Session rating") {
-                    Picker("Session rating", selection: $sessionRatingPromptRaw) {
-                        Text("Off").tag(SessionRatingPrompt.off.rawValue)
-                        Text("When useful").tag(SessionRatingPrompt.whenUseful.rawValue)
-                        Text("Always").tag(SessionRatingPrompt.always.rawValue)
-                    }.labelsHidden().pickerStyle(.menu)
-                    .onChange(of: sessionRatingPromptRaw) { _ in
-                        Task { await model.repo.refreshSessionRatingReminders() }
-                    }
-                }
+                trainingSessionRatingRow
                 Text("A session rating improves load estimates when heart rate misses muscular effort. “When useful” asks after strength, swimming and other demanding sessions. You can always rate a session later.")
                     .settingsCaption()
                 rowDivider
-                FormRow(label: "Weight unit") {
-                    Picker("Weight unit", selection: $trainingWeightUnitRaw) {
-                        ForEach(TrainingWeightUnit.allCases) { unit in
-                            Text(unit.label).tag(unit.rawValue)
-                        }
-                    }.labelsHidden().pickerStyle(.menu)
-                }
+                trainingWeightUnitRow
                 Text("Changes training entry and display only. Saved weights remain in kilograms, so switching units never rewrites a workout.")
                     .settingsCaption()
                 rowDivider
-                FormRow(label: "Weight step") {
-                    Picker("Weight step", selection: trainingWeightIncrementBinding) {
-                        ForEach(trainingWeightUnit == .pounds
-                                ? TrainingPreferences.imperialWeightIncrementChoicesKg
-                                : TrainingPreferences.weightIncrementChoices, id: \.self) { value in
-                            Text(TrainingPreferences.formattedWeight(value, unit: trainingWeightUnit)).tag(value)
-                        }
-                    }.labelsHidden().pickerStyle(.menu)
-                }
+                trainingWeightStepRow
                 Text("Used by the − and + buttons for dumbbells, machines and cables. Barbell exercises step by two of the smallest plates saved in the plate calculator. You can also type any weight directly.")
                     .settingsCaption()
                 rowDivider
-                Stepper("Sets for a new exercise: \(trainingNewExerciseSets)", value: $trainingNewExerciseSets,
-                        in: 1...6).font(SettingsRowFont.value)
+                trainingNewExerciseSetsStepper
                 rowDivider
                 trainingGroupLabel("Rest times")
-                Stepper("Default rest: \(trainingRestSeconds) sec", value: $trainingRestSeconds,
-                        in: 0...600, step: 15).font(SettingsRowFont.value)
+                trainingDefaultRestStepper
                 rowDivider
-                Stepper("Warm-up rest: \(trainingWarmupRestSeconds) sec",
-                        value: $trainingWarmupRestSeconds, in: 0...300, step: 15).font(SettingsRowFont.value)
+                trainingWarmupRestStepper
                 rowDivider
-                Stepper("Rest-pause: \(trainingRestPauseSeconds) sec",
-                        value: $trainingRestPauseSeconds, in: 5...60, step: 5).font(SettingsRowFont.value)
+                trainingRestPauseStepper
                 rowDivider
                 trainingGroupLabel("When a timer ends")
-                Toggle("Show a notification", isOn: $trainingTimerFeedback)
-                    .accessibilityHint(Text("Notifies you when rest or a timed set ends"))
-                Toggle("Play a sound", isOn: $trainingSound).disabled(!trainingTimerFeedback)
-                Toggle("Vibration", isOn: $trainingHaptics)
-                    .accessibilityHint(Text("Vibrates when you complete a set and, with the notification on, when a timer ends"))
-                Toggle("Buzz the strap 5 seconds early", isOn: $trainingStrapRestBuzz)
-                    .accessibilityHint(Text("The strap vibrates three times five seconds before a rest ends"))
+                trainingTimerToggles
                 Text("While the workout is open, a timer ends with the sound only, without a banner. While it is minimized, the notification shows as usual.")
                     .settingsCaption()
                 #if os(iOS)
@@ -1425,25 +1571,14 @@ private struct SettingsPageContent: View, Equatable {
                 #endif
                 rowDivider
                 trainingGroupLabel("Strap")
-                Toggle("Strap double-tap completes a set", isOn: $trainingStrapDoubleTap)
-                    .accessibilityHint(Text("During a strength workout, a double-tap on the strap logs the next set"))
+                trainingDoubleTapToggle
                 Text("During strength training, a double-tap completes the next prepared set and one buzz confirms it. A quick second tap is ignored.")
                     .settingsCaption()
                 rowDivider
                 trainingGroupLabel("During a workout")
-                FormRow(label: "Workout view") {
-                    Picker("Workout view", selection: $trainingLayoutRaw) {
-                        Text("Focus").tag("focus"); Text("List").tag("list"); Text("Compact").tag("compact")
-                    }.labelsHidden().pickerStyle(.menu)
-                }
+                trainingWorkoutViewRow
                 rowDivider
-                FormRow(label: "Exercise media") {
-                    Picker("Exercise media", selection: $trainingMediaRaw) {
-                        Text("Large").tag(TrainingMediaPresentation.large.rawValue)
-                        Text("Small").tag(TrainingMediaPresentation.small.rawValue)
-                        Text("Hidden").tag(TrainingMediaPresentation.hidden.rawValue)
-                    }.labelsHidden().pickerStyle(.menu)
-                }
+                trainingExerciseMediaRow
                 rowDivider
                 SettingsNavRow(icon: (symbol: "arrow.down.circle", id: "exerciseMedia"),
                                title: "Manage offline exercise media",
@@ -1454,8 +1589,7 @@ private struct SettingsPageContent: View, Equatable {
                                title: "Available equipment",
                                route: .equipment)
                 rowDivider
-                Toggle("Keep screen on during a workout", isOn: $workoutKeepScreenOn)
-                    .accessibilityHint("Stops the screen dimming while a workout is recording")
+                trainingKeepScreenOnToggle
                 Text("Keeps the display awake only while a workout is recording. This uses more battery and leaves the unlocked screen visible.")
                     .settingsCaption()
                 rowDivider
@@ -1891,121 +2025,181 @@ private struct SettingsPageContent: View, Equatable {
         }
     }
 
+    @ViewBuilder
     private var backgroundCard: some View {
+        if NoopVisualStyle.skin == .forge {
+            backgroundGroups
+        } else {
+            backgroundClassicCard
+        }
+    }
+
+    /// The time-of-day sky switch of the background page (shared by both looks). On by default; off swaps the
+    /// moving scene for the plain dark canvas for people who find it distracting (#698).
+    private var daySkyToggle: some View {
+        Toggle(isOn: $showDayCycleBackground) {
+            Text("Time-of-day sky")
+                .font(SettingsRowFont.value)
+                .foregroundStyle(StrandPalette.textPrimary)
+        }
+        .toggleStyle(.switch)
+        .appleInspiredTint("settings.controls")
+    }
+
+    /// Which artwork the day-cycle scene shows (shared by both looks). Same ten times of day either way.
+    private var sceneMotifRow: some View {
+        FormRow(label: "Motif") {
+            Picker("Motif", selection: $sceneMotifRaw) {
+                Text("Alps").tag(SceneMotif.alps.rawValue)
+                Text("Coast").tag(SceneMotif.coast.rawValue)
+                Text("Meadow").tag(SceneMotif.meadow.rawValue)
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .appleInspiredTint("settings.controls")
+            .accessibilityLabel("Sky motif")
+        }
+        .disabled(!showDayCycleBackground)
+    }
+
+    /// The sky-behind-cards switch (shared by both looks): extends the sky behind the whole Today scroll so
+    /// the card transparency reveals it under every card. Opt-in; pairs with the transparency below.
+    private var skyBehindCardsToggle: some View {
+        Toggle(isOn: $skyBehindCards) {
+            Text("Sky behind cards")
+                .font(SettingsRowFont.value)
+                // Greyed when day-cycle is off — the sky it extends isn't drawn then (Android parity).
+                .foregroundStyle(showDayCycleBackground ? StrandPalette.textPrimary : StrandPalette.textTertiary)
+        }
+        .toggleStyle(.switch)
+        .appleInspiredTint("settings.controls")
+        .disabled(!showDayCycleBackground)
+    }
+
+    /// The transparent-cards switch (shared by both looks): a quick on/off over the SAME `cardOpacityPercent`
+    /// as the slider, so it stays in lock-step with it. `isOn` is derived from the opacity.
+    private var transparentCardsToggle: some View {
+        Toggle(isOn: Binding(
+            get: { cardOpacityPercent < 100 },
+            set: { on in cardOpacityPercent = on ? (cardOpacityPercent >= 100 ? 70 : cardOpacityPercent) : 100 }
+        )) {
+            Text("Transparent cards")
+                .font(SettingsRowFont.value)
+                .foregroundStyle(StrandPalette.textPrimary)
+        }
+        .toggleStyle(.switch)
+        .tint(StrandPalette.accent)
+    }
+
+    /// The card-transparency slider (shared by both looks). It shows TRANSPARENCY (0 = solid, 100 = clear);
+    /// the stored value is the OPACITY percent. Reactive `@AppStorage`, so every card updates live as you drag.
+    private var cardTransparencySlider: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+            HStack {
+                Text("Card transparency")
+                    .font(SettingsRowFont.value)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Spacer()
+                Text("\(100 - cardOpacityPercent)%")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.accent)
+            }
+            Slider(
+                value: Binding(
+                    get: { Double(100 - cardOpacityPercent) },
+                    set: { cardOpacityPercent = 100 - Int($0.rounded()) }
+                ),
+                in: 0...100, step: 1
+            )
+            .appleInspiredTint("settings.controls")
+        }
+    }
+
+    /// The transparency of Today's surfaces over the day's picture (new design), shown like the slider above.
+    private var todayTransparencySlider: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space3) {
+            HStack {
+                Text("Transparency on Today")
+                    .font(SettingsRowFont.value)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Spacer()
+                Text("\(100 - todaySurfacePercent)%")
+                    .font(StrandFont.subhead)
+                    .foregroundStyle(StrandPalette.accent)
+            }
+            Slider(
+                value: Binding(
+                    get: { Double(100 - todaySurfacePercent) },
+                    set: { todaySurfacePercent = 100 - Int($0.rounded()) }
+                ),
+                in: 0...100, step: 5
+            )
+            .appleInspiredTint("settings.controls")
+        }
+    }
+
+    /// The new design's background page: one group per setting, its control on the card and what it does as
+    /// the footer under it. A sub-option (the motif, the transparency slider) stays on its parent's card.
+    private var backgroundGroups: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+            SettingsSubGroup(footer: Text("A sky that follows the time of day, behind Today, Sleep and other screens. Off gives a plain dark background.")) {
+                daySkyToggle
+                sceneMotifRow
+            }
+            SettingsSubGroup(footer: Text("Extends the sky behind every card, so transparent cards let it show through. Needs the time-of-day sky.")) {
+                skyBehindCardsToggle
+            }
+            SettingsSubGroup(footer: Text("Let the background show through every card. Tune how much just below.")
+                             + Text(verbatim: " ")
+                             + Text("How see-through the cards (Heart Rate, Key Metrics, Recovery Vitals, …) are. Left = solid, right = clear.")) {
+                transparentCardsToggle
+                cardTransparencySlider
+            }
+            if forgeDesignPreview {
+                SettingsSubGroup(footer: Text("How much of the day's picture shows through the tiles and notes on Today. Left = solid, right = clear.")) {
+                    todayTransparencySlider
+                }
+            }
+            SettingsSubGroup {
+                backgroundImageControls
+            }
+        }
+    }
+
+    /// The classic look's background card (the new design draws `backgroundGroups`).
+    private var backgroundClassicCard: some View {
         SettingsSection(
             icon: "photo.on.rectangle",
             title: "Background",
             blurb: "What sits behind the cards."
         ) {
             VStack(alignment: .leading, spacing: 0) {
-                // MARK: Day-cycle background — the time-of-day scene behind Today (#698). On by default.
-                // Off swaps it for the plain dark canvas for people who find the moving scene distracting.
-                Toggle(isOn: $showDayCycleBackground) {
-                    Text("Time-of-day sky")
-                        .font(SettingsRowFont.value)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch)
-                .appleInspiredTint("settings.controls")
+                daySkyToggle
                 Text("A sky that follows the time of day, behind Today, Sleep and other screens. Off gives a plain dark background.")
                     .settingsCaption()
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                // MARK: Day-cycle motif — which artwork the scene shows. Same ten times of day either way.
-                FormRow(label: "Motif") {
-                    Picker("Motif", selection: $sceneMotifRaw) {
-                        Text("Alps").tag(SceneMotif.alps.rawValue)
-                        Text("Coast").tag(SceneMotif.coast.rawValue)
-                        Text("Meadow").tag(SceneMotif.meadow.rawValue)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .appleInspiredTint("settings.controls")
-                    .accessibilityLabel("Sky motif")
-                }
-                .disabled(!showDayCycleBackground)
-
+                sceneMotifRow
 
                 rowDivider
-                // MARK: Sky behind cards — extend the day-cycle sky behind the WHOLE Today scroll so the
-                // Card-transparency slider reveals it under every card (not just the hero). Opt-in, off by
-                // default; pairs with Card transparency below.
-                Toggle(isOn: $skyBehindCards) {
-                    Text("Sky behind cards")
-                        .font(StrandFont.subhead)
-                        // Greyed when day-cycle is off — the sky it extends isn't drawn then (Android parity).
-                        .foregroundStyle(showDayCycleBackground ? StrandPalette.textPrimary : StrandPalette.textTertiary)
-                }
-                .toggleStyle(.switch)
-                .appleInspiredTint("settings.controls")
-                .disabled(!showDayCycleBackground)
+                skyBehindCardsToggle
                 Text("Extends the sky behind every card, so transparent cards let it show through. Needs the time-of-day sky.")
                     .settingsCaption()
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-
                 rowDivider
-                // MARK: Transparent cards — a quick on/off over the SAME cardOpacityPercent (no separate
-                // pref), so it stays in lock-step with the slider below. Off = solid (100%); on = a sensible
-                // see-through default the slider then fine-tunes. Lets the custom background (or the sky)
-                // show through the cards. `isOn` is derived from the opacity, so dragging to solid flips off.
-                Toggle(isOn: Binding(
-                    get: { cardOpacityPercent < 100 },
-                    set: { on in cardOpacityPercent = on ? (cardOpacityPercent >= 100 ? 70 : cardOpacityPercent) : 100 }
-                )) {
-                    Text("Transparent cards")
-                        .font(SettingsRowFont.value)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch)
-                .tint(StrandPalette.accent)
+                transparentCardsToggle
                 Text("Let the background show through every card. Tune how much just below.")
                     .settingsCaption()
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                // MARK: Card transparency — fade every frosted card's glass toward the background. Reactive
-                // @AppStorage, so all cards (incl. the ones on this screen) update live as you drag. The
-                // slider shows TRANSPARENCY (0 = solid, 100 = clear); we store the OPACITY percent.
-                HStack {
-                    Text("Card transparency")
-                        .font(SettingsRowFont.value)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                    Spacer()
-                    Text("\(100 - cardOpacityPercent)%")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.accent)
-                }
-                Slider(
-                    value: Binding(
-                        get: { Double(100 - cardOpacityPercent) },
-                        set: { cardOpacityPercent = 100 - Int($0.rounded()) }
-                    ),
-                    in: 0...100, step: 1
-                )
-                .appleInspiredTint("settings.controls")
+                cardTransparencySlider
                 Text("How see-through the cards (Heart Rate, Key Metrics, Recovery Vitals, …) are. Left = solid, right = clear.")
                     .settingsCaption()
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                // MARK: Today's surfaces over the picture in the new design, shown as transparency like the slider above.
                 if forgeDesignPreview {
-                    HStack {
-                        Text("Transparency on Today")
-                            .font(SettingsRowFont.value)
-                            .foregroundStyle(StrandPalette.textPrimary)
-                        Spacer()
-                        Text("\(100 - todaySurfacePercent)%")
-                            .font(StrandFont.subhead)
-                            .foregroundStyle(StrandPalette.accent)
-                    }
-                    Slider(
-                        value: Binding(
-                            get: { Double(100 - todaySurfacePercent) },
-                            set: { todaySurfacePercent = 100 - Int($0.rounded()) }
-                        ),
-                        in: 0...100, step: 5
-                    )
-                    .appleInspiredTint("settings.controls")
+                    todayTransparencySlider
                     Text("How much of the day's picture shows through the tiles and notes on Today. Left = solid, right = clear.")
                         .settingsCaption()
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -3672,7 +3866,116 @@ private struct SettingsPageContent: View, Equatable {
     /// Every switch that changes how NOOP computes a score, in one place (2026-10 Settings
     /// reorganisation). They used to sit on four pages — Profile (day start), Units (effort model), the
     /// HRV card and Sleep staging — where nothing said that flipping them recomputes past days.
+    @ViewBuilder
     private var calculationCard: some View {
+        if NoopVisualStyle.skin == .forge {
+            calculationGroups
+        } else {
+            calculationClassicCard
+        }
+    }
+
+    /// The day-start menu of the calculation page (shared by both looks).
+    private var dayStartPicker: some View {
+        Picker("Day start", selection: Binding(
+            get: { DayCycleMode.persisted(dayCycleModeRaw) },
+            set: { mode in
+                dayCycleModeRaw = mode.rawValue
+                Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
+            }
+        )) {
+            Text("Falling asleep").tag(DayCycleMode.sleepOnset)
+            Text("Midnight").tag(DayCycleMode.midnight)
+        }
+        .labelsHidden()
+        .pickerStyle(.menu)
+        .appleInspiredTint("settings.controls")
+    }
+
+    /// The HRV-window menu of the calculation page (shared by both looks).
+    private var hrvWindowPicker: some View {
+        Picker("HRV window", selection: $hrvWindowRaw) {
+            // #153: "Night" (not "Whole night") — a single short word so the two-segment control
+            // doesn't truncate once it sizes to the row.
+            Text("Whole night").tag(HrvWindow.whole.rawValue)
+            Text("Deep sleep").tag(HrvWindow.deep.rawValue)
+        }
+        .labelsHidden()
+        .pickerStyle(.menu)
+        .tint(StrandPalette.accent)
+        .accessibilityLabel("HRV window")
+        .onChangeCompat(of: hrvWindowRaw) { _ in
+            // #201/#195: analyzeRecent re-scores the recent ~21 nights' avgHrv under the new
+            // window AND re-folds the HRV baseline in the same pass, so DON'T re-anchor the
+            // baseline epoch (that reset read as "the setting is broken").
+            Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
+        }
+    }
+
+    /// The sleep-stage-method menu of the calculation page (shared by both looks).
+    private var sleepStageMethodPicker: some View {
+        Picker("Sleep stage method", selection: Binding(
+            get: { SleepStager.Method.resolvedPreference(
+                rawValue: sleepStagerMethodRaw,
+                legacyV2: UserDefaults.standard.object(forKey: PuffinExperiment.experimentalSleepV2Key) as? Bool) },
+            set: { sleepStagerMethodRaw = $0.rawValue }
+        )) {
+            Text(verbatim: "V3").tag(SleepStager.Method.v3)
+            Text(verbatim: "V2").tag(SleepStager.Method.v2)
+            Text(verbatim: "V1").tag(SleepStager.Method.v1)
+        }
+        .labelsHidden()
+        .pickerStyle(.menu)
+        .appleInspiredTint("settings.controls")
+        .accessibilityLabel("Sleep stage method")
+        .onChange(of: sleepStagerMethodRaw) { _ in
+            Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
+        }
+    }
+
+    /// The wake-check switch of the calculation page (shared by both looks). Motion-aware wake
+    /// refinement (#364 follow-up), default off; it self-gates on observed motion density.
+    private var wakeCheckToggle: some View {
+        Toggle(isOn: $motionAwareWakeEnabled) {
+            Text("Wake check")
+                .font(SettingsRowFont.value)
+                .foregroundStyle(StrandPalette.textPrimary)
+        }
+        .toggleStyle(.switch)
+        .appleInspiredTint("settings.controls")
+        .frame(minHeight: 44)
+    }
+
+    private var dayStartHint: Text {
+        Text(dayCycleModeRaw == DayCycleMode.midnight.rawValue
+             ? "Uses a conventional local calendar day from 00:00 to 00:00."
+             : "Default. Steps and in-progress Effort restart at the beginning of detected main sleep. Naps do not start a new day; missing sleep falls back to local midnight.")
+    }
+
+    /// The new design's calculation page: one group per setting, its control alone on the card and what it
+    /// does as the footer under it; the page's note stays as the line above the groups.
+    private var calculationGroups: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
+            Text("Changes here can recompute past days. Your recorded data stays.")
+                .settingsCaption()
+                .padding(.horizontal, NoopMetrics.space4)
+            SettingsSubGroup(footer: dayStartHint) {
+                FormRow(label: "Day start") { dayStartPicker }
+            }
+            SettingsSubGroup(footer: Text("Deep sleep gives lower values. Switching recalculates your recent nights.")) {
+                FormRow(label: "HRV window") { hrvWindowPicker }
+            }
+            SettingsSubGroup(footer: Text("V3 uses a more cautious sleep start with V2 sleep stages. V2 keeps the previous detection; V1 is the classic method. Switching recalculates recent nights.")) {
+                FormRow(label: "Sleep stage method") { sleepStageMethodPicker }
+            }
+            SettingsSubGroup(footer: Text("Counts a wake-up only if you walked or changed position. A heart-rate rise alone stays light sleep. Skipped on nights with too little motion data. Applies from the next night.")) {
+                wakeCheckToggle
+            }
+        }
+    }
+
+    /// The classic look's calculation card (the new design draws `calculationGroups`).
+    private var calculationClassicCard: some View {
         SettingsSection(
             icon: "function",
             title: "How NOOP calculates",
@@ -3680,19 +3983,7 @@ private struct SettingsPageContent: View, Equatable {
         ) {
             VStack(alignment: .leading, spacing: 0) {
                 FormRow(label: "Day start") {
-                    Picker("Day start", selection: Binding(
-                        get: { DayCycleMode.persisted(dayCycleModeRaw) },
-                        set: { mode in
-                            dayCycleModeRaw = mode.rawValue
-                            Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
-                        }
-                    )) {
-                        Text("Falling asleep").tag(DayCycleMode.sleepOnset)
-                        Text("Midnight").tag(DayCycleMode.midnight)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .appleInspiredTint("settings.controls")
+                    dayStartPicker
                 }
                 Text(dayCycleModeRaw == DayCycleMode.midnight.rawValue
                      ? "Uses a conventional local calendar day from 00:00 to 00:00."
@@ -3705,60 +3996,20 @@ private struct SettingsPageContent: View, Equatable {
                 // (WHOOP-style, reads lower). Unlike the Effort scale this CHANGES the number, so a switch
                 // re-scores + re-baselines (like a sleep edit).
                 FormRow(label: "HRV window") {
-                    Picker("HRV window", selection: $hrvWindowRaw) {
-                        // #153: "Night" (not "Whole night") — a single short word so the two-segment control
-                        // doesn't truncate once it sizes to the row.
-                        Text("Whole night").tag(HrvWindow.whole.rawValue)
-                        Text("Deep sleep").tag(HrvWindow.deep.rawValue)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .tint(StrandPalette.accent)
-                    .accessibilityLabel("HRV window")
-                    .onChangeCompat(of: hrvWindowRaw) { _ in
-                        // #201/#195: analyzeRecent re-scores the recent ~21 nights' avgHrv under the new
-                        // window AND re-folds the HRV baseline in the same pass, so DON'T re-anchor the
-                        // baseline epoch (that reset read as "the setting is broken").
-                        Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
-                    }
+                    hrvWindowPicker
                 }
                 Text("Deep sleep gives lower values. Switching recalculates your recent nights.")
                     .settingsCaption()
                 rowDivider
                 FormRow(label: "Sleep stage method") {
-                    Picker("Sleep stage method", selection: Binding(
-                        get: { SleepStager.Method.resolvedPreference(
-                            rawValue: sleepStagerMethodRaw,
-                            legacyV2: UserDefaults.standard.object(forKey: PuffinExperiment.experimentalSleepV2Key) as? Bool) },
-                        set: { sleepStagerMethodRaw = $0.rawValue }
-                    )) {
-                        Text(verbatim: "V3").tag(SleepStager.Method.v3)
-                        Text(verbatim: "V2").tag(SleepStager.Method.v2)
-                        Text(verbatim: "V1").tag(SleepStager.Method.v1)
-                    }
-                    .labelsHidden()
-                    .pickerStyle(.menu)
-                    .appleInspiredTint("settings.controls")
-                    .accessibilityLabel("Sleep stage method")
-                    .onChange(of: sleepStagerMethodRaw) { _ in
-                        Task { await model.intelligence.analyzeRecent(); await model.repo.refresh() }
-                    }
+                    sleepStageMethodPicker
                 }
                 Text("V3 uses a more cautious sleep start with V2 sleep stages. V2 keeps the previous detection; V1 is the classic method. Switching recalculates recent nights.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)
                     .fixedSize(horizontal: false, vertical: true)
                 rowDivider
-                // Motion-aware wake refinement (#364 follow-up) — default OFF. Self-gates on observed
-                // motion density, so it is a no-op on a sparse night (older WHOOP 4.0 firmware, mainly).
-                Toggle(isOn: $motionAwareWakeEnabled) {
-                    Text("Wake check")
-                        .font(SettingsRowFont.value)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch)
-                .appleInspiredTint("settings.controls")
-                .frame(minHeight: 44)
+                wakeCheckToggle
                 Text("Counts a wake-up only if you walked or changed position. A heart-rate rise alone stays light sleep. Skipped on nights with too little motion data. Applies from the next night.")
                     .font(StrandFont.footnote)
                     .foregroundStyle(StrandPalette.textTertiary)

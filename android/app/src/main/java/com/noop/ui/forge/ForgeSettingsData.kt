@@ -181,24 +181,25 @@ internal fun CalculationsSection(viewModel: AppViewModel, change: (() -> Unit) -
     val experiment = remember { PuffinExperiment.from(context) }
     // Day start rescores at once through the view model, as the classic row does.
     val dayCycle = NoopPrefs.dayCycleMode(context)
-    // One group in iOS order (`calculationCard`): Day start, HRV window, Sleep stage method, Wake check, each a menu
-    // or a switch with its note under it.
-    SettingsCard(title = stringResource(R.string.fsw4_calc_title), blurb = stringResource(R.string.fsw4_calc_blurb)) {
-        val dayLabel: @Composable (DayCycleMode) -> String = {
-            stringResource(if (it == DayCycleMode.SLEEP_ONSET) R.string.fsw4_falling_asleep else R.string.fsw4_midnight)
-        }
+    // iOS `calculationGroups`, in its order: the page's note first, then one group per setting (Day start, HRV window,
+    // Sleep stage method, Wake check), its menu or switch alone on the card and what it does as the footer under it.
+    Text(stringResource(R.string.fsw4_calc_blurb), style = Forge.type.footnote, color = Forge.colors.textSecondary,
+         modifier = Modifier.padding(horizontal = ForgeMetrics.space4))
+    val dayLabel: @Composable (DayCycleMode) -> String = {
+        stringResource(if (it == DayCycleMode.SLEEP_ONSET) R.string.fsw4_falling_asleep else R.string.fsw4_midnight)
+    }
+    SettingsCard(title = null, blurb = stringResource(if (dayCycle == DayCycleMode.SLEEP_ONSET) R.string.fsw4_day_sleep_note else R.string.fsw4_day_midnight_note)) {
         SettingRow(stringResource(R.string.fsw4_day_start)) {
             MenuPicker(dayLabel(dayCycle), listOf(DayCycleMode.SLEEP_ONSET, DayCycleMode.MIDNIGHT), label = dayLabel,
                        onSelect = { change { viewModel.setDayCycleMode(it) } })
         }
-        Text(stringResource(if (dayCycle == DayCycleMode.SLEEP_ONSET) R.string.fsw4_day_sleep_note else R.string.fsw4_day_midnight_note),
-             style = Forge.type.footnote, color = Forge.colors.textTertiary)
-        RowDivider()
-        // No Effort-model switch: the shared core scores Effort with one fitted curve since #2438 and ignores the
-        // former Banister preference (`CoreAnalysis.Settings.effortBanister`), as iOS removed its row.
-        val hrvLabel: @Composable (HrvWindow) -> String = {
-            stringResource(if (it == HrvWindow.DEEP_SLEEP) R.string.forge_settings_hrv_deep else R.string.forge_settings_hrv_night)
-        }
+    }
+    // No Effort-model switch: the shared core scores Effort with one fitted curve since #2438 and ignores the
+    // former Banister preference (`CoreAnalysis.Settings.effortBanister`), as iOS removed its row.
+    val hrvLabel: @Composable (HrvWindow) -> String = {
+        stringResource(if (it == HrvWindow.DEEP_SLEEP) R.string.forge_settings_hrv_deep else R.string.forge_settings_hrv_night)
+    }
+    SettingsCard(title = null, blurb = stringResource(R.string.fsw4_hrv_note)) {
         SettingRow(stringResource(R.string.fsw4_hrv_window)) {
             MenuPicker(hrvLabel(UnitPrefs.hrvWindow(context)), listOf(HrvWindow.WHOLE_NIGHT, HrvWindow.DEEP_SLEEP), label = hrvLabel,
                        onSelect = {
@@ -211,10 +212,10 @@ internal fun CalculationsSection(viewModel: AppViewModel, change: (() -> Unit) -
                            Toast.makeText(context, context.getString(R.string.forge_settings_hrv_rescoring), Toast.LENGTH_LONG).show()
                        })
         }
-        Text(stringResource(R.string.fsw4_hrv_note), style = Forge.type.caption, color = Forge.colors.textTertiary)
-        RowDivider()
-        // V3 runs in the shared Swift core; the optional legacy Kotlin screen keeps its V1/V2 choice.
-        if (com.noop.core.CoreDailyRows.coreReads(context)) {
+    }
+    // V3 runs in the shared Swift core; the optional legacy Kotlin screen keeps its V1/V2 choice.
+    if (com.noop.core.CoreDailyRows.coreReads(context)) {
+        SettingsCard(title = null, blurb = stringResource(R.string.sleep_stager_method_detail)) {
             SettingRow(stringResource(R.string.sleep_stager_method)) {
                 MenuPicker(experiment.sleepStagerMethod.uppercase(java.util.Locale.ROOT),
                            com.noop.ble.PuffinExperiment.SLEEP_METHODS,
@@ -222,15 +223,15 @@ internal fun CalculationsSection(viewModel: AppViewModel, change: (() -> Unit) -
                                change { viewModel.setSleepStagerMethod(method) }
                            })
             }
-            Text(stringResource(R.string.sleep_stager_method_detail), style = Forge.type.footnote,
-                 color = Forge.colors.textTertiary)
-        } else {
-            ToggleRow(stringResource(R.string.l10n_settings_screen_sleep_staging_v2_a4176770),
-                      stringResource(R.string.l10n_settings_screen_a_transparent_cardiorespiratory_recipe_that_recovers_eebe00c2),
+        }
+    } else {
+        SettingsCard(title = null, blurb = stringResource(R.string.l10n_settings_screen_a_transparent_cardiorespiratory_recipe_that_recovers_eebe00c2)) {
+            ToggleRow(stringResource(R.string.l10n_settings_screen_sleep_staging_v2_a4176770), null,
                       experiment.experimentalSleepV2) { on -> change { viewModel.setSleepStagerMethod(if (on) "v2" else "v1") } }
         }
-        RowDivider()
-        ToggleRow(stringResource(R.string.fsw4_wake_check), stringResource(R.string.fsw4_wake_note),
+    }
+    SettingsCard(title = null, blurb = stringResource(R.string.fsw4_wake_note)) {
+        ToggleRow(stringResource(R.string.fsw4_wake_check), null,
                   experiment.motionAwareWake) { on -> change { experiment.motionAwareWake = on } }
     }
     // "If scores look wrong" (iOS `AnalysisMaintenanceSettingsCard`): the status of the engine, Refresh today,

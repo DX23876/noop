@@ -458,19 +458,26 @@ internal fun TodayCardsSection(change: (() -> Unit) -> Unit) {
 private fun BackgroundCard() {
     val context = LocalContext.current
     val opacityPercent = (CardAppearance.opacity * 100).roundToInt()
-    SettingsCard(title = stringResource(R.string.forge_settings_background), blurb = null) {
-        ToggleRow(stringResource(R.string.forge_settings_day_sky), stringResource(R.string.forge_settings_day_sky_detail),
+    // iOS `backgroundGroups`: one group per setting, its control on the card and what it does as the footer under it.
+    // A sub-option (the transparency slider) stays on its parent's card.
+    SettingsCard(title = null, blurb = stringResource(R.string.forge_settings_day_sky_detail)) {
+        ToggleRow(stringResource(R.string.forge_settings_day_sky), null,
                   ForgeBackground.dayCycle) { ForgeBackground.setDayCycle(context, it) }
-        if (ForgeBackground.dayCycle) {
-            RowDivider()
-            ToggleRow(stringResource(R.string.forge_settings_sky_behind_cards),
-                      stringResource(R.string.forge_settings_sky_behind_cards_detail),
+    }
+    if (ForgeBackground.dayCycle) {
+        SettingsCard(title = null, blurb = stringResource(R.string.forge_settings_sky_behind_cards_detail)) {
+            ToggleRow(stringResource(R.string.forge_settings_sky_behind_cards), null,
                       ForgeBackground.behindCards) { ForgeBackground.setBehindCards(context, it) }
         }
-        RowDivider()
-        // The switch is a shortcut over the same percentage, as on iOS: on starts at 70 % unless already set lower.
-        ToggleRow(stringResource(R.string.forge_settings_transparent_cards),
-                  stringResource(R.string.forge_settings_transparent_cards_detail), opacityPercent < 100) { on ->
+    }
+    // The switch is a shortcut over the same percentage, as on iOS: on starts at 70 % unless already set lower. Its footer
+    // carries the slider's note too while the slider is shown, as iOS joins them.
+    val transparentFooter = if (opacityPercent < 100) {
+        stringResource(R.string.forge_settings_transparent_cards_detail) + "\n\n" +
+            stringResource(R.string.forge_settings_card_transparency_detail)
+    } else stringResource(R.string.forge_settings_transparent_cards_detail)
+    SettingsCard(title = null, blurb = transparentFooter) {
+        ToggleRow(stringResource(R.string.forge_settings_transparent_cards), null, opacityPercent < 100) { on ->
             ForgeBackground.setCardOpacity(context, if (on) (if (opacityPercent >= 100) 70 else opacityPercent) else 100)
         }
         if (opacityPercent < 100) {
@@ -481,12 +488,11 @@ private fun BackgroundCard() {
             Slider(value = (100 - opacityPercent).toFloat(), valueRange = 0f..100f,
                    onValueChange = { ForgeBackground.setCardOpacity(context, 100 - it.roundToInt()) },
                    colors = SliderDefaults.colors(thumbColor = Forge.colors.accent, activeTrackColor = Forge.colors.accent))
-            Text(stringResource(R.string.forge_settings_card_transparency_detail), style = Forge.type.caption,
-                 color = Forge.colors.textTertiary)
         }
-        // Today's own surfaces over the day's picture, shown as transparency like the slider above (iOS, new design).
-        if (ForgeDesign.preview) {
-            RowDivider()
+    }
+    // Today's own surfaces over the day's picture, shown as transparency like the slider above (iOS, new design).
+    if (ForgeDesign.preview) {
+        SettingsCard(title = null, blurb = stringResource(R.string.fsp4_today_transparency_note)) {
             val todayTransparency = 100 - TodaySurfacePrefs.percent(context)
             SettingRow(stringResource(R.string.fsp4_today_transparency)) {
                 Text(stringResource(R.string.forge_percent, todayTransparency), style = Forge.type.bodyNumber, color = Forge.colors.accent)
@@ -494,9 +500,9 @@ private fun BackgroundCard() {
             Slider(value = todayTransparency.toFloat(), valueRange = 0f..100f, steps = 19,
                    onValueChange = { TodaySurfacePrefs.set(context, 100 - it.roundToInt()) },
                    colors = SliderDefaults.colors(thumbColor = Forge.colors.accent, activeTrackColor = Forge.colors.accent))
-            Text(stringResource(R.string.fsp4_today_transparency_note), style = Forge.type.caption, color = Forge.colors.textTertiary)
         }
-        RowDivider()
+    }
+    SettingsCard(title = null, blurb = null) {
         BackgroundPhotoControls()
     }
 }
