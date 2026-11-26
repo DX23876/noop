@@ -1,6 +1,7 @@
 package com.noop.ui.forge
 
 import androidx.compose.material.icons.rounded.Accessibility
+import androidx.compose.material.icons.rounded.MonitorWeight
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Restaurant
 import androidx.activity.compose.BackHandler
@@ -144,6 +145,9 @@ enum class MoreDest(val category: MoreCategory?, val titleRes: Int, val icon: Im
           listOf("your data, fused", "fused", "merged record", "all sources", "one timeline")),
     Training(MoreCategory.HealthBody, R.string.forge_training, Icons.Rounded.FitnessCenter,
              listOf("workouts", "strength", "cardio", "training load", "sessions", "exercise")),
+    // The weight page (iOS `TabRoute.weight`), opened from Today's weight tile, the Health tab and the Body page.
+    Weight(MoreCategory.HealthBody, R.string.wt_title, Icons.Rounded.MonitorWeight,
+           listOf("weight", "scale", "weigh-in", "trend", "forecast", "kg", "lb"), searchOnly = true),
     Body(MoreCategory.HealthBody, R.string.forge_body_title, Icons.Rounded.Accessibility,
          listOf("weight", "body fat", "waist", "measurements", "tape", "navy", "circumference", "composition", "scale")),
     Food(MoreCategory.HealthBody, R.string.food_title, Icons.Rounded.Restaurant,
@@ -469,7 +473,11 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
         return
     }
     if (dest == MoreDest.Body) {
-        ForgeBodyPage(onBack)
+        ForgeBodyPage(onBack, onOpenWeight = { onOpen(MoreDest.Weight) })
+        return
+    }
+    if (dest == MoreDest.Weight) {
+        ForgeWeightPage(onBack)
         return
     }
     when (dest) {
@@ -563,7 +571,7 @@ private fun MoreDestination(dest: MoreDest, viewModel: AppViewModel, onBack: () 
             MoreDest.Intervals -> IntervalsScreen(viewModel)
             MoreDest.Alarms -> SmartAlarmScreen(viewModel)
             MoreDest.Workouts -> WorkoutsScreen(viewModel)
-            MoreDest.Settings, MoreDest.Goals, MoreDest.Momentum, MoreDest.AgeLess, MoreDest.RhythmAge, MoreDest.Energy, MoreDest.Food, MoreDest.Body, MoreDest.Coach, MoreDest.Ecg, MoreDest.Training,
+            MoreDest.Settings, MoreDest.Goals, MoreDest.Momentum, MoreDest.AgeLess, MoreDest.RhythmAge, MoreDest.Energy, MoreDest.Food, MoreDest.Body, MoreDest.Weight, MoreDest.Coach, MoreDest.Ecg, MoreDest.Training,
             MoreDest.Strength, MoreDest.Cardio, MoreDest.TrainingLoad -> Unit
         }
     }

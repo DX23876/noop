@@ -65,6 +65,18 @@ object CoreWeight {
 
     fun deleteEvent(id: String): Boolean = ok(SwiftCore.call("weight.deleteEvent", JSONObject().put("id", id).toString()))
 
+    /** A weigh-in at [at] with an optional note, on NOOP's own weight lane (`body.logWeight`). */
+    fun logWeight(kg: Double, at: Instant, note: String?): Boolean =
+        ok(SwiftCore.call("body.logWeight", JSONObject().put("kg", kg).put("takenAt", at.epochSecond)
+            .apply { note?.takeIf { it.isNotBlank() }?.let { put("note", it) } }.toString()))
+
+    /** An edit that keeps the weigh-in's id, as iOS's `updateWeight`. */
+    fun updateWeight(id: String, kg: Double, at: Instant, note: String?): Boolean =
+        ok(SwiftCore.call("weight.updateWeight", JSONObject().put("id", id).put("kg", kg).put("takenAt", at.epochSecond)
+            .put("note", note ?: "").toString()))
+
+    fun deleteWeight(id: String): Boolean = ok(SwiftCore.call("body.deleteWeight", JSONObject().put("id", id).toString()))
+
     /** The daily weigh-in reminder's next moment by the shared rule, or null when none falls in the next three weeks. */
     fun nextReminder(context: Context, minutes: Int, weekdays: Set<Int>, now: Instant): Instant? {
         if (!SwiftCore.available) return null

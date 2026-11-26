@@ -189,11 +189,7 @@ struct WeightDetailView: View {
         NoopCard {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .center, spacing: 16) {
-                    BevelGauge(fraction: m.progress, stops: StrandPalette.strainStops, tipColor: StrandPalette.metricAmber,
-                               numberText: "\(Int((m.progress * 100).rounded())) %",
-                               captionText: String(localized: "of the way"),
-                               stateText: String(localized: "TREND"), diameter: 104, lineWidth: 9,
-                               animatedFraction: m.progress)
+                    progressRing(m.progress)
                     VStack(alignment: .leading, spacing: 4) {
                         if let next = m.next {
                             Text("Next stop").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
@@ -212,6 +208,24 @@ struct WeightDetailView: View {
                     .font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.textSecondary)
             }
         }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// The share of the way from start to goal on the trend, as a three-quarter ring in the page's colour.
+    private func progressRing(_ fraction: Double) -> some View {
+        ZStack {
+            Circle().trim(from: 0, to: 0.75).stroke(StrandPalette.hairline, style: StrokeStyle(lineWidth: 9, lineCap: .round))
+                .rotationEffect(.degrees(135))
+            Circle().trim(from: 0, to: 0.75 * min(1, max(0, fraction)))
+                .stroke(Self.weightTint, style: StrokeStyle(lineWidth: 9, lineCap: .round))
+                .rotationEffect(.degrees(135))
+            VStack(spacing: 0) {
+                Text("\(Int((fraction * 100).rounded())) %").font(StrandFont.rounded(22, weight: .bold))
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Text("of the way").font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+            }
+        }
+        .frame(width: 96, height: 96)
         .accessibilityElement(children: .combine)
     }
 
@@ -375,7 +389,7 @@ struct WeightDetailView: View {
 
     private func changesCard(_ s: WeightTracker.Snapshot) -> some View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            sectionTitle("Change")
+            sectionTitle("Change on the trend")
             NoopCard {
                 HStack(alignment: .top, spacing: 10) {
                     ForEach([7, 30, 90, nil] as [Int?], id: \.self) { days in
@@ -411,24 +425,31 @@ struct WeightDetailView: View {
                         }
                     }
                     .chartXAxis(.hidden).chartYAxis(.hidden)
-                    .chartYScale(domain: (w.low.kg - 0.5)...(w.high.kg + 0.5))
+                    // The trend lags the scale, so it can sit outside the week's readings: the scale covers both.
+                    .chartYScale(domain: weekDomain(w))
                     .frame(height: 110)
+                    .clipped()
                     .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 8) {
                         weekFigure("High", w.high.kg, StrandPalette.statusWarning)
-                        weekFigure("Latest", w.latest.kg, StrandPalette.textPrimary)
+                        weekFigure("Last", w.latest.kg, StrandPalette.textPrimary)
                         weekFigure("Trend", w.trendKg, Self.weightTint)
                         weekFigure("Low", w.low.kg, StrandPalette.statusPositive)
                     }
-                    .frame(width: 110, alignment: .leading)
+                    .frame(width: 132, alignment: .leading)
                 }
             }
         }
     }
 
+    private func weekDomain(_ w: WeightTracker.Week) -> ClosedRange<Double> {
+        let values = w.readings.map(\.kg) + w.trend.map(\.kg) + [w.trendKg]
+        return ((values.min() ?? 0) - 0.4)...((values.max() ?? 1) + 0.4)
+    }
+
     private func weekFigure(_ label: LocalizedStringKey, _ kg: Double, _ tint: Color) -> some View {
         HStack(spacing: 6) {
-            Text(label).font(StrandFont.caption.weight(.semibold)).foregroundStyle(tint)
+            Text(label).font(StrandFont.caption.weight(.semibold)).foregroundStyle(tint).lineLimit(1).minimumScaleFactor(0.8)
             Spacer(minLength: 4)
             Text(mass(kg)).font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
         }
@@ -493,7 +514,8 @@ struct WeightDetailView: View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
             sectionTitle("Logbook")
             NoopCard(padding: 0) {
-                VStack(spacing: 0) {
+                // Lazy: a few hundred weigh-ins a year, drawn as they scroll in.
+                LazyVStack(spacing: 0) {
                     HStack {
                         Text("Day").frame(maxWidth: .infinity, alignment: .leading)
                         Text("Scale").frame(width: 72, alignment: .trailing)
@@ -596,7 +618,7 @@ struct WeightDetailView: View {
                             LineMark(x: .value("Day", p.date), y: .value("Weight", p.kg))
                                 .foregroundStyle(Self.weightTint).lineStyle(StrokeStyle(lineWidth: 2.5))
                         }
-                        if let goal { RuleMark(y: .value("Goal", goal.target))
+                        if let goal, goalFits(goal, r) { RuleMark(y: .value("Goal", goal.target))
                             .foregroundStyle(StrandPalette.statusPositive).lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4])) }
                     }
                     .chartYScale(domain: reportDomain(r, goal: goal))
@@ -609,8 +631,16 @@ struct WeightDetailView: View {
         }
     }
 
+    /// The goal line is drawn only when it lies near the period's values: far below, it would flatten the period's
+    /// own movement into a straight line.
+    private func goalFits(_ goal: WeightTracker.Goal, _ r: WeightTracker.Report) -> Bool {
+        let v = r.trend.map(\.kg)
+        guard let lo = v.min(), let hi = v.max() else { return false }
+        return goal.target >= lo - 2 && goal.target <= hi + 2
+    }
+
     private func reportDomain(_ r: WeightTracker.Report, goal: WeightTracker.Goal?) -> ClosedRange<Double> {
-        let v = r.trend.map(\.kg) + (goal.map { [$0.target] } ?? [])
+        let v = r.trend.map(\.kg) + (goal.flatMap { goalFits($0, r) ? [$0.target] : nil } ?? [])
         return ((v.min() ?? 50) - 0.5)...((v.max() ?? 100) + 0.5)
     }
 

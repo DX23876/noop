@@ -212,7 +212,7 @@ struct WeightSettingsSheet: View {
         case .milestones: "Stops on the way"
         case .forecast: "Forecast"
         case .events: "Your dates"
-        case .changes: "Change"
+        case .changes: "Change on the trend"
         case .week: "This week"
         case .chart: "History chart"
         case .reports: "Reports"

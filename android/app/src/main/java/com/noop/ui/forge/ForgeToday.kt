@@ -209,7 +209,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                     androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
                 // Logging is for what already happened; a live session starts from the Training tab.
                 ForgeLogChoice.Workout -> addingWorkout = true
-                ForgeLogChoice.Weight -> more.push(MoreRoute.Dest(MoreDest.Body))
+                ForgeLogChoice.Weight -> more.push(MoreRoute.Dest(MoreDest.Weight))
                 ForgeLogChoice.Status -> settingStatus = true
                 ForgeLogChoice.Journal -> more.push(MoreRoute.Dest(MoreDest.Journal))
                 ForgeLogChoice.Drink -> more.push(MoreRoute.Dest(MoreDest.Hydration))
@@ -430,7 +430,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                 TodayHintCard(viewModel, today.toString(), onCharge = { hintCharge = true },
                               onGoals = { more.push(MoreRoute.Dest(MoreDest.Goals)) },
                               onPlan = { selectTab(ForgeTab.Coach) },
-                              onWeight = { more.push(MoreRoute.Dest(MoreDest.Body)) })
+                              onWeight = { more.push(MoreRoute.Dest(MoreDest.Weight)) })
                 if (hintCharge) ChargeBreakdownHost(viewModel, onDismiss = { hintCharge = false })
             }
             if (shown == today) ForgeMorningSuggestion(fetching = viewModel.live.collectAsState().value.backfilling)
