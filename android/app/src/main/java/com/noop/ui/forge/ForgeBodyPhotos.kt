@@ -147,9 +147,9 @@ internal fun ForgeBodyPhotosPage(onBack: () -> Unit) {
             }
         }
         if (series.isEmpty()) {
-            SettingsCard(title = stringResource(R.string.forge_bp_none, poseLabel.lowercase(Locale.getDefault())), blurb = null) {}
+            ForgeTitledCard(title = stringResource(R.string.forge_bp_none, poseLabel.lowercase(Locale.getDefault())), blurb = null) {}
         } else {
-            SettingsCard(title = stringResource(R.string.forge_bp_then_now), blurb = null) {
+            ForgeTitledCard(title = stringResource(R.string.forge_bp_then_now), blurb = null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
                     PhotoPane(series, left, Modifier.weight(1f)) { left = it }
                     PhotoPane(series, right, Modifier.weight(1f)) { right = it }
@@ -158,7 +158,7 @@ internal fun ForgeBodyPhotosPage(onBack: () -> Unit) {
                     Text(stringResource(R.string.forge_bp_second), style = Forge.type.caption, color = Forge.colors.textSecondary)
                 }
             }
-            SettingsCard(title = stringResource(R.string.forge_bp_every), blurb = series.size.toString()) {
+            ForgeTitledCard(title = stringResource(R.string.forge_bp_every), blurb = series.size.toString()) {
                 series.reversed().forEach { photo ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(photo.day, style = Forge.type.subhead, color = Forge.colors.text, modifier = Modifier.weight(1f))
@@ -171,7 +171,7 @@ internal fun ForgeBodyPhotosPage(onBack: () -> Unit) {
             }
         }
         val hasToday = series.any { it.day == LocalDate.now().toString() }
-        SettingsCard(title = null, blurb = null) {
+        ForgeTitledCard(title = null, blurb = null) {
             Text(stringResource(when (pose) {
                 BodyPhotoStore.Pose.Front -> R.string.forge_bp_guide_front
                 BodyPhotoStore.Pose.Side -> R.string.forge_bp_guide_side
@@ -184,7 +184,7 @@ internal fun ForgeBodyPhotosPage(onBack: () -> Unit) {
                 Text(stringResource(R.string.forge_bp_replaces), style = Forge.type.caption, color = Forge.colors.textTertiary)
             }
         }
-        SettingsCard(title = null, blurb = null) {
+        ForgeTitledCard(title = null, blurb = null) {
             Text(stringResource(R.string.forge_bp_privacy), style = Forge.type.caption, color = Forge.colors.textTertiary)
         }
     }

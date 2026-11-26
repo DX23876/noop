@@ -342,7 +342,7 @@ internal fun GoalNotificationsCard(inSettings: Boolean = false) {
     // the card in its own alignment and the explanation under it as a footer.
     val rows: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit = {
         kinds.forEachIndexed { i, kind ->
-            ToggleRow(stringResource(when (kind) {
+            GoalNoticeToggle(inSettings, stringResource(when (kind) {
                 com.noop.notif.GoalNoticeNotifier.Kind.Reached -> R.string.forge_gn_reached
                 com.noop.notif.GoalNoticeNotifier.Kind.Streak -> R.string.forge_gn_streak
                 com.noop.notif.GoalNoticeNotifier.Kind.Badge -> R.string.forge_gn_badge
@@ -361,7 +361,7 @@ internal fun GoalNotificationsCard(inSettings: Boolean = false) {
         // The weekly and monthly goals' own notices, after the four (iOS `GoalPrefs.NotificationKind`).
         periodKinds.forEach { kind ->
             RowDivider()
-            ToggleRow(stringResource(when (kind) {
+            GoalNoticeToggle(inSettings, stringResource(when (kind) {
                 com.noop.notif.GoalNoticeNotifier.PeriodKind.WeekStart -> R.string.fsp1_gn_week_start
                 com.noop.notif.GoalNoticeNotifier.PeriodKind.MidWeek -> R.string.fsp1_gn_mid_week
                 com.noop.notif.GoalNoticeNotifier.PeriodKind.Review -> R.string.fsp1_gn_review
@@ -385,6 +385,12 @@ internal fun GoalNotificationsCard(inSettings: Boolean = false) {
             Text(stringResource(R.string.forge_gn_footer), style = Forge.type.caption, color = Forge.colors.textTertiary)
         }
     }
+}
+
+/** A goal-notice switch: the Settings look on the Goals settings page, the Forge look on the Goals page itself. */
+@Composable
+private fun GoalNoticeToggle(inSettings: Boolean, title: String, detail: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
+    if (inSettings) ToggleRow(title, detail, checked, onChange = onChange) else ForgeToggleRow(title, detail, checked, onChange = onChange)
 }
 
 // MARK: - Rows
@@ -547,7 +553,7 @@ private fun PeriodGoalPage(goal: CoreGoals.Period?, onBack: () -> Unit, onChange
             }
         }
 
-        SettingsCard(title = stringResource(R.string.forge_goals_target), blurb = null) {
+        ForgeTitledCard(title = stringResource(R.string.forge_goals_target), blurb = null) {
             SettingRow(stringResource(R.string.forge_goals_per_period,
                                       stringResource(if (goal.period == "week") R.string.forge_goals_a_week else R.string.forge_goals_a_month))) {
                 Stepper(amount(goal.target, goal.metric), enabled = goal.status == "active",
@@ -558,7 +564,7 @@ private fun PeriodGoalPage(goal: CoreGoals.Period?, onBack: () -> Unit, onChange
         }
 
         if (goal.history.isNotEmpty() || goal.bestStreak > 0) {
-            SettingsCard(title = stringResource(R.string.forge_goals_history), blurb = streakLine(goal)) {
+            ForgeTitledCard(title = stringResource(R.string.forge_goals_history), blurb = streakLine(goal)) {
                 val reached = goal.history.count { it.outcome == "achieved" }
                 goal.history.asReversed().forEachIndexed { i, entry ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -579,7 +585,7 @@ private fun PeriodGoalPage(goal: CoreGoals.Period?, onBack: () -> Unit, onChange
             }
         }
 
-        SettingsCard(title = stringResource(R.string.forge_goals_counted), blurb = null) {
+        ForgeTitledCard(title = stringResource(R.string.forge_goals_counted), blurb = null) {
             if (goal.counted.isEmpty()) {
                 Text(stringResource(if (goal.period == "week") R.string.forge_goals_nothing_week else R.string.forge_goals_nothing_month),
                      style = Forge.type.subhead, color = colors.textSecondary)
@@ -714,14 +720,14 @@ private fun GoalSetupPage(onBack: () -> Unit, onCreated: () -> Unit) {
             Text(stringResource(R.string.forge_goals_loading), style = Forge.type.subhead, color = Forge.sceneInk.secondary)
             return@SettingsColumn
         }
-        SettingsCard(title = null, blurb = stringResource(R.string.forge_goals_setup_blurb)) {
+        ForgeTitledCard(title = null, blurb = stringResource(R.string.forge_goals_setup_blurb)) {
             SettingRow(stringResource(R.string.forge_goals_period)) {
                 Segmented(listOf("week", "month"), period,
                           label = { stringResource(if (it == "week") R.string.forge_goals_weekly else R.string.forge_goals_monthly) },
                           onSelect = { period = it; target = null })
             }
         }
-        SettingsCard(title = stringResource(R.string.forge_goals_what), blurb = null) {
+        ForgeTitledCard(title = stringResource(R.string.forge_goals_what), blurb = null) {
             val shown = s.metrics
             shown.forEachIndexed { i, choice ->
                 val chosen = choice.metric == metric
@@ -746,7 +752,7 @@ private fun GoalSetupPage(onBack: () -> Unit, onCreated: () -> Unit) {
         }
         val choice = s.metrics.firstOrNull { it.metric == metric }
         if (choice?.metric == "habitDays") {
-            SettingsCard(title = stringResource(R.string.forge_goals_habit_which), blurb = null) {
+            ForgeTitledCard(title = stringResource(R.string.forge_goals_habit_which), blurb = null) {
                 HabitPicker(habits, habitKey, habitWantsYes, onKey = { habitKey = it }, onWantsYes = { habitWantsYes = it })
                 Text(stringResource(if (habitWantsYes) R.string.forge_goals_habit_counts_yes else R.string.forge_goals_habit_counts_no),
                      style = Forge.type.caption, color = Forge.colors.textTertiary)
@@ -759,7 +765,7 @@ private fun GoalSetupPage(onBack: () -> Unit, onCreated: () -> Unit) {
             val low = if (week) choice.weekLow else choice.monthLow
             val high = if (week) choice.weekHigh else choice.monthHigh
             val value = target ?: (if (week) choice.weekDefault else choice.monthDefault)
-            SettingsCard(title = stringResource(R.string.forge_goals_target), blurb = null) {
+            ForgeTitledCard(title = stringResource(R.string.forge_goals_target), blurb = null) {
                 SettingRow(stringResource(R.string.forge_goals_per_period,
                                           stringResource(if (week) R.string.forge_goals_a_week else R.string.forge_goals_a_month))) {
                     Stepper(amount(value, choice.metric),
@@ -815,7 +821,7 @@ private fun DailyGoalPage(slot: CoreGoals.DailySlot?, onBack: () -> Unit, onSave
         var weekdays by rememberSaveable { mutableStateOf(slot.weekdays.toSet().toList()) }
         var ring by rememberSaveable { mutableStateOf(slot.showsAsRing) }
         val values = slot.values
-        SettingsCard(title = null, blurb = null) {
+        ForgeTitledCard(title = null, blurb = null) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 MetricTile(slotMetric(slot.slot))
                 Spacer(Modifier.width(ForgeMetrics.space3))
@@ -829,7 +835,7 @@ private fun DailyGoalPage(slot: CoreGoals.DailySlot?, onBack: () -> Unit, onSave
                         onPlus = { value = values.getOrElse(index + 1) { values.last() } })
             }
         }
-        SettingsCard(title = stringResource(R.string.forge_goals_how_long), blurb = null) {
+        ForgeTitledCard(title = stringResource(R.string.forge_goals_how_long), blurb = null) {
             Segmented(listOf("ongoing", "untilDate", "todayOnly"), runs,
                       label = {
                           stringResource(when (it) {
@@ -855,7 +861,7 @@ private fun DailyGoalPage(slot: CoreGoals.DailySlot?, onBack: () -> Unit, onSave
             }
         }
         if (runs != "todayOnly") {
-            SettingsCard(title = stringResource(R.string.forge_goals_on_days), blurb = null) {
+            ForgeTitledCard(title = stringResource(R.string.forge_goals_on_days), blurb = null) {
                 // Calendar weekdays as iOS stores them (1 Sunday ... 7 Saturday), shown from Monday.
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     listOf(2, 3, 4, 5, 6, 7, 1).forEach { weekday ->
@@ -874,8 +880,8 @@ private fun DailyGoalPage(slot: CoreGoals.DailySlot?, onBack: () -> Unit, onSave
                 }
             }
         }
-        SettingsCard(title = null, blurb = null) {
-            ToggleRow(stringResource(R.string.forge_goals_show_ring), stringResource(R.string.forge_goals_show_ring_detail),
+        ForgeTitledCard(title = null, blurb = null) {
+            ForgeToggleRow(stringResource(R.string.forge_goals_show_ring), stringResource(R.string.forge_goals_show_ring_detail),
                       ring) { ring = it }
         }
         val canSave = runs == "todayOnly" || weekdays.isNotEmpty()

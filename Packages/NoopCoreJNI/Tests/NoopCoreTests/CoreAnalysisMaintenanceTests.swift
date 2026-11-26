@@ -59,6 +59,19 @@ final class CoreAnalysisMaintenanceTests: XCTestCase {
         XCTAssertNil(done.eta)
     }
 
+    func testARefreshThatEndsDuringAPassLeavesThePageOnThatPass() {
+        AnalysisMaintenanceState.reset()
+        XCTAssertTrue(AnalysisMaintenanceState.begin(.today))
+        AnalysisMaintenanceState.passStarted()
+        XCTAssertEqual(CoreAnalysisMaintenance.status().task, "today", "the refresh keeps its label")
+        AnalysisMaintenanceState.finish()
+        XCTAssertEqual(CoreAnalysisMaintenance.status().task, "background", "the pass still runs, so not idle")
+        XCTAssertFalse(AnalysisMaintenanceState.begin(.today), "a second refresh waits for the pass")
+        AnalysisMaintenanceState.finish(unless: .today)
+        XCTAssertEqual(CoreAnalysisMaintenance.status().phase, "idle")
+        AnalysisMaintenanceState.reset()
+    }
+
     func testOnePassAtATimeAndOnlyARepairIsTheLastCompleted() {
         XCTAssertEqual(CoreAnalysisMaintenance.status().phase, "idle")
         XCTAssertNil(CoreAnalysisMaintenance.status().lastRun)
@@ -72,7 +85,8 @@ final class CoreAnalysisMaintenanceTests: XCTestCase {
         XCTAssertEqual(CoreAnalysisMaintenance.status().task, "recent", "the pass keeps the repair's label")
 
         let end = Date(timeIntervalSince1970: 1_700_000_500)
-        AnalysisMaintenanceState.finish(now: end)
+        // The pass ends as `CoreAnalysis.run` ends it.
+        AnalysisMaintenanceState.finish(now: end, unless: .today)
         let after = CoreAnalysisMaintenance.status()
         XCTAssertEqual(after.phase, "idle")
         XCTAssertEqual(after.lastRun, end.timeIntervalSince1970)
@@ -84,7 +98,7 @@ final class CoreAnalysisMaintenanceTests: XCTestCase {
         UserDefaults.standard.removeObject(forKey: AnalysisMaintenanceState.lastRunKey)
         AnalysisMaintenanceState.passStarted()
         XCTAssertEqual(CoreAnalysisMaintenance.status().task, "background")
-        AnalysisMaintenanceState.finish(now: end)
+        AnalysisMaintenanceState.finish(now: end, unless: .today)
         XCTAssertNil(CoreAnalysisMaintenance.status().lastRun)
 
         // A repair that failed names why and is not a completion either.

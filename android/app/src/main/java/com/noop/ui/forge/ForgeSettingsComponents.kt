@@ -437,3 +437,75 @@ internal fun <T> Segmented(options: List<T>, selected: T, label: @Composable (T)
         }
     }
 }
+
+/**
+ * The titled Forge card the pages outside Settings use (Coach, Goals, Food, Energy, Body, Training): title and blurb
+ * inside the card. Settings draws its groups with [SettingsCard], the iOS Settings anatomy, which must not leak here.
+ */
+@Composable
+internal fun ForgeTitledCard(title: String?, blurb: String?, icon: ImageVector? = null, tint: Color? = null,
+                          active: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
+    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = ForgeMetrics.space5) {
+        // `Section2` on iOS: an active automation says ON above its title.
+        if (active) {
+            Text(stringResource(R.string.forge_sp_on).uppercase(), style = Forge.type.overline, color = Forge.colors.accent)
+        }
+        if (title != null) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (icon != null) {
+                    Box(Modifier.size(26.dp).background(tint ?: Forge.colors.accent, RoundedCornerShape(7.dp)),
+                        contentAlignment = Alignment.Center) {
+                        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
+                    }
+                    Spacer(Modifier.width(ForgeMetrics.space2))
+                }
+                Text(title, style = Forge.type.title2, color = Forge.colors.text)
+            }
+        }
+        if (blurb != null) {
+            Text(blurb, style = Forge.type.footnote, color = Forge.colors.textSecondary,
+                 modifier = Modifier.padding(top = if (title != null) ForgeMetrics.space1 else 0.dp))
+        }
+        if (title != null || blurb != null) Spacer(Modifier.height(ForgeMetrics.space3))
+        content()
+    }
+}
+
+/** A row that opens something, as the pages outside Settings draw it (the Settings look is [LinkRow]). */
+@Composable
+internal fun ForgeLinkRow(title: String, detail: String?, busy: Boolean = false, onClick: () -> Unit) {
+    val colors = Forge.colors
+    Row(Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
+            .clickable(enabled = !busy, role = Role.Button, onClick = onClick)
+            .padding(vertical = ForgeMetrics.space2),
+        verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = Forge.type.body, color = colors.text)
+            if (detail != null) Text(detail, style = Forge.type.caption, color = colors.textSecondary)
+        }
+        Spacer(Modifier.width(ForgeMetrics.space2))
+        if (busy) {
+            CircularProgressIndicator(Modifier.size(18.dp), color = colors.textTertiary, strokeWidth = 2.dp)
+        } else {
+            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))
+        }
+    }
+}
+
+/** A switch row as the pages outside Settings draw it, with the Forge green switch (the Settings look is [ToggleRow]). */
+@Composable
+internal fun ForgeToggleRow(title: String, detail: String?, checked: Boolean, enabled: Boolean = true,
+                       onChange: (Boolean) -> Unit) {
+    // The whole row flips the switch, as a SwiftUI Toggle's label does.
+    Row(Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
+            .alpha(if (enabled) 1f else 0.45f)
+            .padding(vertical = ForgeMetrics.space1),
+        verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f).padding(end = ForgeMetrics.space2), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = Forge.type.body, color = Forge.colors.text)
+            if (detail != null) Text(detail, style = Forge.type.caption, color = Forge.colors.textTertiary)
+        }
+        Switch(checked = checked, onCheckedChange = null, enabled = enabled, colors = forgeSwitchColors())
+    }
+}

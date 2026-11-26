@@ -243,7 +243,7 @@ class ProfileStore(private val prefs: SharedPreferences) {
         get() = prefs.getFloat(KEY_WAIST, 0f).toDouble().coerceIn(0.0, WAIST_MAX)
         set(v) = prefs.edit().putFloat(KEY_WAIST, v.coerceIn(0.0, WAIST_MAX).toFloat()).apply()
 
-    /** Manual max-heart-rate override in bpm; 0 = automatic (Tanaka). */
+    /** Manual max-heart-rate override in bpm; 0 = automatic ([hrMaxAuto]). */
     var hrMaxOverride: Int
         get() = prefs.getInt(KEY_HRMAX, 0).coerceIn(0, 230)
         set(v) = prefs.edit().putInt(KEY_HRMAX, v.coerceIn(0, 230)).apply()
@@ -387,7 +387,7 @@ class ProfileStore(private val prefs: SharedPreferences) {
             .putString(KEY_HRMAX_CORE_SOURCE, source).putString(KEY_HRMAX_CORE_ON, confirmedOn ?: "").apply()
     }
 
-    /** Effective HR-max: the manual override if set, else the Tanaka estimate. */
+    /** Effective HR-max: the manual override if set, else the core's automatic value ([hrMaxAuto]: measured, else Gellish). */
     val hrMax: Int get() = if (hrMaxOverride > 0) hrMaxOverride else hrMaxAuto
 
     /**

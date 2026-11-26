@@ -89,7 +89,7 @@ internal fun ForgeCoachHistoryPage(onBack: () -> Unit, onPicked: () -> Unit) {
             R.string.forge_ch_archived to matching.filter { it.archived },
         )
         sections.filter { it.second.isNotEmpty() }.forEach { (title, list) ->
-            SettingsCard(title = title?.let { stringResource(it) }, blurb = null) {
+            ForgeTitledCard(title = title?.let { stringResource(it) }, blurb = null) {
                 list.forEachIndexed { i, c ->
                     ConversationRow(c, onPick = { op("switch", c.id, picked = true) }, onRename = { renaming = c },
                                     onPin = { op("pin", c.id, value = !c.pinned) },
@@ -190,7 +190,7 @@ internal fun ForgeCoachPlanPage(onBack: () -> Unit) {
             return@SettingsColumn
         }
         if (p.pending.isNotEmpty()) {
-            SettingsCard(title = stringResource(R.string.forge_cp_waiting), blurb = null) {
+            ForgeTitledCard(title = stringResource(R.string.forge_cp_waiting), blurb = null) {
                 p.pending.forEachIndexed { i, row ->
                     PlanHeader(row)
                     if (row.rationale.isNotEmpty()) {
@@ -206,7 +206,7 @@ internal fun ForgeCoachPlanPage(onBack: () -> Unit) {
             }
         }
         if (p.agreed.isNotEmpty()) {
-            SettingsCard(title = stringResource(R.string.forge_cp_agreed), blurb = null) {
+            ForgeTitledCard(title = stringResource(R.string.forge_cp_agreed), blurb = null) {
                 p.agreed.forEachIndexed { i, row ->
                     PlanHeader(row)
                     row.swappedFrom?.let {
@@ -234,7 +234,7 @@ internal fun ForgeCoachPlanPage(onBack: () -> Unit) {
             }
         }
         if (p.recent.isNotEmpty()) {
-            SettingsCard(title = stringResource(R.string.forge_cp_recently), blurb = null) {
+            ForgeTitledCard(title = stringResource(R.string.forge_cp_recently), blurb = null) {
                 p.recent.forEachIndexed { i, row ->
                     Row(verticalAlignment = Alignment.Top) {
                         Column(Modifier.weight(1f)) {
@@ -249,7 +249,7 @@ internal fun ForgeCoachPlanPage(onBack: () -> Unit) {
             }
         }
         if (p.empty) {
-            SettingsCard(title = stringResource(R.string.forge_cp_empty_title), blurb = stringResource(R.string.forge_cp_empty_body)) {}
+            ForgeTitledCard(title = stringResource(R.string.forge_cp_empty_title), blurb = stringResource(R.string.forge_cp_empty_body)) {}
         }
     }
     skipping?.let { row ->

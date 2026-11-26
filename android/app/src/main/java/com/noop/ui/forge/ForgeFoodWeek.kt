@@ -262,7 +262,7 @@ internal fun ForgeFoodNotePage(quality: com.noop.core.CoreFoodNotes.Quality, mal
             ForgeCard(Modifier.fillMaxWidth()) { limits.sortedBy { it.points }.forEach { ScorePartRow(it, male) } }
             Text(stringResource(R.string.food_score_costs_note), style = Forge.type.footnote, color = Forge.sceneInk.secondary)
             n.processedShare?.let { share ->
-                SettingsCard(stringResource(R.string.food_score_processed), stringResource(R.string.food_score_processed_note)) {
+                ForgeTitledCard(stringResource(R.string.food_score_processed), stringResource(R.string.food_score_processed_note)) {
                     Text(stringResource(R.string.food_score_processed_value, (share * 100).roundToInt()), style = Forge.type.body, color = colors.text)
                 }
             }

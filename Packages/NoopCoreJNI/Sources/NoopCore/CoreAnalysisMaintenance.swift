@@ -29,6 +29,8 @@ public enum AnalysisMaintenanceState {
     private final class Box: @unchecked Sendable {
         let lock = NSLock()
         var snapshot = Snapshot()
+        /// Daily passes in flight, so a refresh that ends during one hands the slot to it instead of reading idle.
+        var passes = 0
     }
     private static let box = Box()
 
@@ -61,6 +63,7 @@ public enum AnalysisMaintenanceState {
     /// its own label, so the page says "Recalculating the last 21 days…" while the pass runs.
     static func passStarted() {
         box.lock.lock(); defer { box.lock.unlock() }
+        box.passes += 1
         if box.snapshot.task == nil { box.snapshot.task = .background; box.snapshot.failure = nil }
     }
 
@@ -74,9 +77,12 @@ public enum AnalysisMaintenanceState {
     /// button disabled until the refresh itself finishes.
     static func finish(failure: String? = nil, now: Date = Date(), unless running: Kind? = nil) {
         box.lock.lock()
+        // A pass reports with `unless`; a refresh without it.
+        if running != nil { box.passes = max(0, box.passes - 1) }
         let task = box.snapshot.task
         if let running, task == running { box.lock.unlock(); return }
-        box.snapshot.task = nil
+        // A refresh that ends while a pass still runs leaves the page showing that pass, not idle.
+        box.snapshot.task = running == nil && box.passes > 0 ? .background : nil
         box.snapshot.progress = nil
         box.snapshot.failure = failure
         box.snapshot.completedAt = now
@@ -88,7 +94,7 @@ public enum AnalysisMaintenanceState {
 
     /// Test hook: forget everything.
     static func reset() {
-        box.lock.lock(); box.snapshot = Snapshot(); box.lock.unlock()
+        box.lock.lock(); box.snapshot = Snapshot(); box.passes = 0; box.lock.unlock()
     }
 }
 

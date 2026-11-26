@@ -262,7 +262,7 @@ private fun WeightCard(b: CoreBody.Snapshot, onLog: (Double) -> Unit, onDelete: 
     var text by remember { mutableStateOf("") }
     // Settings › Units: weights show and are typed in pounds for an imperial wearer; the core stores kilograms.
     val units = com.noop.ui.UnitPrefs.system(androidx.compose.ui.platform.LocalContext.current)
-    SettingsCard(title = stringResource(R.string.forge_body_weight), blurb = null) {
+    ForgeTitledCard(title = stringResource(R.string.forge_body_weight), blurb = null) {
         b.weight.lastOrNull()?.let {
             Text(weightLabel(it.value, units), style = Forge.type.title2, color = Forge.colors.text)
         }
@@ -628,7 +628,7 @@ private fun BodyRemindersCard() {
 @Composable
 private fun MeasureCard(b: CoreBody.Snapshot, onCancel: () -> Unit, onSave: (Map<String, Double>) -> Unit) {
     val values = remember { mutableStateMapOf<String, String>() }
-    SettingsCard(title = stringResource(R.string.forge_body_circumferences), blurb = stringResource(R.string.forge_body_leave_empty)) {
+    ForgeTitledCard(title = stringResource(R.string.forge_body_circumferences), blurb = stringResource(R.string.forge_body_leave_empty)) {
         (b.measured + b.unmeasured).forEach { site ->
             Column(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space1), verticalArrangement = Arrangement.spacedBy(2.dp1)) {
                 OutlinedTextField(value = values[site.key] ?: "", label = { Text(site.label) },

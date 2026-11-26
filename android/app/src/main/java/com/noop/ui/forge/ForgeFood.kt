@@ -1322,8 +1322,8 @@ private fun ForgeFoodDataPage(onBack: () -> Unit, onSetup: () -> Unit) {
         FoodGoalsCard()
         FoodProductDataCards()
         FoodExtrasCards()
-        SettingsCard(null, null) { LinkRow(stringResource(R.string.food_setup_again), null, onClick = onSetup) }
-        SettingsCard(stringResource(R.string.food_sources), stringResource(R.string.food_sources_credits)) {}
+        ForgeTitledCard(null, null) { ForgeLinkRow(stringResource(R.string.food_setup_again), null, onClick = onSetup) }
+        ForgeTitledCard(stringResource(R.string.food_sources), stringResource(R.string.food_sources_credits)) {}
     }
 }
 
@@ -1361,7 +1361,7 @@ internal fun FoodProductDataCards() {
         }
     }
 
-    SettingsCard(stringResource(R.string.food_branded), stringResource(when (mode) {
+    ForgeTitledCard(stringResource(R.string.food_branded), stringResource(when (mode) {
         FoodDataPrefs.ONLINE -> R.string.food_mode_online_note; FoodDataPrefs.PACKS -> R.string.food_mode_packs_note
         else -> R.string.food_mode_none_note })) {
         listOf(FoodDataPrefs.NONE to R.string.food_mode_none, FoodDataPrefs.ONLINE to R.string.food_mode_online,
@@ -1374,7 +1374,7 @@ internal fun FoodProductDataCards() {
         }
     }
     if (mode == FoodDataPrefs.ONLINE) {
-        SettingsCard(stringResource(R.string.food_countries), null) {
+        ForgeTitledCard(stringResource(R.string.food_countries), null) {
             (offered?.map { it.country } ?: listOf("germany", "austria", "switzerland", "france", "united-kingdom", "united-states"))
                 .sortedBy { FoodDataPrefs.countryName(it) }.forEach { tag ->
                     Row(Modifier.fillMaxWidth().clickable {
@@ -1388,7 +1388,7 @@ internal fun FoodProductDataCards() {
         }
     }
     if (mode == FoodDataPrefs.PACKS) {
-        SettingsCard(stringResource(R.string.food_on_phone), if (installed.isEmpty()) stringResource(R.string.food_no_pack) else null) {
+        ForgeTitledCard(stringResource(R.string.food_on_phone), if (installed.isEmpty()) stringResource(R.string.food_no_pack) else null) {
             installed.forEach { pack ->
                 Row(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space2), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -1405,10 +1405,10 @@ internal fun FoodProductDataCards() {
                 }
             }
         }
-        SettingsCard(stringResource(R.string.food_download), stringResource(R.string.food_download_note)) {
+        ForgeTitledCard(stringResource(R.string.food_download), stringResource(R.string.food_download_note)) {
             if (manifestFailed) Text(stringResource(R.string.food_manifest_failed), style = Forge.type.footnote, color = Forge.colors.textSecondary)
             offered.orEmpty().filter { o -> installed.none { it.country == o.country } }.forEach { pack ->
-                LinkRow(FoodDataPrefs.countryName(pack.country),
+                ForgeLinkRow(FoodDataPrefs.countryName(pack.country),
                         stringResource(R.string.food_products, NumberFormat.getIntegerInstance().format(pack.rows)) +
                             " · " + android.text.format.Formatter.formatShortFileSize(context, pack.bytes),
                         busy = downloading == pack.country) { if (downloading == null) download(pack) }
@@ -1432,7 +1432,7 @@ internal fun FoodExtrasCards() {
     val permissions = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.health.connect.client.PermissionController.createRequestPermissionResultContract()) { }
     if (com.noop.ui.NoopPrefs.coachEnabled(context)) {
-        SettingsCard(stringResource(R.string.food_estimate_title), stringResource(R.string.food_estimate_note)) {
+        ForgeTitledCard(stringResource(R.string.food_estimate_title), stringResource(R.string.food_estimate_note)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.food_estimate_toggle), style = Forge.type.body, color = Forge.colors.text)
@@ -1442,12 +1442,12 @@ internal fun FoodExtrasCards() {
             }
         }
     }
-    SettingsCard(stringResource(R.string.food_health_connect), stringResource(R.string.food_health_connect_note)) {
+    ForgeTitledCard(stringResource(R.string.food_health_connect), stringResource(R.string.food_health_connect_note)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.food_write_health), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
             Switch(writeHealth, { writeHealth = it; prefs.writeHealth = it })
         }
-        LinkRow(stringResource(R.string.food_allow_health), null) { permissions.launch(FoodHealthConnect.READ + FoodHealthConnect.WRITE) }
+        ForgeLinkRow(stringResource(R.string.food_allow_health), null) { permissions.launch(FoodHealthConnect.READ + FoodHealthConnect.WRITE) }
     }
     // The food reminders and the logging warning (owner, 2026-11-21), the same keys as iOS; the score itself is for
     // everyone now, so its Lab switch is gone.
@@ -1459,7 +1459,7 @@ internal fun FoodExtrasCards() {
     fun askNotifications() {
         if (android.os.Build.VERSION.SDK_INT >= 33) notifyPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
     }
-    SettingsCard(stringResource(R.string.food_reminders), stringResource(R.string.food_reminders_note)) {
+    ForgeTitledCard(stringResource(R.string.food_reminders), stringResource(R.string.food_reminders_note)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.food_reminder_morning), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
             Switch(morningOn, { morningOn = it; if (it) askNotifications(); FoodReminders.set(context, FoodReminders.MORNING, it) })
@@ -1522,7 +1522,7 @@ private fun FoodGoalsCard() {
             .putFloat("food.goal.carbsPercent", carbs.toFloat()).putFloat("food.goal.fatPercent", fat.toFloat()).apply()
     }
     val total = (protein + carbs + fat).roundToInt()
-    SettingsCard(stringResource(R.string.food_goals), stringResource(if (fixed > 0) R.string.food_goal_fixed_note else R.string.food_goal_plan_note) +
+    ForgeTitledCard(stringResource(R.string.food_goals), stringResource(if (fixed > 0) R.string.food_goal_fixed_note else R.string.food_goal_plan_note) +
         if (total != 100) " " + stringResource(R.string.food_goal_scaled, total) else "") {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.food_goal_fixed), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))

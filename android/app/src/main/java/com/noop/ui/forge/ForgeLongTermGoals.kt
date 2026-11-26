@@ -291,13 +291,13 @@ private fun ValueStep(d: CoreLongTermGoals.Draft, catalog: CoreLongTermGoals.Cat
                 s.title == named(s.habitKey, s.habitWantsYes)
             change(s.copy(habitKey = key, habitWantsYes = yes, title = if (follows) named(key, yes) else s.title))
         }
-        SettingsCard(title = stringResource(R.string.forge_goals_habit_which), blurb = null) {
+        ForgeTitledCard(title = stringResource(R.string.forge_goals_habit_which), blurb = null) {
             HabitPicker(habits, s.habitKey, s.habitWantsYes, onKey = { pick(it, s.habitWantsYes) },
                         onWantsYes = { pick(s.habitKey, it) })
         }
     }
     if (template != null && template.sportChoices.size > 1) {
-        SettingsCard(title = stringResource(R.string.forge_lt_sport), blurb = null) {
+        ForgeTitledCard(title = stringResource(R.string.forge_lt_sport), blurb = null) {
             template.sportChoices.forEachIndexed { i, label ->
                 Row(Modifier.fillMaxWidth().clickable(role = Role.RadioButton) { run(s.copy(sportIndex = i), "suggest") {} }
                         .padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -308,7 +308,7 @@ private fun ValueStep(d: CoreLongTermGoals.Draft, catalog: CoreLongTermGoals.Cat
             }
         }
     }
-    SettingsCard(title = stringResource(R.string.forge_goals_target), blurb = null) {
+    ForgeTitledCard(title = stringResource(R.string.forge_goals_target), blurb = null) {
         when (d.shape) {
             "sum" -> {
                 SettingRow(stringResource(R.string.forge_goals_target)) {
@@ -320,7 +320,7 @@ private fun ValueStep(d: CoreLongTermGoals.Draft, catalog: CoreLongTermGoals.Cat
                     DateText(s.endDate) { picked -> run(s.copy(endDate = picked), "sum") {} }
                 }
                 RowDivider()
-                ToggleRow(stringResource(R.string.forge_lt_count_year), stringResource(R.string.forge_lt_count_year_detail,
+                ForgeToggleRow(stringResource(R.string.forge_lt_count_year), stringResource(R.string.forge_lt_count_year_detail,
                           levelText(d.collectedSoFar, d.metric)), s.countFromYearStart) { on ->
                     run(s.copy(countFromYearStart = on), "sum") {}
                 }
@@ -331,7 +331,7 @@ private fun ValueStep(d: CoreLongTermGoals.Draft, catalog: CoreLongTermGoals.Cat
                             onPlus = { change(s.copy(target = (s.target + d.perWeekStep).coerceAtMost(d.perWeekHigh))) })
                 }
                 RowDivider()
-                ToggleRow(stringResource(R.string.forge_lt_open_ended), null, s.openEnded) { change(s.copy(openEnded = it)) }
+                ForgeToggleRow(stringResource(R.string.forge_lt_open_ended), null, s.openEnded) { change(s.copy(openEnded = it)) }
                 if (!s.openEnded) {
                     SettingRow(stringResource(R.string.forge_lt_weeks)) {
                         Stepper(s.fixedWeeks.toString(), onMinus = { change(s.copy(fixedWeeks = (s.fixedWeeks - 1).coerceAtLeast(4))) },
@@ -364,7 +364,7 @@ private fun ValueStep(d: CoreLongTermGoals.Draft, catalog: CoreLongTermGoals.Cat
                 }
                 if (d.shape != "average") {
                     RowDivider()
-                    ToggleRow(stringResource(R.string.forge_lt_with_date), null, s.hasDate) { on ->
+                    ForgeToggleRow(stringResource(R.string.forge_lt_with_date), null, s.hasDate) { on ->
                         val date = if (s.targetDate > 0) s.targetDate
                                    else LocalDate.now().plusWeeks(12).atStartOfDay(ZoneId.systemDefault()).toEpochSecond().toDouble()
                         change(s.copy(hasDate = on, targetDate = date))
@@ -388,8 +388,8 @@ private fun ValueStep(d: CoreLongTermGoals.Draft, catalog: CoreLongTermGoals.Cat
 private fun WeeklyStep(d: CoreLongTermGoals.Draft, change: (CoreLongTermGoals.State) -> Unit) {
     val s = d.state
     val weekly = d.weeklyMetricOfGoal
-    SettingsCard(title = null, blurb = stringResource(R.string.forge_lt_weekly_blurb)) {
-        ToggleRow(stringResource(R.string.forge_lt_weekly_on), null, s.weeklyOn) { change(s.copy(weeklyOn = it)) }
+    ForgeTitledCard(title = null, blurb = stringResource(R.string.forge_lt_weekly_blurb)) {
+        ForgeToggleRow(stringResource(R.string.forge_lt_weekly_on), null, s.weeklyOn) { change(s.copy(weeklyOn = it)) }
         if (s.weeklyOn && weekly != null) {
             RowDivider()
             if (s.template == "body.weightLose" || s.template == "body.weightMaintain") {
@@ -413,7 +413,7 @@ private fun PreviewStep(d: CoreLongTermGoals.Draft, catalog: CoreLongTermGoals.C
                         change: (CoreLongTermGoals.State) -> Unit, changeText: (CoreLongTermGoals.State) -> Unit) {
     val s = d.state
     val template = catalog.templates.firstOrNull { it.id == s.template }
-    SettingsCard(title = null, blurb = null) {
+    ForgeTitledCard(title = null, blurb = null) {
         // The template's name is the PLACEHOLDER, not the value: as the value it reappeared the moment the
         // wearer deleted the last character of their own, which reads as the field refusing to be cleared
         // (#43). An empty field means "use the template's name", and saving resolves it that way.
@@ -595,10 +595,10 @@ internal fun LongTermGoalPage(goal: CoreGoals.LongTerm?, periods: List<CoreGoals
         }
         LongTermSectionHeader(stringResource(R.string.forge_ltp_manage))
         ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius) {
-            LinkRow(stringResource(R.string.forge_lj_open), detail = null) { journeyOpen = true }
+            ForgeLinkRow(stringResource(R.string.forge_lj_open), detail = null) { journeyOpen = true }
             RowDivider()
             if (p != null) {
-                ToggleRow(stringResource(R.string.forge_ltp_keep_on_today), detail = null, checked = p.pinned) {
+                ForgeToggleRow(stringResource(R.string.forge_ltp_keep_on_today), detail = null, checked = p.pinned) {
                     change(if (it) "pin" else "unpin")
                 }
                 RowDivider()

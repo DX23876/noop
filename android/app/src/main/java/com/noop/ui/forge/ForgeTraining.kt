@@ -949,7 +949,7 @@ private fun ScheduleEditor(routines: List<CoreTraining.Routine>, onClose: () -> 
                               contentPadding = ForgeMetrics.space2) {
                         routines.forEachIndexed { i, routine ->
                             Box(Modifier.padding(horizontal = ForgeMetrics.space2)) {
-                                ToggleRow(routine.title, null, routine.id in schedule[day].orEmpty()) { enabled ->
+                                ForgeToggleRow(routine.title, null, routine.id in schedule[day].orEmpty()) { enabled ->
                                     val ids = schedule[day].orEmpty()
                                     schedule[day] = if (enabled) (ids + routine.id).distinct() else ids - routine.id
                                 }
