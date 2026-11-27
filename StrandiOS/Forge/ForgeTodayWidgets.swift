@@ -20,6 +20,8 @@ struct ForgeTodayWidget: Codable, Hashable, Identifiable {
         case cycle, tonight, breathe, nextSession, changes, whatWorks, strap, dietGoal
         /// The day's eating against its goal, with the macros (owner, 2026-11-18).
         case nutrition
+        /// Today's heart rate since midnight, with last night's sleep band and the day's workouts.
+        case dayHeart
     }
 
     var id = UUID()
@@ -555,6 +557,7 @@ struct ForgeTodayWidgetView: View {
         case .changes: ForgeChangesWidget()
         case .whatWorks: ForgeWhatWorksWidget()
         case .strap: ForgeStrapWidget(detailed: widget.size == .medium)
+        case .dayHeart: ForgeDayHeartWidget()
         }
     }
 }
@@ -1897,6 +1900,8 @@ struct ForgeWidgetGallery: View {
                         subtitle: String(localized: "Small · a heart beating with your pulse")) { store.add(.init(kind: .liveHeart)) }
                     row(symbol: "waveform.path.ecg", title: String(localized: "Live heart rate"),
                         subtitle: String(localized: "Wide · your heart rate as a curve")) { store.add(.init(kind: .liveHeart, wide: true)) }
+                    row(symbol: "heart.text.square.fill", title: String(localized: "Heart Rate"),
+                        subtitle: String(localized: "Wide · the whole day, with sleep and workouts")) { store.add(.init(kind: .dayHeart)) }
                 } header: { Text("Cards") }
             }
             .scrollContentBackground(.hidden)
