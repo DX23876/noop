@@ -25,7 +25,7 @@ import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.glance.appwidget.GlanceAppWidgetReceiver
-import androidx.glance.action.actionStartActivity
+import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.appwidget.state.updateAppWidgetState
@@ -263,6 +263,11 @@ private fun ink(dark: Boolean) = ColorProvider(if (dark) Color(0xFFF4F6F8) else 
 private fun inkSecondary(dark: Boolean) = ColorProvider(if (dark) Color(0xFFA3ACBA) else Color(0xFF5E6878))
 
 @Composable
+private fun openWeightIntent(): android.content.Intent =
+    android.content.Intent(LocalContext.current, MainActivity::class.java).putExtra(WeightNavigation.EXTRA, true)
+        .addFlags(android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
+@Composable
 private fun WeightWidgetFrame(tint: Color, dark: Boolean, body: @Composable () -> Unit) {
     // A soft wash of the widget's colour over the page surface, as iOS's `WeightWidgetBackground`.
     val surface = if (dark) Color(0xFF0A1322) else Color(0xFFF7F5F0)
@@ -272,7 +277,7 @@ private fun WeightWidgetFrame(tint: Color, dark: Boolean, body: @Composable () -
         blue = surface.blue + (tint.blue - surface.blue) * (if (dark) 0.28f else 0.20f),
     )
     Column(GlanceModifier.fillMaxSize().background(wash).cornerRadius(18.dp)
-               .clickable(actionStartActivity<MainActivity>()).padding(horizontal = 14.dp, vertical = 12.dp),
+               .clickable(actionStartActivity(openWeightIntent())).padding(horizontal = 14.dp, vertical = 12.dp),
            horizontalAlignment = Alignment.Start, verticalAlignment = Alignment.Top) { body() }
 }
 
@@ -423,4 +428,20 @@ private fun trendLine(values: List<Double>, widthPx: Int, heightPx: Int, tint: C
     })
     canvas.drawCircle(x(values.size - 1), y(values.last()), strokePx * 1.5f, Paint().apply { isAntiAlias = true; color = argb })
     return bmp
+}
+
+/**
+ * A weight widget opens the weight page, as iOS's `noop://weight` does: the tap carries [EXTRA], MainActivity hands it
+ * here, the Forge shell moves to Today and Today pushes the page. Consumed once, so a later return to the app does not
+ * open it again.
+ */
+object WeightNavigation {
+    const val EXTRA = "noop.openWeight"
+    val open = kotlinx.coroutines.flow.MutableStateFlow(false)
+    fun accept(intent: android.content.Intent?) {
+        if (intent?.getBooleanExtra(EXTRA, false) == true) {
+            open.value = true
+            intent.removeExtra(EXTRA)
+        }
+    }
 }

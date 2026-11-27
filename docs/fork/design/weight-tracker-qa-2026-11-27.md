@@ -40,11 +40,10 @@ the trend and the week's change, which is the core idea of the page.
 | 13 | Both | Week card said "Tief" on Android and "Niedrig" on iOS. | iOS wording. |
 | 14 | Android | "Add" date action had no plus mark. | Plus mark, as iOS. |
 | 15 | Both | Today's small weight tile on iOS showed the weekly rate beside the week's change chip, cut short; Android showed nothing. | The forecast line only on the two-column tile, on both platforms. |
+| 16 | Android | Tapping a weight widget opened Today; iOS opens the weight page. | The tap carries a flag that moves the shell to Today and pushes the weight page, once. |
 
 ## Open, not changed
 
-- Tapping an Android widget opens the app at Today, not the weight page; no Android widget deep-links yet,
-  so this is app-wide work rather than a weight-page fix.
 - Today's weight tile is amber on both platforms while the weight page is pink. The tile colours are the
   app-wide metric palette; changing one tile is the owner's call.
 - Android's Today change chips print a decimal point in German ("−1.2" where iOS says "−1,2"). The text comes

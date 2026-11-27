@@ -164,6 +164,14 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     var dayPicker by remember { mutableStateOf(false) }
     var editingWidgets by remember { mutableStateOf(false) }
     val more = rememberMoreNavigator()
+    // A weight widget's tap opens the weight page here, once (`WeightNavigation`).
+    val openWeight by com.noop.widget.WeightNavigation.open.collectAsState()
+    LaunchedEffect(openWeight) {
+        if (openWeight) {
+            com.noop.widget.WeightNavigation.open.value = false
+            more.push(MoreRoute.Dest(MoreDest.Weight))
+        }
+    }
     val selectTab = LocalForgeTabSelect.current
     val openMore = LocalForgeOpenMore.current
     val openSettings = LocalForgeOpenSettings.current

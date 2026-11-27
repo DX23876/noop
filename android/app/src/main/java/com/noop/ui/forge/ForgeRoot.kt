@@ -76,6 +76,12 @@ fun ForgeRoot(viewModel: AppViewModel) {
             // The tabs lie under the More page while it is open.
             LocalForgeCovered provides (LocalForgeCovered.current || (moreOpen && ForgeDesign.preview))) {
         ForgeShell { tab, padding, width ->
+            // A weight widget's tap: Today pushes the weight page, so the shell moves there first.
+            val openWeight by com.noop.widget.WeightNavigation.open.collectAsState()
+            val selectForWeight = LocalForgeTabSelect.current
+            androidx.compose.runtime.LaunchedEffect(openWeight, tab) {
+                if (openWeight && tab != ForgeTab.Today) selectForWeight(ForgeTab.Today)
+            }
             when (tab) {
                 // The new design has one Today whatever the dashboard style, as iOS; the classic page jumps to tabs
                 // the new design does not have.

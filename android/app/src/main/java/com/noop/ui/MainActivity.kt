@@ -79,6 +79,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         com.noop.notif.SessionRatingNavigation.accept(intent)
+        com.noop.widget.WeightNavigation.accept(intent)
     }
 
     /** The weight widgets follow the app to the front, as iOS's do (`WeightWidgets.refresh`). */
@@ -90,6 +91,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         com.noop.notif.SessionRatingNavigation.accept(intent)
+        com.noop.widget.WeightNavigation.accept(intent)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         // NOTE: `crash` stays RAW here on purpose. acknowledge() fingerprints what it is given, and
         // pendingCrash() fingerprints the stored file — hand it redacted text and the two hashes never
