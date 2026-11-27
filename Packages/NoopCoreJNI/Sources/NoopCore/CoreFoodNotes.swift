@@ -132,8 +132,11 @@ enum CoreFoodNotes {
         let sex = string("sex").lowercased()
         let male: Bool? = sex == "male" ? true : sex == "female" ? false : nil
         let options = FoodScore.Options.forDiet(DietForm(rawValue: string("dietForm")))
+        // The basal rate with the wearer's own formula and measured rate, as the iPhone's Food page prices it.
         let profile = UserProfile(weightKg: double("weightKg") ?? 70, heightCm: double("heightCm") ?? 170,
-                                  age: double("age") ?? 30, sex: sex)
+                                  age: double("age") ?? 30, sex: sex,
+                                  basalFormula: BmrFormulaLog.decode(string("formulaLog")).current,
+                                  measuredBasalFactor: MeasuredRestingRate.decode(string("measuredBasal"))?.factor)
         let goals = double("goalKcal").map {
             FoodGoalState.Goals(kcal: $0, proteinG: double("proteinG"), carbCapG: DietForm(rawValue: string("dietForm"))?.carbCapG,
                                 floorKcal: FoodGoalState.floorKcal(basalKcal: Calories.bmrKcalPerDay(profile: profile),

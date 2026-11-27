@@ -99,16 +99,19 @@ object CoreFoodNotes {
     }
 
     private fun profileArgs(today: String, sex: String, age: Int, weightKg: Double?, heightCm: Double?, dietForm: String?,
-                            goalKcal: Double?, proteinG: Double?): JSONObject {
+                            goalKcal: Double?, proteinG: Double?, formulaLog: String, measuredBasal: String): JSONObject {
         val args = JSONObject().put("today", today).put("sex", sex).put("age", age)
+            .put("formulaLog", formulaLog).put("measuredBasal", measuredBasal)
         weightKg?.let { args.put("weightKg", it) }; heightCm?.let { args.put("heightCm", it) }
         dietForm?.let { args.put("dietForm", it) }; goalKcal?.let { args.put("goalKcal", it) }; proteinG?.let { args.put("proteinG", it) }
         return args
     }
 
+    /** [formulaLog] and [measuredBasal] are the Energy Plan's (`CoreEnergyPlan`), so the floor's basal rate is the one Apple uses. */
     fun quality(day: String, today: String, sex: String, age: Int, weightKg: Double?, heightCm: Double?, dietForm: String?,
-                goalKcal: Double?, proteinG: Double?): Quality? {
-        val json = call("food.quality", profileArgs(today, sex, age, weightKg, heightCm, dietForm, goalKcal, proteinG).put("day", day))
+                goalKcal: Double?, proteinG: Double?, formulaLog: String, measuredBasal: String): Quality? {
+        val json = call("food.quality", profileArgs(today, sex, age, weightKg, heightCm, dietForm, goalKcal, proteinG,
+                                                    formulaLog, measuredBasal).put("day", day))
             ?: return null
         val trend = json.optJSONArray("trend") ?: JSONArray()
         val earned = json.optJSONArray("earned") ?: JSONArray()
@@ -121,8 +124,9 @@ object CoreFoodNotes {
     }
 
     fun recap(today: String, sex: String, age: Int, weightKg: Double?, heightCm: Double?, dietForm: String?,
-              goalKcal: Double?, proteinG: Double?): Recap? {
-        val json = call("food.recap", profileArgs(today, sex, age, weightKg, heightCm, dietForm, goalKcal, proteinG)) ?: return null
+              goalKcal: Double?, proteinG: Double?, formulaLog: String, measuredBasal: String): Recap? {
+        val json = call("food.recap", profileArgs(today, sex, age, weightKg, heightCm, dietForm, goalKcal, proteinG,
+                                                  formulaLog, measuredBasal)) ?: return null
         return Recap(json.optString("kind"), json.number("score"), json.number("previous"), json.text("strongest"),
                      json.text("weakest"), json.text("goal"))
     }

@@ -255,7 +255,8 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
             val today = LocalDate.now()
             week = CoreFood.week(day.toString(), today.toString(), false, profile.sex)
             quality = com.noop.core.CoreFoodNotes.quality(day.toString(), today.toString(), profile.sex, profile.age, profile.weightKg,
-                                                          profile.heightCm, dietPlan?.form, goals?.kcal, goals?.proteinG)
+                                                          profile.heightCm, dietPlan?.form, goals?.kcal, goals?.proteinG,
+                                                          CoreEnergyPlan.formulaLog(context), CoreEnergyPlan.measuredBasal(context))
             keptMeals = com.noop.core.CoreFoodNotes.meals()
             favouriteFoods = CoreFood.favourites()
             favouriteMotifs = com.noop.core.CoreFoodNotes.motifs(favouriteFoods)
