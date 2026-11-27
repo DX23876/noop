@@ -98,4 +98,23 @@ final class WidgetAnchorTests: XCTestCase {
         let days = [day("2026-06-18", recovery: nil), day("2026-06-19", recovery: nil)]
         XCTAssertNil(Repository.widgetAnchor(days: days, logicalKey: "2026-06-19", localKey: "2026-06-19"))
     }
+
+    // The split that keeps the widget honest when last night has sleep but no HRV/HR to score Charge.
+    func testUnscoredToday_metricRowStaysOnToday_evenThoughRecoveryCarries() {
+        let days = [day("2026-11-22", recovery: 80.57, sleepMin: 548.15, strain: 44.08),
+                    day("2026-11-23", recovery: nil, sleepMin: 429.5, strain: 0)]
+        let rows = Repository.widgetRows(days: days, logicalKey: "2026-11-23", localKey: "2026-11-23")
+        XCTAssertEqual(rows.recoveryRow?.day, "2026-11-22")
+        XCTAssertEqual(rows.recoveryRow?.recovery, 80.57)
+        XCTAssertEqual(rows.metricRow?.day, "2026-11-23")
+        XCTAssertEqual(rows.metricRow?.totalSleepMin, 429.5)
+        XCTAssertEqual(rows.metricRow?.strain, 0)
+    }
+
+    func testNoRowForToday_metricRowReusesPriorRow() {
+        let days = [day("2026-11-22", recovery: 80, strain: 44)]
+        let rows = Repository.widgetRows(days: days, logicalKey: "2026-11-23", localKey: "2026-11-23")
+        XCTAssertEqual(rows.recoveryRow?.day, "2026-11-22")
+        XCTAssertEqual(rows.metricRow?.day, "2026-11-22")
+    }
 }

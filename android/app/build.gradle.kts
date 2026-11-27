@@ -359,9 +359,9 @@ dependencies {
     implementation("androidx.health.connect:connect-client:1.1.0-alpha07")
     // The food log's barcode scanner (decision 2026-11-08): CameraX frames decoded on the phone by ZXing
     // (Apache 2.0). Not Google ML Kit, which reports usage to Google.
-    implementation("androidx.camera:camera-camera2:1.3.4")
-    implementation("androidx.camera:camera-lifecycle:1.3.4")
-    implementation("androidx.camera:camera-view:1.3.4")
+    implementation("androidx.camera:camera-camera2:1.4.2")
+    implementation("androidx.camera:camera-lifecycle:1.4.2")
+    implementation("androidx.camera:camera-view:1.4.2")
     implementation("com.google.zxing:core:3.5.3")
     // CameraX hands back Guava's ListenableFuture. Guava 31.1-android is already on the runtime classpath
     // (through CameraX); the compiler needs to see the same version.

@@ -134,6 +134,7 @@ makes to it follow as separate commits.
 | [@rome6](https://github.com/rome6) | The on-open Health Connect catch-up and an import asked for by hand became one guarded runner: it cannot overlap itself, it ends the import's progress even when the read fails, and it answers with a named outcome instead of a boolean | DX23876/noop#56 |
 | [@59n](https://github.com/59n) | Rebuilding the HRV history in Apple Health writes each night under the key the regular write-back uses, so a rebuilt night holds one SDNN value instead of two | DX23876/noop#55 |
 | [@sondrealf](https://github.com/sondrealf) | A Today card with the whole day's heart rate, last night's sleep band and the day's workouts, opening the Deep Timeline | DX23876/noop#58 |
+| [@pilleuspulcher-blip](https://github.com/pilleuspulcher-blip) | The home-screen widgets read Rest and Effort from today's row while Charge carries yesterday's score; CameraX on 16 KB-aligned pages | DX23876/noop discussion #57 |
 
 ### Testers
 

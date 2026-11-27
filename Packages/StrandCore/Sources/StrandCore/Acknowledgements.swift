@@ -82,6 +82,7 @@ public enum Acknowledgements {
         Contributor(handle: "@rome6", work: "One guarded runner for the Health Connect import, with a named outcome"),
         Contributor(handle: "@59n", work: "One HRV value per night when the history is rebuilt in Apple Health"),
         Contributor(handle: "@sondrealf", work: "The whole day's heart rate as a Today card"),
+        Contributor(handle: "@pilleuspulcher-blip", work: "Widgets that show today's Rest and Effort"),
         Contributor(handle: "@fadkeprasad", work: "Power-saving cadence for automatic syncs"),
         Contributor(handle: "@paradix86", work: "Italian WHOOP exports"),
         Contributor(handle: "@msff", work: "Mac menu-bar redraws"),

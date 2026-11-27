@@ -115,4 +115,52 @@ class WidgetAnchorTest {
         val days = listOf(day("2026-06-18", null), day("2026-06-19", null))
         assertNull(widgetAnchorRow(days, logicalKey = "2026-06-19", localKey = "2026-06-19"))
     }
+
+    // The split that keeps the 2x2 widget honest when last night has sleep but no HRV/HR to score Charge:
+    // Charge carries the prior scored night, while Schlaf and Belastung stay on TODAY's own numbers.
+    @Test
+    fun todayUnscored_metricRowStaysOnToday_evenThoughRecoveryCarries() {
+        val days = listOf(
+            day("2026-11-22", 80.57, sleepMin = 548.15, strain = 44.08),
+            day("2026-11-23", null, sleepMin = 429.5, strain = 0.0),
+        )
+        val rows = widgetRows(days, logicalKey = "2026-11-23", localKey = "2026-11-23")
+        assertEquals("2026-11-22", rows.recoveryRow?.day)
+        assertEquals(80.57, rows.recoveryRow?.recovery)
+        assertEquals("2026-11-23", rows.metricRow?.day)
+        assertEquals(429.5, rows.metricRow?.totalSleepMin)
+        assertEquals(0.0, rows.metricRow?.strain)
+    }
+
+    @Test
+    fun todayScored_bothRowsAreToday() {
+        val days = listOf(
+            day("2026-11-22", 80.0, strain = 44.0),
+            day("2026-11-23", 55.0, sleepMin = 430.0, strain = 9.0),
+        )
+        val rows = widgetRows(days, logicalKey = "2026-11-23", localKey = "2026-11-23")
+        assertEquals("2026-11-23", rows.recoveryRow?.day)
+        assertEquals("2026-11-23", rows.metricRow?.day)
+        assertEquals(9.0, rows.metricRow?.strain)
+    }
+
+    @Test
+    fun noRowForToday_metricRowReusesPriorRow() {
+        val days = listOf(day("2026-11-22", 80.0, sleepMin = 548.0, strain = 44.0))
+        val rows = widgetRows(days, logicalKey = "2026-11-23", localKey = "2026-11-23")
+        assertEquals("2026-11-22", rows.recoveryRow?.day)
+        assertEquals("2026-11-22", rows.metricRow?.day)
+    }
+
+    @Test
+    fun pre0400_metricRowIsTheLocalBankedRow_notThePriorScoredDay() {
+        val days = listOf(
+            day("2026-06-17", 71.0, strain = 12.0),
+            day("2026-06-18", null, sleepMin = 430.0, strain = 0.0),
+        )
+        val rows = widgetRows(days, logicalKey = "2026-06-17", localKey = "2026-06-18")
+        assertEquals("2026-06-17", rows.recoveryRow?.day)
+        assertEquals("2026-06-18", rows.metricRow?.day)
+        assertEquals(0.0, rows.metricRow?.strain)
+    }
 }

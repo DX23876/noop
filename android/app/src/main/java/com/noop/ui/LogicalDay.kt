@@ -71,24 +71,44 @@ internal fun resolveTodayRow(days: List<DailyMetric>, logicalKey: String, localK
 }
 
 /**
- * #911: the SINGLE anchor the home-screen widget push resolves the row it describes through, from BOTH
- * producers (the in-app republish in AppViewModel AND the background-service producer in
- * WhoopConnectionService), so the two can never drift apart. Pure + testable without a live clock.
+ * The two rows a widget snapshot must read, kept SEPARATE so one day's score can never masquerade as
+ * another day's activity:
  *
- * It is exactly what the dashboard does: resolve today's row ([resolveTodayRow], which carries the #304
- * pre-04:00 local-day carve-out and the #144 anti-blank guard), then use that row when it's scored, else
- * carry over the freshest STRICTLY-PRIOR scored day for the recovery-derived fields. Anchoring on today's
- * row (not "the newest row with any recovery score") is what fixes the rollover drift: the new logical
- * day exists but isn't scored yet, so a naive `days.lastOrNull { recovery != null }` kept pointing at
- * yesterday's scored row while Today had already moved on. The `it.day < anchorKey` bound ([anchorKey] =
- * today's own key) mirrors [lastScoredRecoveryDay] + its #547 future-day guard, so a stale or stray
- * future-dated scored row can never re-surface AS today. Mirrors Swift Repository.widgetAnchor.
+ * - [recoveryRow] is today's row when it's scored, else the freshest STRICTLY-PRIOR scored day. Only the
+ *   Charge (recovery) readout may use it, and Today labels that carry as "Last night".
+ * - [metricRow] is today's own row ([resolveTodayRow], with the #304 pre-04:00 carve-out), which is the
+ *   ONLY source for Rest (Schlaf) and Effort (Belastung). Those are today's accumulation: showing the
+ *   prior day's values for them is a false statement, not a harmless carry-over. When there is no row
+ *   for today at all, the prior scored row is reused to keep the widget from blanking (#144).
+ *
+ * Pure + testable without a live clock. Mirrors Swift `Repository.widgetRows`.
  */
-internal fun widgetAnchorRow(days: List<DailyMetric>, logicalKey: String, localKey: String): DailyMetric? {
+internal data class WidgetRows(val recoveryRow: DailyMetric?, val metricRow: DailyMetric?)
+
+/**
+ * #911: the single RECOVERY anchor both widget producers (the in-app republish in AppViewModel and the
+ * background-service producer in WhoopConnectionService) resolve Charge through, so the two can never
+ * drift apart. Use [widgetRows] when a producer also needs Rest/Effort — reading those off this row is
+ * the stale-widget bug this separation exists to prevent.
+ *
+ * Anchoring on today's row (not "the newest row with any recovery score") fixes the rollover drift: a
+ * new logical day exists but isn't scored yet, so a naive `days.lastOrNull { recovery != null }` kept
+ * pointing at yesterday while Today had moved on. The `it.day < anchorKey` bound mirrors
+ * [lastScoredRecoveryDay] + its #547 future-day guard. Mirrors Swift Repository.widgetAnchor.
+ */
+internal fun widgetAnchorRow(days: List<DailyMetric>, logicalKey: String, localKey: String): DailyMetric? =
+    widgetRows(days, logicalKey, localKey).recoveryRow
+
+/** Per-field row selection for a home-screen widget snapshot. See [WidgetRows]. */
+internal fun widgetRows(days: List<DailyMetric>, logicalKey: String, localKey: String): WidgetRows {
     val todayRow = resolveTodayRow(days, logicalKey, localKey)
-    if (todayRow?.recovery != null) return todayRow
-    val anchorKey = todayRow?.day ?: logicalKey
-    return days.lastOrNull { it.recovery != null && it.day < anchorKey }
+    val recoveryRow = if (todayRow?.recovery != null) {
+        todayRow
+    } else {
+        val anchorKey = todayRow?.day ?: logicalKey
+        days.lastOrNull { it.recovery != null && it.day < anchorKey }
+    }
+    return WidgetRows(recoveryRow = recoveryRow, metricRow = todayRow ?: recoveryRow)
 }
 
 /**

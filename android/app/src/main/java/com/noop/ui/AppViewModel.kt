@@ -1308,15 +1308,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // Throttled + no-op without a placed widget; never let a Glance hiccup kill the collector.
                 runCatching {
                     val live = ble.state.value
-                    // #911: resolve the widget anchor through the SHARED `widgetAnchorRow`, the SAME
-                    // selector the background-service producer (WhoopConnectionService) uses, so the two
-                    // producers can never drift. It anchors on today's logical-day row (rolls at 04:00,
-                    // #304 carve-out) and, when today isn't scored yet, carries over the freshest
-                    // STRICTLY-PRIOR scored day for the recovery-derived fields so the widget doesn't blank
-                    // right after the rollover and never re-surfaces a stale scored row AS today. Only the
-                    // widget reads the anchor here (the notification's honest-null contract lives in the
-                    // service), keeping the two symmetric.
-                    val anchorRow = widgetAnchorRow(days, logicalKey, localKey)
+                    // #911: resolve BOTH widget rows through the SHARED `widgetRows`, the same selector the
+                    // background-service producer (WhoopConnectionService) uses, so the two producers can
+                    // never drift. Charge may carry the freshest STRICTLY-PRIOR scored day while today is
+                    // unscored; Rest (Schlaf) and Effort (Belastung) MUST come from today's own row — they are
+                    // today's accumulation, and last night's numbers there are a false statement.
+                    val rows = widgetRows(days, logicalKey, localKey)
                     // #2040: today's stress curve for the stress widget. Do not even fingerprint the
                     // day's HR when nobody has placed one; scoring is the only expensive widget field.
                     // Null also leaves whatever curve is already stored alone, so a newly placed widget
@@ -1329,11 +1326,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     WidgetSnapshotStore.push(
                         appContext,
                         WidgetSnapshot(
-                            recoveryPct = anchorRow?.recovery?.roundToInt(),
-                            // Rest = the sleep_performance composite from THIS row's banked stage figures
-                            // (pure, honest-null until last night is scored); Effort = the 0–100 strain. (#516)
-                            restPct = anchorRow?.let { RestScorer.restFromDaily(it, restTraits.value)?.roundToInt() },
-                            effortPct = anchorRow?.strain?.roundToInt(),
+                            recoveryPct = rows.recoveryRow?.recovery?.roundToInt(),
+                            // Rest = the sleep_performance composite from TODAY's banked stage figures and
+                            // Effort = TODAY's 0–100 strain, never the carried Charge row's. (#516)
+                            restPct = rows.metricRow?.let { RestScorer.restFromDaily(it, restTraits.value)?.roundToInt() },
+                            effortPct = rows.metricRow?.strain?.roundToInt(),
                             heartRate = live.heartRate,
                             // The ACTIVE device's charge (#2075): a ring reports its own and does not
                             // funnel into live.batteryPct, so publishing that put the strap's number on

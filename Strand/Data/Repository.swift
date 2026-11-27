@@ -680,10 +680,25 @@ final class Repository: ObservableObject {
     /// `TodayView.lastScoredRecoveryDay` + its #547 future-day guard, so a stale or stray future-dated
     /// scored row can never re-surface AS today.
     nonisolated static func widgetAnchor(days: [DailyMetric], logicalKey: String, localKey: String) -> DailyMetric? {
+        widgetRows(days: days, logicalKey: logicalKey, localKey: localKey).recoveryRow
+    }
+
+    /// The iOS twin of Android `WidgetRows`. Charge alone may carry the freshest strictly-prior scored
+    /// day while today is unscored; Rest (Schlaf) and Effort (Belastung) are today's own accumulation and
+    /// MUST be read from `metricRow`. Showing yesterday's activity there is a false statement, not a
+    /// harmless carry-over. With no row for today at all, the prior scored row keeps the widget non-blank.
+    nonisolated static func widgetRows(
+        days: [DailyMetric], logicalKey: String, localKey: String
+    ) -> (recoveryRow: DailyMetric?, metricRow: DailyMetric?) {
         let todayRow = resolveToday(days: days, logicalKey: logicalKey, localKey: localKey)
-        if todayRow?.recovery != nil { return todayRow }
-        let carriedKey = todayRow?.day ?? logicalKey
-        return days.last(where: { $0.recovery != nil && $0.day < carriedKey })
+        let recoveryRow: DailyMetric?
+        if todayRow?.recovery != nil {
+            recoveryRow = todayRow
+        } else {
+            let carriedKey = todayRow?.day ?? logicalKey
+            recoveryRow = days.last(where: { $0.recovery != nil && $0.day < carriedKey })
+        }
+        return (recoveryRow, todayRow ?? recoveryRow)
     }
 
     /// Live-clock convenience over the pure `widgetAnchor`: resolves the anchor for `now` (defaults to the
@@ -694,6 +709,14 @@ final class Repository: ObservableObject {
     /// MainActor. Tests call the pure 3-arg overload above instead.
     static func widgetAnchor(days: [DailyMetric], now: Date = Date()) -> DailyMetric? {
         widgetAnchor(days: days, logicalKey: logicalDayKey(now), localKey: localDayKey(now))
+    }
+
+    /// Live-clock twin of the per-field selector above; callers that publish a whole snapshot use this so
+    /// they cannot re-derive the two keys (and therefore the two rows) differently.
+    static func widgetRows(
+        days: [DailyMetric], now: Date = Date()
+    ) -> (recoveryRow: DailyMetric?, metricRow: DailyMetric?) {
+        widgetRows(days: days, logicalKey: logicalDayKey(now), localKey: localDayKey(now))
     }
 
     /// #1051-shaped memo for the anchor resolve on the high-frequency live surfaces. Not @Published — pure

@@ -105,4 +105,27 @@ class NotifyDayStateCacheTest {
         assertNull(after.illness)
         assertEquals(1, illnessCalls)
     }
+
+    @Test
+    fun unscoredToday_widgetRecoveryCarriesButEffortIsTodays() {
+        val cache = NotifyDayStateCache { null }
+        val days = listOf(
+            DailyMetric(
+                deviceId = "my-whoop", day = "2026-11-22", recovery = 80.57, strain = 44.08,
+                totalSleepMin = 548.15, deepMin = 143.5, remMin = 109.1, lightMin = 295.55,
+                efficiency = 0.9489, disturbances = 20,
+            ),
+            DailyMetric(
+                deviceId = "my-whoop", day = "2026-11-23", recovery = null, strain = 0.0,
+                totalSleepMin = 429.5, deepMin = 0.0, remMin = 6.5, lightMin = 423.0,
+                efficiency = 0.9919, disturbances = 3,
+            ),
+        )
+
+        val state = cache.resolve(days, "2026-11-23", "2026-11-23", illnessEnabled = false)
+
+        assertNull(state.todayRecovery)
+        assertEquals(81, state.widgetRecovery)   // carried Charge, labelled as last night by Today
+        assertEquals(0, state.widgetEffort)      // TODAY's strain, not yesterday's 44
+    }
 }

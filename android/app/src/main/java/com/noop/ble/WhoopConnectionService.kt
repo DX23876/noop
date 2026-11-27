@@ -127,12 +127,12 @@ internal class NotifyDayStateCache(
         }
 
         val todayRow = com.noop.ui.resolveTodayRow(days, logicalKey, localKey)
-        val anchorRow = com.noop.ui.widgetAnchorRow(days, logicalKey, localKey)
+        val widgetRows = com.noop.ui.widgetRows(days, logicalKey, localKey)
         val state = NotifyDayState(
             todayRecovery = todayRow?.recovery,
-            widgetRecovery = anchorRow?.recovery?.roundToInt(),
-            widgetRest = anchorRow?.let { RestScorer.restFromDaily(it, restTraits)?.roundToInt() },
-            widgetEffort = anchorRow?.strain?.roundToInt(),
+            widgetRecovery = widgetRows.recoveryRow?.recovery?.roundToInt(),
+            widgetRest = widgetRows.metricRow?.let { RestScorer.restFromDaily(it, restTraits)?.roundToInt() },
+            widgetEffort = widgetRows.metricRow?.strain?.roundToInt(),
             illness = if (illnessEnabled && todayRow != null && days.lastOrNull()?.day == todayRow.day) {
                 illnessEvaluator(days)
             } else null,
@@ -362,11 +362,11 @@ class WhoopConnectionService : Service() {
                 //    stay on THIS (honest-null until tonight is scored), never on a carried prior-day
                 //    figure, or the lock-screen would silently show yesterday's Recovery% as if it were
                 //    live, with no provenance caption.
-                //  - anchorRow: today's row when scored, else the freshest STRICTLY-PRIOR scored day carried
-                //    over (via the SHARED `widgetAnchorRow`, mirroring TodayScreen + the #547 future-day
-                //    guard). ONLY the widget uses this, so the 2x2 widget shows the same day as Today rather
-                //    than blanking in the small hours before tonight is scored. This keeps the service
-                //    symmetric with AppViewModel, where only the widget push reads the anchor.
+                //  - widgetRows: via the SHARED `widgetRows` selector, Charge may carry the freshest
+                //    STRICTLY-PRIOR scored day so the 2x2 widget doesn't blank before tonight is scored,
+                //    but Rest (Schlaf) and Effort (Belastung) come from TODAY's row. Yesterday's activity
+                //    in those two cells is a false statement, not a carry-over. Same selector as
+                //    AppViewModel, so the in-app and background producers cannot disagree.
                 NotifyTick(
                     state = state,
                     dayState = notifyDayStateCache.resolve(

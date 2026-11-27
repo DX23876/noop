@@ -8,7 +8,7 @@ final class CoreAcknowledgementsTests: XCTestCase {
     func testTheOperationAnswersWithTheWire() async throws {
         let json = await CoreCall.run("about.acknowledgements", "{}")
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
-        XCTAssertEqual((object["contributors"] as? [[String: Any]])?.count, 25)
+        XCTAssertEqual((object["contributors"] as? [[String: Any]])?.count, Acknowledgements.contributors.count)
         XCTAssertEqual((object["licenses"] as? [[String: Any]])?.count, 4)
         XCTAssertEqual((object["content"] as? [[String: Any]])?.count, 3)
         XCTAssertEqual(object["attributionUrl"] as? String, Acknowledgements.attributionURL)
@@ -17,8 +17,8 @@ final class CoreAcknowledgementsTests: XCTestCase {
     func testTheWireCarriesEveryContributorInOrder() throws {
         let wire = CoreAcknowledgements.wire()
         XCTAssertEqual(wire.contributors.map(\.handle), Acknowledgements.contributors.map(\.handle))
-        XCTAssertEqual(wire.contributors.count, 25)
-        XCTAssertEqual(Set(wire.contributors.map(\.handle)).count, 25, "a handle is credited once")
+        // Every credited person once, however many the list holds (a fixed count went stale with each credit).
+        XCTAssertEqual(Set(wire.contributors.map(\.handle)).count, wire.contributors.count, "a handle is credited once")
         XCTAssertEqual(wire.contributors.first?.handle, "@UtkuDenizAltiok")
         XCTAssertEqual(wire.contributors.last?.handle, "meta1971, OpenStrap")
     }
