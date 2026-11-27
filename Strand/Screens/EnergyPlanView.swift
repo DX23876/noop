@@ -836,15 +836,9 @@ struct EnergyPlanView: View {
                             : String(localized: "About \(Int(delta.rounded())) kcal a day over what you burn.")))
                         .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
                 }
-                if let observed = model.observedKcalPerKg {
-                    Text("Using your own \(Int(observed.rounded())) kcal per kilogram, worked out from what you ate, burned and weighed. The usual 7,700 is a 1958 convention and runs optimistic over months.")
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                } else {
-                    Text("Using the standard 7,700 kcal per kilogram — a 1958 convention that runs optimistic over months. Your own figure replaces it once you have logged enough food and weigh-ins.")
-                        .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                Text("Using about \(Int(model.energyDensityKcalPerKg.rounded())) kcal per kilogram: what a kilogram holds for a body with your body fat. The usual 7,700 fits nobody exactly.")
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

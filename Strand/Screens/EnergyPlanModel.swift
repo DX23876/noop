@@ -60,6 +60,7 @@ final class EnergyPlanModel: ObservableObject {
     func load(repo: Repository, profile: UserProfile) async {
         today = Repository.localDayKey(Date())
         metrics = await repo.bodyMetrics()
+        energyDensityKcalPerKg = EnergyDensityResolver.kcalPerKg(profile: profile, metrics: metrics, today: today)
 
         let summaries = await repo.energySummaries(days: Self.windowDays, profile: profile)
         // Today is excluded: a day still in progress has a partial total, and averaging it in would
@@ -193,22 +194,13 @@ final class EnergyPlanModel: ObservableObject {
                        balanceKcal: balance?.estimatedDailyKcal)
     }
 
-    /// The wearer's own observed cost per kilogram, shown beside the Wishnofsky convention once the
-    /// data supports it.
-    var observedKcalPerKg: Double? {
-        guard let balance, let measured = burn.measuredMeanKcal ?? burn.allDaysMeanKcal else {
-            return nil
-        }
-        let days = Double(balance.windowDays)
-        return EnergyPlanning.observedKcalPerKg(
-            intakeKcal: balance.averageCaloriesIn * days, burnKcal: measured * days,
-            weightChangeKg: balance.weightChangeKgPerDay * days)
-    }
+    /// What a kilogram is worth for this body today (`EnergyDensityResolver`, Hall and Forbes, owner decisions
+    /// 2026-11-27, Q24 and Q25), the one figure the plan, its forecast and the scale all read. It replaces the
+    /// figure once worked out from eaten, burned and weighed, which fed on the strap it was meant to check.
+    @Published private(set) var energyDensityKcalPerKg: Double = DietTargets.defaultKcalPerKg
 
-    /// The daily delta the target rate implies, under whichever cost per kilogram is available.
+    /// The daily delta the target rate implies, at what a kilogram is worth for this body.
     func dailyDelta() -> Double? {
-        EnergyPlanning.dailyEnergyDelta(targetKgPerWeek: targetKgPerWeek,
-                                        kcalPerKg: observedKcalPerKg
-                                            ?? EnergyPlanning.wishnofskyKcalPerKg)
+        EnergyPlanning.dailyEnergyDelta(targetKgPerWeek: targetKgPerWeek, kcalPerKg: energyDensityKcalPerKg)
     }
 }

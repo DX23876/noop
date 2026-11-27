@@ -4281,7 +4281,7 @@
     <string name="forge_energy_moderate">Moderat</string>
     <string name="forge_energy_high">Hoch</string>
     <string name="forge_energy_very_high">Sehr hoch</string>
-    <string name="forge_energy_own_kg">Verwendet werden deine eigenen %1$d kcal pro Kilogramm, berechnet aus Essen, Verbrauch und Gewicht. Die üblichen 7.700 sind eine Konvention von 1958 und über Monate zu optimistisch.</string>
+    <string name="forge_energy_own_kg">Etwa %1$d kcal pro Kilo: so viel steckt in einem Kilo bei deinem Körperfett. Die üblichen 7.700 passen für niemanden genau.</string>
     <string name="forge_energy_standard_kg">Verwendet werden die üblichen 7.700 kcal pro Kilogramm — eine Konvention von 1958, die über Monate zu optimistisch ist. Sobald genug Ernährungstage und Wägungen vorliegen, ersetzt dein eigener Wert diese Annahme.</string>
     <string name="forge_energy_between">Zwischen %1$d und %2$d, aus %3$d Zufuhrtagen und %4$d Wägungen.</string>
     <string name="forge_energy_no_forecast">Noch keine Verbrauchsprognose — der Tag ist für eine Hochrechnung noch zu jung. Schau in ein paar Stunden wieder vorbei.</string>

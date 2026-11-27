@@ -77,12 +77,13 @@ final class DietTrackerTests: XCTestCase {
 
     // MARK: Real burn
 
-    /// A wearer who burns `burn` a day, eats `intake` and so moves `(intake − burn) / 7,700` kg a day.
+    /// A wearer who burns `burn` a day, eats `intake` and so moves `(intake − burn) / 7,700` kg a day, over the
+    /// scale's eight weeks (`ScaleBurn`, Q21) ending today.
     private func history(burn: Double, intake: Double, marked: Int, noise: Double = 0) ->
         (intake: [String: Double], complete: Set<String>, weights: [(day: String, kg: Double)]) {
         var intakeByDay: [String: Double] = [:], complete = Set<String>(), weights: [(day: String, kg: Double)] = []
-        for i in 0..<28 {
-            let d = day(-27 + i)
+        for i in 0..<56 {
+            let d = day(-55 + i)
             intakeByDay[d] = intake
             if i < marked { complete.insert(d) }
             if i % 3 == 0 {
@@ -95,7 +96,7 @@ final class DietTrackerTests: XCTestCase {
 
     func testTheRealBurnComesFromFoodAndTheWeightTrend() throws {
         for (burn, intake) in [(2_600.0, 2_100.0), (2_400, 2_900), (2_500, 2_500)] {
-            let h = history(burn: burn, intake: intake, marked: 28)
+            let h = history(burn: burn, intake: intake, marked: 56)
             let strap = Dictionary(uniqueKeysWithValues: h.intake.keys.map { ($0, burn * 1.1) })
             guard case .estimate(let e) = DietExpenditure.estimate(intakeByDay: h.intake, completeDays: h.complete,
                                                                     weighIns: h.weights, strapByDay: strap, today: day(0))
@@ -113,32 +114,32 @@ final class DietTrackerTests: XCTestCase {
     }
 
     func testTodayIsLeftOutWhileItIsNotOver() {
-        let h = history(burn: 2_600, intake: 2_100, marked: 28)
+        let h = history(burn: 2_600, intake: 2_100, marked: 56)
         var intake = h.intake; intake[day(0)] = 600   // breakfast so far
         guard case .estimate(let e) = DietExpenditure.estimate(intakeByDay: intake, completeDays: h.complete,
                                                                 weighIns: h.weights, strapByDay: [:], today: day(0))
         else { return XCTFail("expected an estimate") }
-        XCTAssertEqual(e.completeDays, 27)
+        XCTAssertEqual(e.completeDays, 55)
         XCTAssertEqual(e.burnKcal, 2_600, accuracy: 1)
     }
 
     func testTooFewWeighInsGiveNoFigure() {
-        let h = history(burn: 2_600, intake: 2_100, marked: 28)
+        let h = history(burn: 2_600, intake: 2_100, marked: 56)
         let outcome = DietExpenditure.estimate(intakeByDay: h.intake, completeDays: h.complete,
                                                weighIns: Array(h.weights.prefix(4)), strapByDay: [:], today: day(0))
-        XCTAssertEqual(outcome, .missing(completeDays: 27, weighIns: 4), "today is not counted yet")
+        XCTAssertEqual(outcome, .missing(completeDays: 55, weighIns: 4), "today is not counted yet")
     }
 
     func testScatteredWeighInsWidenTheRange() throws {
-        let calm = history(burn: 2_600, intake: 2_100, marked: 28)
-        let noisy = history(burn: 2_600, intake: 2_100, marked: 28, noise: 0.8)
+        let calm = history(burn: 2_600, intake: 2_100, marked: 56)
+        let noisy = history(burn: 2_600, intake: 2_100, marked: 56, noise: 0.8)
         guard case .estimate(let a) = DietExpenditure.estimate(intakeByDay: calm.intake, completeDays: calm.complete,
                                                                 weighIns: calm.weights, strapByDay: [:], today: day(0)),
               case .estimate(let b) = DietExpenditure.estimate(intakeByDay: noisy.intake, completeDays: noisy.complete,
                                                                 weighIns: noisy.weights, strapByDay: [:], today: day(0))
         else { return XCTFail("expected estimates") }
         XCTAssertLessThan(a.rangeKcal.upperBound - a.rangeKcal.lowerBound, 1)
-        XCTAssertGreaterThan(b.rangeKcal.upperBound - b.rangeKcal.lowerBound, 100)
+        XCTAssertGreaterThan(b.rangeKcal.upperBound - b.rangeKcal.lowerBound, 50)
         XCTAssertNil(b.realToStrap, "no strap figure, no ratio")
     }
 

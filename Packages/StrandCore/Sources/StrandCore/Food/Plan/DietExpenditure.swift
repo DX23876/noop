@@ -1,22 +1,24 @@
 import Foundation
+import StrandAnalytics
 
-/// The real burn from food and weight (owner, 2026-11-10): what the wearer ate on completely logged days, less the
-/// energy the weight trend stored or released, over the last four weeks. Beside it, what the strap measured on the
-/// same days, so the wearer can see whether the strap runs high or low.
+/// The real burn from food and weight on the Food page (owner, 2026-11-10), since 2026-11-27 the one scale estimate
+/// (`ScaleBurn`, Q20 and Q21): eight weeks of days the wearer marked as completely logged and weigh-ins without a
+/// water mark, a robust trend, and a figure only once it is certain to 10 %. Beside it, what the strap measured on
+/// the same days, so the wearer can see whether the strap runs high or low.
 ///
 /// Only days the wearer marked as completely logged count. Guessing completeness from the amount eaten would drop
 /// exactly the days on which they really ate little, and the estimate would lean high; a day with forgotten snacks
 /// would make the burn look too low. Without enough marked days there is no figure, only what is still missing.
 public enum DietExpenditure {
-    public static let windowDays = 28
-    public static let minCompleteDays = 14
-    public static let minWeighIns = 6
-    public static let minWeighSpanDays = 10
+    public static let windowDays = ScaleBurn.windowDays
+    public static let minCompleteDays = ScaleBurn.minimumCompleteDays
+    public static let minWeighIns = ScaleBurn.minimumWeighIns
+    public static let minWeighSpanDays = ScaleBurn.minimumSpanDays
 
     public struct Estimate: Equatable, Sendable {
         /// The real burn, kcal a day.
         public var burnKcal: Double
-        /// One standard error either side, from how far the weigh-ins scatter around the trend.
+        /// One standard error either side.
         public var rangeKcal: ClosedRange<Double>
         /// The strap's mean over the same completely logged days, when it measured them.
         public var strapKcal: Double?
@@ -33,35 +35,20 @@ public enum DietExpenditure {
     }
 
     /// `intakeByDay` is the kcal the energy plan counts per day (a typed day value wins over the food log, as
-    /// everywhere), `completeDays` the days marked as completely logged, `weighIns` (day, kg), `strapByDay` the
-    /// measured burn per day. Today and later days are left out: today's burn and log are not finished yet.
+    /// everywhere), `completeDays` the days marked as completely logged, `weighIns` (day, kg) without a water mark,
+    /// `strapByDay` the measured burn per day. Today and later days are left out.
     public static func estimate(intakeByDay: [String: Double], completeDays: Set<String>,
                                 weighIns: [(day: String, kg: Double)], strapByDay: [String: Double], today: String,
                                 kcalPerKg: Double = DietTargets.defaultKcalPerKg) -> Outcome {
-        guard let end = WeightSeries.date(forDay: today),
-              let start = Calendar(identifier: .gregorian).date(byAdding: .day, value: -(windowDays - 1), to: end) else {
-            return .missing(completeDays: 0, weighIns: 0)
+        let complete = intakeByDay.filter { completeDays.contains($0.key) }
+        switch ScaleBurn.estimate(completeIntake: complete, weighIns: weighIns, strapByDay: strapByDay, today: today,
+                                  kcalPerKg: kcalPerKg) {
+        case .estimate(let e):
+            return .estimate(Estimate(burnKcal: e.burnKcal, rangeKcal: (e.burnKcal - e.errorKcal)...(e.burnKcal + e.errorKcal),
+                                      strapKcal: e.strapKcal, completeDays: e.completeDays, trendKgPerWeek: e.trendKgPerWeek))
+        case .missing(let days, _, let weighs, _, _):
+            return .missing(completeDays: days, weighIns: weighs)
         }
-        func inWindow(_ day: String) -> Bool {
-            guard let date = WeightSeries.date(forDay: day) else { return false }
-            return date >= start && date <= end
-        }
-        let days = completeDays.filter { inWindow($0) && $0 < today && (intakeByDay[$0] ?? 0) > 0 }.sorted()
-        let weights = weighIns.filter { inWindow($0.day) && $0.kg.isFinite && $0.kg > 0 }
-        let dates = weights.compactMap { WeightSeries.date(forDay: $0.day) }
-        let span = dates.isEmpty ? 0 : (dates.max()!.timeIntervalSince(dates.min()!) / 86_400)
-        guard days.count >= minCompleteDays, weights.count >= minWeighIns, span >= Double(minWeighSpanDays),
-              let fit = trend(weights) else {
-            return .missing(completeDays: days.count, weighIns: weights.count)
-        }
-        let intake = days.compactMap { intakeByDay[$0] }.reduce(0, +) / Double(days.count)
-        let stored = fit.slopePerDay * kcalPerKg
-        let burn = intake - stored
-        let error = fit.slopeErrorPerDay * kcalPerKg
-        let strapDays = days.compactMap { strapByDay[$0] }.filter { $0.isFinite && $0 > 0 }
-        let strap = strapDays.isEmpty ? nil : strapDays.reduce(0, +) / Double(strapDays.count)
-        return .estimate(Estimate(burnKcal: burn, rangeKcal: (burn - error)...(burn + error), strapKcal: strap,
-                                  completeDays: days.count, trendKgPerWeek: fit.slopePerDay * 7))
     }
 
     /// Least-squares trend of the weigh-ins in kilograms a day, with the slope's standard error.

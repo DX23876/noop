@@ -299,7 +299,9 @@ enum CoreDietPlan {
             let weekStart = Calendar.current.date(byAdding: .day, value: -6, to: Date()).map(StoreReader.localDayKey) ?? today
             let logged = Set(((try? await store.foodLogEntries(from: weekStart, to: today)) ?? []).map(\.day)).count
             let outcome = DietAdjust.weekly(plan: plan, result: result, weighIns: weights, loggedDays: logged, today: today,
-                                            kcalPerKg: kcalPerKg ?? DietTargets.defaultKcalPerKg)
+                                            kcalPerKg: kcalPerKg ?? DietTargets.defaultKcalPerKg,
+                                            scaleCorrectionActive: BurnCorrection.decode(args["scaleCorrection"] as? String)
+                                                .status == .active)
             return CoreRead.json(outcome)
         case "food.planProgress":
             // The way to the goal weight (`DietProgress`), as the plan page and Today's diet goal card show it: the

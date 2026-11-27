@@ -40,6 +40,8 @@ struct ForgeEnergyView: View {
     @State private var scrolledPast = false
     @State private var showDayPicker = false
     @State private var pickerDate = Date()
+    /// The scale's look at the strap (`Repository.readScale`), read once the page has painted.
+    @State private var scale: ScaleCorrectionUpdate.Snapshot?
 
     enum Series: Hashable { case burned, eaten, balance }
 
@@ -88,6 +90,10 @@ struct ForgeEnergyView: View {
                         }
                     }
                     parts(summary)
+                    if let scale { ForgeScaleCard(snapshot: scale) { action in
+                        repo.scaleAction(action)
+                        Task { await reloadAfterScale() }
+                    } }
                     curve(summary)
                 } else {
                     emptyCard
@@ -549,6 +555,13 @@ struct ForgeEnergyView: View {
 
     // MARK: - Loading (as `EnergyDetailView`)
 
+    /// After an answer to the scale: the days again with or without the correction, and the card's new state.
+    private func reloadAfterScale() async {
+        let analyticsProfile = Repository.analyticsProfile(profile)
+        summaries = await repo.energySummaries(days: Self.historyDays, profile: analyticsProfile)
+        scale = await repo.readScale(profile: analyticsProfile)
+    }
+
     private func loadIfNeeded() async {
         guard !loaded else { return }
         let analyticsProfile = Repository.analyticsProfile(profile)
@@ -562,6 +575,7 @@ struct ForgeEnergyView: View {
         await repo.refreshWhoopEnergyModel(days: 1, profile: analyticsProfile)
         summaries = await repo.energySummaries(days: Self.historyDays, profile: analyticsProfile)
         refreshingToday = false
+        scale = await repo.readScale(profile: analyticsProfile)
         if isToday { await loadDay() }
     }
 
@@ -693,6 +707,68 @@ struct ForgeEnergyRing: View {
             .trim(from: drawn ? min(from, 1) : 0, to: drawn ? min(to, 1) : 0)
             .stroke(color, style: StrokeStyle(lineWidth: line, lineCap: .round))
             .rotationEffect(.degrees(-90))
+    }
+}
+
+/// The scale against the strap (owner decisions 2026-11-27, Q10, Q33): its proposal with both figures, the
+/// correction in use with a way to switch it off, or what the scale still needs.
+struct ForgeScaleCard: View {
+    let snapshot: ScaleCorrectionUpdate.Snapshot
+    let act: (Repository.ScaleAction) -> Void
+
+    private func kcal(_ value: Double) -> String {
+        Int(value.rounded()).formatted(.number.locale(AppLanguage.activeLocale))
+    }
+
+    private var percent: String {
+        let p = Int(((snapshot.factor - 1) * 100).rounded())
+        return (p > 0 ? "+" : p < 0 ? "−" : "") + "\(abs(p)) %"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForgeSectionTitle(title: "Your scale")
+            VStack(alignment: .leading, spacing: 10) {
+                switch snapshot.status {
+                case "proposed":
+                    if let scaleKcal = snapshot.scaleKcal, let strapKcal = snapshot.strapKcal {
+                        Text("Your scale says \(kcal(scaleKcal)) kcal a day, the strap \(kcal(strapKcal)). Adjust the strap to your scale?")
+                            .font(.body).foregroundStyle(ForgeColor.text).fixedSize(horizontal: false, vertical: true)
+                    }
+                    HStack {
+                        Button("Adjust") { act(.accept) }.buttonStyle(.borderedProminent).tint(ForgeColor.accent)
+                        Button("Not now") { act(.decline) }.buttonStyle(.bordered)
+                    }
+                case "active":
+                    let since = snapshot.sinceDay.flatMap(WeightSeries.date(forDay:))?
+                        .formatted(date: .abbreviated, time: .omitted) ?? ""
+                    Text("Adjusted to your scale since \(since): \(percent).")
+                        .font(.body).foregroundStyle(ForgeColor.text).fixedSize(horizontal: false, vertical: true)
+                    if snapshot.holding {
+                        Text("Paused for a few weeks: something just changed your water balance.")
+                            .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    }
+                    Button("Switch off") { act(.off) }.buttonStyle(.bordered)
+                case "off":
+                    Text("Off. Days show what the strap measured.")
+                        .font(.body).foregroundStyle(ForgeColor.text)
+                    Button("Switch on again") { act(.on) }.buttonStyle(.bordered)
+                default:
+                    Group {
+                        if snapshot.holding {
+                            Text("Paused for a few weeks: something just changed your water balance.")
+                        } else if snapshot.tooUncertain {
+                            Text("Your weigh-ins still swing too much for a reliable figure.")
+                        } else {
+                            Text("Your scale can check the strap after six weeks: \(snapshot.completeDays) of 21 fully logged days, \(snapshot.weighIns) of 10 weigh-ins.")
+                        }
+                    }
+                    .font(.body).foregroundStyle(ForgeColor.secondary).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
+        }
     }
 }
 

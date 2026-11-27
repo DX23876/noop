@@ -627,6 +627,30 @@ final class EnergyEngineTests: XCTestCase {
         XCTAssertEqual(with - without, 200, accuracy: 1e-6)
     }
 
+    /// The scale's correction (Q13): the whole strap day without a measured resting rate, everything but basal
+    /// with one; the total before it is kept for the scale to compare against; an Apple day never takes it.
+    func testTheScaleCorrectionMovesTheDayAndRemembersTheTotalBeforeIt() {
+        func summary(covers: Bool) -> DailyEnergySummary {
+            EnergyEngine.summarize(EnergyEngine.DayInputs(day: "2026-12-10", strapTotalKcal: 3_000,
+                                                          strapCoverageSeconds: 86_400, strapActiveKcal: 600,
+                                                          strapEverydayKcal: 400, scaleCorrectionFactor: 1.1,
+                                                          scaleCorrectionCoversBasal: covers),
+                                   profile: profile, context: context())
+        }
+        let whole = summary(covers: true)
+        XCTAssertEqual(whole.totalBurnedSoFar ?? 0, (bmr + 400 + 600) * 1.1, accuracy: 1e-6)
+        XCTAssertEqual(whole.totalBeforeScaleKcal ?? 0, bmr + 400 + 600, accuracy: 1e-6)
+        XCTAssertEqual(whole.scaleCorrectionFactor, 1.1)
+        let measured = summary(covers: false)
+        XCTAssertEqual(measured.basalBurnedSoFar ?? 0, bmr, accuracy: 1e-6)
+        XCTAssertEqual(measured.totalBurnedSoFar ?? 0, bmr + (400 + 600) * 1.1, accuracy: 1e-6)
+        let apple = EnergyEngine.summarize(EnergyEngine.DayInputs(day: "2026-12-10", appleActiveKcal: 500,
+                                                                  appleBasalKcal: 1_700, scaleCorrectionFactor: 1.1),
+                                           profile: profile, context: context())
+        XCTAssertEqual(apple.totalBurnedSoFar, 2_200)
+        XCTAssertNil(apple.scaleCorrectionFactor)
+    }
+
     func testMalformedInputsAreRejected() {
         let summary = EnergyEngine.summarize(
             inputs(appleActive: .infinity, appleBasal: -1, strap: .nan,

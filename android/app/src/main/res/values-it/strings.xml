@@ -4235,7 +4235,7 @@
     <string name="forge_energy_moderate">Moderato</string>
     <string name="forge_energy_high">Alto</string>
     <string name="forge_energy_very_high">Molto alto</string>
-    <string name="forge_energy_own_kg">Usa le tue %1$d kcal per chilogrammo, calcolate da ciò che hai mangiato, consumato e pesato. Le consuete 7.700 sono una convenzione del 1958 troppo ottimistica su più mesi.</string>
+    <string name="forge_energy_own_kg">Circa %1$d kcal per chilo: quanto contiene un chilo con il tuo grasso corporeo. Le solite 7.700 non vanno bene esattamente per nessuno.</string>
     <string name="forge_energy_standard_kg">Usa lo standard di 7.700 kcal per chilogrammo, una convenzione del 1958 troppo ottimistica su più mesi. Il tuo valore la sostituirà quando avrai abbastanza registri alimentari e pesate.</string>
     <string name="forge_energy_between">Tra %1$d e %2$d, da %3$d giorni di introito e %4$d pesate.</string>
     <string name="forge_energy_no_forecast">Nessuna previsione di consumo: è ancora troppo presto per proiettare la giornata. Ricontrolla tra qualche ora.</string>

@@ -78,6 +78,9 @@ public struct DietPlan: Codable, Equatable, Sendable {
     public var burnModelVersion: String?
     public var burnModelChangedDay: String?
     public var burnModelNoteKcal: Double?
+    /// The day the way of eating (form or addon) last changed: water and glycogen shift for a few weeks after it,
+    /// so the scale's correction holds still (`ScaleCorrectionUpdate.holding`).
+    public var formChangedDay: String?
 
     /// The share of the calories that moves to training days, as the plan has it: recomposition 10 % unless set.
     public var effectiveDayShift: Double {

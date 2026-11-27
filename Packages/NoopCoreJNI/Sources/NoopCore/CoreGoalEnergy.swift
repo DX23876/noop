@@ -23,6 +23,7 @@ enum CoreGoalEnergy {
         }
         settings.energyCalibrationEnabled = args["energyCalibration"] as? Bool ?? false
         settings.measuredBasal = MeasuredRestingRate.decode(args["measuredBasal"] as? String)
+        settings.scaleCorrection = BurnCorrection.decode(args["scaleCorrection"] as? String)
         settings.hydrationEnabled = args["hydrationEnabled"] as? Bool ?? false
         if let json = args["journalCatalog"] as? String,
            let items = try? JSONDecoder().decode([JournalCatalogItem].self, from: Data(json.utf8)) {

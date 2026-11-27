@@ -4260,7 +4260,7 @@
     <string name="forge_energy_moderate">Moderado</string>
     <string name="forge_energy_high">Alto</string>
     <string name="forge_energy_very_high">Muito alto</string>
-    <string name="forge_energy_own_kg">Utiliza as suas próprias %1$d kcal por quilograma, calculadas a partir do que comeu, gastou e pesou. As habituais 7700 são uma convenção de 1958 e são otimistas ao longo de meses.</string>
+    <string name="forge_energy_own_kg">Cerca de %1$d kcal por quilo: o que um quilo contém com a tua gordura corporal. Os 7700 habituais não servem exatamente a ninguém.</string>
     <string name="forge_energy_standard_kg">Utiliza o valor padrão de 7700 kcal por quilograma — uma convenção de 1958 que é otimista ao longo de meses. O seu próprio valor substitui-o quando tiver registos alimentares e pesagens suficientes.</string>
     <string name="forge_energy_between">Entre %1$d e %2$d, a partir de %3$d dias de ingestão e %4$d pesagens.</string>
     <string name="forge_energy_no_forecast">Ainda não há previsão de gasto — é demasiado cedo para projetar o dia. Volte daqui a algumas horas.</string>

@@ -4268,7 +4268,7 @@
     <string name="forge_energy_moderate">Moderado</string>
     <string name="forge_energy_high">Alto</string>
     <string name="forge_energy_very_high">Muy alto</string>
-    <string name="forge_energy_own_kg">Se usan tus propias %1$d kcal por kilogramo, calculadas a partir de lo que comiste, gastaste y pesaste. Las 7700 habituales son una convención de 1958 y resultan optimistas durante meses.</string>
+    <string name="forge_energy_own_kg">Unas %1$d kcal por kilo: lo que contiene un kilo con tu grasa corporal. Las 7.700 habituales no encajan exactamente con nadie.</string>
     <string name="forge_energy_standard_kg">Se usan las 7700 kcal estándar por kilogramo, una convención de 1958 que resulta optimista durante meses. Tu propio valor la sustituirá cuando tengas suficientes registros de comida y peso.</string>
     <string name="forge_energy_between">Entre %1$d y %2$d, a partir de %3$d días de ingesta y %4$d pesajes.</string>
     <string name="forge_energy_no_forecast">Aún no hay previsión de gasto: es demasiado pronto para proyectar el día. Vuelve en unas horas.</string>

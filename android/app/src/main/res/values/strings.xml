@@ -4306,7 +4306,7 @@
     <string name="forge_energy_moderate">Moderate</string>
     <string name="forge_energy_high">High</string>
     <string name="forge_energy_very_high">Very high</string>
-    <string name="forge_energy_own_kg">Using your own %1$d kcal per kilogram, worked out from what you ate, burned and weighed. The usual 7,700 is a 1958 convention and runs optimistic over months.</string>
+    <string name="forge_energy_own_kg">About %1$d kcal per kilogram: what a kilogram holds for a body with your body fat. The usual 7,700 fits nobody exactly.</string>
     <string name="forge_energy_standard_kg">Using the standard 7,700 kcal per kilogram — a 1958 convention that runs optimistic over months. Your own figure replaces it once you have logged enough food and weigh-ins.</string>
     <string name="forge_energy_between">Between %1$d and %2$d, from %3$d days of intake and %4$d weigh-ins.</string>
     <string name="forge_energy_no_forecast">No burn forecast yet — the day is still too young to project from. Check back in a few hours.</string>

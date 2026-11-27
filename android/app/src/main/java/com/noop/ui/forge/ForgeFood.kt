@@ -200,7 +200,8 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
             CoreDietPlan.load(context)?.let { current ->
                 val today = LocalDate.now().toString()
                 if (current.lastAdjustedDay != today) {
-                    val outcome = CoreDietPlan.weekly(current, dietPerson(context), planInputs.first, planInputs.second)
+                    val outcome = CoreDietPlan.weekly(current, dietPerson(context), planInputs.first, planInputs.second,
+                                                      CoreEnergyPlan.scaleCorrection(context))
                     planWeek = outcome
                     if (outcome != null && outcome.hold == null && current.mode == "simple" && current.steering == "coached") {
                         val next = current.copy(adjustmentKcal = current.adjustmentKcal + outcome.changeKcal, lastAdjustedDay = today)

@@ -4264,7 +4264,7 @@
     <string name="forge_energy_moderate">Modéré</string>
     <string name="forge_energy_high">Élevé</string>
     <string name="forge_energy_very_high">Très élevé</string>
-    <string name="forge_energy_own_kg">Utilise vos propres %1$d kcal par kilogramme, calculées à partir de ce que vous avez mangé, dépensé et pesé. Les 7 700 habituelles sont une convention de 1958 trop optimiste sur plusieurs mois.</string>
+    <string name="forge_energy_own_kg">Environ %1$d kcal par kilo : ce que contient un kilo avec ta masse grasse. Les 7 700 habituelles ne conviennent exactement à personne.</string>
     <string name="forge_energy_standard_kg">Utilise la valeur standard de 7 700 kcal par kilogramme, une convention de 1958 trop optimiste sur plusieurs mois. Votre propre valeur la remplacera après suffisamment de repas consignés et de pesées.</string>
     <string name="forge_energy_between">Entre %1$d et %2$d, à partir de %3$d jours d\'apport et %4$d pesées.</string>
     <string name="forge_energy_no_forecast">Pas encore de prévision de dépense : la journée est trop peu avancée pour une projection. Revenez dans quelques heures.</string>

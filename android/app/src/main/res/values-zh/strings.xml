@@ -4229,7 +4229,7 @@
     <string name="forge_energy_moderate">中等</string>
     <string name="forge_energy_high">高</string>
     <string name="forge_energy_very_high">极高</string>
-    <string name="forge_energy_own_kg">采用你的个人数值：每公斤 %1$d 千卡，由饮食、消耗和称重数据推算。常用的 7,700 是 1958 年的惯例，长期来看偏乐观。</string>
+    <string name="forge_energy_own_kg">约每公斤 %1$d 千卡：按你的体脂，一公斤所含的能量。常用的 7700 对谁都不完全准确。</string>
     <string name="forge_energy_standard_kg">采用每公斤 7,700 千卡的标准值——这是 1958 年的惯例，长期来看偏乐观。积累足够的饮食和称重记录后，将改用你的个人数值。</string>
     <string name="forge_energy_between">介于 %1$d 与 %2$d 之间，来自 %3$d 天摄入与 %4$d 次称重。</string>
     <string name="forge_energy_no_forecast">暂时没有消耗预测——今天的数据还不足以推算。请几小时后再查看。</string>

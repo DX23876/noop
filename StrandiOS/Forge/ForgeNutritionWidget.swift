@@ -182,12 +182,12 @@ struct ForgeNutritionReading {
                                         : profile.sex.lowercased() == "female" ? false : nil)
             let reader = repo.storeReader(store)
             let context = await DietDayContext.read(plan: plan, person: person, burn: burn,
-                                                    kcalPerKg: energy.observedKcalPerKg,
+                                                    kcalPerKg: energy.energyDensityKcalPerKg,
                                                     burnedByDay: energy.burnedByDay, dismissedWorkouts: [],
                                                     store: store, reader: reader, day: today)
             planDay = .init(calories: context.day.calories, macros: context.day.macros)
             let result = DietTargets.resolve(plan, person: context.person, burnKcal: context.day.planBurnKcal,
-                                             kcalPerKg: energy.observedKcalPerKg)
+                                             kcalPerKg: energy.energyDensityKcalPerKg)
             planResolved = .init(calories: FoodTargets.calories(plan: plan, result: result, day: today),
                                  macros: FoodTargets.macros(plan: plan, result: result, day: today))
         }

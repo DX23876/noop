@@ -169,6 +169,7 @@ enum DietText {
         case .onPlan: String(localized: "Your weight follows the plan. Nothing to change.")
         case .dietBreak: String(localized: "This is a break week at maintenance. Forge looks again after it.")
         case .burnModelChanged: String(localized: "Your burn is estimated more closely now, and your goal moved with it. Forge looks again in two weeks.")
+        case .scaleCorrection: String(localized: "Your burn follows your scale now, so the plan does not adjust on top of it.")
         }
     }
 

@@ -19,6 +19,8 @@ public enum EnergySummaryPreparation {
         public var adaptivePrior: Double?
         public var appleCoverageByDay: [String: Int]
         public var stride: StepLengthTimeline
+        /// The scale's correction of the strap's burn (`BurnCorrection`), applied from the day it was agreed.
+        public var scaleCorrection: BurnCorrection = BurnCorrection()
 
         public init(appleByDay: [String: AppleDaily], strapByDay: [String: DailyMetric],
                     derivedByDay: [String: WhoopDailyEnergyRow], strapActiveByDay: [String: Double],
@@ -112,6 +114,8 @@ public enum EnergySummaryPreparation {
                 strapActiveKcal: derived.map { _ in strapActiveByDay[day] ?? 0 },
                 strapEverydayKcal: everydayKcal,
                 strapEverydayRemainingKcal: everydayRemaining,
+                scaleCorrectionFactor: source.scaleCorrection.factor(on: day),
+                scaleCorrectionCoversBasal: source.scaleCorrection.appliesToBasal,
                 strapCalibrationFactor: calibrationFactor,
                 strapUncertaintyFraction: derived?.uncertaintyFraction,
                 calibrationStatus: source.calibrationStatus,

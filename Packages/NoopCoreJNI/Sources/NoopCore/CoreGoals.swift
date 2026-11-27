@@ -18,6 +18,8 @@ public enum CoreGoals {
         public var energyCalibrationEnabled = false
         /// The measured resting rate the wearer entered (`MeasuredRestingRate`), for the energy plan page.
         public var measuredBasal: MeasuredRestingRate?
+        /// The scale's correction of the strap's burn (`BurnCorrection`), applied to every energy read alike.
+        public var scaleCorrection = BurnCorrection()
         public var energyManualVO2: PeakMETResolver.ManualEntry?
         public var energyActivityLevel: JurcaFitness.ActivityLevel?
         public var hydrationEnabled = false

@@ -86,10 +86,11 @@ public enum EnergySummaryStoreReads {
     @MainActor
     public static func activeEnergyByDay(reader: StoreReader, days: Int, dailyRows: [DailyMetric],
         workouts: [WorkoutRow], profile: UserProfile, hrMax: Double?, calibrationEnabled: Bool,
-        now: Date, refreshToday: () async -> Void) async -> [String: Double] {
+        now: Date, scaleCorrection: BurnCorrection = BurnCorrection(),
+        refreshToday: () async -> Void) async -> [String: Double] {
         EnergySummaryPreparation.activeValues(await summaries(reader: reader, days: days, dailyRows: dailyRows,
             workouts: workouts, profile: profile, hrMax: hrMax, calibrationEnabled: calibrationEnabled, now: now,
-            shape: nil, adaptivePrior: nil, refreshToday: refreshToday))
+            shape: nil, adaptivePrior: nil, scaleCorrection: scaleCorrection, refreshToday: refreshToday))
     }
 
     /// The day summaries over the stored inputs, as `Repository.energySummaries` assembles them on Apple. The
@@ -97,7 +98,7 @@ public enum EnergySummaryStoreReads {
     @MainActor
     public static func summaries(reader: StoreReader, days: Int, dailyRows: [DailyMetric],
         workouts: [WorkoutRow], profile: UserProfile, hrMax: Double?, calibrationEnabled: Bool,
-        now: Date, shape: ActivityShape?, adaptivePrior: Double?,
+        now: Date, shape: ActivityShape?, adaptivePrior: Double?, scaleCorrection: BurnCorrection = BurnCorrection(),
         refreshToday: () async -> Void) async -> [DailyEnergySummary] {
         let calendar = Calendar.current
         let today = StoreReader.localDayKey(now)
@@ -155,10 +156,11 @@ public enum EnergySummaryStoreReads {
         }
         let hours = await stepHours(reader: reader, days: days, now: now)
         let apple = await appleReference(reader: reader, days: days, now: now)
-        let source = EnergySummaryPreparation.Inputs(appleByDay: appleByDay, strapByDay: strapByDay,
+        var source = EnergySummaryPreparation.Inputs(appleByDay: appleByDay, strapByDay: strapByDay,
             derivedByDay: derived, strapActiveByDay: active, stepHoursByDay: hours, sessionsByDay: sessions,
             weightObservations: observations, calibrationStatus: status, calibrationFactor: factor,
             shape: shape, adaptivePrior: adaptivePrior, appleCoverageByDay: apple.coverage, stride: apple.stride)
+        source.scaleCorrection = scaleCorrection
         return EnergySummaryPreparation.summaries(source, profile: profile, hrMax: hrMax, now: now,
             calendar: calendar, bodyFatOn: { body.asOf("body_fat", day: $0)?.value })
     }

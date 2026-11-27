@@ -558,6 +558,26 @@ public enum CoreCall {
         case "health.invalidateExports": return await CoreHealthExport.invalidate(store: store, args: args)
         case "body.deleteWeight":
             return ok(await CoreBody.deleteWeight(store: store, id: string("id")))
+        case "energy.scale":
+            // The scale's look at the strap (`ScaleCorrectionUpdate`): the evaluated state to store, and what to show.
+            let settings = CoreGoalEnergy.settings(args)
+            guard let result = await CoreEnergyPlan.scale(reader: reader, settings: settings,
+                                                          plan: DietPlan.decode(string("plan"))) else { return "null" }
+            let snapshot = (try? JSONEncoder().encode(result.snapshot)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+            return #"{"state":"# + CoreRead.json(result.state.encodedJSON()) + #","snapshot":"# + snapshot + "}"
+        case "energy.scaleAction":
+            // The wearer's answer to the scale: accept, decline, off or on (`BurnCorrection`).
+            let state = BurnCorrection.decode(string("state"))
+            let today = StoreReader.localDayKey(Date())
+            let next: BurnCorrection
+            switch string("action") {
+            case "accept": next = state.accepted(today: today)
+            case "decline": next = state.declined(today: today)
+            case "off": next = state.turnedOff()
+            case "on": next = state.turnedOn()
+            default: return #"{"error":"invalid"}"#
+            }
+            return CoreRead.json(["state": next.encodedJSON()])
         case "energy.plan":
             let settings = CoreGoalEnergy.settings(args)
             return CoreRead.json(await CoreEnergyPlan.plan(reader: reader, settings: settings,

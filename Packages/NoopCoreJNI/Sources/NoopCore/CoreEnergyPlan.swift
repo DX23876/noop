@@ -99,12 +99,9 @@ enum CoreEnergyPlan {
         let formulaTdee = basal(current).flatMap { EnergyPlanning.formulaTdee(basalKcal: $0, activity: activity) }
         let corridor = EnergyCorridor(formulaKcal: formulaTdee, measuredKcal: burn.measuredMeanKcal ?? burn.allDaysMeanKcal,
                                       balanceKcal: balance?.estimatedDailyKcal)
-        var observed: Double?
-        if let balance, let measured = burn.measuredMeanKcal ?? burn.allDaysMeanKcal {
-            let days = Double(balance.windowDays)
-            observed = EnergyPlanning.observedKcalPerKg(intakeKcal: balance.averageCaloriesIn * days, burnKcal: measured * days,
-                                                        weightChangeKg: balance.weightChangeKgPerDay * days)
-        }
+        // What a kilogram is worth for this body (`EnergyDensityResolver`, Q24, Q25), the one figure the plan, its
+        // forecast and the scale read; it replaces the one once worked out from eaten, burned and weighed.
+        let density = EnergyDensityResolver.kcalPerKg(profile: profile, metrics: metrics, today: today)
         return Output(
             today: today, available: true,
             measuredMeanKcal: burn.measuredMeanKcal, allDaysMeanKcal: burn.allDaysMeanKcal,
@@ -122,9 +119,8 @@ enum CoreEnergyPlan {
             todayBalanceKcal: todayBalance?.balanceKcal, todayVerdict: todayBalance.map { "\($0.verdict)" },
             activity: activity.rawValue, targetKgPerWeek: targetKgPerWeek,
             targetDailyKcal: targetKgPerWeek == 0 ? nil : EnergyPlanning.dailyEnergyDelta(targetKgPerWeek: targetKgPerWeek),
-            dailyDeltaKcal: EnergyPlanning.dailyEnergyDelta(targetKgPerWeek: targetKgPerWeek,
-                                                            kcalPerKg: observed ?? EnergyPlanning.wishnofskyKcalPerKg),
-            observedKcalPerKg: observed, currentFormula: current.rawValue, formulaTdeeKcal: formulaTdee,
+            dailyDeltaKcal: EnergyPlanning.dailyEnergyDelta(targetKgPerWeek: targetKgPerWeek, kcalPerKg: density),
+            observedKcalPerKg: density, currentFormula: current.rawValue, formulaTdeeKcal: formulaTdee,
             formulas: BasalFormula.allCases.map { f in
                 Formula(formula: f.rawValue, basalKcal: basal(f), available: !f.needsBodyFat || bodyFat != nil,
                         switchDeltaKcal: BasalRate.switchDelta(from: current, to: f, weightKg: weight, heightCm: height,
@@ -134,6 +130,27 @@ enum CoreEnergyPlan {
             corridorKcal: corridor.present, corridorSpreadKcal: corridor.spreadKcal,
             burnedByDay: Dictionary(summaries.compactMap { s in s.totalBurnedSoFar.map { (s.day, $0) } },
                                     uniquingKeysWith: { _, last in last }))
+    }
+
+    /// iOS `EnergyPlanModel.readScale`: the scale read again (`ScaleCorrectionUpdate.run`) over its eight weeks, against
+    /// the strap's burn before any correction, with the kilogram this body is worth today (`EnergyDensityResolver`).
+    @MainActor
+    static func scale(reader: StoreReader, settings: CoreGoals.Settings, plan: DietPlan?, now: Date = Date()) async
+        -> (state: BurnCorrection, snapshot: ScaleCorrectionUpdate.Snapshot)? {
+        guard let profile = settings.energyProfile else { return nil }
+        let today = StoreReader.localDayKey(now)
+        let days = await summaries(reader: reader, settings: settings, profile: profile,
+                                   days: ScaleBurn.windowDays + 1, now: now)
+        let metrics = await BodyMetricsReader.read(reader: reader, activeDeviceId: reader.activeDeviceId, days: 4000, now: now)
+        let workouts = await reader.rawWorkoutRows(from: Int(now.timeIntervalSince1970) - 120 * 86_400,
+            to: Int(now.timeIntervalSince1970) + 86_400, dismissedDetectedSpans: settings.dismissedWorkoutSpans)
+        let measured = profile.basalFormula == .measured && profile.measuredBasalFactor != nil
+        return await ScaleCorrectionUpdate.run(
+            store: reader.store, reader: reader, state: settings.scaleCorrection, plan: plan,
+            strapByDay: ScaleCorrectionUpdate.strapByDay(days, today: today),
+            kcalPerKg: EnergyDensityResolver.kcalPerKg(profile: profile, metrics: metrics, today: today),
+            basalShare: ScaleCorrectionUpdate.basalShare(days, measured: measured),
+            strengthDays: ScaleCorrectionUpdate.strengthDays(workouts), today: today)
     }
 
     /// The day summaries of the last `days` days as Apple's `energySummaries` builds them: daily rows, logged
@@ -154,7 +171,7 @@ enum CoreEnergyPlan {
         let shape = await EnergySummaryStoreReads.activityShape(reader: reader, now: now)
         return await EnergySummaryStoreReads.summaries(reader: reader, days: windowDays, dailyRows: daily,
             workouts: workouts, profile: profile, hrMax: profile.maxHR, calibrationEnabled: settings.energyCalibrationEnabled,
-            now: now, shape: shape, adaptivePrior: adaptivePrior) {
+            now: now, shape: shape, adaptivePrior: adaptivePrior, scaleCorrection: settings.scaleCorrection) {
             await CoreGoalEnergy.repairToday(reader: reader, settings: settings, dailyRows: daily, profile: profile, now: now)
         }
     }

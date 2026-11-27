@@ -97,6 +97,8 @@ public enum BackupSettings {
         // A measured resting rate (2026-11-27), as JSON: its value, day and ratio to Mifflin–St Jeor. Lost in
         // a restore, the "measured" formula would fall back to Mifflin–St Jeor and every day would step.
         "energy.measuredBMR": .string,
+        // The scale's correction of the strap's burn (2026-11-27), as JSON: its state, factor and day of agreement.
+        "energy.scaleCorrection": .string,
         // A VO₂max the wearer entered (a lab test, another device), the day it was entered and the
         // weight it was per kilogram of. The energy model scales confirmed workouts to it for 183 days;
         // lost in a restore, the day totals would silently fall back to an estimate. Plus the activity
@@ -139,6 +141,7 @@ public enum BackupSettings {
         "workout.guidance.templates": "workout.guidance.templates",
         "energy.bmrFormulaLog": "energy.bmrFormulaLog",
         "energy.measuredBMR": "energy.measuredBMR",
+        "energy.scaleCorrection": "energy.scaleCorrection",
         "profile.vo2maxManual": "profile.vo2maxManual",
         "profile.vo2maxManualDay": "profile.vo2maxManualDay",
         "profile.vo2maxManualWeightKg": "profile.vo2maxManualWeightKg",

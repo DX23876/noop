@@ -105,6 +105,10 @@ public struct DailyEnergySummary: Equatable, Sendable {
     /// and small things. A strap day only; nil on an Apple day, whose own model has no such share to show.
     /// Inside `totalBurnedSoFar`, never inside `activeBurnedSoFar`.
     public let everydayBurnedSoFar: Double?
+    /// The scale's correction this day is shown with (`BurnCorrection`), and the total before it, which the
+    /// scale is compared with so the correction never feeds on itself. Nil without a correction.
+    public let scaleCorrectionFactor: Double?
+    public let totalBeforeScaleKcal: Double?
     /// How much of `activeBurnedSoFar` came from logged sessions, and whether any of it was modelled
     /// rather than recorded. Nil when no session contributed — which is every measured day, since a
     /// measured day's sessions are already inside the measurement.
@@ -151,7 +155,10 @@ public struct DailyEnergySummary: Equatable, Sendable {
                 coverage: EnergyCoverage, confidence: ScoreConfidence,
                 calibrationStatus: EnergyCalibrationStatus = .off,
                 forecastStatus: EnergyForecastStatus = .unavailable,
-                everydayBurnedSoFar: Double? = nil) {
+                everydayBurnedSoFar: Double? = nil, scaleCorrectionFactor: Double? = nil,
+                totalBeforeScaleKcal: Double? = nil) {
+        self.scaleCorrectionFactor = scaleCorrectionFactor
+        self.totalBeforeScaleKcal = totalBeforeScaleKcal
         self.day = day
         self.estimatedBMR24h = estimatedBMR24h
         self.basalBurnedSoFar = basalBurnedSoFar
@@ -305,6 +312,10 @@ public enum EnergyEngine {
         /// Today only: the allowance the rest of the day is still expected to add, from the awake time left
         /// outside the usual sleep window. Feeds the forecast, never the burn so far.
         public let strapEverydayRemainingKcal: Double?
+        /// The scale's correction for this strap day (`BurnCorrection.factor(on:)`), and whether it covers basal
+        /// (no measured resting rate). Applied after the Watch calibration; never to an Apple day.
+        public let scaleCorrectionFactor: Double?
+        public let scaleCorrectionCoversBasal: Bool
         /// Optional, user-enabled Apple Watch reference calibration. Values outside the deliberately
         /// narrow 0.8...1.2 range are ignored, and the factor is never applied to Apple-only days.
         public let strapCalibrationFactor: Double?
@@ -333,6 +344,7 @@ public enum EnergyEngine {
                     strapActiveKcal: Double? = nil,
                     strapEverydayKcal: Double? = nil,
                     strapEverydayRemainingKcal: Double? = nil,
+                    scaleCorrectionFactor: Double? = nil, scaleCorrectionCoversBasal: Bool = true,
                     strapCalibrationFactor: Double? = nil,
                     strapUncertaintyFraction: Double? = nil,
                     calibrationStatus: EnergyCalibrationStatus = .off,
@@ -350,6 +362,8 @@ public enum EnergyEngine {
             self.strapActiveKcal = strapActiveKcal
             self.strapEverydayKcal = strapEverydayKcal
             self.strapEverydayRemainingKcal = strapEverydayRemainingKcal
+            self.scaleCorrectionFactor = scaleCorrectionFactor
+            self.scaleCorrectionCoversBasal = scaleCorrectionCoversBasal
             self.strapCalibrationFactor = strapCalibrationFactor
             self.strapUncertaintyFraction = strapUncertaintyFraction
             self.calibrationStatus = calibrationStatus
@@ -431,7 +445,9 @@ public enum EnergyEngine {
             confidence: confidence(source: result.source, coverage: coverage),
             calibrationStatus: clean.calibrationStatus,
             forecastStatus: context.isToday ? (shape == nil ? .learning : .available) : .unavailable,
-            everydayBurnedSoFar: result.everyday
+            everydayBurnedSoFar: result.everyday,
+            scaleCorrectionFactor: result.scaleFactor,
+            totalBeforeScaleKcal: result.totalBeforeScale
         )
     }
 
@@ -446,6 +462,8 @@ public enum EnergyEngine {
         let basal: Double?
         let active: Double?
         var everyday: Double?
+        var scaleFactor: Double?
+        var totalBeforeScale: Double?
         let total: Double?
         let source: EnergySource
         let appliedCalibrationFactor: Double?
@@ -501,14 +519,25 @@ public enum EnergyEngine {
             // The everyday allowance is its own share: inside `strap` for the buckets, plus the awake time
             // the buckets did not represent. It is never calibrated — the Watch counts sitting as hardly
             // active, so a factor fitted on active energy says nothing about it.
-            let everyday = inputs.strapEverydayKcal ?? 0
+            var everyday = inputs.strapEverydayKcal ?? 0
             let rawActive = inputs.strapActiveKcal ?? max(0, strap - observedBasal - everyday)
-            let active = rawActive * (factor ?? 1)
-            let basalElapsedValue = bmr24h * elapsed
+            var active = rawActive * (factor ?? 1)
+            var basalElapsedValue = bmr24h * elapsed
+            // The scale's correction (`BurnCorrection`): the whole day without a measured resting rate, everything
+            // but basal with one. The total before it is kept for the scale to compare against.
+            let before = basalElapsedValue + everyday + active
+            let scale = inputs.scaleCorrectionFactor
+            if let scale {
+                if inputs.scaleCorrectionCoversBasal { basalElapsedValue *= scale }
+                everyday *= scale
+                active *= scale
+            }
             var result = BurnResult(basal: basalElapsedValue, active: active,
                                     total: basalElapsedValue + everyday + active, source: .strapWornTime,
                                     appliedCalibrationFactor: factor, rawWhoopTotalKcal: strap)
             result.everyday = everyday
+            result.scaleFactor = scale
+            result.totalBeforeScale = scale == nil ? nil : before
             return result
         }
 
@@ -780,6 +809,10 @@ public enum EnergyEngine {
                          strapActiveKcal: kcal(inputs.strapActiveKcal),
                          strapEverydayKcal: kcal(inputs.strapEverydayKcal),
                          strapEverydayRemainingKcal: kcal(inputs.strapEverydayRemainingKcal),
+                         scaleCorrectionFactor: inputs.scaleCorrectionFactor.flatMap {
+                             $0.isFinite && (0.5...1.5).contains($0) ? $0 : nil
+                         },
+                         scaleCorrectionCoversBasal: inputs.scaleCorrectionCoversBasal,
                          strapCalibrationFactor: factor,
                          strapUncertaintyFraction: uncertainty,
                          calibrationStatus: calibrationStatus,

@@ -4284,7 +4284,7 @@
     <string name="forge_energy_moderate">Umiarkowany</string>
     <string name="forge_energy_high">Wysoki</string>
     <string name="forge_energy_very_high">Bardzo wysoka</string>
-    <string name="forge_energy_own_kg">Użyto Twoich %1$d kcal na kilogram, wyliczonych z jedzenia, spalania i ważeń. Typowe 7700 to założenie z 1958 r., zbyt optymistyczne w skali miesięcy.</string>
+    <string name="forge_energy_own_kg">Około %1$d kcal na kilogram: tyle mieści kilogram przy twojej tkance tłuszczowej. Zwykłe 7700 nie pasuje dokładnie do nikogo.</string>
     <string name="forge_energy_standard_kg">Użyto standardowych 7700 kcal na kilogram — założenia z 1958 r., które w skali miesięcy jest zbyt optymistyczne. Gdy zbierzesz dość zapisów jedzenia i ważeń, zastąpi je Twój własny wynik.</string>
     <string name="forge_energy_between">Między %1$d a %2$d, z %3$d dni spożycia i %4$d ważeń.</string>
     <string name="forge_energy_no_forecast">Nie ma jeszcze prognozy spalania — jest za wcześnie na wiarygodne wyliczenie. Sprawdź ponownie za kilka godzin.</string>

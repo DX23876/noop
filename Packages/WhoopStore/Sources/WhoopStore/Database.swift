@@ -2215,6 +2215,14 @@ extension WhoopStore {
                 t.add(column: "sleepWindowEndMinute", .integer)
             }
         }
+        // A water mark on a weigh-in (owner, 2026-11-27, Q23): creatine, a period, salty food or a party, a new
+        // medicine. The wearer's own input, additive: every weigh-in before carries none. Analysis migration
+        // required: no.
+        migrator.registerMigration("v94-weight-water-mark") { db in
+            try db.alter(table: "bodyWeightEntry") { t in
+                t.add(column: "waterMark", .text)
+            }
+        }
         return migrator
     }
 }

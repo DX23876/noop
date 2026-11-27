@@ -191,15 +191,68 @@ extension Repository {
         let appleReference = await appleEnergyReference(days: days)
         let appleCoverageByDay = appleReference.coverage
 
-        return EnergySummaryPreparation.summaries(.init(
+        var inputs = EnergySummaryPreparation.Inputs(
             appleByDay: appleByDay, strapByDay: strapByDay, derivedByDay: derivedByDay,
             strapActiveByDay: strapActiveByDay, stepHoursByDay: stepHoursByDay,
             sessionsByDay: sessionsByDay, weightObservations: weightObservations,
             calibrationStatus: calibration.status, calibrationFactor: calibrationFactor,
             shape: shape, adaptivePrior: adaptivePrior, appleCoverageByDay: appleCoverageByDay,
-            stride: appleReference.stride), profile: profile, hrMax: strainProfile?.hrMax,
+            stride: appleReference.stride)
+        // The scale's correction (`BurnCorrection`), from the day the wearer agreed to it.
+        inputs.scaleCorrection = EnergyPlanStore.scaleCorrection
+        return EnergySummaryPreparation.summaries(inputs, profile: profile, hrMax: strainProfile?.hrMax,
             now: now, calendar: calendar, bodyFatOn: bodyFatOn)
     }
+
+    // MARK: - The scale's look at the strap (owner decisions 2026-11-27, Q10, Q20 to Q23, Q33)
+
+    /// Reads the scale again (`ScaleCorrectionUpdate.run`), stores the evaluated correction and returns what the
+    /// Energy page shows. A first proposal leaves one quiet row in the bell, never a notification.
+    func readScale(profile: UserProfile) async -> ScaleCorrectionUpdate.Snapshot? {
+        guard let store = await storeHandle() else { return nil }
+        let now = Date()
+        let today = Self.localDayKey(now)
+        let days = await energySummaries(days: ScaleBurn.windowDays + 1, profile: profile)
+        let metrics = await bodyMetrics()
+        let reader = storeReader(store)
+        let workouts = await reader.rawWorkoutRows(from: Int(now.timeIntervalSince1970) - 120 * 86_400,
+            to: Int(now.timeIntervalSince1970) + 86_400, dismissedDetectedSpans: dismissedDetectedWorkoutSpans)
+        let before = EnergyPlanStore.scaleCorrection
+        let measured = profile.basalFormula == .measured && profile.measuredBasalFactor != nil
+        let result = await ScaleCorrectionUpdate.run(
+            store: store, reader: reader, state: before,
+            plan: DietPlan.decode(UserDefaults.standard.string(forKey: DietPlan.storageKey)),
+            strapByDay: ScaleCorrectionUpdate.strapByDay(days, today: today),
+            kcalPerKg: EnergyDensityResolver.kcalPerKg(profile: profile, metrics: metrics, today: today),
+            basalShare: ScaleCorrectionUpdate.basalShare(days, measured: measured),
+            strengthDays: ScaleCorrectionUpdate.strengthDays(workouts), today: today)
+        if result.state != before {
+            EnergyPlanStore.scaleCorrection = result.state
+            if result.state.status == .active { noteEnergyPresentationChanged() }
+        }
+        if result.state.status == .proposed, before.status != .proposed {
+            UpdateStore.shared.post(UpdateItem(
+                kind: .reading, title: String(localized: "Your scale can adjust your burn"),
+                message: String(localized: "Open Energy to compare the scale with the strap."),
+                category: .informative))
+        }
+        return result.snapshot
+    }
+
+    /// The wearer's answer to the scale's proposal, or switching the correction off and on again.
+    func scaleAction(_ action: ScaleAction) {
+        let today = Self.localDayKey(Date())
+        let state = EnergyPlanStore.scaleCorrection
+        switch action {
+        case .accept: EnergyPlanStore.scaleCorrection = state.accepted(today: today)
+        case .decline: EnergyPlanStore.scaleCorrection = state.declined(today: today)
+        case .off: EnergyPlanStore.scaleCorrection = state.turnedOff()
+        case .on: EnergyPlanStore.scaleCorrection = state.turnedOn()
+        }
+        noteEnergyPresentationChanged()
+    }
+
+    enum ScaleAction { case accept, decline, off, on }
 
     /// Today's summary, or nil when the day has produced nothing at all yet.
     func todayEnergy(profile: UserProfile) async -> DailyEnergySummary? {

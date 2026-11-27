@@ -233,6 +233,13 @@ final class ForgeFoodModel {
 
     /// Saves a plan from the planner or the plan page and recomputes every goal from it.
     func savePlan(_ next: DietPlan?) {
+        // A new way of eating is dated: water and glycogen shift for a few weeks after it, so the scale's
+        // correction holds still (`ScaleCorrectionUpdate.holding`).
+        var next = next
+        if var dated = next, let previous = plan, previous.form != dated.form || previous.addon != dated.addon {
+            dated.formChangedDay = Repository.localDayKey(.now)
+            next = dated
+        }
         if let next, let raw = next.encoded() {
             UserDefaults.standard.set(raw, forKey: DietPlan.storageKey)
         } else {
@@ -253,7 +260,8 @@ final class ForgeFoodModel {
         guard let weekStart = Calendar.current.date(byAdding: .day, value: -6, to: .now) else { return }
         let logged = Set(((try? await store.foodLogEntries(from: Repository.localDayKey(weekStart), to: today)) ?? []).map(\.day)).count
         let outcome = DietAdjust.weekly(plan: current, result: planResult, weighIns: weights, loggedDays: logged,
-                                        today: today, kcalPerKg: kcalPerKg ?? DietTargets.defaultKcalPerKg, phase: phase(for: today))
+                                        today: today, kcalPerKg: kcalPerKg ?? DietTargets.defaultKcalPerKg, phase: phase(for: today),
+                                        scaleCorrectionActive: EnergyPlanStore.scaleCorrection.status == .active)
         planWeek = outcome
         planWeekApplied = false
         guard outcome.hold == nil else { return }
@@ -319,7 +327,7 @@ final class ForgeFoodModel {
                             male: profile.sex.lowercased() == "male" ? true : profile.sex.lowercased() == "female" ? false : nil)
         strapBurnKcal = energy.burn.measuredMeanKcal ?? energy.burn.allDaysMeanKcal ?? energy.formulaTdee(profile: profile)
         adoptBurnModel()
-        kcalPerKg = energy.observedKcalPerKg
+        kcalPerKg = energy.energyDensityKcalPerKg
         burnedByDay = energy.burnedByDay
         await loadBody(repo: repo)
         await loadTracker(repo: repo, store: store)

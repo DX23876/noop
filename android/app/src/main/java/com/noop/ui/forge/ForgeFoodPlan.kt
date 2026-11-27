@@ -30,6 +30,7 @@ import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.RadioButtonUnchecked
 import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
@@ -53,6 +54,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.noop.R
 import com.noop.core.CoreDietPlan
@@ -188,6 +190,7 @@ private fun holdText(hold: String): String = stringResource(when (hold) {
     "fewWeighIns" -> R.string.diet_hold_weighins
     "dietBreak" -> R.string.diet_hold_break
     "burnModelChanged" -> R.string.diet_hold_burn_model
+    "scaleCorrection" -> R.string.diet_hold_scale
     else -> R.string.diet_hold_on_plan
 })
 
@@ -569,7 +572,6 @@ private fun Dial(label: String, value: Double, range: ClosedFloatingPointRange<F
     }
 }
 
-/** The plan in one line at the top of Nutrition. */
 /** iOS `DietBurnModelNote`: once, after the strap's energy model changed under the plan, what it did to the goal. */
 @Composable
 internal fun DietBurnModelNote(plan: CoreDietPlan.Plan, onDismiss: () -> Unit) {
@@ -588,6 +590,7 @@ internal fun DietBurnModelNote(plan: CoreDietPlan.Plan, onDismiss: () -> Unit) {
     }
 }
 
+/** The plan in one line at the top of Nutrition. */
 @Composable
 internal fun DietPlanLine(plan: CoreDietPlan.Plan?, resolved: CoreDietPlan.Resolved?, onClick: () -> Unit) {
     val context = LocalContext.current

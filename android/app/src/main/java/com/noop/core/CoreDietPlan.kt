@@ -225,8 +225,9 @@ object CoreDietPlan {
         return Plan.parse(raw)
     }
 
-    fun weekly(plan: Plan, person: Person, burnKcal: Double?, kcalPerKg: Double?): Outcome? {
-        val o = call("food.planWeekly", base(person, burnKcal, kcalPerKg).put("plan", plan.json())) ?: return null
+    fun weekly(plan: Plan, person: Person, burnKcal: Double?, kcalPerKg: Double?, scaleCorrection: String = ""): Outcome? {
+        val o = call("food.planWeekly", base(person, burnKcal, kcalPerKg).put("plan", plan.json())
+            .put("scaleCorrection", scaleCorrection)) ?: return null
         return Outcome(o.optDouble("changeKcal"), o.optString("hold").ifEmpty { null }, o.num("trendKgPerWeek"), o.optDouble("plannedKgPerWeek"))
     }
 
