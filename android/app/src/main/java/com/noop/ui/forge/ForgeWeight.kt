@@ -155,7 +155,9 @@ internal fun ForgeWeightPage(onBack: () -> Unit) {
         }
         Hero(s, p.goalSource == "dietPlan", fmt)
         ForgeSegmented(listOf(stringResource(R.string.wt_overview), stringResource(R.string.wt_history),
-                              stringResource(R.string.wt_reports)), section, Modifier.fillMaxWidth()) { section = it }
+                              stringResource(R.string.wt_reports)), section,
+                      // `sectionGap` above and below, as iOS's page stack sets hero, switch and first card apart.
+                      Modifier.padding(vertical = ForgeMetrics.sectionGap - ForgeMetrics.gap).fillMaxWidth()) { section = it }
         when (section) {
             0 -> Overview(p, s, fmt, onRate = { mode -> after { CoreWeight.saveSettings(p.settings.copy(rateMode = mode)) } },
                           onEvent = { editingEvent = it }, onLog = { logging = WeighInDraft(null, s.latest.kg, Instant.now(), null) })
@@ -213,7 +215,7 @@ private fun Hero(s: CoreWeight.Snapshot, fromPlan: Boolean, fmt: WeightFormat) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Row(verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f)) {
-                Text(fmt.mass(s.latest.kg), style = Forge.type.heroNumber, color = colors.text, maxLines = 1)
+                Text(fmt.mass(s.latest.kg), style = weightNumber(44, FontWeight.Bold), color = colors.text, maxLines = 1)
                 // Relative, as iOS says it ("2 hours ago"), so a stale weigh-in reads as stale at a glance.
                 val ago = android.text.format.DateUtils.getRelativeTimeSpanString(
                     minOf(s.latest.at * 1000, System.currentTimeMillis()), System.currentTimeMillis(),
@@ -224,7 +226,7 @@ private fun Hero(s: CoreWeight.Snapshot, fromPlan: Boolean, fmt: WeightFormat) {
                      style = Forge.type.footnote, color = colors.textSecondary)
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text(fmt.mass(s.trendKg), style = Forge.type.title2, color = colors.text)
+                Text(fmt.mass(s.trendKg), style = weightNumber(20, FontWeight.SemiBold), color = colors.text)
                 Text(stringResource(if (s.trendSettled) R.string.wt_trend else R.string.wt_trend_settling),
                      style = Forge.type.footnote, color = colors.textSecondary)
             }
@@ -238,16 +240,26 @@ private fun Hero(s: CoreWeight.Snapshot, fromPlan: Boolean, fmt: WeightFormat) {
     }
 }
 
+/**
+ * The page's figures in the rounded face at iOS's own sizes (`StrandFont.rounded(size, weight:)` in WeightDetailView):
+ * the token styles stood in a size smaller and in the text face, so the two phones looked differently weighted.
+ */
+@Composable
+private fun weightNumber(size: Int, weight: FontWeight) = Forge.type.heroNumber.copy(fontSize = size.sp, fontWeight = weight)
+
 @Composable
 private fun SectionTitle(text: String) {
-    Text(text, style = Forge.type.title2, color = Forge.colors.text, modifier = Modifier.semantics { heading() })
+    // The column spaces its children `gap` apart; iOS sets sections `sectionGap` apart, so the title adds the rest.
+    Text(text, style = Forge.type.title2, color = Forge.colors.text,
+         modifier = Modifier.padding(top = ForgeMetrics.sectionGap - ForgeMetrics.gap).semantics { heading() })
 }
 
 @Composable
 private fun LogButton(onClick: () -> Unit) {
     val tint = WEIGHT_TINT.resolve()
     // Tinted, as iOS's prominent button draws it in the new design: a wash of the page colour, the label in it.
-    Box(Modifier.fillMaxWidth().height(50.dp).background(tint.copy(alpha = 0.18f), RoundedCornerShape(14.dp))
+    Box(Modifier.padding(top = ForgeMetrics.sectionGap - ForgeMetrics.gap).fillMaxWidth().height(50.dp)
+            .background(tint.copy(alpha = 0.18f), RoundedCornerShape(14.dp))
             .clickable(onClick = onClick), contentAlignment = Alignment.Center) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Rounded.AddCircle, contentDescription = null, tint = tint, modifier = Modifier.size(20.dp))
@@ -295,7 +307,7 @@ private fun MilestonesCard(m: CoreWeight.Milestones, goal: CoreWeight.Goal?, fmt
                 }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(NumberFormat.getPercentInstance(Locale.getDefault()).format(m.progress.coerceIn(0.0, 1.0)),
-                         style = Forge.type.headline, color = colors.text)
+                         style = weightNumber(22, FontWeight.Bold), color = colors.text)
                     Text(stringResource(R.string.wt_of_the_way), style = Forge.type.caption, color = colors.textSecondary)
                 }
             }
@@ -303,14 +315,14 @@ private fun MilestonesCard(m: CoreWeight.Milestones, goal: CoreWeight.Goal?, fmt
             Column(Modifier.weight(1f)) {
                 if (m.next != null) {
                     Text(stringResource(R.string.wt_next_stop), style = Forge.type.footnote, color = colors.textSecondary)
-                    Text(fmt.mass(m.next), style = Forge.type.title1, color = colors.text)
+                    Text(fmt.mass(m.next), style = weightNumber(28, FontWeight.Bold), color = colors.text)
                     m.toNextKg?.let { Text(stringResource(R.string.wt_to_go, fmt.mass(it)), style = Forge.type.footnote, color = colors.textSecondary) }
                 } else {
                     Text(stringResource(R.string.wt_all_stops), style = Forge.type.headline, color = colors.text)
                 }
             }
         }
-        Spacer(Modifier.height(ForgeMetrics.space3))
+        Spacer(Modifier.height(14.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             m.route.forEachIndexed { i, stop ->
                 val reached = stop.reachedDay != null
@@ -319,11 +331,12 @@ private fun MilestonesCard(m: CoreWeight.Milestones, goal: CoreWeight.Goal?, fmt
                         .border(2.dp, if (reached) tint else colors.textTertiary, CircleShape))
             }
         }
-        Spacer(Modifier.height(ForgeMetrics.space2))
+        Spacer(Modifier.height(14.dp))
         Text(stringResource(R.string.wt_stops_reached, m.reachedCount, m.route.size),
              style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold), color = colors.textSecondary)
         // Where the ring counts from, as iOS: without it "0 % of the way" beside "−3 kg since start" read as a fault.
         goal?.let { g ->
+            Spacer(Modifier.height(14.dp))
             Text(stringResource(R.string.wt_goal_counted_from, fmt.mass(g.baseline), fmt.day(g.createdAt, fmt.dayMonthYear)),
                  style = Forge.type.caption, color = colors.textTertiary)
         }
@@ -436,10 +449,10 @@ private fun EventRow(e: CoreWeight.EventForecast, fmt: WeightFormat, onEvent: (E
         }
         Column(horizontalAlignment = Alignment.End) {
             if (e.phase == "upcoming") {
-                Text(e.predictedKg?.let { fmt.mass(it) } ?: "—", style = Forge.type.headline, color = colors.text)
+                Text(e.predictedKg?.let { fmt.mass(it) } ?: "—", style = weightNumber(17, FontWeight.SemiBold), color = colors.text)
                 Text(stringResource(R.string.wt_expected), style = Forge.type.caption, color = colors.textSecondary)
             } else {
-                Text(e.measuredKg?.let { fmt.mass(it) } ?: "—", style = Forge.type.headline, color = colors.text)
+                Text(e.measuredKg?.let { fmt.mass(it) } ?: "—", style = weightNumber(17, FontWeight.SemiBold), color = colors.text)
                 Text(e.predictedBeforeKg?.let { stringResource(R.string.wt_measured_vs, fmt.mass(it)) } ?: stringResource(R.string.wt_measured),
                      style = Forge.type.caption, color = colors.textSecondary)
             }
@@ -456,7 +469,7 @@ private fun ChangesCard(s: CoreWeight.Snapshot, fmt: WeightFormat) {
             listOf(7, 30, 90, null).forEach { days ->
                 val value = s.changes.firstOrNull { it.days == days }?.kg
                 Column(Modifier.weight(1f)) {
-                    Text(value?.let { fmt.signed(it) } ?: "—", style = Forge.type.headline, color = deltaColor(value, s.goal), maxLines = 1)
+                    Text(value?.let { fmt.signed(it) } ?: "—", style = weightNumber(18, FontWeight.Bold), color = deltaColor(value, s.goal), maxLines = 1)
                     Text(if (days == null) stringResource(R.string.wt_since_start) else pluralStringResource(R.plurals.wt_days, days, days),
                          style = Forge.type.footnote, color = colors.textSecondary)
                 }
@@ -696,7 +709,7 @@ private fun ReportFigure(label: String, value: String, sub: String?, modifier: M
     val colors = Forge.colors
     Column(modifier) {
         Text(label, style = Forge.type.caption.copy(fontWeight = FontWeight.SemiBold), color = colors.textSecondary)
-        Text(value, style = Forge.type.headline.copy(fontWeight = FontWeight.Bold), color = colors.text)
+        Text(value, style = weightNumber(18, FontWeight.Bold), color = colors.text)
         sub?.let { Text(it, style = Forge.type.caption, color = colors.textSecondary) }
     }
 }

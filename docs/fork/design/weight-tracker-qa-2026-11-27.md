@@ -43,6 +43,7 @@ the trend and the week's change, which is the core idea of the page.
 | 16 | Android | Tapping a weight widget opened Today; iOS opens the weight page. | The tap carries a flag that moves the shell to Today and pushes the weight page, once. |
 | 17 | Both | "0 % of the way" sat beside "−3 kg since start" with nothing saying the ring counts from the goal's start (impeccable critique, 29/40). | A line under the stops: the weight and date the goal was set at. |
 | 18 | Android | The overview's only log action sat below six cards; iOS has it in the header. | Log action in the header, as iOS. |
+| 19 | Android | Sizes differed (owner, 2026-11-27): the figures used the token styles a size smaller and in the text face (hero 34 vs 44, next stop, ring, changes, reports), and sections sat 12 dp apart where iOS sets 24. | Figures in the rounded face at iOS's sizes; sections, switch and log button `sectionGap` apart; the milestone card's rows 14 apart, as iOS. |
 
 ## Open, not changed
 
