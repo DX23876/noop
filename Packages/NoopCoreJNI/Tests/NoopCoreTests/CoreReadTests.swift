@@ -117,4 +117,28 @@ final class CoreReadTests: XCTestCase {
         let phone = await counts()
         XCTAssertEqual(phone, ["2026-10-02": 7_000, "2026-10-03": 6_000])
     }
+
+    /// DX23876/noop#61: a WHOOP 5 with no step data banks a computed 0 under `<strap>-noop`. With the phone chosen
+    /// the phone's count stands, and automatically the 0 yields to it too; a real strap count still wins.
+    func testAComputedZeroNeverHidesThePhonesSteps() async throws {
+        let r = try await reader()
+        defer { UserDefaults.standard.removeObject(forKey: StepsSource.defaultsKey) }
+        _ = try await r.store.upsertAppleDaily([
+            AppleDaily(day: "2026-11-27", steps: 426, activeKcal: nil, basalKcal: nil, vo2max: nil, avgHr: nil, maxHr: nil,
+                       walkingHr: nil, weightKg: nil),
+        ], deviceId: MetricResolver.healthConnectSource)
+        _ = try await r.store.upsertDailyMetrics([DailyMetric(day: "2026-11-27", totalSleepMin: nil, efficiency: nil, deepMin: nil,
+                                                              remMin: nil, lightMin: nil, disturbances: nil, restingHr: nil,
+                                                              avgHrv: nil, recovery: nil, strain: nil, exerciseCount: nil,
+                                                              steps: 0)], deviceId: r.activeDeviceId + "-noop")
+        func count() async -> Double? {
+            await CoreRead.series(.steps, from: "2026-11-26", to: "2026-11-28", reader: r).first { $0.day == "2026-11-27" }?.value
+        }
+        UserDefaults.standard.set(StepsSource.phone.rawValue, forKey: StepsSource.defaultsKey)
+        let phone = await count()
+        XCTAssertEqual(phone, 426)
+        UserDefaults.standard.set(StepsSource.automatic.rawValue, forKey: StepsSource.defaultsKey)
+        let automatic = await count()
+        XCTAssertEqual(automatic, 426)
+    }
 }

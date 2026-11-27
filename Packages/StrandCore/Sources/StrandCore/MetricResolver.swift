@@ -106,9 +106,17 @@ public enum MetricResolver {
         case .strap: resolutions = await [strap, estimate]
         case .phone: resolutions = await [phone]
         }
+        // A strap's computed zero (`<strap>-noop`) is a WHOOP 5 or MG that banked no step data that day, not a day
+        // of no steps: a later reading with a count takes the day from it (DX23876/noop#61).
+        let computedSource = actualWhoopSource + "-noop"
         var byDay: [String: ResolvedMetricPoint] = [:]
         for resolution in resolutions {
-            for point in resolution.points where byDay[point.day] == nil { byDay[point.day] = point }
+            for point in resolution.points {
+                if let held = byDay[point.day] {
+                    guard held.source == computedSource, held.value <= 0, point.value > 0 else { continue }
+                }
+                byDay[point.day] = point
+            }
         }
         return MetricSeriesResolution(requestedSource: source == .phone ? appleHealthSource : whoopSource,
                                       candidates: resolutions.flatMap(\.candidates),
@@ -123,7 +131,11 @@ public enum MetricResolver {
         let series = await resolve(store: store, key: "steps", preferredSource: appleHealthSource,
                                    actualWhoopSource: actualWhoopSource, from: from, to: to, suppressedSleepWakeDays: [])
         guard let store else { return series }
-        var byDay = Dictionary(series.points.map { ($0.day, $0) }, uniquingKeysWith: { a, _ in a })
+        // The phone's count only: the strap's computed sibling is a candidate of the Apple-preferred key elsewhere,
+        // but "Health Connect" or "Apple Health" chosen means the phone (DX23876/noop#61).
+        let computedSource = actualWhoopSource + "-noop"
+        var byDay = Dictionary(series.points.filter { $0.source != computedSource }.map { ($0.day, $0) },
+                               uniquingKeysWith: { a, _ in a })
         for source in [appleHealthSource, healthConnectSource] {
             for row in (try? await store.appleDaily(deviceId: source, from: from, to: to)) ?? []
             where byDay[row.day] == nil {
