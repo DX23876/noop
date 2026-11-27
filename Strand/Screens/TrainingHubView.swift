@@ -1017,7 +1017,11 @@ struct StrengthWorkoutSummaryView: View {
         NoopCard {
             LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: NoopMetrics.gap)],
                       alignment: .leading, spacing: NoopMetrics.gap) {
-                fact("Elapsed", duration(summary.elapsedDurationS))
+                // The time beside "Active" above, shown only when pauses made it longer: two equal times
+                // in one summary read as two different facts.
+                if summary.elapsedDurationS - summary.activeDurationS >= 60 {
+                    fact("Elapsed", duration(summary.elapsedDurationS))
+                }
                 fact("Warm-up sets", summary.warmupSetCount.formatted())
                 fact("Exercises", summary.exerciseCount.formatted())
                 if summary.loadedVolumeKg > 0 { fact("Loaded volume", volume(summary.loadedVolumeKg)) }
@@ -1160,7 +1164,10 @@ struct StrengthWorkoutSummaryView: View {
                         }
                         ForEach(Array(exercise.sets.enumerated()), id: \.element.id) { index, set in
                             HStack(spacing: 8) {
-                                Text(set.phase == .warmup ? "W" : (index + 1).formatted())
+                                // Numbered as in the logger: working sets from one, warm-ups as W.
+                                Text(set.phase == .warmup ? "W"
+                                     : NativeWorkoutEngine.workingSetNumber(of: index, in: exercise.sets)
+                                        .map { $0.formatted() } ?? "—")
                                     .font(StrandFont.caption.weight(.bold)).frame(width: 22)
                                     .foregroundStyle(set.phase == .warmup ? StrandPalette.textTertiary
                                                                           : StrandPalette.textSecondary)
@@ -1313,8 +1320,9 @@ struct StrengthWorkoutSummaryView: View {
         loadedPhysiology = true
     }
 
+    /// "3 min" or "1 hr, 5 min" in the reader's language. "0:03" read as three seconds as easily as minutes.
     private func duration(_ seconds: Int) -> String {
-        Duration.seconds(max(0, seconds)).formatted(.time(pattern: .hourMinute))
+        Duration.seconds(max(60, seconds)).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
     }
 
     private func volume(_ kilograms: Double) -> String {
@@ -1615,15 +1623,15 @@ struct NativeWorkoutLoggerView: View {
                 Button("OK", role: .cancel) {}
             } message: { Text(model.errorMessage ?? "") }
             .sheet(isPresented: $finishing) { finishSheet }
-            .confirmationDialog("Incomplete sets", isPresented: $confirmingPartialFinish,
-                                titleVisibility: .visible) {
-                Button("Finish completed sets", role: .destructive) { finishing = true }
+            // Alerts, not confirmation dialogs: on a phone with iOS 26 a dialog on this long view became a
+            // popover pointing at whatever row sat near the top, nowhere near the button that asked.
+            .alert("Incomplete sets", isPresented: $confirmingPartialFinish) {
+                Button("Save completed sets") { finishing = true }
                 Button("Keep logging", role: .cancel) {}
             } message: {
                 Text("Some sets are incomplete. Only completed sets will be saved.")
             }
-            .confirmationDialog("Discard this workout?", isPresented: $confirmingDiscard,
-                                titleVisibility: .visible) {
+            .alert("Discard this workout?", isPresented: $confirmingDiscard) {
                 Button("Discard workout", role: .destructive) { discardNow() }
                 Button("Keep logging", role: .cancel) {}
             } message: {
@@ -2467,7 +2475,8 @@ struct NativeWorkoutLoggerView: View {
             } label: {
                 let prefix = set.effort?.scale == .rir ? "R" : ""
                 EffortBadge(text: prefix + (set.effort?.value.formatted(.number.precision(.fractionLength(0...1))) ?? "—"),
-                            color: set.effort.map { EffortChoice.color(for: $0) })
+                            color: set.effort.map { EffortChoice.color(for: $0) },
+                            onInset: isNextSet && forgeSkin)
                     .frame(width: SetColumns.effort, height: 32)
             }
             .buttonStyle(.plain)
@@ -3454,6 +3463,14 @@ private extension View {
     func trainingNumberKeyboard(decimal: Bool) -> some View {
         #if os(iOS)
         keyboardType(decimal ? .decimalPad : .numberPad)
+            // A tap on a set's number selects it, so the next digits replace it. Without this the cursor
+            // landed where the finger did and digits went in beside the old value: "6" became "56" or "556"
+            // repetitions, and the logger copied that into every later set (simulator walk-through 2026-11-27).
+            .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidBeginEditingNotification)) { note in
+                guard let field = note.object as? UITextField,
+                      field.keyboardType == .decimalPad || field.keyboardType == .numberPad else { return }
+                DispatchQueue.main.async { field.selectAll(nil) }
+            }
         #else
         self
         #endif

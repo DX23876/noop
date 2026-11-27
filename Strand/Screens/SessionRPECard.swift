@@ -139,7 +139,8 @@ struct SessionRPECard: View {
         guard let minutes = durationMinutes else {
             return String(localized: "Rating saved · duration unavailable")
         }
-        return String(localized: "RPE \(rpeNumber(rpe)) × \(minutes.formatted(.number.precision(.fractionLength(0...2)))) min · sRPE load")
+        // Whole minutes: "2,85 min" was the arithmetic, not a duration anyone reads.
+        return String(localized: "RPE \(rpeNumber(rpe)) × \(max(1, Int(minutes.rounded()))) min · sRPE load")
     }
 
     private func rpeNumber(_ value: Double) -> String {

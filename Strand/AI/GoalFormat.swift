@@ -35,21 +35,24 @@ enum GoalFormat {
     }
 
     /// The unit word after a number, catalog-resolved.
-    static func unit(_ metric: PeriodMetric) -> String {
+    /// The unit after a number; `count` 1 takes the singular ("1 workout to go", not "1 workouts").
+    static func unit(_ metric: PeriodMetric, count: Double? = nil) -> String {
+        let one = count.map { abs($0 - 1) < 1e-9 } ?? false
         switch metric {
-        case .workouts:        return String(localized: "workouts")
+        case .workouts:        return one ? String(localized: "workout") : String(localized: "workouts")
         case .trainingMinutes, .zoneMinutes, .strengthMinutes, .moderateMinutes, .vigorousMinutes:
             return String(localized: "min")
         case .distance:        return UnitFormatter.distanceUnit(distanceSystem)
-        case .stepDays, .sleepNights, .restDays, .hydrationDays, .habitDays: return String(localized: "days")
+        case .stepDays, .sleepNights, .restDays, .hydrationDays, .habitDays:
+            return one ? String(localized: "day") : String(localized: "days")
         case .sleepAverage:    return String(localized: "h")
-        case .workingSets:     return String(localized: "sets")
+        case .workingSets:     return one ? String(localized: "set") : String(localized: "sets")
         case .activeEnergy:    return String(localized: "kcal")
         }
     }
 
     static func amount(_ value: Double, _ metric: PeriodMetric) -> String {
-        "\(number(value, metric)) \(unit(metric))"
+        "\(number(value, metric)) \(unit(metric, count: value))"
     }
 
     /// "2/4", or "7.2 h" for an average.

@@ -197,6 +197,9 @@ struct ForgeTrainingView: View {
             }
         }
         .scrollIndicators(.hidden)
+        // The row scrolls sideways; drawn into the screen margin, the next chip shows where the edge cuts it
+        // instead of ending at the margin mid-word ("Workout hinzufü…"), which read as a broken button.
+        .scrollClipDisabled()
     }
 
     private func quickChip(_ title: LocalizedStringKey, _ image: String, _ destination: MoreDestination) -> some View {

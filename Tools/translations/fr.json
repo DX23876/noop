@@ -4779,5 +4779,20 @@
   "Is anything unusual?": "Y a-t-il quelque chose d'inhabituel ?",
   "How are my values developing?": "Comment évoluent mes valeurs ?",
   "Opens the coach for this page": "Ouvre le coach pour cette page",
-  "New message from the coach": "Nouveau message du coach"
+  "New message from the coach": "Nouveau message du coach",
+  "workout": "séance",
+  "day": "jour",
+  "set": "série",
+  "Save completed sets": "Enregistrer les séries terminées",
+  "Rest time": "Repos",
+  "Import automatically": "Importer automatiquement",
+  "Every 6 hours": "Toutes les 6 heures",
+  "Every 12 hours": "Toutes les 12 heures",
+  "New Hevy workouts come in on their own. In the background the system picks the moment; opening NOOP catches up on anything it skipped.": "Les nouveaux entraînements Hevy arrivent d’eux-mêmes. En arrière-plan, le système choisit le moment ; à l’ouverture de NOOP, ce qui a été manqué est rattrapé.",
+  "Backup failed.": "La sauvegarde a échoué.",
+  "Back Up NOOP Data": "Sauvegarder les données NOOP",
+  "Back Up Data": "Sauvegarder",
+  "Backed up your NOOP data.": "Tes données NOOP sont sauvegardées.",
+  "Make a complete backup of your NOOP data as a .noopbak file, the same file Settings exports. Save it anywhere with the next step.": "Crée une sauvegarde complète de tes données NOOP au format .noopbak, le même fichier que l’export des Réglages. Enregistre-le où tu veux à l’étape suivante.",
+  "NOOP could not open its data in time. Open NOOP once and run the shortcut again.": "NOOP n’a pas pu ouvrir ses données à temps. Ouvre NOOP une fois et relance le raccourci."
 }

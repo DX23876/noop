@@ -233,7 +233,8 @@ private struct StrengthMiniBarContent: View {
                         if let timer = runningRest(now: now) {
                             let remaining = WorkoutTimerCoordinator.remaining(timer, now: now)
                             VStack(alignment: .leading, spacing: NoopMetrics.space1) {
-                                Text("Rest")
+                                // Its own key: "Rest" is also the sleep score's name, which German keeps as "Rest".
+                                Text("Rest time")
                                     .font(StrandFont.caption)
                                     .foregroundStyle(StrandPalette.textSecondary)
                                 Text(ActiveSessionMiniBar.clock(remaining))

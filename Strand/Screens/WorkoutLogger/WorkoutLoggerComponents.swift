@@ -367,13 +367,17 @@ struct EffortChoice: Identifiable, Hashable {
 struct EffortBadge: View {
     let text: String
     let color: Color?
+    /// True on a row that is itself filled with the inset colour (the next set in the new design), where an
+    /// unrated badge in that same colour vanished; it takes the card's colour there instead.
+    var onInset: Bool = false
 
     var body: some View {
         Text(text)
             .font(StrandFont.subhead.weight(.bold).monospacedDigit())
             .foregroundStyle(color == nil ? StrandPalette.textTertiary : StrandPalette.textPrimary)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background((color ?? StrandPalette.surfaceInset).opacity(color == nil ? 1 : 0.28),
+            .background((color ?? (onInset ? StrandPalette.surfaceRaised : StrandPalette.surfaceInset))
+                            .opacity(color == nil ? 1 : 0.28),
                         in: RoundedRectangle(cornerRadius: 8))
             .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(color ?? .clear, lineWidth: 1.5))
     }
@@ -519,7 +523,7 @@ struct WorkoutRestDock: View {
             VStack(spacing: NoopMetrics.space2) {
                 HStack(alignment: .center, spacing: NoopMetrics.space3) {
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(timer.kind == .timedSet ? "Time" : "Rest")
+                        Text(timer.kind == .timedSet ? "Time" : "Rest time")
                             .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                         Text(ActiveSessionMiniBar.clock(remaining))
                             .font(StrandFont.number(30)).monospacedDigit()
@@ -564,7 +568,7 @@ struct WorkoutRestDock: View {
                         .font(StrandFont.number(22)).monospacedDigit()
                         .foregroundStyle(StrandPalette.textPrimary)
                         .accessibilityLabel(Text(timer.kind == .timedSet ? "Time remaining" : "Rest remaining"))
-                    Text(timer.kind == .timedSet ? "Time" : "Rest")
+                    Text(timer.kind == .timedSet ? "Time" : "Rest time")
                         .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                 }
                 .frame(minHeight: 44)

@@ -391,6 +391,9 @@ final class ActiveSessionController: ObservableObject {
         app.strengthWorkoutWatchStateSink?(nil)
         contextLoaded = false
         completedWorkout = workout
+        // The goal cards read their own snapshots. Without this the training hub showed "10 workouts" in its
+        // header beside a goal card still at 9/10, after the finish sheet had said the goal was reached.
+        Task { await GoalTrackingStore.shared.refresh(repo: repo) }
     }
 
     /// The routines changed after a workout ended; the next start reads them again.
