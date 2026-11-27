@@ -181,6 +181,57 @@ stream is empty here, so the RSA term is silent in all of this; on a WHOOP night
 
 ---
 
+### 8. Restless wake (#59), and a second dataset
+
+`--section restless` scores #59's small-movement term as filed and with two changes meant to keep a calm
+night from being stretched by its own z-score: `sustained` counts only movement that lasts longer than a REM
+twitch (3 s or less, Reiter et al. 2020, Nat Sci Sleep 12:13–22), and `others` scales the density against
+the other subjects instead of the night itself (leave one subject out). `over+5` counts subjects whose
+predicted wake share exceeds their PSG wake share by more than 5 points; `--csv` writes every subject's
+wake and REM share per variant.
+
+The same section runs on a second, independent PSG set: the Newcastle PSG + accelerometer study (28 sleep
+clinic patients, GENEActiv on both wrists at 85.7 Hz, no heart rate; CC BY 4.0, cite
+[doi:10.5281/zenodo.1160410](https://doi.org/10.5281/zenodo.1160410)). Convert it into the layout above:
+
+```bash
+mkdir -p ~/datasets/newcastle && cd ~/datasets/newcastle
+curl -L -o newcastle.zip \
+  https://zenodo.org/api/records/1160410/files/dataset_psgnewcastle2015_v1.0.zip/content
+md5 -q newcastle.zip    # 8ebadbc55cb0e76230f293fc6d53f504
+unzip -q newcastle.zip
+python3 -I Tools/SleepPSG/newcastle_to_sleepaccel.py \
+  ~/datasets/newcastle/dataset_psgnewcastle2015_v1.0 ~/datasets/newcastle-sa-nondominant nondominant
+```
+
+The converter takes the non-dominant wrist from each file's handedness code, writes per-second mean
+acceleration on the PSG clock and leaves `heart_rate/` empty. Participant 29 is skipped: none of its
+accelerometer seconds overlap its PSG night. With no heart rate the recipe runs on motion alone there, so
+Newcastle tests the movement terms, not the recipe.
+
+### A third set, with beat-to-beat intervals: Wearanize+
+
+Neither sleep-accel nor Newcastle carries beat-to-beat intervals, the signal a WHOOP strap has. Wearanize+ OA
+(Radboud University, CC BY 4.0, cite [doi:10.34973/xrmf-5726](https://doi.org/10.34973/xrmf-5726)) pairs an
+Empatica E4 (accelerometer, heart rate, PPG inter-beat intervals) with lab PSG scored by humans. The converter
+downloads one subject at a time and deletes the raw files after it (about 400 MB each, two at once):
+
+```bash
+python3 -m venv ~/datasets/.venv-sleep && ~/datasets/.venv-sleep/bin/pip install pyarrow neurokit2
+~/datasets/.venv-sleep/bin/python -I Tools/SleepPSG/wearanize_to_sleepaccel.py ~/datasets/wearanize-sa
+```
+
+The E4 clock drifts against the PSG recorder, so each subject's E4 is put on the PSG clock with a linear lag
+fitted hour by hour from the E4 inter-beat intervals against the PSG ECG's R-R intervals; no sleep label takes
+part. That alignment follows ayiskakov's `Tools/SleepTrain/prepare_wearanize.py`. Subjects whose E4 recording is
+not on the server are skipped. The loader reads `rr/<id>_rr.txt` when it exists, so the recipe's beat-interval
+terms are live on this set. ayiskakov fitted the trained model (`SleepStagerTrained`) on Wearanize+, so its row
+here is not a test of it.
+
+Section 8 ends with the guard agreed for a Lab default (`docs/fork/decisions.md`, 2026-11-26): calm sleepers
+at most 1 point worse on wake, at most 1 in 30 subjects over-called by more than 5 points, the per-subject REM
+error at most 2 points worse, and, where heart rate exists, no night at 0 % REM against a lab value over 10 %.
+
 ## The self-check, and what it found
 
 This tool replaces one that was deleted. Section 3 prints its measured values beside the figures that

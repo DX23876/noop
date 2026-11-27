@@ -4773,5 +4773,13 @@
   "Backed up your NOOP data.": "Данные NOOP сохранены в резервной копии.",
   "Make a complete backup of your NOOP data as a .noopbak file, the same file Settings exports. Save it anywhere with the next step.": "Создаёт полную резервную копию данных NOOP в файле .noopbak — том же, что экспортируют Настройки. Сохраните его где угодно следующим шагом.",
   "NOOP could not open its data in time. Open NOOP once and run the shortcut again.": "NOOP не успел открыть данные. Откройте NOOP один раз и запустите команду снова.",
-  "Nearly on track": "Почти по плану"
+  "Nearly on track": "Почти по плану",
+  "Sleep stages (test)": "Фазы сна (тест)",
+  "Standard": "Стандарт",
+  "Trained model": "Обученная модель",
+  "With restlessness check": "С учётом беспокойства",
+  "The usual method. It reads your heart rate, how much it varies, your breathing rhythm and how you move. Recommended if you have no reason to switch.": "Обычный метод. Он учитывает ваш пульс, насколько он меняется, ритм дыхания и ваши движения. Рекомендуется, если нет причин менять.",
+  "Like Standard, with one check added. In REM sleep the body lies almost still. When the strap keeps moving slightly for longer than a few seconds, that time counts as light sleep instead of REM, because lying restless was often mistaken for REM. It never marks you as awake. Worth trying if your REM is often above 30 %. Checked against sleep-lab recordings.": "Как «Стандарт», но с одной дополнительной проверкой. Во сне REM тело почти неподвижно. Если браслет слегка двигается дольше нескольких секунд, это время считается лёгким сном, а не REM, потому что беспокойное лежание раньше часто принималось за REM. Бодрствующим эта проверка вас никогда не отмечает. Стоит попробовать, если REM у вас часто выше 30 %. Проверено на записях сомнологических лабораторий.",
+  "Learned from sleep-lab recordings of other wrist devices and not yet checked on WHOOP nights. On some nights it shows very little REM. For testing only.": "Обучена на записях сомнологических лабораторий с других наручных устройств и на ночах WHOOP пока не проверена. В некоторые ночи показывает очень мало REM. Только для тестирования.",
+  "Which method sorts your night into light, deep, REM and awake. Switching recalculates all nights; your recorded data and your sleep corrections stay.": "Какой метод делит вашу ночь на лёгкий и глубокий сон, REM и бодрствование. Переключение пересчитывает все ночи; записанные данные и ваши исправления сна сохраняются."
 }

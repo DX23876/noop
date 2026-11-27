@@ -256,8 +256,13 @@ enum PortValidation {
     /// harness is computed on — an equivalence that held only after run-length collapsing would not
     /// guarantee the numbers agree. (The segment arrays do also match; comparing labels is the stricter
     /// statement for our purposes and the weaker one to state, so it is what the report claims.)
-    static func run(seed: UInt64 = PortValidation.defaultSeed, randomNights: Int = 48) -> Result {
+    ///
+    /// `restless` stages the shipped side with that `SleepStagerV2.RestlessTerm` and the port with the section 8
+    /// configuration it stands for (`restlessConfig`), so the term the app runs is pinned to the one scored.
+    static func run(seed: UInt64 = PortValidation.defaultSeed, randomNights: Int = 48,
+                    restless: SleepStagerV2.RestlessTerm? = nil) -> Result {
         let nights = corpus(seed: seed, randomNights: randomNights)
+        let portCfg = restlessConfig(restless)
         // Nights are staged concurrently: staging is pure, and the shipped stager's memo cache is itself
         // lock-guarded (`AnalyticsMemoCache`), so the only shared state is safe. Serially this check runs
         // for minutes in a debug build — the recipe's RSA term is a per-epoch DFT and every night is staged
@@ -269,9 +274,9 @@ enum PortValidation {
             DispatchQueue.concurrentPerform(iterations: nights.count) { idx in
                 let n = nights[idx]
                 let shipped = SleepStagerV2.stageSession(start: n.start, end: n.end, grav: n.grav,
-                                                         hr: n.hr, rr: n.rr, resp: n.resp)
+                                                         hr: n.hr, rr: n.rr, resp: n.resp, restless: restless)
                 let port = V2Recipe.stageSession(start: n.start, end: n.end, grav: n.grav,
-                                                 hr: n.hr, rr: n.rr, resp: n.resp, cfg: .shipped)
+                                                 hr: n.hr, rr: n.rr, resp: n.resp, cfg: portCfg)
                 let a = epochLabels(shipped, start: n.start, end: n.end)
                 let b = epochLabels(port, start: n.start, end: n.end)
                 var epochs = 0, matching = 0
@@ -299,5 +304,20 @@ enum PortValidation {
             r.divergences.append(contentsOf: perNight[i].divergences.prefix(max(0, 20 - r.divergences.count)))
         }
         return r
+    }
+
+    /// The port configuration a core `RestlessTerm` stands for: section 8's "sustained" #59 density (jerks above
+    /// 5 × the floor in runs of 5 seconds or more, over ±5 epochs, night z⁺) with the term's own weights. nil is
+    /// the shipped recipe.
+    static func restlessConfig(_ term: SleepStagerV2.RestlessTerm?) -> RecipeConfig {
+        var c = RecipeConfig.shipped
+        guard let term else { return c }
+        c.smallMoveMult = 5.0
+        c.smallMoveMinRun = 5
+        c.smallMoveHalfWindow = 5
+        c.smallMoveRemWeight = term.remWeight
+        c.smallMoveAwakeWeight = term.awakeWeight
+        c.smallMoveAwakeNeedsRaisedHR = term.awakeNeedsRaisedHR
+        return c
     }
 }

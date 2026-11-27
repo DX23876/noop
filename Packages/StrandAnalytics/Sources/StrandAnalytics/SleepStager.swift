@@ -662,7 +662,8 @@ public enum SleepStager {
     /// reach them with `@testable`, and nothing outside should be building its own spine.
     public static func hrOnlySessions(day: String, hr: [HRSample], rr: [RRInterval], resp: [RespSample],
                                       minMinutes: Int = minSleepMin,
-                                      traceSink: ((String) -> Void)? = nil) -> [SleepSession] {
+                                      traceSink: ((String) -> Void)? = nil,
+                                      stagingRecipe: StagingRecipe = .standard) -> [SleepSession] {
         let hrS = hr.sorted { $0.ts < $1.ts }
         // ONE sort of the bpm axis, reused for the anchor and for the spread the trace reports.
         let sortedBpm = hrS.map { Double($0.bpm) }.sorted()
@@ -688,8 +689,8 @@ public enum SleepStager {
             if p.stage != "sleep" { continue }
             longestSleepS = max(longestSleepS, p.end - p.start)
             if (p.end - p.start) < minMinutes * 60 { continue }
-            let stages = SleepStagerV2.stageSession(start: p.start, end: p.end, grav: [],
-                                                    hr: hrS, rr: rrS, resp: resp)
+            let stages = stageV2Family(stagingRecipe, start: p.start, end: p.end, grav: [],
+                                       hr: hrS, rr: rrS, resp: resp)
             staged += 1
             if stages.isEmpty { continue }
             // #1884: MEASURED, not nilled. The bounds here are inferred from heart rate, which is why
@@ -1416,7 +1417,8 @@ public enum SleepStager {
                                    useSleepStagerV2: Bool = false,
                                    sleepHRBaseline: Double? = nil,
                                    traceSink: ((String) -> Void)? = nil,
-                                   method: Method? = nil) -> [SleepSession] {
+                                   method: Method? = nil,
+                                   stagingRecipe: StagingRecipe = .standard) -> [SleepSession] {
         let method = method ?? (useSleepStagerV2 ? .v2 : .v1)
         // Sleep & Rest test mode only: when a trace is requested we MUST run the live ladder, not a
         // memoized result, so each gate verdict is emitted for THIS night. The trace is side-effect-
@@ -1427,6 +1429,7 @@ public enum SleepStager {
             return detectSleepUncached(hr: hr, rr: rr, resp: resp, gravity: gravity,
                                        tzOffsetSeconds: tzOffsetSeconds, wristOff: wristOff,
                                        bandSleepState: bandSleepState, method: method,
+                                       stagingRecipe: stagingRecipe,
                                        sleepHRBaseline: sleepHRBaseline, traceSink: traceSink)
         }
         // v7.0.2 perf (#707): the single heaviest analytics call — it sorts the dense full-day gravity
@@ -1449,11 +1452,13 @@ public enum SleepStager {
             wristOff: StreamFingerprint.of(wristOff, ts: { $0.start }, quant: { $0.end }),
             band: StreamFingerprint.of(bandSleepState, ts: { $0.ts }, quant: { $0.state }),
             method: method,
+            recipe: stagingRecipe,
             sleepHRBaseline: sleepHRBaseline)
         return detectSleepCache.value(key) {
             detectSleepUncached(hr: hr, rr: rr, resp: resp, gravity: gravity,
                                 tzOffsetSeconds: tzOffsetSeconds, wristOff: wristOff,
                                 bandSleepState: bandSleepState, method: method,
+                                stagingRecipe: stagingRecipe,
                                 sleepHRBaseline: sleepHRBaseline, traceSink: nil)
         }
     }
@@ -1464,6 +1469,7 @@ public enum SleepStager {
         let tz: Int
         let wristOff: StreamFingerprint; let band: StreamFingerprint
         let method: Method
+        let recipe: StagingRecipe
         let sleepHRBaseline: Double?
     }
     /// ≈ the number of distinct days in a scoring window; FIFO-evicted, holds only small session arrays.
@@ -1478,6 +1484,7 @@ public enum SleepStager {
                                             wristOff: [(start: Int, end: Int)],
                                             bandSleepState: [(ts: Int, state: Int)],
                                             method: Method,
+                                            stagingRecipe: StagingRecipe = .standard,
                                             sleepHRBaseline: Double? = nil,
                                             traceSink: ((String) -> Void)? = nil) -> [SleepSession] {
         let grav = gravity.sorted { $0.ts < $1.ts }
@@ -1702,8 +1709,8 @@ public enum SleepStager {
                 continue
             }
             let rawStages = method.usesV2Stages
-                ? SleepStagerV2.stageSession(start: p.start, end: p.end, grav: grav,
-                                             hr: hrS, rr: rrS, resp: respS)
+                ? stageV2Family(stagingRecipe, start: p.start, end: p.end, grav: grav,
+                                hr: hrS, rr: rrS, resp: respS)
                 : stageSession(start: p.start, end: p.end, grav: grav,
                                hr: hrS, rr: rrS, resp: respS)
             // Band sleep_state WAKE-veto: recover INTERIOR false-wake epochs the strap's OWN band

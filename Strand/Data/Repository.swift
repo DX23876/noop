@@ -2233,7 +2233,8 @@ final class Repository: ObservableObject {
 
     /// The Lab staging switches as `EditedSleepHeal` takes them.
     private static var currentStaging: EditedSleepHeal.Staging {
-        .init(method: PuffinExperiment.sleepStagerMethod(), motionAwareWake: PuffinExperiment.motionAwareWakeEnabled)
+        .init(method: PuffinExperiment.sleepStagerMethod(), motionAwareWake: PuffinExperiment.motionAwareWakeEnabled,
+              recipe: PuffinExperiment.sleepStagingRecipe())
     }
 
     /// Self-heal pass for the edit-races-sync bug. A night edited BEFORE the strap sync imported its raw

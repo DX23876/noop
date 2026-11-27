@@ -4795,5 +4795,13 @@
   "Backed up your NOOP data.": "Os teus dados do NOOP foram copiados.",
   "Make a complete backup of your NOOP data as a .noopbak file, the same file Settings exports. Save it anywhere with the next step.": "Cria uma cópia completa dos teus dados do NOOP como ficheiro .noopbak, o mesmo que as Definições exportam. Guarda-o onde quiseres no passo seguinte.",
   "NOOP could not open its data in time. Open NOOP once and run the shortcut again.": "O NOOP não conseguiu abrir os dados a tempo. Abre o NOOP uma vez e executa o atalho novamente.",
-  "Nearly on track": "Quase no ritmo"
+  "Nearly on track": "Quase no ritmo",
+  "Sleep stages (test)": "Fases do sono (teste)",
+  "Standard": "Padrão",
+  "Trained model": "Modelo treinado",
+  "With restlessness check": "Com deteção de agitação",
+  "The usual method. It reads your heart rate, how much it varies, your breathing rhythm and how you move. Recommended if you have no reason to switch.": "O método habitual. Lê a tua frequência cardíaca, quanto varia, o teu ritmo respiratório e como te mexes. Recomendado se não tiveres motivo para mudar.",
+  "Like Standard, with one check added. In REM sleep the body lies almost still. When the strap keeps moving slightly for longer than a few seconds, that time counts as light sleep instead of REM, because lying restless was often mistaken for REM. It never marks you as awake. Worth trying if your REM is often above 30 %. Checked against sleep-lab recordings.": "Como Padrão, com uma verificação extra. No sono REM o corpo fica quase imóvel. Quando a pulseira se mexe ligeiramente durante mais de alguns segundos, esse tempo conta como sono leve em vez de REM, porque estar deitado inquieto era muitas vezes confundido com REM. Nunca te marca como acordado. Vale a pena experimentar se o teu REM passa muitas vezes dos 30 %. Verificado com gravações de laboratório do sono.",
+  "Learned from sleep-lab recordings of other wrist devices and not yet checked on WHOOP nights. On some nights it shows very little REM. For testing only.": "Aprendido com gravações de laboratório do sono de outros dispositivos de pulso e ainda não verificado em noites WHOOP. Em algumas noites mostra muito pouco REM. Apenas para testes.",
+  "Which method sorts your night into light, deep, REM and awake. Switching recalculates all nights; your recorded data and your sleep corrections stay.": "Que método divide a tua noite em leve, profundo, REM e acordado. Mudar recalcula todas as noites; os teus dados registados e as tuas correções do sono mantêm-se."
 }

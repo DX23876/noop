@@ -254,6 +254,7 @@ object CoreShadow {
             // The automatic maximum heart rate the screens read is the one the pass scores with: ask the core, off the main thread.
             CoreProfile.refreshMaxHeartRate(profile)
             put("sleepStagerMethod", com.noop.ble.PuffinExperiment.from(context).sleepStagerMethod)
+            put("sleepStagingRecipe", com.noop.ble.PuffinExperiment.from(context).sleepStagingRecipe)
             put("spo2CandidateDisplay", spo2CandidateDisplay)
             put("effortStrengthBonus", CoreFeatures.effortStrengthBonus(context))
             put("historyRescore", historyRescore)

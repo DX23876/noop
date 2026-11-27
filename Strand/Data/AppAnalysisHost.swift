@@ -34,7 +34,8 @@ final class AppAnalysisHost: AnalysisHost {
             recoveryBaselineEpoch: Baselines.recoveryBaselineEpoch(defaults),
             traces: Set(TestDomain.allCases.filter { TestCentre.active($0) }),
             effortStrengthBonus: PuffinExperiment.effortStrengthBonusEnabled,
-            sleepStagerMethod: PuffinExperiment.sleepStagerMethod(in: defaults))
+            sleepStagerMethod: PuffinExperiment.sleepStagerMethod(in: defaults),
+            sleepStagingRecipe: PuffinExperiment.sleepStagingRecipe(in: defaults))
     }
 
     func diagnostic(_ line: String, domain: TestDomain?) {

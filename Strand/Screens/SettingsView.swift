@@ -223,6 +223,8 @@ private struct SettingsPageContent: View, Equatable {
 
     /// Persist the complete pipeline; an absent new key resolves the legacy choice once read.
     @AppStorage(PuffinExperiment.sleepStagerMethodKey) private var sleepStagerMethodRaw = ""
+    /// Lab "Sleep stages (test)": [PuffinExperiment.sleepStagingRecipeKey], empty is the standard recipe.
+    @AppStorage(PuffinExperiment.sleepStagingRecipeKey) private var sleepStagingRecipeRaw = ""
 
     /// "Motion-aware wake refinement" (#364 follow-up, OFF by default). A post-pass over the already-staged
     /// hypnogram: reclassifies a scored WAKE segment to `light` when its per-minute step-tick cadence shows
@@ -4241,6 +4243,44 @@ private struct SettingsPageContent: View, Equatable {
         }
     }
 
+    /// The Lab's sleep staging recipe menu (shared by both looks). A flip re-keys every day, so the whole history
+    /// is staged again; the recorded streams and the wearer's corrected bed and wake times stay.
+    private var sleepStagingRecipePicker: some View {
+        Picker("Sleep stages (test)", selection: Binding(
+            get: { SleepStager.StagingRecipe.resolved(rawValue: sleepStagingRecipeRaw) },
+            set: { sleepStagingRecipeRaw = $0.rawValue }
+        )) {
+            Text("Standard").tag(SleepStager.StagingRecipe.standard)
+            Text("With restlessness check").tag(SleepStager.StagingRecipe.restless)
+            Text("Trained model").tag(SleepStager.StagingRecipe.trained)
+        }
+        .labelsHidden()
+        .pickerStyle(.menu)
+        .appleInspiredTint("settings.controls")
+        .accessibilityLabel("Sleep stages (test)")
+        .onChange(of: sleepStagingRecipeRaw) { _ in
+            Task {
+                await model.intelligence.reanalyzeHistoryReusingUnchangedDays(triggerLabel: "sleep-recipe")
+                await model.repo.refresh()
+            }
+        }
+    }
+
+    /// What the chosen staging recipe does, in plain words, under the menu in both looks.
+    @ViewBuilder private var sleepStagingRecipeExplanation: some View {
+        switch SleepStager.StagingRecipe.resolved(rawValue: sleepStagingRecipeRaw) {
+        case .standard:
+            Text("The usual method. It reads your heart rate, how much it varies, your breathing rhythm and how you move. Recommended if you have no reason to switch.")
+                .settingsCaption()
+        case .restless:
+            Text("Like Standard, with one check added. In REM sleep the body lies almost still. When the strap keeps moving slightly for longer than a few seconds, that time counts as light sleep instead of REM, because lying restless was often mistaken for REM. It never marks you as awake. Worth trying if your REM is often above 30 %. Checked against sleep-lab recordings.")
+                .settingsCaption()
+        case .trained:
+            Text("Learned from sleep-lab recordings of other wrist devices and not yet checked on WHOOP nights. On some nights it shows very little REM. For testing only.")
+                .settingsCaption()
+        }
+    }
+
     /// The wake-check switch of the calculation page (shared by both looks). Motion-aware wake
     /// refinement (#364 follow-up), default off; it self-gates on observed motion density.
     private var wakeCheckToggle: some View {
@@ -4365,8 +4405,17 @@ private struct SettingsPageContent: View, Equatable {
                       blurb: "Strength sessions you rate after training add to Effort beyond your heart rate, more for a harder rating and a longer session. Unrated sessions add nothing. Calibrated against WHOOP on an assumed effort of 7 out of 10.")
                 .onChangeCompat(of: effortStrengthBonusEnabled) { _ in
                     // Only days with a rated strength session change; every other day is reused.
-                    Task { await model.intelligence.reanalyzeHistoryReusingUnchangedDays(); await model.repo.refresh() }
+                    Task {
+                        await model.intelligence.reanalyzeHistoryReusingUnchangedDays(triggerLabel: "strength-effort")
+                        await model.repo.refresh()
+                    }
                 }
+            SettingsSection(icon: "flask", title: "Sleep stages (test)",
+                            blurb: "Which method sorts your night into light, deep, REM and awake. Switching recalculates all nights; your recorded data and your sleep corrections stay.") {
+                FormRow(label: "Sleep stages (test)") { sleepStagingRecipePicker }
+                sleepStagingRecipeExplanation
+            }
+            .environment(\.settingsSectionHeaderHidden, true)
             labToggle("AgeLess", isOn: $healthspanEnabled,
                       blurb: "Beta. An age from nine measures of sleep, activity and fitness over six months, with the steps that would help most. Replaces Body Age on Health. Needs 30 nights. A motivation tool, not a medical age.")
                 .onChangeCompat(of: healthspanEnabled) { on in
@@ -4460,9 +4509,20 @@ private struct SettingsPageContent: View, Equatable {
                 .tint(StrandPalette.accent)
                 .onChangeCompat(of: effortStrengthBonusEnabled) { _ in
                     // Only days with a rated strength session change; every other day is reused.
-                    Task { await model.intelligence.reanalyzeHistoryReusingUnchangedDays(); await model.repo.refresh() }
+                    Task {
+                        await model.intelligence.reanalyzeHistoryReusingUnchangedDays(triggerLabel: "strength-effort")
+                        await model.repo.refresh()
+                    }
                 }
                 Text("Strength sessions you rate after training add to Effort beyond your heart rate, more for a harder rating and a longer session. Unrated sessions add nothing. Calibrated against WHOOP on an assumed effort of 7 out of 10.")
+                    .settingsCaption()
+
+                // MARK: Sleep staging recipe (Lab). Standard by default.
+                Divider().overlay(StrandPalette.hairline)
+
+                FormRow(label: "Sleep stages (test)") { sleepStagingRecipePicker }
+                sleepStagingRecipeExplanation
+                Text("Which method sorts your night into light, deep, REM and awake. Switching recalculates all nights; your recorded data and your sleep corrections stay.")
                     .settingsCaption()
 
                 // MARK: Fork — AgeLess, a healthspan age from published mortality studies. Off by default; replaces Body Age.

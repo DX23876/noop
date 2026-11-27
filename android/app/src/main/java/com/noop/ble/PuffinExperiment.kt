@@ -90,6 +90,15 @@ class PuffinExperiment(
         get() = sleepStagerMethod != "v1"
         set(v) { sleepStagerMethod = if (v) "v2" else "v1" }
 
+    /** Lab "Sleep stages (test)": which recipe stages a V2-family night in the core, by its raw value
+     *  (`SleepStager.StagingRecipe`). Unset or unknown is "standard". Twin of Apple's `sleepStagingRecipeKey`. */
+    var sleepStagingRecipe: String
+        get() = prefs.getString(KEY_SLEEP_STAGING_RECIPE, null)?.takeIf { it in SLEEP_RECIPES } ?: "standard"
+        set(v) {
+            require(v in SLEEP_RECIPES)
+            prefs.edit().putString(KEY_SLEEP_STAGING_RECIPE, v).apply()
+        }
+
     /** Complete shared-core pipeline. Explicit new choices override the legacy phase-engine flag. */
     var sleepStagerMethod: String
         get() = prefs.getString(KEY_SLEEP_STAGER_METHOD, null)?.takeIf { it in SLEEP_METHODS }
@@ -361,6 +370,8 @@ class PuffinExperiment(
         const val KEY_EXPERIMENTAL_SLEEP_V2 = "noopExperimentalSleepV2"
         const val KEY_SLEEP_STAGER_METHOD = "noopSleepStagerMethod"
         val SLEEP_METHODS = listOf("v3", "v2", "v1")
+        const val KEY_SLEEP_STAGING_RECIPE = "noopSleepStagingRecipe"
+        val SLEEP_RECIPES = listOf("standard", "restless", "trained")
 
         /** "HR-from-PPG sub-lag interpolation" opt-in (mirrors macOS `PuffinExperiment.ppgHrSubLagInterpKey`). */
         const val KEY_PPG_HR_SUBLAG_INTERP = "noopPpgHrSubLagInterp"

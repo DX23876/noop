@@ -70,7 +70,7 @@ public enum Acknowledgements {
     /// adopts someone's work.
     public static let contributors: [Contributor] = [
         Contributor(handle: "@UtkuDenizAltiok", work: "Deleted-nights list, sync reminder, SDNN guard, wind-down sleep need, skin temperature once and in your unit, translations"),
-        Contributor(handle: "@ayiskakov", work: "Offload data-loss fixes, Bluetooth power-off teardown, deep-sleep onset hold, delete versus re-score"),
+        Contributor(handle: "@ayiskakov", work: "Offload data-loss fixes, Bluetooth power-off teardown, deep-sleep onset hold, delete versus re-score, trained sleep-stage model (Lab)"),
         Contributor(handle: "@kavemang", work: "Sleep marks through Shortcuts, DST tests, gravity witness, workout edits shown before the rescore"),
         Contributor(handle: "@Iskrata", work: "Absolute skin temperature on import, beat-to-beat intervals and nightly vitals in Apple Health"),
         Contributor(handle: "@gdorgian", work: "Liquid clocks stand down when still, a short last sleep stretch is kept"),

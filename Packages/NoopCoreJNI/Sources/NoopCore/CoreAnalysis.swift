@@ -48,6 +48,9 @@ public enum CoreAnalysis {
         /// The Android Banister switch, ignored by the core since #2438; retained for the legacy JNI ABI.
         public var effortBanister: Bool, motionAwareWake: Bool, deepHrvWindow: Bool
         public var sleepStagerMethod: SleepStager.Method
+        /// Lab: which recipe stages a V2-family night (Apple `noopSleepStagingRecipe`); the extras key
+        /// `sleepStagingRecipe`.
+        public var sleepStagingRecipe: SleepStager.StagingRecipe = .standard
         public var sleepStagerV2: Bool {
             get { sleepStagerMethod.usesV2Stages }
             set { sleepStagerMethod = newValue ? .v2 : .v1 }
@@ -112,7 +115,7 @@ public enum CoreAnalysis {
                              rhythmAge: rhythmAge, healthspan: healthspan,
                              hrvBaselineEpoch: hrvBaselineEpoch, recoveryBaselineEpoch: recoveryBaselineEpoch,
                              traces: [], effortStrengthBonus: effortStrengthBonus,
-                             sleepStagerMethod: sleepStagerMethod)
+                             sleepStagerMethod: sleepStagerMethod, sleepStagingRecipe: sleepStagingRecipe)
         }
     }
 
@@ -127,6 +130,9 @@ public enum CoreAnalysis {
               let o = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return }
         if let raw = o["sleepStagerMethod"] as? String, let method = SleepStager.Method(rawValue: raw) {
             settings.sleepStagerMethod = method
+        }
+        if let raw = o["sleepStagingRecipe"] as? String {
+            settings.sleepStagingRecipe = SleepStager.StagingRecipe.resolved(rawValue: raw)
         }
         if let raw = o["formulaLog"] as? String { settings.basalFormula = BmrFormulaLog.decode(raw).current }
         func double(_ k: String) -> Double? { (o[k] as? NSNumber)?.doubleValue }
@@ -311,7 +317,8 @@ public enum CoreAnalysis {
             await EditedSleepHeal.heal(
                 store: reader.store, strapId: reader.activeDeviceId, computedId: reader.activeDeviceId + "-noop",
                 from: windowStart, to: windowEnd, unchangedDays: unchangedDays, tzOffsetSeconds: tzOffsetSeconds,
-                staging: .init(method: settings.sleepStagerMethod, motionAwareWake: settings.motionAwareWake),
+                staging: .init(method: settings.sleepStagerMethod, motionAwareWake: settings.motionAwareWake,
+                               recipe: settings.sleepStagingRecipe),
                 lastSignature: host.storedString(Self.stagerSignatureKey),
                 saveSignature: { [host] in host.store($0, forKey: Self.stagerSignatureKey) })
         }

@@ -7804,4 +7804,12 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fsp6_coach_forget_message">您需要再次粘贴它才能重新连接。这与 Disconnect 不同，Disconnect 保留密钥。</string>
     <string name="fsp6_lab_blurb">尚未完成的功能。默认关闭，随时可以再次关闭。</string>
     <string name="fsp6_ss_motion">运动</string>
+    <string name="forge_lab_sleep_recipe">睡眠阶段（测试）</string>
+    <string name="forge_lab_sleep_recipe_standard">标准</string>
+    <string name="forge_lab_sleep_recipe_trained">训练模型</string>
+    <string name="forge_lab_sleep_recipe_restless">附加躁动检测</string>
+    <string name="forge_lab_sleep_recipe_standard_detail">常用方法。它读取你的心率、心率的波动、呼吸节律和你的动作。如无特别原因，建议使用。</string>
+    <string name="forge_lab_sleep_recipe_restless_detail">与标准相同，另加一项检查。REM 睡眠时身体几乎不动。当手环持续轻微移动超过几秒钟，这段时间会算作浅睡而不是 REM，因为躺着不安以前常被误认为 REM。它从不把你标记为清醒。如果你的 REM 经常超过 30%，值得一试。已用睡眠实验室记录核对。</string>
+    <string name="forge_lab_sleep_recipe_trained_detail">从其他腕戴设备的睡眠实验室记录中学习，尚未在 WHOOP 夜晚上验证。某些夜晚显示的 REM 很少。仅供测试。</string>
+    <string name="forge_lab_sleep_recipe_detail">将你的夜晚划分为浅睡、深睡、REM 和清醒的方法。切换后会重新计算所有夜晚；你记录的数据和睡眠修正会保留。</string>
 </resources>

@@ -132,6 +132,17 @@ final class BackupSettingsTests: XCTestCase {
         XCTAssertEqual(destination.string(forKey: "noopSleepStagerMethod"), "v2")
     }
 
+    func testTheLabStagingRecipeSurvivesBackupRestore() throws {
+        let source = try freshDefaults()
+        source.set("trained", forKey: "noopSleepStagingRecipe")
+        let snapshot = BackupSettings.snapshot(from: source)
+        XCTAssertEqual(snapshot["sleep.stagingRecipe"] as? String, "trained")
+        let encoded = try XCTUnwrap(BackupSettings.encode(snapshot))
+        let destination = try freshDefaults()
+        BackupSettings.apply(BackupSettings.decode(encoded), to: destination)
+        XCTAssertEqual(destination.string(forKey: "noopSleepStagingRecipe"), "trained")
+    }
+
     func testSnapshotOmitsUnsetKeysAndMapsHrMaxOverride() throws {
         let defaults = try freshDefaults()
         defaults.set(29, forKey: "profile.age")

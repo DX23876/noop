@@ -4797,5 +4797,13 @@
   "Backed up your NOOP data.": "Deine NOOP-Daten sind gesichert.",
   "Make a complete backup of your NOOP data as a .noopbak file, the same file Settings exports. Save it anywhere with the next step.": "Erstellt eine vollständige Sicherung deiner NOOP-Daten als .noopbak-Datei, dieselbe Datei wie der Export in den Einstellungen. Speichere sie mit dem nächsten Schritt, wo du willst.",
   "NOOP could not open its data in time. Open NOOP once and run the shortcut again.": "NOOP konnte seine Daten nicht rechtzeitig öffnen. Öffne NOOP einmal und starte den Kurzbefehl erneut.",
-  "Nearly on track": "Knapp dran"
+  "Nearly on track": "Knapp dran",
+  "Sleep stages (test)": "Schlafphasen (Test)",
+  "Standard": "Standard",
+  "Trained model": "Trainiertes Modell",
+  "With restlessness check": "Mit Unruhe-Erkennung",
+  "The usual method. It reads your heart rate, how much it varies, your breathing rhythm and how you move. Recommended if you have no reason to switch.": "Das übliche Verfahren. Es liest deinen Puls, wie stark er schwankt, deinen Atemrhythmus und wie du dich bewegst. Empfohlen, wenn du keinen Grund zum Wechseln hast.",
+  "Like Standard, with one check added. In REM sleep the body lies almost still. When the strap keeps moving slightly for longer than a few seconds, that time counts as light sleep instead of REM, because lying restless was often mistaken for REM. It never marks you as awake. Worth trying if your REM is often above 30 %. Checked against sleep-lab recordings.": "Wie Standard, mit einer zusätzlichen Prüfung. Im REM-Schlaf liegt der Körper fast still. Bewegt sich der Strap länger als ein paar Sekunden leicht, zählt diese Zeit als Leichtschlaf statt als REM, weil unruhiges Liegen oft für REM gehalten wurde. Als wach wertet sie dich nie. Einen Versuch wert, wenn dein REM oft über 30 % liegt. Geprüft an Schlaflabor-Aufnahmen.",
+  "Learned from sleep-lab recordings of other wrist devices and not yet checked on WHOOP nights. On some nights it shows very little REM. For testing only.": "An Schlaflabor-Aufnahmen anderer Geräte am Handgelenk gelernt und auf WHOOP-Nächten noch nicht geprüft. In manchen Nächten zeigt es sehr wenig REM. Nur zum Testen.",
+  "Which method sorts your night into light, deep, REM and awake. Switching recalculates all nights; your recorded data and your sleep corrections stay.": "Welches Verfahren deine Nacht in leicht, tief, REM und wach einteilt. Umschalten berechnet alle Nächte neu; deine aufgezeichneten Daten und deine Schlafkorrekturen bleiben."
 }

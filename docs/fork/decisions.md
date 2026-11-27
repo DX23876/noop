@@ -2166,3 +2166,63 @@ it go in as DX23876). Both are credited in ATTRIBUTION.md and the shared contrib
   workout scoping, held still (`TimelineChart(gesturesEnabled = false)`) so the page scrolls over it.
 
 Analysis migration required: no (an Apple Health export key and a display card).
+
+## 2026-11-26 — A trained sleep-stage model as a Lab choice, judged against sleep-lab truth
+
+Refs #59. A tester (@andreyeurope) reported that lying awake and restless before getting up is scored as REM,
+and proposed counting small wrist movements against REM. Replayed through `Tools/SleepPSG` the proposal held
+in pooled numbers on PhysioNet sleep-accel (wake sensitivity 30.9 to 43.7 %, REM share 26.4 to 21.2 % against
+22.0 %), but it z-scores the movement within each night, so a calm sleeper's quietest restlessness reads as
+wake: one subject with 1.0 % PSG wake went from 4.4 to 17.5 % awake. A second open set (Newcastle PSG +
+GENEActiv, no heart rate) and two gentler forms (sustained movement only, a cross-subject reference, a
+heart-rate gate) narrowed that, never removed it.
+
+The largest step available was not a tweak of V2: ayiskakov/noop's `SleepStagerV3`, a pair of logistic heads
+and an HMM fitted to open polysomnography. On Newcastle, which it never saw, it took the per-subject kappa
+from 0.084 to 0.167; its weakness is REM (on Newcastle, with no heart rate, it called 6.9 % against 11.5 %).
+It is adopted as `SleepStagerTrained` (the name `V3` was taken by this fork's detection change), byte for byte
+against its own Python oracle, behind a Lab choice "Sleep stages (test)" with "Standard" and "Trained model".
+
+Decided with the owner:
+
+- **What "better" means.** Sleep-lab truth, with a guard for calm sleepers: their mean wake error rises at
+  most 1 point over today's, at most 1 in 30 subjects is over-called by more than 5 points of wake, the
+  per-subject REM error worsens by at most 2 points, and on data with heart rate no night shows 0 % REM where
+  the lab measured over 10 %. The owner's own nights are the last check, not the target.
+- **Where it lives.** One recipe value, `SleepStager.StagingRecipe`, read by every V2-family call site through
+  `SleepStager.stageV2Family`: detection, the heart-rate-only path, the edit heal, and the core's restage calls.
+  V1 ignores it. The standard recipe leaves every signature as it was, so an untouched install reuses every
+  stored day; any other recipe appends to the day signature and the heal signature (`signatureSuffix`), so a
+  switch stages the whole history and every edited night again. No recipe bump: nothing changes until someone
+  switches.
+- **When it may become the default.** Only after it wins on two independent sleep-lab sets, one of them with
+  beat-to-beat intervals (the signal a WHOOP has and sleep-accel and Newcastle lack), and testers report no
+  outliers. The heart-rate-gated form of #59 is measured on Wearanize+ next; if it breaks the guard it is
+  dropped rather than retuned on the data it is checked on.
+
+Analysis migration required: no (a Lab choice, default standard; switching it restages the history itself)
+
+## 2026-11-27 — Restless movement argues against REM, in the core; the Lab entry waits for the owner
+
+Refs #59. On Wearanize+ (88 nights, Empatica E4 with beat-to-beat intervals) the heart-rate-gated form of the
+proposal broke the guard: it over-called wake by more than 5 points on 4 of 88 nights scaled within the night,
+on 3 of 88 against the other subjects, where 2 are allowed. It is dropped as agreed, not retuned. The one form
+that passed on all three sets is "sustained, REM only": jerks above 5 × the night's quiescent floor in runs of
+5 s or more, averaged over ±5 epochs, z-scored within the night, its positive part taken off REM at 0.5, no
+wake term. On Wearanize+ it moves kappa from 0.352 to 0.354 and the REM share bias from +6.0 to +2.4 points;
+it finds no extra wake. It is in the core as `SleepStagerV2.RestlessTerm.remOnly`, pinned label for label to
+the scored port by the `Tools/SleepPSG` port tests, and nothing in the app calls it yet.
+
+On the owner's 14 most recent MG nights (`Tools/SleepBench` section R, the 2026-11-22 copy) the mean REM share
+falls from 28.9 to 24.7 %, the nights over 30 % REM from 5 to 3; wake rises from 5.8 to 6.3 % (2.5 points on
+the worst night) and deep is unchanged. Whether it becomes a third Lab entry is the owner's call on these
+numbers.
+
+The owner took it on those numbers, as a Lab entry and not as the default: overall it agrees with sleep-lab
+truth no better than Standard, it only moves excess REM to light sleep. `SleepStager.StagingRecipe.restless`
+("With restlessness check", German "Mit Unruhe-Erkennung") sits between Standard and the trained model, with
+the same switch rules (signature suffix "+restless", the whole history restaged on a switch, nothing on an
+untouched install). Each choice now carries its own plain-words explanation under the menu, because the owner
+asked that a reader can tell what the check does without the background above.
+
+Analysis migration required: no (a Lab choice, default standard; switching it restages the history itself)

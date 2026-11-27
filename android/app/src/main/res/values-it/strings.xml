@@ -7829,4 +7829,12 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="fsp6_coach_forget_message">Dovrai incollarlo di nuovo per riconnetterti. Questo è diverso da Disconnect, che mantiene la chiave.</string>
     <string name="fsp6_lab_blurb">Funzioni non finite. Disattivate per impostazione predefinita; puoi spegnerle quando vuoi.</string>
     <string name="fsp6_ss_motion">Movimento</string>
+    <string name="forge_lab_sleep_recipe">Fasi del sonno (test)</string>
+    <string name="forge_lab_sleep_recipe_standard">Standard</string>
+    <string name="forge_lab_sleep_recipe_trained">Modello addestrato</string>
+    <string name="forge_lab_sleep_recipe_restless">Con rilevamento dell\'agitazione</string>
+    <string name="forge_lab_sleep_recipe_standard_detail">Il metodo abituale. Legge la frequenza cardiaca, quanto varia, il ritmo del respiro e come ti muovi. Consigliato se non hai motivo di cambiare.</string>
+    <string name="forge_lab_sleep_recipe_restless_detail">Come Standard, con un controllo in più. Nel sonno REM il corpo resta quasi immobile. Se il bracciale si muove leggermente per più di qualche secondo, quel tempo conta come sonno leggero invece che REM, perché stare a letto agitati veniva spesso scambiato per REM. Non ti segna mai come sveglio. Da provare se il tuo REM supera spesso il 30 %. Verificato su registrazioni di laboratorio del sonno.</string>
+    <string name="forge_lab_sleep_recipe_trained_detail">Appreso da registrazioni di laboratorio del sonno di altri dispositivi da polso e non ancora verificato su notti WHOOP. In alcune notti mostra pochissimo REM. Solo per test.</string>
+    <string name="forge_lab_sleep_recipe_detail">Quale metodo divide la tua notte in leggero, profondo, REM e sveglio. Cambiare ricalcola tutte le notti; i dati registrati e le tue correzioni del sonno restano.</string>
 </resources>

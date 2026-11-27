@@ -7915,4 +7915,12 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="fsp6_coach_forget_message">Aby połączyć się ponownie, trzeba będzie wkleić go jeszcze raz. To co innego niż Rozłącz, które zachowuje klucz.</string>
     <string name="fsp6_lab_blurb">Niedokończone funkcje. Domyślnie wyłączone; możesz je wyłączyć w każdej chwili.</string>
     <string name="fsp6_ss_motion">Ruch</string>
+    <string name="forge_lab_sleep_recipe">Fazy snu (test)</string>
+    <string name="forge_lab_sleep_recipe_standard">Standardowa</string>
+    <string name="forge_lab_sleep_recipe_trained">Wytrenowany model</string>
+    <string name="forge_lab_sleep_recipe_restless">Z wykrywaniem niepokoju</string>
+    <string name="forge_lab_sleep_recipe_standard_detail">Zwykła metoda. Odczytuje tętno, to, jak bardzo się zmienia, rytm oddechu i twoje ruchy. Zalecane, jeśli nie masz powodu do zmiany.</string>
+    <string name="forge_lab_sleep_recipe_restless_detail">Jak Standardowe, z jednym dodatkowym sprawdzeniem. W fazie REM ciało leży niemal nieruchomo. Gdy opaska porusza się lekko dłużej niż kilka sekund, ten czas liczy się jako sen płytki zamiast REM, bo niespokojne leżenie często brano za REM. Nigdy nie oznacza cię jako przebudzonego. Warto spróbować, jeśli twój REM często przekracza 30 %. Sprawdzone na nagraniach z laboratoriów snu.</string>
+    <string name="forge_lab_sleep_recipe_trained_detail">Nauczony na nagraniach z laboratoriów snu z innych urządzeń na nadgarstek i jeszcze niesprawdzony na nocach WHOOP. W niektóre noce pokazuje bardzo mało REM. Tylko do testów.</string>
+    <string name="forge_lab_sleep_recipe_detail">Która metoda dzieli twoją noc na sen płytki, głęboki, REM i czuwanie. Zmiana przelicza wszystkie noce; zapisane dane i twoje poprawki snu zostają.</string>
 </resources>

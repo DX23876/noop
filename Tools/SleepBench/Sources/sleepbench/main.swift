@@ -557,6 +557,60 @@ for nt in nights {
     print("\(nt.night) \(nt.row.userEdited ? "   yes" : "    no") \(nt.band.isEmpty ? "   -" : "   Y") \(f(nt.row.durMin, 5, 0)) \(f(nt.meanHR, 7, 1)) \(f(wakeMinutes(stored), 7, 0)) \(f(wakeMinutes(nt.v1), 7, 0)) \(f(wakeMinutes(nt.v2), 7, 0)) \(f(nt.row.efficiency ?? .nan, 10, 3))")
 }
 
+// MARK: - Lab staging recipes on the wearer's own recent nights
+
+// The last check agreed for the Lab's "Sleep stages (test)" (docs/fork/decisions.md, 2026-11-26): the recent main
+// nights staged by every recipe the Lab offers or considers, side by side, with the three plausibility flags named
+// there. "REM only" is the restless term that passed the sleep-lab guard (`SleepStagerV2.RestlessTerm.remOnly`);
+// "HR wake" is the heart-rate-gated form that failed it, printed for comparison only. There is no truth for these
+// nights; the wearer's memory of two or three of them is the only reference.
+do {
+    let recent = nights.filter { $0.row.durMin >= 180 }.sorted { $0.row.startTs > $1.row.startTs }.prefix(14)
+    let hrWake = SleepStagerV2.RestlessTerm(remWeight: 0.5, awakeWeight: 0.75, awakeNeedsRaisedHR: true)
+    let names = ["Standard", "REM only", "HR wake", "Trained"]
+    print("""
+
+    R. LAB STAGING RECIPES ON THE \(recent.count) MOST RECENT MAIN NIGHTS (3 h or longer), wake / deep / REM in %
+       flags: R = REM over 30 %, D = deep under 5 %, W = wake rises by over 5 points against Standard
+       night               in bed  | \(names.map { $0.padding(toLength: 21, withPad: " ", startingAt: 0) }.joined(separator: "| "))
+    """)
+    func flags(_ p: [String: Double], _ base: [String: Double]) -> String {
+        (p["rem"]! > 30 ? "R" : "") + (p["deep"]! < 5 ? "D" : "") + (p["wake"]! - base["wake"]! > 5 ? "W" : "")
+    }
+    var sums = [[String: Double]](repeating: [:], count: names.count)
+    var remOver30 = [Int](repeating: 0, count: names.count)
+    for nt in recent.reversed() {
+        let r = nt.row
+        let st = try db.streams(device: a.streamDevice, from: r.startTs - a.pad, to: r.endTs + a.pad)
+        func v2(_ term: SleepStagerV2.RestlessTerm) -> [String] {
+            epochLabels(SleepStagerV2.stageSession(start: r.startTs, end: r.endTs, grav: st.grav, hr: st.hr,
+                                                   rr: st.rr, resp: st.resp, restless: term),
+                        start: r.startTs, end: r.endTs)
+        }
+        let trained = epochLabels(SleepStager.stageV2Family(.trained, start: r.startTs, end: r.endTs, grav: st.grav,
+                                                            hr: st.hr, rr: st.rr, resp: st.resp),
+                                  start: r.startTs, end: r.endTs)
+        let ps = [nt.v2, v2(.remOnly), v2(hrWake), trained].map(stagePercentages)
+        var line = "    \(nt.night.padding(toLength: 18, withPad: " ", startingAt: 0)) \(String(format: "%5.0f", r.durMin)) min"
+        for (i, p) in ps.enumerated() {
+            let cells = ["wake", "deep", "rem"].map { String(format: "%5.1f", p[$0]!) }.joined(separator: " ")
+            line += " | \(cells) \(flags(p, ps[0]).padding(toLength: 3, withPad: " ", startingAt: 0))"
+            for k in ["wake", "deep", "rem"] { sums[i][k, default: 0] += p[k]! }
+            if p["rem"]! > 30 { remOver30[i] += 1 }
+        }
+        print(line)
+    }
+    let n = Double(max(1, recent.count))
+    var mean = "    mean                         "
+    for i in names.indices {
+        mean += " | " + ["wake", "deep", "rem"].map { String(format: "%5.1f", (sums[i][$0] ?? 0) / n) }.joined(separator: " ")
+            + "    "
+    }
+    print(mean)
+    print("    nights with REM over 30 %: "
+          + names.indices.map { "\(names[$0]) \(remOver30[$0])" }.joined(separator: ", "))
+}
+
 if let path = a.csv {
     /// Blank rather than a sentinel wherever a night has no value: a night that never reaches REM has no
     /// first-REM latency, and writing 0 there would be a different claim.

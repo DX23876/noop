@@ -105,7 +105,7 @@ internal suspend fun applySleepEdit(viewModel: AppViewModel, context: android.co
                                     relocating: Boolean = false): SleepChange =
     readChange(context, viewModel.editSleepNight(night.blocks, newStartTs, newEndTs,
                                                  experiment.sleepStagerMethod, experiment.motionAwareWake,
-                                                 relocating),
+                                                 relocating, experiment.sleepStagingRecipe),
                fromEdit = true, startTs = newStartTs, endTs = newEndTs)
 
 /** Take [night] out, every block of it. */
@@ -487,7 +487,8 @@ internal fun SleepAddDialog(seedStart: Long, seedEnd: Long, viewModel: AppViewMo
                                      computedDeviceId = viewModel.repo.computedDeviceId(viewModel.activeStrapId),
                                      start = window.first, end = window.second,
                                      method = experiment.sleepStagerMethod,
-                                     motionAwareWake = experiment.motionAwareWake)
+                                     motionAwareWake = experiment.motionAwareWake,
+                                     recipe = experiment.sleepStagingRecipe)
                              }
                              when (outcome) {
                                  is com.noop.core.CoreMath.AddSleepOutcome.Ok, null -> commit(window.first, window.second)

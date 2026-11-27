@@ -4897,5 +4897,13 @@
   "Backed up your NOOP data.": "已备份你的 NOOP 数据。",
   "Make a complete backup of your NOOP data as a .noopbak file, the same file Settings exports. Save it anywhere with the next step.": "将你的 NOOP 数据完整备份为 .noopbak 文件，与“设置”导出的文件相同。用下一步把它保存到任意位置。",
   "NOOP could not open its data in time. Open NOOP once and run the shortcut again.": "NOOP 未能及时打开数据。请先打开一次 NOOP，然后重新运行快捷指令。",
-  "Nearly on track": "接近进度"
+  "Nearly on track": "接近进度",
+  "Sleep stages (test)": "睡眠阶段（测试）",
+  "Standard": "标准",
+  "Trained model": "训练模型",
+  "With restlessness check": "附加躁动检测",
+  "The usual method. It reads your heart rate, how much it varies, your breathing rhythm and how you move. Recommended if you have no reason to switch.": "常用方法。它读取你的心率、心率的波动、呼吸节律和你的动作。如无特别原因，建议使用。",
+  "Like Standard, with one check added. In REM sleep the body lies almost still. When the strap keeps moving slightly for longer than a few seconds, that time counts as light sleep instead of REM, because lying restless was often mistaken for REM. It never marks you as awake. Worth trying if your REM is often above 30 %. Checked against sleep-lab recordings.": "与标准相同，另加一项检查。REM 睡眠时身体几乎不动。当手环持续轻微移动超过几秒钟，这段时间会算作浅睡而不是 REM，因为躺着不安以前常被误认为 REM。它从不把你标记为清醒。如果你的 REM 经常超过 30%，值得一试。已用睡眠实验室记录核对。",
+  "Learned from sleep-lab recordings of other wrist devices and not yet checked on WHOOP nights. On some nights it shows very little REM. For testing only.": "从其他腕戴设备的睡眠实验室记录中学习，尚未在 WHOOP 夜晚上验证。某些夜晚显示的 REM 很少。仅供测试。",
+  "Which method sorts your night into light, deep, REM and awake. Switching recalculates all nights; your recorded data and your sleep corrections stay.": "将你的夜晚划分为浅睡、深睡、REM 和清醒的方法。切换后会重新计算所有夜晚；你记录的数据和睡眠修正会保留。"
 }

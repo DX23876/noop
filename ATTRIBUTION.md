@@ -145,7 +145,7 @@ makes to it follow as separate commits.
 
 | Who | What NOOP Forge took | Source |
 |---|---|---|
-| [@ayiskakov](https://github.com/ayiskakov) | Offload data-loss paths closed; the link is ended when Bluetooth powers off; an off-wrist empty offload is no clock fault; deep sleep held back after onset; a data delete is not undone by a re-score | [ayiskakov/noop](https://github.com/ayiskakov/noop) |
+| [@ayiskakov](https://github.com/ayiskakov) | Offload data-loss paths closed; the link is ended when Bluetooth powers off; an off-wrist empty offload is no clock fault; deep sleep held back after onset; a data delete is not undone by a re-score; the trained sleep-stage model and its sleep-lab fit (`SleepStagerTrained`, Lab "Sleep stages (test)") | [ayiskakov/noop](https://github.com/ayiskakov/noop) |
 | [@Iskrata](https://github.com/Iskrata) | WHOOP's absolute skin temperature stored as such on import; beat-to-beat intervals written to Apple Health; nightly vitals stamped inside the night | [Iskrata/noop](https://github.com/Iskrata/noop) |
 | [@gdorgian](https://github.com/gdorgian) | Liquid clocks stand down once the liquid stops moving; a short last stretch that continues the night is kept | gdorgian/noop |
 | [@mohamedchnafy-ds](https://github.com/mohamedchnafy-ds) | Weekly sets per muscle against the research band (idea); recent naps in the coach's context | [mohamedchnafy-ds/noop](https://github.com/mohamedchnafy-ds/noop) |

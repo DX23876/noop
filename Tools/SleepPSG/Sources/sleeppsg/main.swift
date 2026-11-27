@@ -27,7 +27,7 @@ while let k = it.next() {
     case "--seed": a.seed = UInt64(it.next() ?? "") ?? a.seed
     case "-h", "--help":
         print("""
-        usage: sleeppsg --dataset <sleep-accel root> [--section all|port|baseline|strata|rem|variants|priors]
+        usage: sleeppsg --dataset <sleep-accel root> [--section all|port|baseline|strata|rem|variants|priors|restless]
                         [--subjects N] [--csv <path>] [--seed <n>]
 
           --dataset   PhysioNet sleep-accel v1.0.0, extracted. See README.md for the download step and the
@@ -123,9 +123,9 @@ PSG-scored epochs     \(totalScored)
 scored night length   median \(f(median(subjects.map { $0.scoredMinutes }), 6, 1)) min   \
 range \(f(subjects.map { $0.scoredMinutes }.min() ?? .nan, 5, 1))–\(f(subjects.map { $0.scoredMinutes }.max() ?? .nan, 5, 1)) min
 
-The R-R stream is EMPTY for every subject — this dataset carries no beat-to-beat intervals — so the
-recipe's RSA respiration term returns nil on every epoch and contributes exactly 0.0 to every emission.
-Five of the recipe's six inputs are live here; the sixth is silent, not wrong.
+\(subjects.contains { !$0.rr.isEmpty }
+    ? "Beat-to-beat intervals: \(subjects.filter { !$0.rr.isEmpty }.count) of \(subjects.count) subjects carry them (rr/), so the recipe's RSA respiration term is live."
+    : "The R-R stream is EMPTY for every subject (this dataset carries no beat-to-beat intervals), so the\nrecipe's RSA respiration term returns nil on every epoch and contributes exactly 0.0 to every emission.\nFive of the recipe's six inputs are live here; the sixth is silent, not wrong.")
 """)
 
 // Truth / prediction on the shared 30 s grid, restricted to PSG-scored epochs.
@@ -152,11 +152,11 @@ func score(_ s: PSGSubject, using stage: (PSGSubject) -> [StageSegment]) -> Scor
 
 /// The SHIPPED stager — `StrandAnalytics.SleepStagerV2`, not the port.
 func stageShipped(_ s: PSGSubject) -> [StageSegment] {
-    SleepStagerV2.stageSession(start: s.start, end: s.end, grav: s.grav, hr: s.hr, rr: [], resp: [])
+    SleepStagerV2.stageSession(start: s.start, end: s.end, grav: s.grav, hr: s.hr, rr: s.rr, resp: [])
 }
 func stageVariant(_ cfg: RecipeConfig) -> (PSGSubject) -> [StageSegment] {
     { s in V2Recipe.stageSession(start: s.start, end: s.end, grav: s.grav, hr: s.hr,
-                                 rr: [], resp: [], cfg: cfg) }
+                                 rr: s.rr, resp: [], cfg: cfg) }
 }
 
 let shipped = subjects.map { score($0, using: stageShipped) }
@@ -366,7 +366,7 @@ if want("rem") {
     var rows: [AblationRow] = []
     for s in subjects {
         let (feats, _) = V2Recipe.stageEpochsDetailed(start: s.start, end: s.end, grav: s.grav,
-                                                      hr: s.hr, rr: [], resp: [])
+                                                      hr: s.hr, rr: s.rr, resp: [])
         // Per-night normalisation, matching `stageEpochs`.
         func zfun(_ vals: [Double?]) -> (Double?) -> Double {
             let present = vals.compactMap { $0 }
@@ -497,8 +497,10 @@ if want("priors") {
         }
     }
     let base = perSubject(shipped)
-    print("    variant                     mean κ  better κ   mean|bias| wake  deep   REM  light   better |bias| wake deep  REM light")
-    for v in [Variants.incumbent, Variants.deepPriorBefore, Variants.p348Priors] {
+    // `max wake +pp` is the largest rise in one subject's wake share against the incumbent: the #437 failure
+    // was a single healthy night going from 6 % to 23 % awake, which a mean over 31 subjects can hide.
+    print("    variant                     mean κ  better κ   mean|bias| wake  deep   REM  light   better |bias| wake deep  REM light   max wake +pp")
+    for v in [Variants.incumbent, Variants.deepPriorBefore, Variants.p348Priors, Variants.restlessWake59] {
         let rows = v.name.hasPrefix("incumbent") ? shipped : subjects.map { score($0, using: stageVariant(v.config)) }
         let ps = perSubject(rows)
         let n = ps.count
@@ -507,7 +509,123 @@ if want("priors") {
         func better(_ st: String) -> Int { zip(ps, base).filter { abs($0.0.bias[st] ?? 0) < abs($0.1.bias[st] ?? 0) }.count }
         print("    \(v.name.padding(toLength: 26, withPad: " ", startingAt: 0))\(f(mean(ps.map { $0.kappa }), 7, 3))   \(kBetter)/\(n)     "
               + "\(f(meanAbs("wake"), 5, 2)) \(f(meanAbs("deep"), 5, 2)) \(f(meanAbs("rem"), 5, 2)) \(f(meanAbs("light"), 5, 2))      "
-              + "\(better("wake"))/\(n) \(better("deep"))/\(n) \(better("rem"))/\(n) \(better("light"))/\(n)")
+              + "\(better("wake"))/\(n) \(better("deep"))/\(n) \(better("rem"))/\(n) \(better("light"))/\(n)   "
+              + "\(f(zip(ps, base).map { ($0.0.bias["wake"] ?? 0) - ($0.1.bias["wake"] ?? 0) }.max() ?? 0, 6, 2))")
+    }
+}
+
+if want("restless") {
+    print("""
+
+    ================================================================================
+    8. RESTLESS WAKE (#59) AND TWO DEFENCES FOR CALM SLEEPERS
+    ================================================================================
+    #59 as filed z-scores the small-movement density within each night, so a calm sleeper's mildest stretch
+    reads as restless. `sustained` counts only movement that lasts longer than a REM twitch (3 s or less,
+    Reiter 2020). `others` scales the density against the OTHER 30 subjects instead of the night itself
+    (leave-one-subject-out), standing in for a wearer's own earlier nights. `over+5` counts subjects whose
+    predicted wake share exceeds their PSG wake share by more than 5 points.
+    """)
+    struct Moments { var n = 0.0, sum = 0.0, sq = 0.0 }
+    func moments(_ cfg: RecipeConfig) -> [Moments] {
+        subjects.map { sub in
+            let (ep, _) = V2Recipe.stageEpochsDetailed(start: sub.start, end: sub.end, grav: sub.grav, hr: sub.hr,
+                                                       rr: sub.rr, resp: [], cfg: cfg)
+            var m = Moments()
+            for d in V2Recipe.restlessDensity(ep, cfg) { m.n += 1; m.sum += d; m.sq += d * d }
+            return m
+        }
+    }
+    func rowsLeavingOneOut(_ cfg: RecipeConfig) -> [Scored] {
+        let ms = moments(cfg)
+        let tot = ms.reduce(Moments()) { Moments(n: $0.n + $1.n, sum: $0.sum + $1.sum, sq: $0.sq + $1.sq) }
+        return subjects.indices.map { i in
+            let n = tot.n - ms[i].n, sm = tot.sum - ms[i].sum, sq = tot.sq - ms[i].sq
+            let mu = sm / n
+            var c = cfg
+            c.smallMoveReference = (mu, max(0, sq / n - mu * mu).squareRoot())
+            return score(subjects[i], using: stageVariant(c))
+        }
+    }
+    var filed = Variants.restlessWake59.config
+    var sustained = filed; sustained.smallMoveMinRun = 5
+    // The pooled reference itself, so two datasets (two devices) can be compared: a fixed reference in the
+    // app is only defensible if the density means roughly the same thing on different wrists.
+    for (label, cfg) in [("every jerk", filed), ("sustained", sustained)] {
+        let t = moments(cfg).reduce(Moments()) { Moments(n: $0.n + $1.n, sum: $0.sum + $1.sum, sq: $0.sq + $1.sq) }
+        let mu = t.sum / t.n
+        print("    pooled density (\(label)): mean \(f(mu, 7, 4))  sd \(f(max(0, t.sq / t.n - mu * mu).squareRoot(), 7, 4))  over \(Int(t.n)) epochs")
+    }
+    let variants: [(String, [Scored])] = [
+        ("incumbent (shipped)", shipped),
+        ("#59 as filed", subjects.map { score($0, using: stageVariant(filed)) }),
+        ("#59 sustained", subjects.map { score($0, using: stageVariant(sustained)) }),
+        ("#59 others", rowsLeavingOneOut(filed)),
+        ("#59 sustained + others", rowsLeavingOneOut(sustained)),
+        ("  ... against REM only", rowsLeavingOneOut({ var c = sustained; c.smallMoveAwakeWeight = 0; return c }())),
+        ("  ... wake only if HR up", rowsLeavingOneOut({ var c = sustained; c.smallMoveAwakeNeedsRaisedHR = true; return c }())),
+        ("#59 sustained, REM only", subjects.map { score($0, using: stageVariant({ var c = sustained; c.smallMoveAwakeWeight = 0; return c }())) }),
+        ("#59 sustained, HR-gated", subjects.map { score($0, using: stageVariant({ var c = sustained; c.smallMoveAwakeNeedsRaisedHR = true; return c }())) }),
+        ("ayiskakov V3 (trained)", subjects.map { score($0, using: { s in
+            SleepStagerTrained.stageSession(start: s.start, end: s.end, grav: s.grav, hr: s.hr, rr: s.rr, resp: []) }) }),
+    ]
+    filed.smallMoveMinRun = 1
+    print("    variant                    kappa  REM F1 wakeSens  wake% bias   REM% bias  mean κ  over+5  max wake +pp (truth/before/after)")
+    for (name, rows) in variants {
+        let sm = summarise(rows)
+        let p = pooledPct(rows) { $0.pred }, t = pooledPct(rows) { $0.truth }
+        let perK = rows.map { confusion(ref: $0.truth, pred: $0.pred).kappa }
+        let wakeOf: (Scored) -> (truth: Double, pred: Double) = {
+            (stagePercentages($0.truth)["wake"] ?? 0, stagePercentages($0.pred)["wake"] ?? 0)
+        }
+        let over = rows.filter { let w = wakeOf($0); return w.pred - w.truth > 5 }.count
+        let rises = zip(rows, shipped).map { (wakeOf($0.0).pred - wakeOf($0.1).pred, wakeOf($0.0).truth, wakeOf($0.1).pred, wakeOf($0.0).pred) }
+        let worst = rises.max { $0.0 < $1.0 }!
+        print("    \(name.padding(toLength: 25, withPad: " ", startingAt: 0))\(f(sm.kappa, 6, 3)) \(f(sm.conf.prf("rem").f1, 6, 3))  \(f(sm.conf.prf("wake").recall * 100, 6, 1))  "
+              + "\(f(p["wake"]!, 5, 1))\(f(p["wake"]! - t["wake"]!, 5, 1))  \(f(p["rem"]!, 5, 1))\(f(p["rem"]! - t["rem"]!, 5, 1))  "
+              + "\(f(mean(perK), 6, 3))   \(over)/\(rows.count)   \(f(worst.0, 5, 1)) (\(f(worst.1, 4, 1))/\(f(worst.2, 4, 1))/\(f(worst.3, 4, 1)))")
+    }
+    // The guard agreed for a Lab default (docs/fork/decisions.md, 2026-11-26), each part against the incumbent:
+    // calm sleepers (under 6 % PSG wake) at most 1 point worse on wake, at most 1 in 30 subjects over-called by
+    // more than 5 points of wake, the per-subject REM error at most 2 points worse, and on a set with heart rate
+    // no night at 0 % REM where the lab measured over 10 %.
+    print("""
+
+        guard vs incumbent      calm wake err (Δ)   over+5 (limit)   REM err (Δ)   REM collapse   verdict
+    """)
+    func pct(_ r: Scored, _ st: String, truth: Bool) -> Double { stagePercentages(truth ? r.truth : r.pred)[st] ?? 0 }
+    let calm = shipped.indices.filter { pct(shipped[$0], "wake", truth: true) < 6 }
+    let hasHR = subjects.contains { !$0.hr.isEmpty }
+    func calmWakeErr(_ rows: [Scored]) -> Double {
+        calm.isEmpty ? 0 : mean(calm.map { abs(pct(rows[$0], "wake", truth: false) - pct(rows[$0], "wake", truth: true)) })
+    }
+    func remErr(_ rows: [Scored]) -> Double {
+        mean(rows.map { abs(pct($0, "rem", truth: false) - pct($0, "rem", truth: true)) })
+    }
+    let baseCalm = calmWakeErr(shipped), baseRem = remErr(shipped)
+    let overLimit = max(1, subjects.count / 30)
+    for (name, rows) in variants where !name.hasPrefix("incumbent") {
+        let c = calmWakeErr(rows), r = remErr(rows)
+        let over = rows.filter { pct($0, "wake", truth: false) - pct($0, "wake", truth: true) > 5 }.count
+        let collapse = hasHR ? rows.filter { pct($0, "rem", truth: false) == 0 && pct($0, "rem", truth: true) > 10 }.count : 0
+        let pass = c - baseCalm <= 1 && over <= overLimit && r - baseRem <= 2 && collapse == 0
+        print("    \(name.padding(toLength: 24, withPad: " ", startingAt: 0))  \(f(c, 5, 1)) (\(f(c - baseCalm, 5, 1)))      "
+              + "\(over)/\(rows.count) (\(overLimit))       \(f(r, 5, 1)) (\(f(r - baseRem, 5, 1)))    \(hasHR ? "\(collapse)" : "n/a")"
+              + "            \(pass ? "PASS" : "FAIL")")
+    }
+    print("    calm sleepers: \(calm.count) of \(subjects.count); REM collapse is only judged where heart rate exists.")
+    // Per subject and variant, so a reader can look at the calm sleepers rather than at a pooled row.
+    if let path = a.csv {
+        var lines = ["variant,subject,truth_wake_pct,pred_wake_pct,truth_rem_pct,pred_rem_pct,kappa"]
+        for (name, rows) in variants {
+            for r in rows {
+                let t = stagePercentages(r.truth), p = stagePercentages(r.pred)
+                lines.append("\"\(name)\",\(r.subject.id),\(t["wake"] ?? 0),\(p["wake"] ?? 0),\(t["rem"] ?? 0),\(p["rem"] ?? 0),"
+                             + "\(confusion(ref: r.truth, pred: r.pred).kappa)")
+            }
+        }
+        try? lines.joined(separator: "\n").write(toFile: path, atomically: true, encoding: .utf8)
+        print("    per-subject CSV written to \(path)")
     }
 }
 

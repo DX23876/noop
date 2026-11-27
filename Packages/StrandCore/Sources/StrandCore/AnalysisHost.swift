@@ -11,6 +11,8 @@ public struct AnalysisSettings: Equatable, Sendable {
     public var spo2CandidateDisplay: Bool
     /// Complete sleep pipeline, captured once for this pass.
     public var sleepStagerMethod: SleepStager.Method
+    /// Lab: which recipe stages a V2-family night. `.standard` stages exactly as before.
+    public var sleepStagingRecipe: SleepStager.StagingRecipe
     /// Compatibility for callers that selected only the phase engine.
     public var sleepStagerV2: Bool {
         get { sleepStagerMethod.usesV2Stages }
@@ -39,9 +41,11 @@ public struct AnalysisSettings: Equatable, Sendable {
                 motionAwareWake: Bool, deepHrvWindow: Bool, dayCycleMode: DayCycleMode, rhythmAge: Bool,
                 healthspan: Bool, hrvBaselineEpoch: Double, recoveryBaselineEpoch: Double,
                 traces: Set<TestDomain>, effortStrengthBonus: Bool = false,
-                sleepStagerMethod: SleepStager.Method? = nil) {
+                sleepStagerMethod: SleepStager.Method? = nil,
+                sleepStagingRecipe: SleepStager.StagingRecipe = .standard) {
         self.spo2CandidateDisplay = spo2CandidateDisplay
         self.sleepStagerMethod = sleepStagerMethod ?? (sleepStagerV2 ? .v2 : .v1)
+        self.sleepStagingRecipe = sleepStagingRecipe
         self.motionAwareWake = motionAwareWake
         self.deepHrvWindow = deepHrvWindow
         self.dayCycleMode = dayCycleMode

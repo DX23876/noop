@@ -232,6 +232,14 @@ enum PuffinExperiment {
 
     static var experimentalSleepV2Enabled: Bool { sleepStagerMethod().usesV2Stages }
 
+    /// Lab "Sleep stages (test)": which recipe stages a V2-family night, `SleepStager.StagingRecipe` by raw value.
+    /// Unset or unknown is the standard recipe.
+    static let sleepStagingRecipeKey = "noopSleepStagingRecipe"
+
+    static func sleepStagingRecipe(in defaults: UserDefaults = .standard) -> SleepStager.StagingRecipe {
+        SleepStager.StagingRecipe.resolved(rawValue: defaults.string(forKey: sleepStagingRecipeKey))
+    }
+
     /// Opt-in "HR-from-PPG sub-lag interpolation" (default off): the v26 optical-PPG gap-fill HR estimator
     /// (`PpgHr`) refines its integer autocorrelation lag with a parabolic (Variant A) interpolation of the
     /// ACF peak, removing the ~±8 bpm lag-quantization near a high HR. Pure opt-in research variant: default

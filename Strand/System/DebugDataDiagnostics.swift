@@ -343,7 +343,10 @@ enum DebugDataDiagnostics {
             // hardware never emits, while V2 recovers respiration from R-R, so the funnel can report
             // ~46min REM against a 231min screen for the same night.
             let screenStager = PuffinExperiment.sleepStagerMethod().rawValue.uppercased()
-            var summary = rem.summary + " · funnel replays V1; currently selected pipeline \(screenStager)"
+            // A Lab recipe other than the standard one stages the screen's night too, so the line names it.
+            let recipe = PuffinExperiment.sleepStagingRecipe()
+            let recipeNote = screenStager != "V1" && recipe != .standard ? " (\(recipe.rawValue) recipe)" : ""
+            var summary = rem.summary + " · funnel replays V1; currently selected pipeline \(screenStager)\(recipeNote)"
             if screenStager != "V1" {
                 summary += " — totals can differ"
             }

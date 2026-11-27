@@ -47,6 +47,17 @@ final class BridgeTests: XCTestCase {
         XCTAssertEqual(settings.analysisSettings.sleepStagerMethod, .v1)
     }
 
+    /// The Lab recipe the Android app sends reaches the pass, and anything it does not know is the standard one.
+    func testTheStagingRecipeExtraReachesThePass() {
+        var settings = CoreAnalysis.Settings.standard
+        var profile = CoreAnalysis.Profile(age: 30, sex: "male", weightKg: 70, heightCm: 175, hrMaxOverride: 0)
+        XCTAssertEqual(settings.analysisSettings.sleepStagingRecipe, .standard)
+        CoreAnalysis.applyExtras(#"{"sleepStagingRecipe":"trained"}"#, to: &settings, profile: &profile)
+        XCTAssertEqual(settings.analysisSettings.sleepStagingRecipe, .trained)
+        CoreAnalysis.applyExtras(#"{"sleepStagingRecipe":"invalid"}"#, to: &settings, profile: &profile)
+        XCTAssertEqual(settings.analysisSettings.sleepStagingRecipe, .standard)
+    }
+
     /// An Android install that never touched its analysis choices scores like an untouched iPhone: the V3
     /// sleep stager, no wake check, the whole-night HRV window, days from sleep onset
     /// (the Apple `AppAnalysisHost` defaults). The core used to hard-wire Banister and the V1 stager here.

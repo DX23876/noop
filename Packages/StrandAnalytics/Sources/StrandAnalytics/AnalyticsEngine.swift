@@ -545,7 +545,9 @@ public enum AnalyticsEngine {
                                   // bout's calories are priced on the same curve as the day's workouts.
                                   // Nil prices bouts from the table MET of an unnamed session.
                                   workoutPeakMET: Double? = nil,
-                                  method: SleepStager.Method? = nil) -> DayResult {
+                                  method: SleepStager.Method? = nil,
+                                  // Which recipe stages a V2-family night (Lab); `.standard` is `SleepStagerV2`.
+                                  stagingRecipe: SleepStager.StagingRecipe = .standard) -> DayResult {
         let method = method ?? (useSleepStagerV2 ? .v2 : .v1)
 
         // Precompute the day's UTC bounds ONCE (#996). `dayString(ts, offsetSec:)` formats the UTC
@@ -563,7 +565,8 @@ public enum AnalyticsEngine {
                                                   tzOffsetSeconds: tzOffsetSeconds, wristOff: wristOff,
                                                   bandSleepState: bandSleepState,
                                                   useSleepStagerV2: useSleepStagerV2,
-                                                  traceSink: traceSink, method: method)
+                                                  traceSink: traceSink, method: method,
+                                                  stagingRecipe: stagingRecipe)
         // Motion-aware wake refinement (#364 follow-up) runs AFTER V1/V2 staging, over every detected
         // session (naps included — the same eligibility gates apply). `steps` is the SAME calendar-day/
         // night-window stream the caller passed for the rest of this analysis; the pass self-gates on its
@@ -715,7 +718,8 @@ public enum AnalyticsEngine {
             traceSink(AnalyticsEngine.sleepMotionLine(
                 day: day, grav: gravity.count, hr: hr.count,
                 sparse: gravitySparse,
-                useSleepStagerV2: useSleepStagerV2, family: skinTempFamily, method: method))
+                useSleepStagerV2: useSleepStagerV2, family: skinTempFamily, method: method,
+                recipe: stagingRecipe))
             // CAPTURE-C (#799): append the sleep PROVENANCE so an imported row winning the merge is visible
             // (not silently swapped for the measured night). hoursAsleep = the scored night's tst in minutes;
             // sourceRowId = the main-night's start ts for the measured path (stable per night), else the
