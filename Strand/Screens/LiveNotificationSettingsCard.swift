@@ -50,15 +50,13 @@ struct LiveNotificationSettingsCard: View {
         VStack(alignment: .leading, spacing: NoopMetrics.space1) {
             Toggle(isOn: isOn) {
                 Text(title)
-                    .font(StrandFont.subhead)
+                    .font(SettingsRowFont.value)
                     .foregroundStyle(StrandPalette.textPrimary)
             }
             .toggleStyle(.switch)
             .appleInspiredTint("settings.controls")
             Text(detail)
-                .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.textTertiary)
-                .fixedSize(horizontal: false, vertical: true)
+                .settingsCaption()
         }
     }
 }

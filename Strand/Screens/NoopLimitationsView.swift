@@ -87,59 +87,73 @@ struct NoopLimitationsView: View {
 
     // MARK: - Cards
 
-    private var tableCard: some View {
-        NoopCard {
-            VStack(alignment: .leading, spacing: 14) {
-                if NoopVisualStyle.skin != .forge {
+    @ViewBuilder private var tableCard: some View {
+        if NoopVisualStyle.skin == .forge {
+            // The page already names the table, so the group carries no header of its own.
+            SettingsSubGroup { tableRows }
+        } else {
+            NoopCard {
+                VStack(alignment: .leading, spacing: 14) {
                     Text("WHAT NOOP READS").font(StrandFont.overline)
                         .tracking(StrandFont.overlineTracking)
                         .foregroundStyle(StrandPalette.textTertiary)
+                    tableRows
                 }
-                // Column header.
-                HStack {
-                    Text("Feature").font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    Text("4.0").font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .frame(width: 52)
-                    Text("5.0/MG").font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .frame(width: 52)
-                }
-                ForEach(Array(rows.enumerated()), id: \.element.id) { idx, row in
-                    if idx > 0 { Divider().overlay(StrandPalette.hairline) }
-                    HStack {
-                        Text(row.feature).font(StrandFont.body)
-                            .foregroundStyle(StrandPalette.textPrimary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        supportCell(row.whoop4)
-                        supportCell(row.whoop5)
-                    }
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(a11yLabel(row))
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
 
-    private var legendCard: some View {
-        NoopCard {
-            VStack(alignment: .leading, spacing: 10) {
-                if NoopVisualStyle.skin == .forge {
-                    Text("Legend").font(StrandFont.title2).foregroundStyle(StrandPalette.textPrimary)
-                } else {
+    /// The column header and one row per metric, shared by both designs.
+    @ViewBuilder private var tableRows: some View {
+        // Column header.
+        HStack {
+            Text("Feature").font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text("4.0").font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .frame(width: 52)
+            Text("5.0/MG").font(StrandFont.caption)
+                .foregroundStyle(StrandPalette.textTertiary)
+                .frame(width: 52)
+        }
+        ForEach(Array(rows.enumerated()), id: \.element.id) { idx, row in
+            if idx > 0 { Divider().overlay(StrandPalette.hairline) }
+            HStack {
+                Text(row.feature).font(StrandFont.body)
+                    .foregroundStyle(StrandPalette.textPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                supportCell(row.whoop4)
+                supportCell(row.whoop5)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(a11yLabel(row))
+        }
+    }
+
+    @ViewBuilder private var legendCard: some View {
+        if NoopVisualStyle.skin == .forge {
+            SettingsSubGroup(title: "Legend", spacing: NoopMetrics.space2) {
+                legendRows
+            }
+        } else {
+            NoopCard {
+                VStack(alignment: .leading, spacing: 10) {
                     Text("LEGEND").font(StrandFont.overline)
                         .tracking(StrandFont.overlineTracking)
                         .foregroundStyle(StrandPalette.textTertiary)
+                    legendRows
                 }
-                legendRow(.full, "Read live off the strap")
-                legendRow(.partial, "On-device estimate, or experimental / firmware-gated")
-                legendRow(.none, "Not from the strap. SpO₂ can be filled by importing a WHOOP or Health export.")
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    @ViewBuilder private var legendRows: some View {
+        legendRow(.full, "Read live off the strap")
+        legendRow(.partial, "On-device estimate, or experimental / firmware-gated")
+        legendRow(.none, "Not from the strap. SpO₂ can be filled by importing a WHOOP or Health export.")
     }
 
     private func legendRow(_ state: LimitState, _ label: LocalizedStringKey) -> some View {

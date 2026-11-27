@@ -32,7 +32,8 @@ struct FoodEntrySheet: View {
                 }
                 if let per100g = entry.per100g {
                     Section("Amount") {
-                        TextField("Grams", value: $grams, format: .number.precision(.fractionLength(0...1)))
+                        TextField(isDrink ? "Millilitres" : "Grams", value: $grams,
+                                  format: .number.precision(.fractionLength(0...1)))
                             .keyboardType(.decimalPad)
                         LabeledContent("Energy", value: "\(FoodText.kcal(NutrientAmounts(stored: per100g).scaled(toGrams: grams)[.energyKcal])) kcal")
                     }
@@ -99,6 +100,11 @@ struct FoodEntrySheet: View {
     private func loadProduct() async {
         guard let id = entry.foodId, let store = await repo.storeHandle() else { return }
         product = await FoodLibrary.item(store: store, id: id)
+    }
+
+    /// A drink is edited in millilitres: its product says so, or its label already does.
+    private var isDrink: Bool {
+        product?.liquid == true || entry.portionLabel?.range(of: #"\d\s?ml\b"#, options: .regularExpression) != nil
     }
 
     private func correct() { correcting = true }

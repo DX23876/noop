@@ -214,33 +214,60 @@ object CoreShadow {
         }
     }
 
+    /**
+     * Where the daily pass's own strap-log lines go (its trigger, the reused days, `re-score: done` and what the
+     * pass cost), as Apple's `AppAnalysisHost.diagnosticSink`. The Bluetooth client wires it to the strap log;
+     * until then the core keeps the newest few hundred lines.
+     */
+    @Volatile var passLogSink: ((String) -> Unit)? = null
+
     /** Publish a new read revision only after the queued analysis has committed its rows. Blocking IO call. */
     fun awaitQueuedAnalysis(): Boolean {
         check(android.os.Looper.myLooper() != android.os.Looper.getMainLooper())
         val completed = started && SwiftCore.shadowAwaitQueuedEvents()
         if (completed) noteDataChanged()
+        flushPassLog()
         return completed
+    }
+
+    /** Hands the lines the daily pass wrote since the last call to [passLogSink]. Blocking IO call. */
+    fun flushPassLog() {
+        val sink = passLogSink ?: return
+        if (!started) return
+        val answer = SwiftCore.call("analysis.passLog", "{}") ?: return
+        val lines = runCatching { org.json.JSONObject(answer).optJSONArray("lines") }.getOrNull() ?: return
+        for (i in 0 until lines.length()) sink(lines.optString(i))
     }
 
     /**
      * The further choices the core's pass reads (`CoreAnalysis.applyExtras`): the deleted nights and detected
-     * workouts as "start:end" tokens, the waist, the step estimate's calibration, baseline anchors, the Lab's
+     * workouts as "start:end" tokens, the waist, the entered VO₂max and activity level, the step estimate's calibration, baseline anchors, the Lab's
      * SpO₂ estimate and strength share of Effort, and the Energy Plan's basal formula. [historyRescore] makes that
      * one pass cover the whole history with unchanged days reused, for a switch that moves only some old days.
+     * [afterOffload] makes it the pass after a completed offload, as Apple runs that one: skipped when nothing new
+     * was banked, and only the days whose raw data moved derived again.
      */
     fun extras(context: Context, profile: com.noop.ui.ProfileStore, dismissedSleep: List<Pair<Long, Long>>,
                dismissedWorkouts: List<Pair<Long, Long>>, spo2CandidateDisplay: Boolean,
-               historyRescore: Boolean = false): String =
+               historyRescore: Boolean = false, afterOffload: Boolean = false): String =
         org.json.JSONObject().apply {
+            // The automatic maximum heart rate the screens read is the one the pass scores with: ask the core, off the main thread.
+            CoreProfile.refreshMaxHeartRate(profile)
             put("sleepStagerMethod", com.noop.ble.PuffinExperiment.from(context).sleepStagerMethod)
             put("spo2CandidateDisplay", spo2CandidateDisplay)
             put("effortStrengthBonus", CoreFeatures.effortStrengthBonus(context))
             put("historyRescore", historyRescore)
+            put("afterOffload", afterOffload)
             put("hrvBaselineEpoch", NoopPrefs.of(context).getLong(Baselines.hrvBaselineEpochKey, 0L).toDouble())
             put("recoveryBaselineEpoch", NoopPrefs.of(context).getLong(Baselines.recoveryBaselineEpochKey, 0L).toDouble())
             put("dismissedSleep", org.json.JSONArray(dismissedSleep.map { "${it.first}:${it.second}" }))
             put("dismissedWorkouts", org.json.JSONArray(dismissedWorkouts.map { "${it.first}:${it.second}" }))
             put("waistCm", profile.waistCm)
+            // The aerobic ceiling the energy model scales workouts to: an entered VO₂max and the hand-chosen activity category.
+            put("manualVO2max", profile.vo2maxManual)
+            put("manualVO2maxDay", profile.vo2maxManualDay)
+            put("manualVO2maxWeightKg", profile.vo2maxManualWeightKg)
+            put("activityLevelOverride", profile.activityLevelOverride)
             put("formulaLog", CoreEnergyPlan.formulaLog(context))
             put("stepTicksPerStep", profile.stepTicksPerStep)
             put("stepsManualCoefficient", profile.stepsManualCoefficient)

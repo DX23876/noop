@@ -2188,6 +2188,17 @@ extension WhoopStore {
         migrator.registerMigration("v91-food-saved-meal") { db in
             try WhoopStore.createFoodSavedMealTables(db)
         }
+        // A food's package and whether it is a drink (owner, 2026-11-25), so the amount sheet can offer "1 can",
+        // "the whole pack" and millilitres for a food the wearer kept. Wearer data, additive: every food saved
+        // before reads as grams with no package, as it did. (The classification branch names its own v92 step
+        // "v92-food-classification"; the two names differ, so both can land in either order.)
+        migrator.registerMigration("v92-food-package") { db in
+            try db.alter(table: "foodCustom") { t in
+                t.add(column: "liquid", .integer).notNull().defaults(to: 0)
+                t.add(column: "packageAmount", .double)
+                t.add(column: "packageCount", .integer)
+            }
+        }
         return migrator
     }
 }

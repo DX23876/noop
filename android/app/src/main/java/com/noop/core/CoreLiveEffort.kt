@@ -17,7 +17,22 @@ import org.json.JSONObject
  * Blocking; call off the main thread. Null without a core, which the caller reads as "use the stored row".
  */
 object CoreLiveEffort {
-    fun today(context: Context, restingHr: Int?, storedEffort: Double?): Double? {
+    /**
+     * The resting heart rate Effort is scored against on [day] (`yyyy-MM-dd`), as the core resolves it for the
+     * day (`EffortRestingHR`): what the daily pass stored, else the nights before. Null without a core.
+     * Blocking; call off the main thread.
+     */
+    fun effortRestingHR(day: String): Double? {
+        if (!SwiftCore.available) return null
+        val json = SwiftCore.call("read.effortRestingHR", JSONObject().put("day", day).toString()) ?: return null
+        return runCatching {
+            val o = JSONObject(json)
+            if (o.has("error") || o.isNull("value")) null else o.getDouble("value")
+        }.getOrNull()
+    }
+
+    /** The resting heart rate is Effort's own for the day, read by the core (`StoreReader.effortRestingHR`). */
+    fun today(context: Context, storedEffort: Double?): Double? {
         if (!SwiftCore.available) return null
         val profile = ProfileStore.from(context)
         val args = JSONObject()
@@ -26,7 +41,6 @@ object CoreLiveEffort {
             // Which day the figure is for: in sleep-onset mode the day starts when the wearer fell
             // asleep, and the core takes the span from there (`CycleDayWindow`).
             .put("dayCycleMode", NoopPrefs.dayCycleMode(context).persistedValue)
-        if (restingHr != null) args.put("restingHr", restingHr)
         if (storedEffort != null) args.put("storedEffort", storedEffort)
         val json = SwiftCore.call("read.liveEffort", args.toString()) ?: return null
         return runCatching {

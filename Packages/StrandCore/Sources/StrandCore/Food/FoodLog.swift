@@ -132,6 +132,11 @@ public enum FoodLog {
         if let grams, let per100g = entry.per100g {
             next.grams = grams
             next.totals = NutrientAmounts(stored: per100g).scaled(toGrams: grams).stored
+            // A new amount retires the old name: "1 portion (40 g)" logged again as 80 g kept saying 40 g. A drink
+            // keeps its unit, which its label carries ("330 ml", "1 of 6 (330 ml)").
+            if portionLabel == nil, let old = entry.grams, abs(old - grams) >= 0.01 {
+                next.portionLabel = entry.portionLabel.map(Self.isMillilitres) == true ? "\(amountText(grams)) ml" : nil
+            }
         }
         if let at {
             next.loggedAt = Int(at.timeIntervalSince1970)
@@ -141,6 +146,17 @@ public enum FoodLog {
         if let portionLabel { next.portionLabel = portionLabel }
         next.updatedAt = Int(now.timeIntervalSince1970)
         return next
+    }
+
+    /// Whether a portion label names millilitres, the one place a logged entry keeps that it is a drink.
+    static func isMillilitres(_ label: String) -> Bool {
+        label.range(of: #"\d\s?ml\b"#, options: .regularExpression) != nil
+    }
+
+    /// An amount as a label shows it: whole numbers without a decimal, otherwise one decimal.
+    static func amountText(_ value: Double) -> String {
+        let rounded = (value * 10).rounded() / 10
+        return rounded == rounded.rounded() ? String(Int(rounded)) : String(format: "%.1f", rounded)
     }
 
     /// The same entry with a corrected product's values: the amount, the time and the meal stay as logged, the
@@ -395,7 +411,9 @@ public enum FoodLibrary {
                                 nova: food.nova, servingG: food.servingG, servingLabel: food.servingLabel,
                                 per100g: food.per100g.stored, origin: existing?.origin ?? origin,
                                 sourceId: source, createdAt: existing?.createdAt ?? stamp, updatedAt: stamp,
-                                estimatedFrom: food.estimatedFrom, estimatedKeys: food.estimatedKeys ?? [])
+                                estimatedFrom: food.estimatedFrom, estimatedKeys: food.estimatedKeys ?? [],
+                                liquid: food.liquid == true, packageAmount: food.packageAmount,
+                                packageCount: food.packageCount)
         guard (try? await store.saveCustomFood(custom)) == true else { return nil }
         return item(for: custom)
     }
@@ -438,7 +456,8 @@ public enum FoodLibrary {
         FoodItem(id: food.id, source: .own, name: food.name, brand: food.brand, group: food.group, nova: food.nova,
                  servingG: food.servingG, servingLabel: food.servingLabel,
                  per100g: NutrientAmounts(stored: food.per100g), barcode: food.barcode,
-                 estimatedFrom: food.estimatedFrom, estimatedKeys: food.estimatedKeys.isEmpty ? nil : food.estimatedKeys)
+                 estimatedFrom: food.estimatedFrom, estimatedKeys: food.estimatedKeys.isEmpty ? nil : food.estimatedKeys,
+                 liquid: food.liquid ? true : nil, packageAmount: food.packageAmount, packageCount: food.packageCount)
     }
 }
 

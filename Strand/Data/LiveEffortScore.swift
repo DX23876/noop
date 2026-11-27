@@ -43,6 +43,13 @@ public enum LiveEffortScore {
         return (Int(dayStart.timeIntervalSince1970), Int(now.timeIntervalSince1970))
     }
 
+    /// The day the window belongs to, `yyyy-MM-dd`: the cycle's wake day where the window is a cycle, the
+    /// logical day otherwise. Effort's resting heart rate is read for this day (`EffortRestingHR`).
+    public static func day(now: Date, mode: DayCycleMode, cycle: CycleDayWindow.Cycle?) -> String {
+        if mode == .sleepOnset, let cycle { return cycle.wakeDay }
+        return StoreReader.localDayKey(LogicalDay.date(now))
+    }
+
     /// How far back workout rows are read for the spans below: a session begun before the day started
     /// still counts inside it. Takes the window rather than the clock, so it cannot end up resolved
     /// against a different day than the heart rate was.
@@ -53,13 +60,12 @@ public enum LiveEffortScore {
     /// The score from the two reads and the two parameters, or nil when there is too little heart rate to
     /// score — callers then fall back to the stored row rather than to a fabricated number.
     ///
-    /// [restingHr] is the shown day's own resting rate, the daily pass's input; nil falls back to the
-    /// scorer's default, exactly as the pass does. Below 50 % of heart-rate reserve only workout time
-    /// counts, and those spans come from the same resolver the stored day reads.
+    /// [restingHR] is Effort's resting heart rate for the window's `day` (`StoreReader.effortRestingHR`), the
+    /// value the daily pass scores that day against, not the lower one the day shows. The day never falls
+    /// below its workouts, and those come from the same resolver the stored day reads.
     public static func score(hr: [HRSample], workoutRows: [WorkoutRow],
-                             maxHR: Double?, restingHr: Int?) -> Double? {
-        StrainScorer.strain(hr, maxHR: maxHR,
-                            restingHR: restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR,
-                            lowIntensity: .countedIn(DailyAnalysis.effortWorkoutSpans(workoutRows)))
+                             maxHR: Double?, restingHR: Double) -> Double? {
+        StrainScorer.strain(hr, maxHR: maxHR, restingHR: restingHR,
+                            lowIntensity: .day(workouts: DailyAnalysis.effortWorkoutSpans(workoutRows)))
     }
 }

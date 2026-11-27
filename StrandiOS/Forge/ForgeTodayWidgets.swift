@@ -1025,6 +1025,10 @@ struct ForgeMomentumWidget: View {
                     }
                     Spacer(minLength: 0)
                 }
+                // The card shows one message; say that there are more behind it, so the page is worth opening.
+                if store.messages.count > 1 {
+                    Text("\(store.messages.count - 1) more").font(ForgeFont.caption).foregroundStyle(ForgeColor.tertiary)
+                }
                 // A goal-type message carries its progress: draw it.
                 if let progress = first.progress {
                     VStack(alignment: .leading, spacing: 4) {
@@ -1033,7 +1037,10 @@ struct ForgeMomentumWidget: View {
                     }
                 }
             } else {
-                Text("Nothing stands out today.").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                // "Nothing stands out" is a finding; it is only said once the feed was read with days behind it.
+                // Before that, or with no days at all, the card says which it is (owner, 2026-11-25).
+                Text(store.updatedAt == nil ? "Checking…" : store.recentDays.isEmpty ? "No data yet" : "Nothing stands out today.")
+                    .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
             }
         }
     }

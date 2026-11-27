@@ -87,11 +87,18 @@ public struct CustomFood: Equatable, Sendable {
     /// The BLS food missing nutrients were borrowed from, and which ones, when the wearer let the coach fill gaps.
     public var estimatedFrom: String?
     public var estimatedKeys: [String]
+    /// A drink, measured in millilitres (v92). False for every food saved before.
+    public var liquid: Bool
+    /// One piece of the package in g or ml and how many pieces it holds, as its label states (v92).
+    public var packageAmount: Double?
+    public var packageCount: Int?
 
     public init(id: String, name: String, brand: String? = nil, barcode: String? = nil, group: String? = nil,
                 nova: Int? = nil, servingG: Double? = nil, servingLabel: String? = nil, per100g: FoodNutrientValues,
                 origin: Origin, sourceId: String? = nil, createdAt: Int, updatedAt: Int,
-                estimatedFrom: String? = nil, estimatedKeys: [String] = []) {
+                estimatedFrom: String? = nil, estimatedKeys: [String] = [], liquid: Bool = false,
+                packageAmount: Double? = nil, packageCount: Int? = nil) {
+        self.liquid = liquid; self.packageAmount = packageAmount; self.packageCount = packageCount
         self.estimatedFrom = estimatedFrom; self.estimatedKeys = estimatedKeys
         self.id = id; self.name = name; self.brand = brand; self.barcode = barcode; self.group = group
         self.nova = nova; self.servingG = servingG; self.servingLabel = servingLabel; self.per100g = per100g
@@ -410,17 +417,20 @@ extension WhoopStore {
     public func saveCustomFood(_ food: CustomFood) async throws -> Bool {
         guard !food.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               food.per100g.values.allSatisfy({ $0.isFinite && $0 >= 0 }),
-              food.servingG.map({ $0.isFinite && $0 > 0 }) ?? true else { return false }
+              food.servingG.map({ $0.isFinite && $0 > 0 }) ?? true,
+              food.packageAmount.map({ $0.isFinite && $0 > 0 }) ?? true,
+              food.packageCount.map({ $0 > 0 }) ?? true else { return false }
         try syncWrite { db in
             try db.execute(sql: """
                 INSERT OR REPLACE INTO foodCustom
                   (id, name, brand, barcode, foodGroup, nova, servingG, servingLabel, per100g, origin, sourceId,
-                   createdAt, updatedAt, estimatedFrom, estimatedKeys)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   createdAt, updatedAt, estimatedFrom, estimatedKeys, liquid, packageAmount, packageCount)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, arguments: [
                     food.id, food.name, food.brand, food.barcode, food.group, food.nova, food.servingG,
                     food.servingLabel, Self.encodeNutrients(food.per100g), food.origin.rawValue, food.sourceId,
-                    food.createdAt, food.updatedAt, food.estimatedFrom, Self.encodeKeys(food.estimatedKeys)])
+                    food.createdAt, food.updatedAt, food.estimatedFrom, Self.encodeKeys(food.estimatedKeys),
+                    food.liquid ? 1 : 0, food.packageAmount, food.packageCount])
         }
         return true
     }
@@ -461,7 +471,9 @@ extension WhoopStore {
                           group: row["foodGroup"], nova: row["nova"], servingG: row["servingG"],
                           servingLabel: row["servingLabel"], per100g: per100g, origin: origin,
                           sourceId: row["sourceId"], createdAt: row["createdAt"], updatedAt: row["updatedAt"],
-                          estimatedFrom: row["estimatedFrom"], estimatedKeys: decodeKeys(row["estimatedKeys"]))
+                          estimatedFrom: row["estimatedFrom"], estimatedKeys: decodeKeys(row["estimatedKeys"]),
+                          liquid: (row["liquid"] as Int?) == 1, packageAmount: row["packageAmount"],
+                          packageCount: row["packageCount"])
     }
 
     // MARK: - Recipes

@@ -13,37 +13,65 @@ struct ContinuousHrvSettingsCard: View {
     @AppStorage(PuffinExperiment.continuousHrvOvernightOnlyKey) private var continuousHrvOvernightOnly = true
 
     var body: some View {
+        if NoopVisualStyle.skin == .forge {
+            forgeGroup
+        } else {
+            classicCard
+        }
+    }
+
+    /// The switch and, while it is on, its Nights-only refinement (shared by both looks).
+    private var nightsOnlyToggle: some View {
+        Toggle(isOn: $continuousHrvOvernightOnly) {
+            Text("Nights only")
+                .font(SettingsRowFont.value)
+                .foregroundStyle(StrandPalette.textPrimary)
+        }
+        .toggleStyle(.switch)
+        .appleInspiredTint("settings.controls")
+        .onChangeCompat(of: continuousHrvOvernightOnly) { _ in
+            model.ble.setKeepRealtimeForData(PuffinExperiment.keepRealtimeForDataEnabled)
+        }
+    }
+
+    private var continuousHrvToggle: some View {
+        Toggle(isOn: $continuousHrvEnabled) {
+            Text("Continuous HRV")
+                .font(SettingsRowFont.value)
+                .foregroundStyle(StrandPalette.textPrimary)
+        }
+        .toggleStyle(.switch)
+        .appleInspiredTint("settings.controls")
+        .onChangeCompat(of: continuousHrvEnabled) { on in model.ble.setKeepRealtimeForData(on) }
+    }
+
+    /// The new design's card: the switch (and its Nights-only option) alone on the card, what they do as the
+    /// footer under it, as the Lab lists its features.
+    private var forgeGroup: some View {
+        let nightsNote = Text("Records only in your quiet hours (22:00 to 07:00 by default), which roughly halves the battery cost. Daytime stress and naps get fewer readings. For a daytime reading, use \"Take an HRV reading\" on Live.")
+        let blurb = Text("Keeps the beat-to-beat heart-rate stream running, not only while Live is open. More detail for night HRV, recovery and sleep. Uses more strap battery.")
+        return SettingsSubGroup(footer: continuousHrvEnabled ? blurb + Text.paragraphBreak + nightsNote : blurb) {
+            continuousHrvToggle
+            // #927: window-gate the continuous stream to the nightly quiet-hours window.
+            if continuousHrvEnabled { nightsOnlyToggle }
+        }
+    }
+
+    /// The classic look's card (the new design draws `forgeGroup`).
+    private var classicCard: some View {
         SettingsSection(
             icon: "waveform.path.ecg",
             title: "Continuous HRV",
             blurb: "Keeps the beat-to-beat heart-rate stream running, not only while Live is open. More detail for night HRV, recovery and sleep. Uses more strap battery."
         ) {
             VStack(alignment: .leading, spacing: NoopMetrics.rowSpacing) {
-                Toggle(isOn: $continuousHrvEnabled) {
-                    Text("Continuous HRV")
-                        .font(StrandFont.subhead)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                }
-                .toggleStyle(.switch)
-                .appleInspiredTint("settings.controls")
-                .onChangeCompat(of: continuousHrvEnabled) { on in model.ble.setKeepRealtimeForData(on) }
+                continuousHrvToggle
 
                 // #927: window-gate the continuous stream to the nightly quiet-hours window.
                 if continuousHrvEnabled {
-                    Toggle(isOn: $continuousHrvOvernightOnly) {
-                        Text("Nights only")
-                            .font(StrandFont.subhead)
-                            .foregroundStyle(StrandPalette.textPrimary)
-                    }
-                    .toggleStyle(.switch)
-                    .appleInspiredTint("settings.controls")
-                    .onChangeCompat(of: continuousHrvOvernightOnly) { _ in
-                        model.ble.setKeepRealtimeForData(PuffinExperiment.keepRealtimeForDataEnabled)
-                    }
+                    nightsOnlyToggle
                     Text("Records only in your quiet hours (22:00 to 07:00 by default), which roughly halves the battery cost. Daytime stress and naps get fewer readings. For a daytime reading, use \"Take an HRV reading\" on Live.")
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+                        .settingsCaption()
                 }
             }
         }

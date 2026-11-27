@@ -454,6 +454,7 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
                 PageTitle(stringResource(R.string.food_title), onBack) { foodButtons() }
                 Text(dayTitle(day).uppercase(Locale.getDefault()), style = Forge.type.overline, color = Forge.sceneInk.secondary)
             }
+            FoodDayJump(day) { day = it }
             DietPlanLine(dietPlan, planResolved) { if (dietPlan == null) planning = true else showPlan = true }
             FoodHero(day, summary?.totals ?: emptyMap(), goals, burnedByDay[day.toString()], onDay = { day = it })
             planDay?.let { FoodPlanDayLines(it) }
@@ -569,8 +570,44 @@ internal fun mealName(kind: String): String = stringResource(when (kind) {
 })
 
 @Composable
-private fun dayTitle(day: LocalDate): String = if (day == LocalDate.now()) stringResource(R.string.food_today)
-    else day.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(Locale.getDefault()))
+private fun dayTitle(day: LocalDate): String = when (day) {
+    LocalDate.now() -> stringResource(R.string.food_today)
+    LocalDate.now().minusDays(1) -> stringResource(R.string.food_yesterday)
+    else -> day.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(Locale.getDefault()))
+}
+
+/** The shown day with a calendar behind it and a way back to today, as iOS `FoodDayPicker` (owner, 2026-11-25).
+ *  The arrows stay on the plate below. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun FoodDayJump(day: LocalDate, onDay: (LocalDate) -> Unit) {
+    var choosing by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+        TextButton(onClick = { choosing = true }) {
+            Text(stringResource(R.string.food_choose_day), style = Forge.type.subhead, color = Forge.colors.accent)
+        }
+        Spacer(Modifier.weight(1f))
+        if (day != LocalDate.now()) TextButton(onClick = { onDay(LocalDate.now()) }) {
+            Text(stringResource(R.string.food_today), style = Forge.type.subhead, color = Forge.colors.accent)
+        }
+    }
+    if (choosing) {
+        val state = androidx.compose.material3.rememberDatePickerState(
+            initialSelectedDateMillis = day.toEpochDay() * 86_400_000,
+            selectableDates = object : androidx.compose.material3.SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis / 86_400_000 <= LocalDate.now().toEpochDay()
+            })
+        androidx.compose.material3.DatePickerDialog(onDismissRequest = { choosing = false }, confirmButton = {
+            TextButton(onClick = {
+                state.selectedDateMillis?.let { onDay(LocalDate.ofEpochDay(it / 86_400_000)) }
+                choosing = false
+            }) { Text(stringResource(android.R.string.ok)) }
+        }, dismissButton = { TextButton(onClick = { choosing = false }) { Text(stringResource(R.string.food_cancel)) } }) {
+            androidx.compose.material3.DatePicker(state)
+        }
+    }
+}
 
 /**
  * The plate standing free in the scene, as iOS `FoodPlate`: calories eaten as the outer ring, protein, carbohydrate
@@ -768,7 +805,10 @@ private fun FoodEntryDialog(entry: CoreFood.Entry, onDismiss: () -> Unit, onSave
         Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2),
                modifier = Modifier.verticalScroll(rememberScrollState())) {
             if (entry.per100g != null) {
-                OutlinedTextField(grams, { grams = it }, label = { Text(stringResource(R.string.food_grams)) },
+                // A drink is edited in millilitres; its label is where a logged entry keeps that (core `FoodLog.edited`).
+                val drink = entry.portionLabel?.contains(Regex("""\d\s?ml\b""")) == true
+                OutlinedTextField(grams, { grams = it },
+                                  label = { Text(stringResource(if (drink) R.string.food_millilitres else R.string.food_grams)) },
                                   keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), singleLine = true)
             }
             MealChooser(meal) { meal = it }
@@ -834,6 +874,8 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit, goalKcal: Doubl
     var favourites by remember { mutableStateOf<List<CoreFood.Item>>(emptyList()) }
     var mine by remember { mutableStateOf<List<CoreFood.Item>>(emptyList()) }
     val cart = remember { mutableStateListOf<CoreFood.CartLine>() }
+    val portionContext = LocalContext.current
+    val portionName: (String) -> String = { portionContext.getString(R.string.food_portion_one, it) }
     var portionFor by remember { mutableStateOf<CoreFood.Item?>(null) }
     var quick by remember { mutableStateOf(false) }
     var scanning by remember { mutableStateOf(false) }
@@ -943,7 +985,7 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit, goalKcal: Doubl
                 favourites.forEach { item ->
                     FoodPickRow(item, motifs[item.id], last[item.id], true, onPick = { portionFor = item }, onFavourite = { on ->
                         scope.launch { withContext(Dispatchers.IO) { CoreFood.setFavourite(item, on) }; listRevision++ }
-                    }, onQuickAdd = { grams -> cart.add(CoreFood.CartLine(item, grams)) })
+                    }, onQuickAdd = { g -> cart.add(CoreFood.CartLine.quick(item, g, portionName)) })
                 }
                 TextButton(onClick = { buildingNew = true }) {
                     Icon(Icons.Rounded.Add, null, tint = Forge.colors.food)
@@ -960,7 +1002,7 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit, goalKcal: Doubl
                 list.forEach { (item, grams) ->
                     FoodPickRow(item, motifs[item.id], grams, false, onPick = { portionFor = item }, onFavourite = { on ->
                         scope.launch { withContext(Dispatchers.IO) { CoreFood.setFavourite(item, on) }; listRevision++ }
-                    }, onQuickAdd = { g -> cart.add(CoreFood.CartLine(item, g)) })
+                    }, onQuickAdd = { g -> cart.add(CoreFood.CartLine.quick(item, g, portionName)) })
                 }
             }
             if (mine.isNotEmpty()) {
@@ -983,12 +1025,17 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit, goalKcal: Doubl
                 results.forEach { item ->
                     FoodPickRow(item, motifs[item.id], last[item.id], favourites.any { it.id == item.id }, onPick = { portionFor = item },
                         onFavourite = { on -> scope.launch { withContext(Dispatchers.IO) { CoreFood.setFavourite(item, on) }; listRevision++ } },
-                        onQuickAdd = { g -> cart.add(CoreFood.CartLine(item, g)) })
+                        onQuickAdd = { g -> cart.add(CoreFood.CartLine.quick(item, g, portionName)) })
                 }
                 if (prefs.mode == FoodDataPrefs.ONLINE) {
                     Text(stringResource(R.string.food_off_name), style = Forge.type.overline, color = Forge.colors.textSecondary)
                     if (onlineFailed) Text(stringResource(R.string.food_online_failed), style = Forge.type.footnote, color = Forge.colors.textSecondary)
-                    online.forEach { item -> ItemRow(item, onAdd = { portionFor = item }, onFavourite = {}) }
+                    // Online results get the same one-tap plus as every other list, with the product's stated portion.
+                    online.forEach { item ->
+                        FoodPickRow(item, motifs[item.id], last[item.id], favourites.any { it.id == item.id },
+                            onPick = { portionFor = item }, onFavourite = {},
+                            onQuickAdd = { g -> cart.add(CoreFood.CartLine.quick(item, g, portionName)) })
+                    }
                 }
             }
         }
@@ -1088,13 +1135,31 @@ private fun ItemRow(item: CoreFood.Item, onAdd: () -> Unit, onFavourite: (Boolea
 internal fun FoodPortionDialog(item: CoreFood.Item, lastGrams: Double?, onDismiss: () -> Unit, onAdd: (CoreFood.CartLine) -> Unit) {
     var text by remember { mutableStateOf(gramsText(lastGrams ?: item.servingG ?: 100.0)) }
     val grams = text.replace(',', '.').toDoubleOrNull() ?: 0.0
+    // The same choices iOS offers, from the core: serving, last time, a can of a six-pack, half or the whole pack.
+    val portions = remember(item.id, lastGrams) { CoreFood.portions(item, lastGrams) }
+    val unit = if (item.liquid) "ml" else "g"
+    val choices = portions.map { p ->
+        val amount = "${gramsText(p.amount)} $unit"
+        val label = when (p.kind) {
+            "serving" -> p.label?.let { stringResource(R.string.food_portion_one, it) } ?: stringResource(R.string.food_portion_one, amount)
+            "lastTime" -> stringResource(R.string.food_portion_last_time, amount)
+            "piece" -> stringResource(R.string.food_portion_piece, p.count ?: 1, amount)
+            "halfPack" -> stringResource(R.string.food_portion_half_pack, amount)
+            "wholePack" -> if ((p.count ?: 1) > 1 && item.packageAmount != null)
+                stringResource(R.string.food_portion_whole_pack_of, p.count ?: 1, "${gramsText(item.packageAmount)} $unit")
+                else stringResource(R.string.food_portion_whole_pack, amount)
+            else -> amount
+        }
+        Triple(label, p.amount, p.kind in setOf("serving", "piece", "halfPack", "wholePack"))
+    }
+    val chips = choices.map { (label, value, _) -> label to value }
+    val namedChips = choices.filter { it.third }.associate { (label, value, _) -> value to label }
     AlertDialog(onDismissRequest = onDismiss, title = { Text(item.name) }, text = {
         Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
-            OutlinedTextField(text, { text = it }, label = { Text(stringResource(R.string.food_grams)) }, singleLine = true,
-                              keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+            OutlinedTextField(text, { text = it },
+                              label = { Text(stringResource(if (item.liquid) R.string.food_millilitres else R.string.food_grams)) },
+                              singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
-                val chips = listOfNotNull(item.servingG?.let { (item.servingLabel ?: "${gramsText(it)} g") to it },
-                                          lastGrams?.let { "${gramsText(it)} g" to it }, "100 g" to 100.0, "50 g" to 50.0)
                 chips.forEach { (label, value) ->
                     Text(label, style = Forge.type.footnote, color = Forge.colors.text,
                          modifier = Modifier.background(Forge.colors.inset, RoundedCornerShape(50)).clickable { text = gramsText(value) }
@@ -1113,7 +1178,9 @@ internal fun FoodPortionDialog(item: CoreFood.Item, lastGrams: Double?, onDismis
         }
     }, confirmButton = {
         TextButton(enabled = grams > 0 && grams <= 10_000, onClick = {
-            val label = item.servingG?.takeIf { abs(it - grams) < 0.01 }?.let { item.servingLabel }
+            // A named choice keeps its name; a drink typed in by hand keeps its millilitres.
+            val label = namedChips.entries.firstOrNull { abs(it.key - grams) < 0.01 }?.value
+                ?: if (item.liquid) "${gramsText(grams)} ml" else null
             onAdd(CoreFood.CartLine(item, grams, label))
         }) { Text(stringResource(R.string.food_add)) }
     }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.food_cancel)) } })
@@ -1255,8 +1322,8 @@ private fun ForgeFoodDataPage(onBack: () -> Unit, onSetup: () -> Unit) {
         FoodGoalsCard()
         FoodProductDataCards()
         FoodExtrasCards()
-        SettingsCard(null, null) { LinkRow(stringResource(R.string.food_setup_again), null, onClick = onSetup) }
-        SettingsCard(stringResource(R.string.food_sources), stringResource(R.string.food_sources_credits)) {}
+        ForgeTitledCard(null, null) { ForgeLinkRow(stringResource(R.string.food_setup_again), null, onClick = onSetup) }
+        ForgeTitledCard(stringResource(R.string.food_sources), stringResource(R.string.food_sources_credits)) {}
     }
 }
 
@@ -1294,7 +1361,7 @@ internal fun FoodProductDataCards() {
         }
     }
 
-    SettingsCard(stringResource(R.string.food_branded), stringResource(when (mode) {
+    ForgeTitledCard(stringResource(R.string.food_branded), stringResource(when (mode) {
         FoodDataPrefs.ONLINE -> R.string.food_mode_online_note; FoodDataPrefs.PACKS -> R.string.food_mode_packs_note
         else -> R.string.food_mode_none_note })) {
         listOf(FoodDataPrefs.NONE to R.string.food_mode_none, FoodDataPrefs.ONLINE to R.string.food_mode_online,
@@ -1307,7 +1374,7 @@ internal fun FoodProductDataCards() {
         }
     }
     if (mode == FoodDataPrefs.ONLINE) {
-        SettingsCard(stringResource(R.string.food_countries), null) {
+        ForgeTitledCard(stringResource(R.string.food_countries), null) {
             (offered?.map { it.country } ?: listOf("germany", "austria", "switzerland", "france", "united-kingdom", "united-states"))
                 .sortedBy { FoodDataPrefs.countryName(it) }.forEach { tag ->
                     Row(Modifier.fillMaxWidth().clickable {
@@ -1321,7 +1388,7 @@ internal fun FoodProductDataCards() {
         }
     }
     if (mode == FoodDataPrefs.PACKS) {
-        SettingsCard(stringResource(R.string.food_on_phone), if (installed.isEmpty()) stringResource(R.string.food_no_pack) else null) {
+        ForgeTitledCard(stringResource(R.string.food_on_phone), if (installed.isEmpty()) stringResource(R.string.food_no_pack) else null) {
             installed.forEach { pack ->
                 Row(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space2), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
@@ -1338,10 +1405,10 @@ internal fun FoodProductDataCards() {
                 }
             }
         }
-        SettingsCard(stringResource(R.string.food_download), stringResource(R.string.food_download_note)) {
+        ForgeTitledCard(stringResource(R.string.food_download), stringResource(R.string.food_download_note)) {
             if (manifestFailed) Text(stringResource(R.string.food_manifest_failed), style = Forge.type.footnote, color = Forge.colors.textSecondary)
             offered.orEmpty().filter { o -> installed.none { it.country == o.country } }.forEach { pack ->
-                LinkRow(FoodDataPrefs.countryName(pack.country),
+                ForgeLinkRow(FoodDataPrefs.countryName(pack.country),
                         stringResource(R.string.food_products, NumberFormat.getIntegerInstance().format(pack.rows)) +
                             " · " + android.text.format.Formatter.formatShortFileSize(context, pack.bytes),
                         busy = downloading == pack.country) { if (downloading == null) download(pack) }
@@ -1365,7 +1432,7 @@ internal fun FoodExtrasCards() {
     val permissions = androidx.activity.compose.rememberLauncherForActivityResult(
         androidx.health.connect.client.PermissionController.createRequestPermissionResultContract()) { }
     if (com.noop.ui.NoopPrefs.coachEnabled(context)) {
-        SettingsCard(stringResource(R.string.food_estimate_title), stringResource(R.string.food_estimate_note)) {
+        ForgeTitledCard(stringResource(R.string.food_estimate_title), stringResource(R.string.food_estimate_note)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(stringResource(R.string.food_estimate_toggle), style = Forge.type.body, color = Forge.colors.text)
@@ -1375,12 +1442,12 @@ internal fun FoodExtrasCards() {
             }
         }
     }
-    SettingsCard(stringResource(R.string.food_health_connect), stringResource(R.string.food_health_connect_note)) {
+    ForgeTitledCard(stringResource(R.string.food_health_connect), stringResource(R.string.food_health_connect_note)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.food_write_health), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
             Switch(writeHealth, { writeHealth = it; prefs.writeHealth = it })
         }
-        LinkRow(stringResource(R.string.food_allow_health), null) { permissions.launch(FoodHealthConnect.READ + FoodHealthConnect.WRITE) }
+        ForgeLinkRow(stringResource(R.string.food_allow_health), null) { permissions.launch(FoodHealthConnect.READ + FoodHealthConnect.WRITE) }
     }
     // The food reminders and the logging warning (owner, 2026-11-21), the same keys as iOS; the score itself is for
     // everyone now, so its Lab switch is gone.
@@ -1392,7 +1459,7 @@ internal fun FoodExtrasCards() {
     fun askNotifications() {
         if (android.os.Build.VERSION.SDK_INT >= 33) notifyPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
     }
-    SettingsCard(stringResource(R.string.food_reminders), stringResource(R.string.food_reminders_note)) {
+    ForgeTitledCard(stringResource(R.string.food_reminders), stringResource(R.string.food_reminders_note)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.food_reminder_morning), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
             Switch(morningOn, { morningOn = it; if (it) askNotifications(); FoodReminders.set(context, FoodReminders.MORNING, it) })
@@ -1455,7 +1522,7 @@ private fun FoodGoalsCard() {
             .putFloat("food.goal.carbsPercent", carbs.toFloat()).putFloat("food.goal.fatPercent", fat.toFloat()).apply()
     }
     val total = (protein + carbs + fat).roundToInt()
-    SettingsCard(stringResource(R.string.food_goals), stringResource(if (fixed > 0) R.string.food_goal_fixed_note else R.string.food_goal_plan_note) +
+    ForgeTitledCard(stringResource(R.string.food_goals), stringResource(if (fixed > 0) R.string.food_goal_fixed_note else R.string.food_goal_plan_note) +
         if (total != 100) " " + stringResource(R.string.food_goal_scaled, total) else "") {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(stringResource(R.string.food_goal_fixed), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))

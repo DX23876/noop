@@ -319,6 +319,9 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     val previousLabel = stringResource(R.string.forge_previous_day)
     val nextLabel = stringResource(R.string.forge_next_day)
     var drag by remember { mutableStateOf(0f) }
+    // iOS's `forgeSurfaceOpacity`: Today's tiles and notes follow their own "Transparency on Today" setting.
+    val todaySurface = TodaySurfacePrefs.percent(context) / 100f
+    androidx.compose.runtime.CompositionLocalProvider(LocalTodaySurface provides if (ForgeDesign.preview) todaySurface else null) {
     Column(
         Modifier.fillMaxSize()
             // Swipe sideways for another day, as on iOS; screen readers get the same as two actions.
@@ -408,7 +411,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             val liveEffort by produceState<Double?>(null, shown, coreRevision, model?.day?.effort) {
                 value = if (shown != today) null else withContext(Dispatchers.IO) {
                     CoreRead.open(context)
-                    com.noop.core.CoreLiveEffort.today(context, model?.day?.restingHr, model?.day?.effort)
+                    com.noop.core.CoreLiveEffort.today(context, model?.day?.effort)
                 }
             }
             val heroDay = (model?.day ?: CoreRead.Day(shown.toString(), null, null, null, null, null, null, null, null, null,
@@ -481,6 +484,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
         sections.forEach { drawSection(it) }
         }
         Spacer(Modifier.height(ForgeMetrics.space2))
+    }
     }
 }
 

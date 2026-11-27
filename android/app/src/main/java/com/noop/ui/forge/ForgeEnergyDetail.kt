@@ -536,7 +536,7 @@ private fun RateCard(d: CoreEnergyDetail.Detail, isToday: Boolean, comparison: S
         }
         return
     }
-    SettingsCard(title = stringResource(if (isToday) R.string.forge_ed_rate_today else R.string.forge_ed_rate), blurb = null) {
+    ForgeTitledCard(title = stringResource(if (isToday) R.string.forge_ed_rate_today else R.string.forge_ed_rate), blurb = null) {
         Text("kcal/min", style = Forge.type.caption, color = Forge.colors.textTertiary)
         RateChart(d.points, d.bands, d.comparisonPoints)
         Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {

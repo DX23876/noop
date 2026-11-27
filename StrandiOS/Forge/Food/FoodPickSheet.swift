@@ -53,7 +53,7 @@ struct FoodPickSheet: View {
 
     private func close() { dismiss() }
     private func pick(_ item: FoodItem) { portionFor = item }
-    private func quickAdd(_ item: FoodItem, _ grams: Double) { chosen(FoodCartLine(item: item, grams: grams)) }
+    private func quickAdd(_ item: FoodItem, _ grams: Double) { chosen(FoodItemRow.quickLine(item, grams)) }
     private func favourite(_ item: FoodItem, _ on: Bool) { Task { await model.setFavourite(item, on: on, repo: repo) } }
 
     private func chosen(_ line: FoodCartLine) {

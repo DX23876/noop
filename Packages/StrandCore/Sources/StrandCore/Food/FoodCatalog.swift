@@ -23,10 +23,18 @@ public struct FoodItem: Equatable, Sendable, Identifiable, Codable {
     /// The BLS food whose values filled this one's gaps, and which nutrients they are (`FoodEstimate`).
     public var estimatedFrom: String?
     public var estimatedKeys: [String]?
+    /// A drink: amounts are millilitres and the nutrients are per 100 ml, as Open Food Facts states them for
+    /// liquids. Nil or false is grams.
+    public var liquid: Bool?
+    /// One piece of the package in grams or millilitres, and how many pieces the package holds (`FoodPackage`).
+    public var packageAmount: Double?
+    public var packageCount: Int?
 
     public init(id: String, source: Source, name: String, nameEn: String? = nil, brand: String? = nil,
                 group: String? = nil, nova: Int? = nil, servingG: Double? = nil, servingLabel: String? = nil,
-                per100g: NutrientAmounts, barcode: String? = nil, estimatedFrom: String? = nil, estimatedKeys: [String]? = nil) {
+                per100g: NutrientAmounts, barcode: String? = nil, estimatedFrom: String? = nil, estimatedKeys: [String]? = nil,
+                liquid: Bool? = nil, packageAmount: Double? = nil, packageCount: Int? = nil) {
+        self.liquid = liquid; self.packageAmount = packageAmount; self.packageCount = packageCount
         self.estimatedFrom = estimatedFrom; self.estimatedKeys = estimatedKeys
         self.id = id; self.source = source; self.name = name; self.nameEn = nameEn; self.brand = brand
         self.group = group; self.nova = nova; self.servingG = servingG; self.servingLabel = servingLabel

@@ -3280,6 +3280,9 @@ class WhoopBleClient(
 
     init {
         seedLastSyncFromActiveStrap()
+        // The shared core's daily pass writes into the same strap log as this client (Apple: `AppModel` wires
+        // `AppAnalysisHost.diagnosticSink` to `live.append(log:)`).
+        com.noop.core.CoreShadow.passLogSink = { line -> log(line) }
         // Retro-decode (#151): when the decoder gains a historical layout (WHOOP 4.0 v25), re-run every
         // archived undecodable frame through it and insert whatever now decodes — the only path by
         // which already-acked, strap-freed history backfills after an update. Runs once per APP version
@@ -3400,8 +3403,9 @@ class WhoopBleClient(
                 log("re-score: trigger=post-offload newData=" +
                     if (newData) "yes"
                     else "no (empty/duplicate offload — nothing changed since last run) — skipping (#1146)")
-                // Fork (DX23876), Android plan D-5: the shared core scores the same nights on its own store. Its
-                // answer is logged two minutes later beside this pass's own per-day lines, for comparison.
+                // Fork (DX23876), Android plan D-5: the shared core scores the nights on its own store. Since
+                // 2026-11-26 this is Apple's post-offload pass (`afterOffload`): only the days the offload moved are
+                // derived again, where every pass used to derive all 21 about 70 times a day.
                 if (newData) {
                     com.noop.core.CoreShadow.analyze(profile.age.toInt(), profile.sex, profile.weightKg,
                         profile.heightCm, profileStore.hrMaxOverride,
@@ -3417,10 +3421,14 @@ class WhoopBleClient(
                             profileStore,
                             dismissedSleep = repository.dismissedSleeps(deviceId).map { it.startTs to it.endTs },
                             dismissedWorkouts = repository.dismissedDetectedUnion(deviceId).map { it.startTs to it.endTs },
-                            spo2CandidateDisplay = NoopPrefs.spo2CandidateDisplay(context)))
-                    handler.postDelayed({
+                            spo2CandidateDisplay = NoopPrefs.spo2CandidateDisplay(context),
+                            afterOffload = true))
+                    // The pass's own lines (what it derived, what it reused, what it cost) and today's scores, once
+                    // it has finished: it waits behind any history still arriving, so a fixed delay could miss it.
+                    ioScope.launch {
+                        com.noop.core.CoreShadow.awaitQueuedAnalysis()
                         com.noop.core.CoreShadow.today()?.let { log("Core shadow analysis: $it") }
-                    }, 120_000)
+                    }
                 }
                 if (newData) runCatching {
                     // #1816: set the motion sink so a fresh strap's first backfill flips the Today caption
@@ -3555,7 +3563,14 @@ class WhoopBleClient(
                     // #660: log the count AND any PII-safe failure categories (the writer also persists
                     // the outcome to prefs, so Data Sources surfaces a failing background share).
                     runCatching { HealthConnectWriter.write(context, repository, deviceId) }
-                        .onSuccess { r -> log("HC writeback: ${r.written} record(s)" + if (r.ok) "" else " (failed: ${r.failures.joinToString()})") }
+                        .onSuccess { r ->
+                            log(
+                                "HC writeback: ${r.written} record(s)" +
+                                    (if (r.fullWrite) " (daily full write)" else "") +
+                                    (if (r.planMissed) " (the core gave no plan, so every record was written)" else "") +
+                                    (if (r.ok) "" else " (failed: ${r.failures.joinToString()})"),
+                            )
+                        }
                 }
             } finally {
                 val retryAlreadyQueued = analyzeAfterBackfillPending.getAndSet(false)
@@ -3738,6 +3753,13 @@ class WhoopBleClient(
 
     /** Guards the once-per-connect initial offload kick (Swift `backfillStarted`). */
     private var backfillStarted = false
+
+    /**
+     * Whether this link already re-applied the wearer's heart-rate sharing to a 5/MG. Apple does it once per
+     * connection (`whoop5SessionStarted`); here it rode every offload kick, so the auto-continuing re-kicks of
+     * one sync sent the same three writes again every few seconds. Re-armed in [reset].
+     */
+    internal val whoop5SharingOnce = LinkOnce()
 
     // #520 DIS identity — read ONCE per connection, post-handshake, 5/MG only. Serial and hardware
     // revision are immutable, so they are never re-polled (unlike the battery). Reset on disconnect.
@@ -11812,9 +11834,14 @@ class WhoopBleClient(
             // back. The BYTE cap still bounds the file and is untouched.
             captureLines = 0
         }
-        if (connectedFamily == DeviceFamily.WHOOP5) {
-            // Re-apply the Broadcast-HR device-config flag if the user opted in (#181).
+        if (connectedFamily == DeviceFamily.WHOOP5 && whoop5SharingOnce.claim()) {
+            // Re-apply the Broadcast-HR device-config flag if the user opted in (#181), once per link as Apple
+            // does, and send an OFF this strap is still owed (the 2026-11-15 half the WHOOP 4 tail already has;
+            // its own device-id check decides whether anything goes out).
             if (PuffinExperiment.from(context).broadcastHr) setBroadcastHr(true)
+            applyPendingSharingWishIfAny()
+        }
+        if (connectedFamily == DeviceFamily.WHOOP5) {
             // Goose parity, hardware-validated (#78 fork): query the strap's stored range first and
             // fire the transfer on its SUCCESS response (PENDING precedes it). FAIL-OPEN: real
             // hardware sometimes swallows the first GET_DATA_RANGE entirely, so a 2s fallback fires
@@ -13198,6 +13225,7 @@ class WhoopBleClient(
         // Reset offload state so the next connect starts a fresh session (port of the backfill
         // flag resets in didDisconnectPeripheral). Timers are handler-posted, so cancel them here.
         backfillStarted = false
+        whoop5SharingOnce.reset()
         // #520: a re-connect must re-read the DIS identity (the strap may be a different one).
         disRead = false
         disSerial = null

@@ -1,6 +1,354 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "Backup & Sync to a folder" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sicherung & Sync in einen Ordner"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copia y sincronización a una carpeta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sauvegarde et synchronisation vers un dossier"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Backup e sincronizzazione in una cartella"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kopia zapasowa i synchronizacja z folderem"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Faça cópia de segurança e sincronize com uma pasta"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Резервное копирование и синхронизация в папку"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "备份并同步到文件夹"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "備份並同步到資料夾"
+          }
+        }
+      }
+    },
+    "Daily dated backup into a folder" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Täglich eine datierte Sicherung in einen Ordner"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una copia de seguridad con fecha al día en una carpeta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une sauvegarde datée par jour dans un dossier"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un backup con data al giorno in una cartella"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Codziennie datowana kopia zapasowa w folderze"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma cópia de segurança datada por dia numa pasta"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ежедневная резервная копия с датой в папку"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天向文件夹备份一份带日期的副本"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每天向資料夾備份一份帶日期的副本"
+          }
+        }
+      }
+    },
+    "Optional cards on Today" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optionale Karten auf Heute"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tarjetas opcionales en Hoy"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cartes facultatives dans Aujourd'hui"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schede facoltative in Oggi"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opcjonalne karty w Dzisiaj"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cartões opcionais em Hoje"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Дополнительные карточки на экране «Сегодня»"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「今天」上的可选卡片"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「今天」上的可選卡片"
+          }
+        }
+      }
+    },
+    "The strap keeps banking data on its own, so nothing is lost — NOOP just talks to it less often to help it last until you can charge it. Slows background strap-sync (every 45 min instead of 15) while your strap's battery is low." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Der Strap speichert seine Daten weiterhin selbst, es geht also nichts verloren. NOOP spricht nur seltener mit ihm, damit er bis zum Laden durchhält. Synchronisiert im Hintergrund seltener (alle 45 statt 15 Minuten), solange der Akku deines Straps niedrig ist."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La banda sigue guardando los datos por su cuenta, así que no se pierde nada: NOOP simplemente habla con ella menos a menudo para que aguante hasta que puedas cargarla. Lenta la correa de fondo sincronía (cada 45 min en lugar de 15) mientras que la batería de la correa es baja."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le bracelet continue d’enregistrer ses données de son côté, donc rien n’est perdu — NOOP lui parle simplement moins souvent pour qu’il tienne jusqu’à la recharge. Lentifie le sangle de fond (toutes les 45 min au lieu de 15) tandis que la batterie de votre sangle est basse."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La fascia continua a memorizzare i dati da sola, quindi non si perde nulla — NOOP comunica con lei meno spesso per farla durare finché non puoi caricarla. Rallenta la sincronizzazione in background della fascia (ogni 45 min invece di 15) quando la batteria della fascia è scarica."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opaska nadal zapisuje dane samodzielnie, więc nic nie ginie — NOOP po prostu rzadziej się z nią komunikuje, aby wystarczyła do naładowania. Spowalnia synchronizację paska w tle (co 45 minut zamiast 15), gdy bateria paska jest słaba."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A pulseira continua a guardar os dados sozinha, por isso nada se perde — o NOOP apenas fala com ela menos vezes para durar até a poderes carregar. Retarda a sincronização da bracelete em segundo plano (a cada 45 minutos em vez de 15) enquanto a bateria da bracelete está fraca."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Браслет продолжает копить данные сам, поэтому ничего не теряется — NOOP просто обращается к нему реже, чтобы его хватило до зарядки. Снижает частоту синхронизации с устройством в фоне (каждые 45 минут вместо 15 минут), когда батарея низкая."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手环会自行继续存储数据，因此不会丢失任何内容 — NOOP 只是减少与它通信的频率，帮它撑到你能充电为止。当手环电量偏低时，减缓后台同步频率（从每15分钟一次降为每45分钟一次）。绝对不会丢失数据——手环会缓存一切记录，同步只是变成了更大批次、更低频的拉取动作。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手環會自行繼續儲存資料，因此不會遺失任何內容 — NOOP 只是減少與它通訊的頻率，幫它撐到你能充電為止。延緩背景同步頻率（每 45 分鐘，而非每 15 分鐘），當手環電量低時。無資料丟失——手環會儲存所有資訊，同步僅會匯入較大且較頻率較低的資料包。"
+          }
+        }
+      }
+    },
+    "Turn on a test for the thing that's wrong, wear the strap, then tap “Report a bug with my log”. Your strap log, recalibrate, scheduled export and experimental probes all live here too." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schalte einen Test für das ein, was nicht stimmt, trage den Strap und tippe dann auf „Fehler mit meinem Log melden“. Dein Strap-Log, Neukalibrierung, geplanter Export und experimentelle Sonden leben auch hier."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activa una prueba para lo que va mal, ponte la pulsera y luego toca «Reportar un error con mi registro». El registro de tu pulsera, la recalibración, la exportación programada y las sondas experimentales también viven aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activez un test pour ce qui ne va pas, portez le bracelet, puis touchez « Signaler un bug avec mon journal ». Le journal de votre bracelet, le recalibrage, l'export programmé et les sondes expérimentales se trouvent aussi ici."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attiva un test per ciò che non va, indossa la fascia, poi tocca «Segnala un bug con il mio log». Anche il registro della fascia, la ricalibrazione, l'esportazione pianificata e le sonde sperimentali si trovano qui."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Włącz test na to, co jest nie tak, załóż pasek, a następnie dotknij „Zgłoś błąd w moim logu”. Twój dziennik paska, ponowna kalibracja, zaplanowany eksport i sondy eksperymentalne również znajdują się tutaj."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ative um teste para detetar o que está errado, utilize a bracelete e toque em «Reportar um erro com o meu registo». O teu registo de bracelete, recalibração, exportação programada e sondas experimentais também estão aqui."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Включите тест для проблемы, наденьте браслет, затем нажмите «Сообщить об ошибке, приложив журнал». Здесь же находятся журнал браслета, повторная калибровка, запланированный экспорт и экспериментальные пробы."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为出问题的部分开启一项测试，佩戴手环，然后点击「附上我的日志报告一个错误」。你的手环日志、重新校准、定时导出和实验性探测也都在这里。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "為出問題的部分開啟一項測試，佩戴手環，然後點擊「附上我的日誌報告一個錯誤」。你的手環日誌、重新校準、定時匯出和實驗性探測也都在這裡。"
+          }
+        }
+      }
+    },
+    "Turn on a test for the thing that's wrong, wear the strap, then tap “Report a bug with my log”. Everything stays on %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schalte einen Test für das ein, was nicht stimmt, trage den Strap und tippe dann auf „Fehler mit meinem Log melden“. Alles bleibt auf %@."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activa una prueba para lo que va mal, ponte la pulsera y luego toca «Reportar un error con mi registro». Todo se queda en %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Activez un test pour ce qui ne va pas, portez le bracelet, puis touchez « Signaler un bug avec mon journal ». Tout reste sur %@."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attiva un test per ciò che non va, indossa la fascia, poi tocca «Segnala un bug con il mio log». Tutto resta su %@."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Włącz test na to, co jest nie tak, załóż pasek, a następnie dotknij „Zgłoś błąd w moim logu”. Wszystko zostaje na %@."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ative um teste para detetar o que está errado, utilize a bracelete e toque em «Reportar um erro com o meu registo». Tudo fica em %@."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Включите тест для проблемы, наденьте браслет, затем нажмите «Сообщить об ошибке, приложив журнал». Всё остаётся на %@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为出问题的部分开启一项测试，佩戴手环，然后点击「附上我的日志报告一个错误」。所有内容都保留在 %@ 上。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "為出問題的部分開啟一項測試，佩戴手環，然後點擊「附上我的日誌報告一個錯誤」。所有內容都保留在 %@ 上。"
+          }
+        }
+      }
+    },
     "%1$@ of %2$@ kcal eaten" : {
       "localizations" : {
         "de" : {
@@ -373,6 +721,122 @@
         }
       }
     },
+    "1 portion (%@ ml)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 Portion (%@ ml)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 ración (%@ ml)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une portion (%@ ml)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 porzione (%@ ml)"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 porcja (%@ ml)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 porção (%@ ml)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 порция (%@ мл)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 份（%@ 毫升）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 份（%@ 毫升）"
+          }
+        }
+      }
+    },
+    "1 of %lld (%@)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 von %lld (%@)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 de %lld (%@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 sur %lld (%@)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 di %lld (%@)"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 z %lld (%@)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 de %lld (%@)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 из %lld (%@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 件中的 1 件（%@）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 件中的 1 件（%@）"
+          }
+        }
+      }
+    },
     "10 years" : {
       "localizations" : {
         "de" : {
@@ -485,6 +949,122 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "3 年"
+          }
+        }
+      }
+    },
+    "Add %@ %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ %2$@ hinzufügen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir %1$@ %2$@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter %1$@ %2$@"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggiungi %1$@ %2$@"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dodaj %1$@ %2$@"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Adicionar %1$@ %2$@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Добавить %1$@ %2$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加 %1$@ %2$@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "新增 %1$@ %2$@"
+          }
+        }
+      }
+    },
+    "Choose a day" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tag wählen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elegir un día"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir un jour"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scegli un giorno"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wybierz dzień"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escolher um dia"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Выбрать день"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择日期"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選擇日期"
           }
         }
       }
@@ -785,6 +1365,64 @@
         }
       }
     },
+    "Half a pack (%@)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Halbe Packung (%@)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medio paquete (%@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demi-paquet (%@)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mezza confezione (%@)"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pół opakowania (%@)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Meia embalagem (%@)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Половина упаковки (%@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "半包（%@）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "半包（%@）"
+          }
+        }
+      }
+    },
     "How much history to import" : {
       "localizations" : {
         "de" : {
@@ -897,6 +1535,122 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "匯入 Apple 健康歷史資料"
+          }
+        }
+      }
+    },
+    "Millilitres" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Milliliter"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mililitros"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volume en ml"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Millilitri"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mililitry"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mililitros"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Миллилитры"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "毫升"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "毫升"
+          }
+        }
+      }
+    },
+    "Last time %@ ml" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Letztes Mal %@ ml"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La última vez %@ ml"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La dernière fois %@ ml"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L'ultima volta %@ ml"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ostatnio %@ ml"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Da última vez %@ ml"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В прошлый раз %@ мл"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上次 %@ 毫升"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上次 %@ 毫升"
           }
         }
       }
@@ -1133,6 +1887,64 @@
         }
       }
     },
+    "Swipe between tabs" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zwischen Tabs wischen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deslizar entre pestañas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balayer entre les onglets"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scorri tra le schede"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Przesuwanie między kartami"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deslizar entre separadores"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Переключать вкладки свайпом"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滑动切换标签页"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滑動切換分頁"
+          }
+        }
+      }
+    },
     "Syncing the strap…" : {
       "localizations" : {
         "de" : {
@@ -1251,6 +2063,122 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "卡片總覽"
+          }
+        }
+      }
+    },
+    "Whole pack (%@)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ganze Packung (%@)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paquete entero (%@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paquet entier (%@)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confezione intera (%@)"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Całe opakowanie (%@)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Embalagem inteira (%@)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вся упаковка (%@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "整包（%@）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "整包（%@）"
+          }
+        }
+      }
+    },
+    "Whole pack (%lld × %@ %@)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ganze Packung (%lld × %@ %@)"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paquete entero (%lld × %@ %@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paquet entier (%lld × %@ %@)"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confezione intera (%lld × %@ %@)"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Całe opakowanie (%lld × %@ %@)"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Embalagem inteira (%lld × %@ %@)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вся упаковка (%lld × %@ %@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "整包（%lld × %@ %@）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "整包（%lld × %@ %@）"
           }
         }
       }
@@ -10390,6 +11318,7 @@
       }
     },
     "A cardiovascular load: each minute of heart rate weighs more the closer it sits to your maximum heart rate, summed over the day and placed on a 0-100 curve fitted on 3,760 workouts. Outside workouts, only heart rate above half your heart-rate reserve counts." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -11144,6 +12073,7 @@
       }
     },
     "Your cardiovascular load. Every minute of heart rate counts for more the closer it sits to your maximum, measured on your heart-rate reserve (Karvonen) with the maximum NOOP learns from your workouts (or the one you enter). The day's load lands on a 0-100 curve fitted on 3,760 workouts, with a soft cap near the top, so easy days sit low and 100 stays out of reach. Outside workouts, heart rate below half your reserve does not count, so hours of standing and walking around do not add up to a hard day." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -124672,7 +125602,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Backups werden in NOOP gespeichert. Öffnen Sie die Dateien-App → Auf meinem iPhone → NOOP → Backups, um sie anzuzeigen, oder ziehen Sie den Ordner in iCloud Drive, um ihn auf Ihrem Mac zu lesen. Um später einen anderen Ordner zu verwenden, tippen Sie auf Ordner ändern."
+            "value" : "Sicherungen werden in NOOP gespeichert. Öffne die Dateien-App → Auf meinem iPhone → NOOP → Backups, um sie anzuzeigen, oder ziehe den Ordner in iCloud Drive, um ihn auf deinem Mac zu lesen. Um später einen anderen Ordner zu verwenden, tippe auf Ordner ändern."
           }
         },
         "en" : {
@@ -159138,7 +160068,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Coach Einstiegspunkte und optionale Check-ins sind verfügbar. Die gemeinsame Nutzung von Daten ist immer noch eine separate Wahl."
+            "value" : "Coach-Einstiegspunkte und optionale Check-ins sind verfügbar. Die gemeinsame Nutzung von Daten ist immer noch eine separate Wahl."
           }
         },
         "en" : {
@@ -183399,7 +184329,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Standard: Schritte und laufende Effort starten am Anfang des erkannten Hauptschlafs. Nickerchen starten keinen neuen Tag; fehlende Schlafdauer wird auf Mitternacht vor Ort zurückgesetzt."
+            "value" : "Standard: Schritte und der laufende Effort starten am Anfang des erkannten Hauptschlafs. Nickerchen starten keinen neuen Tag; fehlende Schlafdauer wird auf Mitternacht vor Ort zurückgesetzt."
           }
         },
         "es" : {
@@ -203692,7 +204622,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "KI aktivieren Coach"
+            "value" : "KI-Coach aktivieren"
           }
         },
         "en" : {
@@ -257831,7 +258761,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Beim Import ist die Integritätsprüfung nach der Wiederherstellung fehlgeschlagen (SQLite-Berichte: %@). Ihre vorherigen Daten wurden automatisch zurückgesetzt und bleiben unverändert."
+            "value" : "Beim Import ist die Integritätsprüfung nach der Wiederherstellung fehlgeschlagen (SQLite-Berichte: %@). Deine vorherigen Daten wurden automatisch zurückgesetzt und bleiben unverändert."
           }
         },
         "en" : {
@@ -267996,7 +268926,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Letzte Snapshots behalten"
+            "value" : "Letzte Sicherungen behalten"
           }
         },
         "es" : {
@@ -331569,7 +332499,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Metrik"
+            "value" : "Metrisch"
           }
         },
         "en" : {
@@ -358447,7 +359377,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kein Strap verbunden. Leg dein WHOOP in die Nähe und tippe auf „Neu scannen“ zum Koppeln."
+            "value" : "Kein Strap verbunden. Leg dein WHOOP in die Nähe und tippe auf „Erneut suchen“, um ihn zu koppeln."
           }
         },
         "es" : {
@@ -362868,7 +363798,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "NOOP hat keinen Ordner von der Auswahl zurückbekommen. Wenn die Schaltfläche „Öffnen“ nichts bewirkt, tippen Sie unten auf „Eigenen Ordner von NOOP verwenden“, um stattdessen ein Backup in NOOP zu erstellen – Sie können diese Backups über die Dateien-App lesen."
+            "value" : "NOOP hat keinen Ordner von der Auswahl zurückbekommen. Wenn die Schaltfläche „Öffnen“ nichts bewirkt, tippe unten auf „Verwende den eigenen Ordner von NOOP“, um stattdessen in NOOP zu sichern – du kannst diese Sicherungen über die Dateien-App lesen."
           }
         },
         "en" : {
@@ -415429,7 +416359,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lies deine Herzfrequenz, HRV, Blutsauerstoff, Atemfrequenz, Schlaf, Schritte und Energie direkt von Apple Health und schreibe NOOP's Banddaten zurück: Schlafe mit vollen Stadien, kontinuierlicher Herzfrequenz, Workouts und nächtlichen Vitalen. Alles bleibt auf %1$@."
+            "value" : "Lies deine Herzfrequenz, HRV, Blutsauerstoff, Atemfrequenz, Schlaf, Schritte und Energie direkt aus Apple Health und schreibe die Strap-Daten von NOOP zurück: Schlaf mit allen Phasen, durchgehende Herzfrequenz, Workouts und nächtliche Vitalwerte. Alles bleibt auf %1$@."
           }
         },
         "es" : {
@@ -415487,7 +416417,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lesen Sie Ihre Herzfrequenz, HRV, Blutsauerstoff, Atemfrequenz, Schlaf, Schritte und Energie direkt von Apple Health und schreiben Sie NOOP's Banddaten zurück: Schlafen Sie mit vollen Stadien, kontinuierlicher Herzfrequenz, Workouts, nächtlichen Vitalen und Ihrem Profilgewicht. Alles bleibt auf %1$@."
+            "value" : "Lies deine Herzfrequenz, HRV, Blutsauerstoff, Atemfrequenz, Schlaf, Schritte und Energie direkt aus Apple Health und schreibe die Strap-Daten von NOOP zurück: Schlaf mit allen Phasen, durchgehende Herzfrequenz, Workouts, nächtliche Vitalwerte und dein Profilgewicht. Alles bleibt auf %1$@."
           }
         },
         "en" : {
@@ -423172,7 +424102,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zeichnet bereits eintreffende Frames auf, startet keine Sensoren und kann große Dateien erzeugen. Der Export unten fügt das Bandprotokoll hinzu."
+            "value" : "Zeichnet bereits eintreffende Frames auf, startet keine Sensoren und kann große Dateien erzeugen. Der Export unten fügt das Strap-Log hinzu."
           }
         },
         "es" : {
@@ -489594,7 +490524,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Bandprotokoll, Verbindungswerte und Exporte"
+            "value" : "Strap-Log, Verbindungswerte und Exporte"
           }
         },
         "es" : {
@@ -509892,7 +510822,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Die Datenbank NOOP hat ihre Integritätsprüfung nicht bestanden (SQLite-Berichte: %@). Eine Sicherung davon ließe sich nicht wiederherstellen. Exportieren Sie die CSV-Datei im WHOOP-Format (Einstellungen → Daten exportieren), um zu speichern, was noch lesbar ist."
+            "value" : "Die Datenbank NOOP hat ihre Integritätsprüfung nicht bestanden (SQLite-Berichte: %@). Eine Sicherung davon ließe sich nicht wiederherstellen. Exportiere die CSV-Datei im WHOOP-Format (Einstellungen → Daten exportieren), um zu speichern, was noch lesbar ist."
           }
         },
         "en" : {
@@ -516594,7 +517524,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Diese Sicherungsdatei ist beschädigt und kann nicht wiederhergestellt werden (SQLite-Berichte: %@). Ihre aktuellen Daten blieben unberührt. Versuchen Sie es mit einer früheren Sicherungsdatei."
+            "value" : "Diese Sicherungsdatei ist beschädigt und kann nicht wiederhergestellt werden (SQLite-Berichte: %@). Deine aktuellen Daten blieben unberührt. Versuche es mit einer früheren Sicherungsdatei."
           }
         },
         "en" : {
@@ -527189,7 +528119,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Today zeigt immer die drei wichtigsten. Weniger Ziele hält man leichter."
+            "value" : "Heute zeigt immer die drei wichtigsten. Weniger Ziele hält man leichter."
           }
         },
         "es" : {
@@ -527660,7 +528590,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Today zeigt die ersten drei."
+            "value" : "Heute zeigt die ersten drei."
           }
         },
         "es" : {
@@ -544023,7 +544953,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verwenden Sie den eigenen Ordner von NOOP (in Dateien durchsuchen)"
+            "value" : "Verwende den eigenen Ordner von NOOP (in Dateien durchsuchen)"
           }
         },
         "en" : {
@@ -567138,7 +568068,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "WHOOP 5.0/MG unterstützt Live-Daten und Bandverlauf. Protokollwerkzeuge sind separat im Testcenter."
+            "value" : "WHOOP 5.0/MG unterstützt Live-Daten und den Strap-Verlauf. Werkzeuge zur Protokollforschung findest du separat im Testzentrum."
           }
         },
         "es" : {
@@ -686247,6 +687177,122 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "教練的新訊息"
+          }
+        }
+      }
+    },
+    "A cardiovascular load: each minute of heart rate weighs more the closer it sits to your maximum heart rate, summed over the day and placed on a 0-100 curve fitted on 3,760 workouts. The day counts heart rate above half your heart-rate reserve and never reads less than its strongest workout." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Herz-Kreislauf-Belastung: Jede Minute Herzfrequenz wiegt umso mehr, je näher sie an deiner maximalen Herzfrequenz liegt, aufsummiert über den Tag und auf eine 0-100-Kurve gelegt, die an 3.760 Workouts angepasst ist. Der Tag zählt Herzfrequenz über der Hälfte deiner Herzfrequenzreserve und liegt nie unter seinem stärksten Workout."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una carga cardiovascular: cada minuto de frecuencia cardíaca pesa más cuanto más cerca está de tu frecuencia cardíaca máxima, se suma a lo largo del día y se sitúa en una curva de 0-100 ajustada con 3.760 entrenamientos. El día cuenta la frecuencia cardíaca por encima de la mitad de tu reserva y nunca queda por debajo de su entrenamiento más intenso."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une charge cardiovasculaire : chaque minute de fréquence cardiaque pèse d'autant plus qu'elle est proche de votre fréquence cardiaque maximale, additionnée sur la journée et placée sur une courbe de 0-100 ajustée sur 3 760 entraînements. La journée compte la fréquence cardiaque au-dessus de la moitié de votre réserve et ne descend jamais sous son entraînement le plus intense."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un carico cardiovascolare: ogni minuto di frequenza cardiaca pesa di più quanto più è vicino alla tua frequenza cardiaca massima, sommato sulla giornata e posto su una curva 0-100 adattata su 3.760 allenamenti. La giornata conta la frequenza cardiaca sopra metà della tua riserva e non scende mai sotto il suo allenamento più intenso."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obciążenie sercowo-naczyniowe: każda minuta tętna waży tym więcej, im bliżej jest Twojego tętna maksymalnego, sumowana przez cały dzień i umieszczana na krzywej 0-100 dopasowanej do 3760 treningów. Dzień liczy tętno powyżej połowy rezerwy tętna i nigdy nie spada poniżej swojego najmocniejszego treningu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma carga cardiovascular: cada minuto de frequência cardíaca pesa mais quanto mais perto estiver da tua frequência cardíaca máxima, somado ao longo do dia e colocado numa curva de 0-100 ajustada a 3760 treinos. O dia conta a frequência cardíaca acima de metade da tua reserva e nunca fica abaixo do seu treino mais intenso."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сердечно-сосудистая нагрузка: каждая минута пульса весит тем больше, чем ближе она к вашему максимальному пульсу; всё суммируется за день и ложится на кривую 0-100, подобранную по 3760 тренировкам. День учитывает пульс выше половины резерва пульса и никогда не опускается ниже своей самой тяжёлой тренировки."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一种心血管负荷：每一分钟的心率越接近你的最大心率，权重越大，全天累加后放到一条根据 3,760 次训练拟合的 0-100 曲线上。一天只计入高于心率储备一半的心率，且绝不低于当天最强的一次训练。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一種心血管負荷：每一分鐘的心率越接近你的最大心率，權重越大，全天累加後放到一條根據 3,760 次訓練擬合的 0-100 曲線上。一天只計入高於心率儲備一半的心率，且絕不低於當天最強的一次訓練。"
+          }
+        }
+      }
+    },
+    "Your cardiovascular load. Every minute of heart rate counts for more the closer it sits to your maximum, measured on your heart-rate reserve (Karvonen) between your resting heart rate at night and the maximum NOOP learns from your workouts (or the one you enter). The day's load lands on a 0-100 curve fitted on 3,760 workouts, with a soft cap near the top, so easy days sit low and 100 stays out of reach. Heart rate below half your reserve does not count toward the day, so hours of standing and walking around do not add up to a hard day. A workout still counts its lighter minutes; the day never reads less than its strongest workout." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Herz-Kreislauf-Belastung. Jede Minute Herzfrequenz zählt umso mehr, je näher sie an deinem Maximum liegt, gemessen an deiner Herzfrequenzreserve (Karvonen) zwischen deinem Ruhepuls in der Nacht und dem Maximum, das NOOP aus deinen Workouts lernt (oder dem, das du einträgst). Die Last des Tages landet auf einer 0-100-Kurve mit weicher Obergrenze, angepasst an 3.760 Workouts, sodass leichte Tage niedrig bleiben und 100 unerreichbar bleibt. Herzfrequenz unter der Hälfte deiner Reserve zählt nicht für den Tag, damit stundenlanges Stehen und Herumlaufen keinen harten Tag ergibt. Ein Workout zählt seine leichteren Minuten weiterhin; der Tag liegt nie unter seinem stärksten Workout."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu carga cardiovascular. Cada minuto de frecuencia cardíaca cuenta más cuanto más cerca está de tu máximo, medido sobre tu reserva de frecuencia cardíaca (Karvonen) entre tu frecuencia cardíaca en reposo durante la noche y el máximo que NOOP aprende de tus entrenamientos (o el que introduzcas). La carga del día se sitúa en una curva de 0-100 ajustada con 3.760 entrenamientos y con un techo suave, así que los días fáciles quedan bajos y el 100 sigue fuera de alcance. La frecuencia cardíaca por debajo de la mitad de tu reserva no cuenta para el día, para que horas de estar de pie y caminar no sumen un día duro. Un entrenamiento sigue contando sus minutos más suaves; el día nunca queda por debajo de su entrenamiento más intenso."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre charge cardiovasculaire. Chaque minute de fréquence cardiaque compte d'autant plus qu'elle est proche de votre maximum, mesurée sur votre réserve de fréquence cardiaque (Karvonen) entre votre fréquence cardiaque de repos la nuit et le maximum que NOOP apprend de vos entraînements (ou celui que vous saisissez). La charge de la journée est placée sur une courbe de 0-100 ajustée sur 3 760 entraînements, avec un plafond doux, de sorte que les journées faciles restent basses et que 100 reste hors d'atteinte. La fréquence cardiaque sous la moitié de votre réserve ne compte pas pour la journée : des heures debout ou à marcher ne font pas une journée difficile. Un entraînement compte toujours ses minutes plus légères ; la journée ne descend jamais sous son entraînement le plus intense."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo carico cardiovascolare. Ogni minuto di frequenza cardiaca conta di più quanto più è vicino al tuo massimo, misurato sulla tua riserva di frequenza cardiaca (Karvonen) tra la tua frequenza cardiaca a riposo notturna e il massimo che NOOP impara dai tuoi allenamenti (o quello che inserisci tu). Il carico della giornata finisce su una curva 0-100 adattata su 3.760 allenamenti, con un tetto morbido, così i giorni facili restano bassi e 100 resta irraggiungibile. La frequenza cardiaca sotto metà della tua riserva non conta per la giornata, quindi ore in piedi o a camminare non diventano una giornata dura. Un allenamento conta comunque i suoi minuti più leggeri; la giornata non scende mai sotto il suo allenamento più intenso."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoje obciążenie sercowo-naczyniowe. Każda minuta tętna liczy się tym bardziej, im bliżej jest Twojego maksimum, mierzona na Twojej rezerwie tętna (Karvonen) między Twoim tętnem spoczynkowym w nocy a maksimum, którego NOOP uczy się z Twoich treningów (albo tym, które wpiszesz). Obciążenie dnia trafia na krzywą 0-100 dopasowaną do 3760 treningów, z miękkim limitem u góry, więc lekkie dni zostają nisko, a 100 pozostaje poza zasięgiem. Tętno poniżej połowy rezerwy nie liczy się do dnia, więc godziny stania i chodzenia nie składają się na ciężki dzień. Trening nadal liczy swoje lżejsze minuty; dzień nigdy nie spada poniżej swojego najmocniejszego treningu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua carga cardiovascular. Cada minuto de frequência cardíaca conta mais quanto mais perto estiver do teu máximo, medido na tua reserva de frequência cardíaca (Karvonen) entre a tua frequência cardíaca em repouso durante a noite e o máximo que o NOOP aprende com os teus treinos (ou o que introduzires). A carga do dia é colocada numa curva de 0-100 ajustada a 3760 treinos, com um teto suave, por isso os dias fáceis ficam baixos e o 100 continua fora de alcance. A frequência cardíaca abaixo de metade da tua reserva não conta para o dia, para que horas de pé e a andar não somem um dia duro. Um treino continua a contar os seus minutos mais leves; o dia nunca fica abaixo do seu treino mais intenso."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваша сердечно-сосудистая нагрузка. Каждая минута пульса весит тем больше, чем ближе она к вашему максимуму: считается по резерву пульса (Карвонен) между вашим ночным пульсом покоя и максимумом, который NOOP узнаёт из ваших тренировок (или тем, что вы укажете). Нагрузка дня ложится на кривую 0-100, подобранную по 3760 тренировкам, с мягким потолком, поэтому лёгкие дни остаются низкими, а 100 недостижимо. Пульс ниже половины резерва не учитывается в дне, так что часы стояния и ходьбы не складываются в тяжёлый день. Тренировка по-прежнему учитывает свои более лёгкие минуты; день никогда не опускается ниже своей самой тяжёлой тренировки."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的心血管负荷。每一分钟的心率越接近你的最大心率，计入就越多：按你的心率储备（Karvonen）计算，介于你夜间的静息心率和 NOOP 从你的训练中学到的最大心率（或你自己输入的值）之间。一天的负荷落在一条根据 3,760 次训练拟合、顶部有柔性上限的 0-100 曲线上，因此轻松的日子分数较低，100 始终无法达到。低于心率储备一半的心率不计入当天，所以长时间站立和走动不会累积成艰苦的一天。训练本身仍计入较轻松的分钟；一天的值绝不低于当天最强的一次训练。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的心血管負荷。每一分鐘的心率越接近你的最大心率，計入就越多：按你的心率儲備（Karvonen）計算，介於你夜間的靜息心率和 NOOP 從你的訓練中學到的最大心率（或你自己輸入的值）之間。一天的負荷落在一條根據 3,760 次訓練擬合、頂部有柔性上限的 0-100 曲線上，因此輕鬆的日子分數較低，100 始終無法達到。低於心率儲備一半的心率不計入當天，所以長時間站立和走動不會累積成艱苦的一天。訓練本身仍計入較輕鬆的分鐘；一天的值絕不低於當天最強的一次訓練。"
           }
         }
       }

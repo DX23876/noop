@@ -108,7 +108,9 @@ final class CoreGoalBackupTests: XCTestCase {
         let originalLive = try Data(contentsOf: URL(fileURLWithPath: target))
         let originalArchive = try Data(contentsOf: archive)
         let result = CoreBackup.restore(from: archive.path, toDatabaseAt: target, scratch: dir.path)
-        XCTAssertEqual(result, .failed("importFailed"))
+        guard case .failed(let why) = result else { return XCTFail("a bad goal image must refuse the restore") }
+        XCTAssertTrue(why.hasPrefix("importFailed"), why)
+        XCTAssertGreaterThan(why.count, "importFailed".count, "the cause is carried, not dropped")
         XCTAssertEqual(try Data(contentsOf: URL(fileURLWithPath: target)), originalLive)
         XCTAssertEqual(try Data(contentsOf: archive), originalArchive)
     }

@@ -261,7 +261,22 @@ public enum AnalysisRecipe {
     // for one walk, 636 such pairs in the owner's history. Its own number because AI-36 has shipped: the
     // testing build of 2026-11-20 (`048b50a38`) carries it. The full rebuild re-derives every day's
     // energy from the collapsed list; no stored input is rewritten.
-    public static let currentVersion = 37
+    // AI-38 (2026-11-25, fork) lets a deleted night block only the nights that mostly lie inside it
+    // (`DismissedSleepSpans.isSuppressed`). Any overlap used to be enough, so a real night that began in a
+    // deleted false one (awake in bed from 2 to 4 am, asleep after) was dropped whole (tester report,
+    // 2026-11-24). Its own number because AI-37 has shipped: the testing build of 2026-11-23 (`3f392132f`)
+    // carries it. The full rebuild detects every night again under the new rule; nothing the wearer entered
+    // is rewritten, and a tombstone stays where it was. The same unshipped recipe carries the wearer's sleep
+    // marks bounding the night they fall in (`SleepMarkBounds`, 2026-11-25): only taps stored with their time
+    // from now on bound anything, so the rebuild changes no night from before.
+    // AI-38 also carries Effort's day rule and resting heart rate (2026-11-25, #2438): a day counts nothing
+    // below 50 % HRR, inside a workout or not, and never scores below its strongest workout
+    // (`StrainScorer.LowIntensity.day`); Effort, its bouts and the filled workouts are scored against a resting
+    // heart rate halfway between the night's lowest five minutes and its mean (`EffortRestingHR`), stored per
+    // day as `rhr_effort`. The full rebuild scores every day and fills every workout again, and scores the
+    // Effort stored on recorded and confirmed sessions again from the band (`rescoreRecordedEffort`); nothing
+    // the wearer entered is rewritten.
+    public static let currentVersion = 38
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy
     /// repairs of older recipes, which fix stored inputs rather than derive anything (`LegacyRepair`).

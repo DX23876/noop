@@ -88,6 +88,19 @@ final class FoodLogStoreTests: XCTestCase {
         XCTAssertEqual(recent.first?.lastLoggedAt, 5_000)
     }
 
+    func testAKeptDrinkKeepsItsPackage() async throws {
+        let store = try await WhoopStore.inMemory()
+        let cans = CustomFood(id: "own:cola", name: "Cola", per100g: ["energy_kcal": 42], origin: .online,
+                              createdAt: 1, updatedAt: 1, liquid: true, packageAmount: 330, packageCount: 6)
+        let saved = try await store.saveCustomFood(cans)
+        XCTAssertTrue(saved)
+        let read = try await store.customFood(id: "own:cola")
+        XCTAssertEqual(read, cans, "millilitres and the six-pack come back as saved")
+        let refused = try await store.saveCustomFood(CustomFood(id: "own:x", name: "x", per100g: [:], origin: .own,
+                                                                createdAt: 1, updatedAt: 1, packageAmount: 0))
+        XCTAssertFalse(refused, "a package of nothing is not stored")
+    }
+
     func testCustomFoodsRecipesAndFavourites() async throws {
         let store = try await WhoopStore.inMemory()
         let muesli = CustomFood(id: "own:1", name: "Müsli", barcode: "4000000000017", per100g: ["energy_kcal": 430],

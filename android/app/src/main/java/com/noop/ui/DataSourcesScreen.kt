@@ -1,6 +1,7 @@
 package com.noop.ui
 
 import com.noop.R
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.ui.res.stringResource
 import android.content.Context
 import android.content.Intent
@@ -468,6 +469,101 @@ fun DataSourcesScreen(vm: AppViewModel) {
         }
     }
 
+    val forgeLook = LocalHostedChrome.current != null
+    val liveStrapItem: LazyListScope.() -> Unit = {
+        // --- Live WHOOP strap over BLE ---
+        item {
+        SourceCard(
+            title = uiString(R.string.l10n_data_sources_screen_whoop_strap_live_ble_217f7df6),
+            icon = Icons.Filled.Bluetooth,
+            subtitle = uiString(R.string.data_sources_whoop_live_subtitle),
+        ) {
+            val (label, tone) = when {
+                // encryptedBond, not bonded — see strapStatusTitle. A 5/MG streaming over the open
+                // profile has bonded == true with no pairing at all, and after #1635 hello suppression it
+                // stays there for good rather than passing through.
+                //
+                // "Live HR" reads a little wide here: bonded means REACHABLE, not currently streaming. It
+                // survives the stream stopping (take the strap off mid-link and it stays true), and the
+                // unbonded offload probe is a second way in — it sets bonded on a strap that answered a
+                // command without ever having sent an HR reading. Both are the same state: reachable over
+                // the open profile, never encrypted.
+                live.encryptedBond -> "Bonded, streaming." to StrandTone.Positive
+                live.bonded -> "Live HR (not fully paired)" to StrandTone.Warning
+                live.connected -> "Connected, pairing…" to StrandTone.Warning
+                else -> "Not connected. Open Live to pair." to StrandTone.Critical
+            }
+            StatePill(title = label, tone = tone, showsDot = true, pulsing = live.connected && !live.bonded)
+            val strapBroadcastTitle = uiString(R.string.raw_diag_broadcast_hr)
+            val strapBroadcastDescription = uiString(R.string.data_sources_band_broadcast_description)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(strapBroadcastTitle, style = NoopType.subhead, color = Palette.textPrimary)
+                    Text(
+                        strapBroadcastDescription,
+                        style = NoopType.footnote,
+                        color = Palette.textTertiary,
+                    )
+                }
+                Switch(
+                    checked = strapHrBroadcast,
+                    onCheckedChange = { enabled ->
+                        strapHrBroadcast = enabled
+                        puffinExperiment.broadcastHr = enabled
+                        vm.ble.setBroadcastHr(enabled)
+                    },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Palette.surfaceBase,
+                        checkedTrackColor = Palette.accent,
+                        uncheckedThumbColor = Palette.textSecondary,
+                        uncheckedTrackColor = Palette.surfaceInset,
+                        uncheckedBorderColor = Palette.hairline,
+                    ),
+                    modifier = Modifier.semantics {
+                        contentDescription = strapBroadcastTitle
+                    },
+                )
+            }
+            // What the STRAP says, never what the switch above says. The two are different facts and this
+            // is the one that matters: the flag lives on the strap and survives a reinstall, a new phone,
+            // or an off that never reached it, so a switch reading off is no evidence at all.
+            val strapSharing by vm.ble.strapSharingOn.collectAsStateWithLifecycle()
+            Text(
+                when (strapSharing) {
+                    true -> uiString(R.string.strap_sharing_status_on)
+                    false -> uiString(R.string.strap_sharing_status_off)
+                    null -> uiString(R.string.strap_sharing_status_unknown)
+                },
+                style = NoopType.footnote,
+                color = if (strapSharing == true) Palette.statusWarning else Palette.textTertiary,
+            )
+            // Hidden only once the strap itself has said it is not sharing. While that is unknown the
+            // button stays, because "we have not asked" is the state a stranded strap sits in and the one
+            // where a wearer most needs something to press.
+            if (strapSharing != false) {
+                // Deliberately NOT followed by a read: the write runs its own 121 read-back and
+                // finishBroadcastHrWrite records the state from it. A second read here would put two
+                // requests for the same key on the wire at once, and each handler would take the first
+                // reply as the answer to its own.
+                NoopButton(
+                    uiString(R.string.strap_sharing_stop_button),
+                    kind = NoopButtonKind.Secondary,
+                    onClick = { vm.ble.stopStrapSharingOnStrap() },
+                )
+                Text(
+                    uiString(R.string.strap_sharing_stop_caption),
+                    style = NoopType.footnote,
+                    color = Palette.textTertiary,
+                )
+            }
+        }
+        }
+    }
+
     // PERF (#707): lazy scaffold — each SourceCard is an unconditional top-level child, so each becomes one
     // `item { }` in the same order. There are no standalone Spacers (the eager column relied on
     // `spacedBy(20.dp)`, which the LazyColumn reproduces), so spacing is byte-identical. Only the on-screen
@@ -477,6 +573,8 @@ fun DataSourcesScreen(vm: AppViewModel) {
         title = uiString(R.string.l10n_data_sources_screen_data_sources_5e43d6bb),
         subtitle = "Everything stays on this phone. Bring your history in once, then it's yours.",
     ) {
+        if (forgeLook) liveStrapItem()
+
         // --- WHOOP data (cached history) ---
         item {
         SourceCard(
@@ -990,97 +1088,8 @@ fun DataSourcesScreen(vm: AppViewModel) {
         }
         }
 
-        // --- Live WHOOP strap over BLE ---
-        item {
-        SourceCard(
-            title = uiString(R.string.l10n_data_sources_screen_whoop_strap_live_ble_217f7df6),
-            icon = Icons.Filled.Bluetooth,
-            subtitle = uiString(R.string.data_sources_whoop_live_subtitle),
-        ) {
-            val (label, tone) = when {
-                // encryptedBond, not bonded — see strapStatusTitle. A 5/MG streaming over the open
-                // profile has bonded == true with no pairing at all, and after #1635 hello suppression it
-                // stays there for good rather than passing through.
-                //
-                // "Live HR" reads a little wide here: bonded means REACHABLE, not currently streaming. It
-                // survives the stream stopping (take the strap off mid-link and it stays true), and the
-                // unbonded offload probe is a second way in — it sets bonded on a strap that answered a
-                // command without ever having sent an HR reading. Both are the same state: reachable over
-                // the open profile, never encrypted.
-                live.encryptedBond -> "Bonded, streaming." to StrandTone.Positive
-                live.bonded -> "Live HR (not fully paired)" to StrandTone.Warning
-                live.connected -> "Connected, pairing…" to StrandTone.Warning
-                else -> "Not connected. Open Live to pair." to StrandTone.Critical
-            }
-            StatePill(title = label, tone = tone, showsDot = true, pulsing = live.connected && !live.bonded)
-            val strapBroadcastTitle = uiString(R.string.raw_diag_broadcast_hr)
-            val strapBroadcastDescription = uiString(R.string.data_sources_band_broadcast_description)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(strapBroadcastTitle, style = NoopType.subhead, color = Palette.textPrimary)
-                    Text(
-                        strapBroadcastDescription,
-                        style = NoopType.footnote,
-                        color = Palette.textTertiary,
-                    )
-                }
-                Switch(
-                    checked = strapHrBroadcast,
-                    onCheckedChange = { enabled ->
-                        strapHrBroadcast = enabled
-                        puffinExperiment.broadcastHr = enabled
-                        vm.ble.setBroadcastHr(enabled)
-                    },
-                    colors = SwitchDefaults.colors(
-                        checkedThumbColor = Palette.surfaceBase,
-                        checkedTrackColor = Palette.accent,
-                        uncheckedThumbColor = Palette.textSecondary,
-                        uncheckedTrackColor = Palette.surfaceInset,
-                        uncheckedBorderColor = Palette.hairline,
-                    ),
-                    modifier = Modifier.semantics {
-                        contentDescription = strapBroadcastTitle
-                    },
-                )
-            }
-            // What the STRAP says, never what the switch above says. The two are different facts and this
-            // is the one that matters: the flag lives on the strap and survives a reinstall, a new phone,
-            // or an off that never reached it, so a switch reading off is no evidence at all.
-            val strapSharing by vm.ble.strapSharingOn.collectAsStateWithLifecycle()
-            Text(
-                when (strapSharing) {
-                    true -> uiString(R.string.strap_sharing_status_on)
-                    false -> uiString(R.string.strap_sharing_status_off)
-                    null -> uiString(R.string.strap_sharing_status_unknown)
-                },
-                style = NoopType.footnote,
-                color = if (strapSharing == true) Palette.statusWarning else Palette.textTertiary,
-            )
-            // Hidden only once the strap itself has said it is not sharing. While that is unknown the
-            // button stays, because "we have not asked" is the state a stranded strap sits in and the one
-            // where a wearer most needs something to press.
-            if (strapSharing != false) {
-                // Deliberately NOT followed by a read: the write runs its own 121 read-back and
-                // finishBroadcastHrWrite records the state from it. A second read here would put two
-                // requests for the same key on the wire at once, and each handler would take the first
-                // reply as the answer to its own.
-                NoopButton(
-                    uiString(R.string.strap_sharing_stop_button),
-                    kind = NoopButtonKind.Secondary,
-                    onClick = { vm.ble.stopStrapSharingOnStrap() },
-                )
-                Text(
-                    uiString(R.string.strap_sharing_stop_caption),
-                    style = NoopType.footnote,
-                    color = Palette.textTertiary,
-                )
-            }
-        }
-        }
+        // The live strap card sits last in the classic look and first under the Forge Settings (iOS draws it first there).
+        if (!forgeLook) liveStrapItem()
 
         // Keep the final control clear of the app and system navigation bars on shorter phones.
         item { Spacer(Modifier.height(96.dp)) }
@@ -1143,7 +1152,10 @@ private fun SourceCard(
 ) {
     // A frosted, domain-tinted card: a tinted source glyph chip + title, the explainer line, then
     // the source's status pill + connect/import action(s). Replaces the old flat surface.
-    NoopCard(padding = 18.dp, tint = tint) {
+    // Under the Forge Settings (iOS `card(...)` in the Forge skin): no tint on the card, a solid 40 dp tile in the source's
+    // colour with the glyph on it, and the title in the semibold subhead. The classic look keeps its frosted tint.
+    val forge = LocalHostedChrome.current != null
+    NoopCard(padding = 18.dp, tint = if (forge) null else tint) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -1151,19 +1163,23 @@ private fun SourceCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(30.dp)
-                        .clip(RoundedCornerShape(9.dp))
-                        .background(tint.copy(alpha = 0.14f)),
+                        .size(if (forge) 40.dp else 30.dp)
+                        .clip(RoundedCornerShape(if (forge) 11.dp else 9.dp))
+                        .background(if (forge) tint else tint.copy(alpha = 0.14f)),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         icon,
                         contentDescription = null,
-                        tint = tint,
+                        tint = if (forge) Color.White else tint,
                         modifier = Modifier.size(16.dp),
                     )
                 }
-                Text(title, style = NoopType.headline, color = Palette.textPrimary)
+                Text(
+                    title,
+                    style = if (forge) NoopType.subhead.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold) else NoopType.headline,
+                    color = Palette.textPrimary,
+                )
             }
             Text(subtitle, style = NoopType.subhead, color = Palette.textSecondary)
             content()
@@ -1201,7 +1217,8 @@ private fun BackupButton(
     // The iOS card buttons (`NoopButtonStyle(.primary)` / `.destructive`): a filled button, no rim.
     NoopButton(
         text = label, leadingIcon = icon,
-        kind = if (destructive) NoopButtonKind.Destructive else NoopButtonKind.Primary,
+        // iOS draws the import buttons as secondary buttons in the Forge skin (`importButtonKind`).
+        kind = if (destructive) NoopButtonKind.Destructive else if (LocalHostedChrome.current != null) NoopButtonKind.Secondary else NoopButtonKind.Primary,
         fullWidth = true, enabled = enabled, modifier = modifier, onClick = onClick,
     )
 }

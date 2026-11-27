@@ -57,23 +57,23 @@ final class EffortCurveTests: XCTestCase {
         XCTAssertEqual(try score21(series([(60, 35)])), 5.2, accuracy: 0.1, "60 min easy walk at 35 % HRR")
     }
 
-    /// Below 50 % HRR only workout time counts: ten hours on one's feet at 25 % HRR are no Effort outside a
-    /// workout, and the curve's value inside one.
-    func testLowIntensityCountsOnlyInsideWorkouts() throws {
+    /// Below 50 % HRR a day counts nothing: ten hours on one's feet at 25 % HRR are no Effort, and a workout
+    /// among them lifts the day to that workout's own value (`EffortDayRuleTests`).
+    func testLowIntensityReachesTheDayOnlyThroughAWorkout() throws {
         let day = series([(600, 25)])
-        XCTAssertEqual(try score21(day, .countedIn([])), 0)
+        XCTAssertEqual(try score21(day, .day(workouts: [])), 0)
         XCTAssertGreaterThan(try score21(day, .counted), 5)
         let first = day[0].ts
-        let oneHourInAWorkout = try score21(day, .countedIn([first ..< first + 3_600]))
+        let oneHourInAWorkout = try score21(day, .day(workouts: [first ..< first + 3_600]))
         XCTAssertEqual(oneHourInAWorkout, try score21(series([(60, 25)])), accuracy: 0.01)
         // From 50 % HRR every reading counts, workout or not.
         let tempo = series([(60, 75)])
-        XCTAssertEqual(try score21(tempo, .countedIn([])), try score21(tempo, .counted), accuracy: 1e-9)
+        XCTAssertEqual(try score21(tempo, .day(workouts: [])), try score21(tempo, .counted), accuracy: 1e-9)
     }
 
     /// A resting day scores nothing; a day held at the top for 24 hours stays below 21.
     func testTheEndsOfTheScale() throws {
-        XCTAssertEqual(try score21(series([(600, 0)]), .countedIn([])), 0)
+        XCTAssertEqual(try score21(series([(600, 0)]), .day(workouts: [])), 0)
         let allDay = try score21(zones([0, 0, 0, 0, 1_440]))
         XCTAssertEqual(allDay, 20.97, accuracy: 0.02)
         XCTAssertLessThan(allDay, 21)

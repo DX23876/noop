@@ -77,7 +77,7 @@ class BuildIdentityTest {
     @Test
     fun theStrapLogHeaderAndTheForgeFootersGoThroughBuildIdentity() {
         val files = kotlinSources() ?: return
-        for (name in listOf("AndroidDiagnostics.kt", "ForgeMore.kt", "ForgeSettings.kt")) {
+        for (name in listOf("AndroidDiagnostics.kt", "ForgeMore.kt", "ForgeSettingsAbout.kt")) {
             val file = files.firstOrNull { it.name == name }
             assertNotNull("$name is gone; whatever replaced it has to read BuildIdentity too", file)
             assertTrue("$name no longer reads BuildIdentity", file!!.readText().contains("BuildIdentity."))

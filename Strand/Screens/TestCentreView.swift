@@ -166,7 +166,12 @@ struct TestCentreView: View {
         ScreenScaffold(title: "Test Centre",
                        subtitle: classicOnlySubtitle("Turn on a test for the thing that's wrong, wear the strap, then tap Report. All on \(Platform.deviceNounPhrase).")) {
             if NoopVisualStyle.skin == .forge {
-                forgeBody
+                VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+                    SettingsSymbolBanner(
+                        symbol: "stethoscope", tint: .indigo,
+                        text: Text("Turn on a test for the thing that's wrong, wear the strap, then tap “Report a bug with my log”. Everything stays on \(Platform.deviceNounPhrase)."))
+                    forgeBody
+                }
             } else {
             VStack(alignment: .leading, spacing: NoopMetrics.sectionSpacing) {
                 domainModesCard.staggeredAppear(index: 0)
@@ -183,7 +188,7 @@ struct TestCentreView: View {
             }
             }
         }
-        .pagePicture("stethoscope", accent: "wrench.and.screwdriver.fill", tint: .indigo)
+        .pagePicture("stethoscope", accent: "wrench.and.screwdriver.fill", tint: .indigo, forgeUsesBanner: true)
         .id(refreshToken)
         .onAppear {
             refreshToken &+= 1
@@ -700,14 +705,14 @@ struct TestCentreView: View {
         // Diagnostics card. iOS BGAppRefresh is best-effort, the honest caption is kept.
         Toggle(isOn: $debugExportOn) {
             Text("Daily auto-export of the strap log")
-                .font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                .font(SettingsRowFont.value).foregroundStyle(StrandPalette.textPrimary)
         }
         .toggleStyle(.switch).appleInspiredTint("testCentre")
         .onChangeCompat(of: debugExportOn) { on in ScheduledDebugExport.setEnabled(on) }
 
         if debugExportOn {
             HStack {
-                Text("Time of day").font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                Text("Time of day").font(SettingsRowFont.value).foregroundStyle(StrandPalette.textPrimary)
                 Spacer()
                 DatePicker("", selection: debugExportTimeBinding, displayedComponents: .hourAndMinute)
                     .labelsHidden()
@@ -716,7 +721,7 @@ struct TestCentreView: View {
             // Retention (#650): how many scheduled-export generations to keep. Wired to
             // ScheduledDebugExport.keepCount; the next write prunes the oldest beyond this count.
             HStack {
-                Text("Keep last exports").font(StrandFont.subhead).foregroundStyle(StrandPalette.textPrimary)
+                Text("Keep last exports").font(SettingsRowFont.value).foregroundStyle(StrandPalette.textPrimary)
                 Spacer()
                 Picker("Keep last exports", selection: $debugExportKeep) {
                     ForEach(ScheduledDebugExport.keepOptions, id: \.self) { n in Text("\(n)").tag(n) }
@@ -725,14 +730,12 @@ struct TestCentreView: View {
                 .onChangeCompat(of: debugExportKeep) { n in ScheduledDebugExport.keepCount = n }
             }
             Text("Older scheduled exports beyond this many are pruned automatically, oldest first.")
-                .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
+                .settingsCaption()
             NoopButton("Run now", systemImage: "square.and.arrow.down.on.square", kind: .secondary) {
                 runScheduledExportNow()
             }
             Text("On iPhone this is best-effort (iOS decides when background tasks run). Everything stays on \(Platform.deviceNounPhrase).")
-                .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
+                .settingsCaption()
         }
     }
 
@@ -741,87 +744,83 @@ struct TestCentreView: View {
     /// The same tools by what the reader came to do: report something, run a test, repair, try something new.
     /// The long explanations stay on the pages the rows open.
     @ViewBuilder private var forgeBody: some View {
-        ForgeListGroup("Report a problem") {
-            Menu {
-                Button("Copy") { PlatformPasteboard.copy(live.exportableLogText()) }
-                Button("Save…") {
-                    Task {
-                        let extra = await DebugDataDiagnostics.dynamicLines(repo: model.repo)
-                        FileExport.exportText(live.exportableLogText(extraHeaderLines: extra),
-                                              suggestedName: FileExport.timestampedName("noop-strap-log", ext: "txt"))
+        VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+            SettingsSubGroup(title: "Report a problem") {
+                Menu {
+                    Button("Copy") { PlatformPasteboard.copy(live.exportableLogText()) }
+                    Button("Save…") {
+                        Task {
+                            let extra = await DebugDataDiagnostics.dynamicLines(repo: model.repo)
+                            FileExport.exportText(live.exportableLogText(extraHeaderLines: extra),
+                                                  suggestedName: FileExport.timestampedName("noop-strap-log", ext: "txt"))
+                        }
+                    }
+                } label: {
+                    SettingsSubRowLabel(title: "Strap log", hint: Text("Grab this when you report a bug. It tells me what the app saw."))
+                }
+                .buttonStyle(.plain)
+                Divider().overlay(StrandPalette.hairline)
+                SettingsSubAction(title: "Report a bug with my log",
+                                  hint: Text("Builds a redacted .zip and shows you what it contains.")) {
+                    report.start(mode: TestCentreView.masterReportMode, live: live, repo: model.repo)
+                }
+                if let status = report.lastStatus {
+                    Text(status).settingsCaption()
+                }
+                if let reportText = report.copyableReport {
+                    SettingsSubAction(title: "Copy report.txt") { PlatformPasteboard.copy(reportText) }
+                }
+                Divider().overlay(StrandPalette.hairline)
+                autoExportControls
+                SettingsSubAction(title: "Clear scheduled exports", role: .destructive) { showClearExportsConfirm = true }
+            }
+            SettingsSubGroup(title: "Testing") {
+                SettingsSubLink(title: "Test modes", hint: Text("Per area: strap, sleep, workouts and more")) {
+                    ScreenScaffold(title: "Test modes") { domainModesCard }
+                }
+                Divider().overlay(StrandPalette.hairline)
+                SettingsSubLink(title: "Raw-data collector",
+                                hint: Text(is5MG ? "5.0 and MG" : "4.0, unconfirmed on real hardware")) {
+                    RawDataCollectorView()
+                }
+                if is5MG {
+                    Divider().overlay(StrandPalette.hairline)
+                    SettingsSubLink(title: "Protocol diagnostics", hint: Text("5.0 and MG")) {
+                        ScreenScaffold(title: "Protocol diagnostics") { fiveMGProtocolDiagnosticsCard }
                     }
                 }
-            } label: {
-                ForgeActionLabel(title: "Strap log", subtitle: "Grab this when you report a bug. It tells me what the app saw.")
             }
-            .buttonStyle(.plain)
-            Divider().overlay(StrandPalette.hairline)
-            ForgeActionRow(title: "Report a bug with my log",
-                           subtitle: "Builds a redacted .zip and shows you what it contains.") {
-                report.start(mode: TestCentreView.masterReportMode, live: live, repo: model.repo)
-            }
-            if let status = report.lastStatus {
-                Text(status).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            if let reportText = report.copyableReport {
-                ForgeActionRow(title: "Copy report.txt") { PlatformPasteboard.copy(reportText) }
-            }
-            Divider().overlay(StrandPalette.hairline)
-            autoExportControls
-            ForgeActionRow(title: "Clear scheduled exports", role: .destructive) { showClearExportsConfirm = true }
-        }
-        ForgeListGroup("Testing") {
-            ForgeLinkRow(title: "Test modes", subtitle: "Per area: strap, sleep, workouts and more") {
-                ScreenScaffold(title: "Test modes") { domainModesCard }
-            }
-            Divider().overlay(StrandPalette.hairline)
-            ForgeLinkRow(title: "Raw-data collector",
-                         subtitle: is5MG ? "5.0 and MG" : "4.0, unconfirmed on real hardware") {
-                RawDataCollectorView()
-            }
-            if is5MG {
+            SettingsSubGroup(title: "Maintenance") {
+                SettingsSubAction(title: "Recalibrate Charge baseline",
+                                  hint: Text("Asks first. No stored day is deleted.")) {
+                    showRecalibrateConfirm = true
+                }
                 Divider().overlay(StrandPalette.hairline)
-                ForgeLinkRow(title: "Protocol diagnostics", subtitle: "5.0 and MG") {
-                    ScreenScaffold(title: "Protocol diagnostics") { fiveMGProtocolDiagnosticsCard }
+                SettingsSubAction(title: "Backfill skin-temp absolutes",
+                                  hint: Text("Fills gaps only, never overwrites a reading.")) {
+                    runSkinTempBackfill()
+                }
+                .disabled(skinTempBackfillRunning)
+                if let status = skinTempBackfillStatus {
+                    Text(status).settingsCaption()
+                }
+                Divider().overlay(StrandPalette.hairline)
+                SettingsSubAction(title: "Copy environment dump") { PlatformPasteboard.copy(live.exportableLogText()) }
+                if let identity = polarIdentity {
+                    Divider().overlay(StrandPalette.hairline)
+                    SettingsSubToggle(title: "Polar debug logging", hint: Text(identity), isOn: $polarDebugLogging)
                 }
             }
-        }
-        ForgeListGroup("Maintenance") {
-            ForgeActionRow(title: "Recalibrate Charge baseline", subtitle: "Asks first. No stored day is deleted.") {
-                showRecalibrateConfirm = true
-            }
-            Divider().overlay(StrandPalette.hairline)
-            ForgeActionRow(title: "Backfill skin-temp absolutes", subtitle: "Fills gaps only, never overwrites a reading.") {
-                runSkinTempBackfill()
-            }
-            .disabled(skinTempBackfillRunning)
-            if let status = skinTempBackfillStatus {
-                Text(status).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Divider().overlay(StrandPalette.hairline)
-            ForgeActionRow(title: "Copy environment dump") { PlatformPasteboard.copy(live.exportableLogText()) }
-            if let identity = polarIdentity {
-                Divider().overlay(StrandPalette.hairline)
-                Toggle(isOn: $polarDebugLogging) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Polar debug logging").font(StrandFont.subhead)
-                        Text(identity).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+            SettingsSubGroup(title: "Experimental",
+                             footer: Text("Experimental writes to a device ask before they run and can be undone.")) {
+                SettingsSubLink(title: "Experimental algorithms", hint: Text("Opt-in, off by default")) {
+                    ScreenScaffold(title: "Experimental algorithms") { experimentalAlgorithmsCard }
+                }
+                if ouraPaired {
+                    Divider().overlay(StrandPalette.hairline)
+                    SettingsSubLink(title: "Oura ring options", hint: Text("Experimental")) {
+                        ScreenScaffold(title: "Oura ring options") { ouraCard }
                     }
-                }
-                .tint(StrandPalette.chargeColor)
-                .frame(minHeight: 44)
-            }
-        }
-        ForgeListGroup("Experimental", note: "Experimental writes to a device ask before they run and can be undone.") {
-            ForgeLinkRow(title: "Experimental algorithms", subtitle: "Opt-in, off by default") {
-                ScreenScaffold(title: "Experimental algorithms") { experimentalAlgorithmsCard }
-            }
-            if ouraPaired {
-                Divider().overlay(StrandPalette.hairline)
-                ForgeLinkRow(title: "Oura ring options", subtitle: "Experimental") {
-                    ScreenScaffold(title: "Oura ring options") { ouraCard }
                 }
             }
         }
@@ -834,6 +833,21 @@ struct TestCentreView: View {
     /// Android twin reads. Hosts the HR-from-PPG sub-lag interpolation variant. Twin of the Android
     /// ExperimentalAlgorithmsCard.
     @ViewBuilder private var experimentalAlgorithmsCard: some View {
+        if NoopVisualStyle.skin == .forge {
+            VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
+                Text("Research-grade alternatives / precision tweaks. Opt-in, off by default, non-clinical.")
+                    .settingsCaption()
+                    .padding(.horizontal, NoopMetrics.space4)
+                SettingsSubGroup(footer: Text("When NOOP reconstructs heart rate from the WHOOP 5/MG v26 optical waveform (the seconds the strap stored no HR), refine the autocorrelation peak with a parabolic sub-lag fit so the estimate is not quantized to roughly 16 bpm steps near a high HR. It only fills seconds the strap never reported; it never overrides a stored HR. 5/MG only, off by default.")) {
+                    SettingsSubToggle(title: "HR-from-PPG sub-lag interpolation (v26 gap-fill)", isOn: $ppgHrSubLagInterpEnabled)
+                }
+                SettingsSubGroup(footer: Text("A read-only Plews/Altini smallest-worthwhile-change reading of your nightly HRV: it shows whether your 7-night HRV baseline sits above, inside, or below your personal normal band. It changes nothing else - the Charge ring is identical whether this is on or off. This is rough / early testing, not yet validated against varying real data (n=1).")) {
+                    SettingsSubToggle(title: "HRV readiness (Plews/Altini)", isOn: $hrvReadinessEnabled)
+                    // The toggle's own effect, shown in place, as in the shipped design.
+                    if hrvReadinessEnabled { hrvReadinessReadout }
+                }
+            }
+        } else {
         NoopCard {
             VStack(alignment: .leading, spacing: NoopMetrics.space3) {
                 if NoopVisualStyle.skin != .forge {
@@ -869,6 +883,7 @@ struct TestCentreView: View {
                 // renders when off, so the flag off is zero behaviour change and feeds no downstream gate.
                 if hrvReadinessEnabled { hrvReadinessReadout }
             }
+        }
         }
     }
 

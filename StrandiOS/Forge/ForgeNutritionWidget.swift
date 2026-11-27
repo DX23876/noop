@@ -91,13 +91,14 @@ struct ForgeNutritionWidget: View {
     /// The three macros as bars against their goals, so "how far" is seen and not only read.
     @ViewBuilder private func macroBars(_ r: ForgeNutritionReading) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            macroBar(String(localized: "Protein"), r.proteinG, r.proteinGoal)
-            macroBar(String(localized: "Carbs"), r.carbsG, r.carbsGoal)
-            macroBar(String(localized: "Fat"), r.fatG, r.fatGoal)
+            // Each in its own colour, the same three the Food page's plate and week strip use (owner, 2026-11-25).
+            macroBar(String(localized: "Protein"), r.proteinG, r.proteinGoal, tint: ForgeColor.protein)
+            macroBar(String(localized: "Carbs"), r.carbsG, r.carbsGoal, tint: ForgeColor.carbs)
+            macroBar(String(localized: "Fat"), r.fatG, r.fatGoal, tint: ForgeColor.fat)
         }
     }
 
-    @ViewBuilder private func macroBar(_ label: String, _ value: Double?, _ goal: Double?) -> some View {
+    @ViewBuilder private func macroBar(_ label: String, _ value: Double?, _ goal: Double?, tint: Color) -> some View {
         if let value {
             HStack(spacing: 8) {
                 Text(verbatim: label).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
@@ -106,7 +107,7 @@ struct ForgeNutritionWidget: View {
                     let share = (goal.map { $0 > 0 ? min(1, max(0, value / $0)) : 0 }) ?? 0
                     ZStack(alignment: .leading) {
                         Capsule().fill(ForgeColor.tertiary.opacity(0.25))
-                        Capsule().fill(StrandPalette.energyHighlight).frame(width: geo.size.width * share)
+                        Capsule().fill(tint).frame(width: geo.size.width * share)
                     }
                 }
                 .frame(height: 8)

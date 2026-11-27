@@ -27,15 +27,20 @@ final class ProjectServiceTests: XCTestCase {
 
     func testWithoutAServiceNothingIsSentAndTheFeaturesAreHidden() async {
         let calls = Locked(0)
-        let service = ProjectService(service: nil, keyStore: store(),
+        let switchedOn = ProjectSharing(defaults: UserDefaults(suiteName: UUID().uuidString)!)
+        switchedOn.set(true)
+        let service = ProjectService(service: nil, keyStore: store(), sharing: switchedOn,
                                      send: transport(status: 200) { _ in calls.increment() })
         let available = await service.isAvailable
         XCTAssertFalse(available)
         let vote = await service.vote(id: "s-12", on: true)
         let suggestion = await service.suggest(text: "please")
+        let report = await service.report(text: "it broke")
         let counts = await service.counts()
-        XCTAssertEqual(vote, .failed(.notSending))
-        XCTAssertEqual(suggestion, .failed(.notSending))
+        // The switch is on, so the switch is not what the wearer is told about (tester report, 2026-11-24).
+        XCTAssertEqual(vote, .failed(.unreachable))
+        XCTAssertEqual(suggestion, .failed(.unreachable))
+        XCTAssertEqual(report, .failed(.unreachable), "a missing address is not the wearer's switch")
         XCTAssertTrue(counts.isEmpty)
         XCTAssertEqual(calls.value, 0, "a page without a service address must make no request at all")
     }

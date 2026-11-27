@@ -43,12 +43,14 @@ public final class AnalysisRuns {
     }
 
     /// Queues a pass. A request for another strap keeps its own pass, and a whole-history request stays one when a
-    /// later ordinary request joins it, since only the first asks for the days the second would leave alone.
+    /// later ordinary request joins it, since only the first asks for the days the second would leave alone. For the
+    /// same reason a pass that derives every day stays one when a post-offload pass joins it, either way round.
     public func request(_ request: Request) {
         requested += 1
         if let last = waiting.last, last.request.deviceId == request.deviceId {
             var joined = request
             joined.settings.historyRescore = request.settings.historyRescore || last.request.settings.historyRescore
+            joined.settings.afterOffload = request.settings.afterOffload && last.request.settings.afterOffload
             waiting[waiting.count - 1] = (joined, requested)
         } else {
             waiting.append((request, requested))

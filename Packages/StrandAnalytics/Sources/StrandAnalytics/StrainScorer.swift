@@ -14,7 +14,8 @@ import WhoopProtocol
 //   1. Heart-Rate Reserve (Karvonen): HRR = HRmax − RHR, HRmax from `MaxHeartRate`.
 //   2. Per-sample intensity x = (HR − RHR) / HRR × 100 % HRR, clamped 0..100.
 //   3. Load: each sample adds `effortWeight(x)` × its minutes, e^(beta (x − 55) / 10) faded out below
-//      20 % HRR. Outside workouts a sample below 50 % HRR adds nothing (`LowIntensity`).
+//      20 % HRR. A day adds nothing below 50 % HRR and is lifted to its strongest workout, which counts
+//      its own time below 50 % HRR (`LowIntensity`).
 //   4. Score: a × ln(1 + load / k) on 0–21, softly capped below 21 (`effortScore21`), shown on 0–100.
 //   The constants are fitted on WHOOP's Strain of the workouts contributed to #2438 (see "Effort curve").
 //
@@ -156,16 +157,21 @@ public enum StrainScorer {
     public static let effortFloorWidth: Double = 3
     /// Exponent of the soft cap at 21.
     public static let effortCapExponent: Double = 8
-    /// Outside workouts heart rate counts from this intensity (% HRR), where Edwards' zone 1 began. Below
-    /// it, a whole day of standing and walking would otherwise add up to a hard day (#2438 step 2 open).
+    /// A day counts heart rate from this intensity (% HRR), where Edwards' zone 1 began, inside workouts and
+    /// out. Below it, a whole day of standing and walking would otherwise add up to a hard day (#2438 step 2
+    /// open). A workout's own score counts below it too (`LowIntensity.counted`).
     public static let effortOutsideWorkoutFloor: Double = 50
 
-    /// Where heart rate below `effortOutsideWorkoutFloor` counts.
+    /// Whether heart rate below `effortOutsideWorkoutFloor` counts.
     public enum LowIntensity: Hashable, Sendable {
         /// Everywhere: the series is one workout.
         case counted
-        /// Only inside these workout spans (`[start, end)`, unix seconds): a day with its workouts.
-        case countedIn([Range<Int>])
+        /// A day with these workouts (`[start, end)`, unix seconds): below the floor nothing counts, inside a
+        /// workout or not, and the day never scores below any of them, each scored from its own readings as
+        /// `.counted` scores it. WHOOP keeps workout Strain and Day Strain apart: a walk logged as a workout
+        /// scores about 4 while a day of walking scores about 2, and a day sits below its strongest workout on
+        /// 1 of 368 days in two exports (2026-11-25). Counting each workout's low time into the day summed them.
+        case day(workouts: [Range<Int>])
     }
 
     /// Weight of one minute at intensity `x` (% HRR): e^(beta (x − 55) / 10), faded out below 20 % HRR.
@@ -217,22 +223,51 @@ public enum StrainScorer {
         return effortValue(load: effortLoad(forEffortValue: value) + load)
     }
 
-    /// The load of a heart-rate series: each reading's `effortWeight` × its minutes. Below
-    /// `effortOutsideWorkoutFloor` a reading counts only where `lowIntensity` says it is in a workout.
+    /// The load of a heart-rate series: each reading's `effortWeight` × its minutes. With `countsBelowFloor`
+    /// false a reading below `effortOutsideWorkoutFloor` adds nothing.
     static func effortLoad(_ hr: [HRSample], restingHR: Double, hrReserve: Double, durations: [Double],
-                           lowIntensity: LowIntensity) -> Double {
+                           countsBelowFloor: Bool) -> Double {
         var load = 0.0
         for i in hr.indices {
             let x = pctHRR(Double(hr[i].bpm), restingHR: restingHR, hrReserve: hrReserve)
-            if x < effortOutsideWorkoutFloor {
-                switch lowIntensity {
-                case .counted: break
-                case .countedIn(let spans): if !spans.contains(where: { $0.contains(hr[i].ts) }) { continue }
-                }
-            }
+            if x < effortOutsideWorkoutFloor && !countsBelowFloor { continue }
             load += effortWeight(pctHRR: x) * durations[i]
         }
         return load
+    }
+
+    /// The load `lowIntensity` gives a series (time-ordered): a workout counts every reading; a day counts
+    /// from the floor and is lifted to its strongest workout's load, each workout's readings scored as their
+    /// own series (`sampleDurationsMinutes` over them alone, as the workout's own score reads them).
+    static func effortLoad(_ hr: [HRSample], restingHR: Double, hrReserve: Double,
+                           lowIntensity: LowIntensity) -> Double {
+        switch lowIntensity {
+        case .counted:
+            return effortLoad(hr, restingHR: restingHR, hrReserve: hrReserve,
+                              durations: sampleDurationsMinutes(hr), countsBelowFloor: true)
+        case .day(let workouts):
+            let day = effortLoad(hr, restingHR: restingHR, hrReserve: hrReserve,
+                                 durations: sampleDurationsMinutes(hr), countsBelowFloor: false)
+            let strongest = workouts.map { span -> Double in
+                let lower = firstIndex(hr, atOrAfter: span.lowerBound)
+                let upper = firstIndex(hr, atOrAfter: span.upperBound)
+                guard lower < upper else { return 0 }
+                let readings = Array(hr[lower ..< upper])
+                return effortLoad(readings, restingHR: restingHR, hrReserve: hrReserve,
+                                  durations: sampleDurationsMinutes(readings), countsBelowFloor: true)
+            }.max() ?? 0
+            return max(day, strongest)
+        }
+    }
+
+    /// The first index of time-ordered `hr` whose reading is at or after `ts` (`hr.count` when none is).
+    private static func firstIndex(_ hr: [HRSample], atOrAfter ts: Int) -> Int {
+        var low = 0, high = hr.count
+        while low < high {
+            let mid = (low + high) / 2
+            if hr[mid].ts < ts { low = mid + 1 } else { high = mid }
+        }
+        return low
     }
 
     // MARK: - HRmax helpers
@@ -484,7 +519,7 @@ public enum StrainScorer {
     public static func strain(_ hr: [HRSample],
                               maxHR: Double? = nil,
                               restingHR: Double = defaultRestingHR,
-                              lowIntensity: LowIntensity = .countedIn([]),
+                              lowIntensity: LowIntensity = .day(workouts: []),
                               // Load added before the curve by rated strength sessions (`strengthLoad`).
                               strengthLoad: Double = 0,
                               // Optional diagnostic sink. Nil by default and the line is built ONLY when
@@ -794,11 +829,9 @@ public enum StrainScorer {
             return nil
         }
 
-        let durations = sampleDurationsMinutes(hr)
         let hrReserve = effMax - restingHR
 
-        let load = effortLoad(hr, restingHR: restingHR, hrReserve: hrReserve, durations: durations,
-                              lowIntensity: lowIntensity)
+        let load = effortLoad(hr, restingHR: restingHR, hrReserve: hrReserve, lowIntensity: lowIntensity)
         let scored = effortValue(load: load + max(0, strengthLoad))
         // Walked only when a sink is attached. It is a second O(n) pass over the day's samples, and
         // `analyzeRecent`'s prep is already the expensive half of a scoring run, so a normal pass must
@@ -806,7 +839,7 @@ public enum StrainScorer {
         // already returned for `effMax <= restingHR`.
         // The zones describe what the day WAS, not how it was scored: #2438 fits on zone minutes.
         let zones: [Double]? = diag == nil ? nil
-            : zoneMinutes(hr, restingHR: restingHR, hrReserve: hrReserve, durations: durations)
+            : zoneMinutes(hr, restingHR: restingHR, hrReserve: hrReserve, durations: sampleDurationsMinutes(hr))
         diag?(scoreFunnelLine(day: day, hrSamples: hr.count, enough: enoughData, maxHR: effMax,
                               maxHRProvided: maxHR != nil, restingHR: restingHR,
                               trimp: load, strain: scored, zoneMinutes: zones))

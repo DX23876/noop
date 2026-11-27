@@ -782,10 +782,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _zoneCoachRecovery = MutableStateFlow(NoopPrefs.zoneCoachRecovery(appContext))
     /** Whether to also buzz on recovering to Zone 1 (the macOS default; some users want only the top-zone buzz). */
     val zoneCoachRecovery: StateFlow<Boolean> = _zoneCoachRecovery.asStateFlow()
-    /** Last HR zone the coach saw (1..5, 0 = below Zone 1); -1 until the first sample. Mirrors macOS lastCoachZone. */
-    private var lastZone = -1
-    /** Memoizes the HR-zone set so [coachZone] doesn't rebuild it on every live-HR sample (only on maxHR change). */
-    private val zoneSetCache = com.noop.analytics.HrZoneSetCache()
+    /** Carries the heart-rate ceiling engine's memory between samples ([coachZone]). */
+    private val hrCeilingMonitor = HrCeilingMonitor(appContext)
 
     // Double-tap action (parity since 4.2.8) — persisted in SharedPreferences (NoopPrefs). Default NONE,
     // manual-first. The Automations screen edits this; the live double-tap dispatch (init collector below)
@@ -850,6 +848,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // MARK: - Today's cached metrics
 
     private val _today = MutableStateFlow<DailyMetric?>(null)
+    /** The resting heart rate today's Effort is scored against (core `EffortRestingHR`), refreshed with [_today]:
+     *  a session saved today is scored against it so it sits on the same yardstick as its day. */
+    @Volatile private var effortRestingHRToday: Double = StrainScorer.defaultRestingHR
     val today: StateFlow<DailyMetric?> = _today.asStateFlow()
 
     /**
@@ -1085,6 +1086,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // export can answer "what ran when". Idempotent — the stored last-seen version only advances
         // once the transition is recorded, so a background-only launch is caught on the next UI open.
         viewModelScope.launch { recordAppVersionChange() }
+        // The automatic max heart rate is the core's (measured, else Gellish), cached per age. Fill it once at
+        // launch, before the first live sample reads zones or the ceiling, so they do not move mid-session when
+        // the first daily pass would otherwise fill it.
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            runCatching { com.noop.core.CoreProfile.refreshMaxHeartRate(profileStore) }
+        }
         // #1121: re-arm the opt-in detailed-capture rolling log on launch, so a capture the user started
         // keeps going across the process being killed (this phone class is not battery-exempt and Android
         // kills the background BLE overnight — the very window a battery capture needs to span).
@@ -1216,6 +1223,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 val logicalKey = logicalDayKeyNow()       // ISO yyyy-MM-dd, local logical day
                 val localKey = java.time.LocalDate.now().toString()
                 _today.value = resolveTodayRow(days, logicalKey, localKey)
+                effortRestingHRToday = kotlinx.coroutines.withContext(Dispatchers.IO) {
+                    com.noop.core.CoreLiveEffort.effortRestingHR(logicalKey)
+                } ?: effortRestingHRToday
                 _healthAlert.value =
                     (if (_illnessWatchEnabled.value && _today.value != null &&
                         days.lastOrNull()?.day == _today.value?.day
@@ -2059,14 +2069,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // disagree with its own re-score. Read once here, at save time; the live readout during the
         // session is a transient running estimate and deliberately left alone.
         val restingHR = _today.value?.restingHr?.toDouble() ?: StrainScorer.defaultRestingHR
+        // Effort on its day's Effort resting heart rate (core `EffortRestingHR`), so the day never shows less
+        // than this session; calories keep the day's shown resting HR.
         val strain = if (samples.size >= 2)
             StrainScorer.strain(samples, maxHR = profileStore.hrMax.toDouble(),
-                restingHR = restingHR, method = NoopPrefs.effortMethod(appContext),
-                sex = profileStore.sex) else null
+                restingHR = effortRestingHRToday, method = NoopPrefs.effortMethod(appContext),
+                sex = profileStore.sex, workout = true) else null
         // Estimate calories from the captured HR window (same Keytel/Harris–Benedict model the
         // auto-detector uses) so a manual session shows energy too, not just duration/strain. (#117)
         val energyKcal = if (samples.size >= 2)
-            // #983: same measured resting HR as the strain above, not null. The calories model's
+            // #983: the day's measured resting HR, not null. The calories model's
             // active-vs-resting threshold sits at resting + 30% HRR, so the default silently shifts what
             // counts as active — and #972 already threads it in the rescore path, so leaving it null here
             // meant a saved workout's kcal disagreed with its own re-score just as its Effort did.
@@ -2111,8 +2123,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             if (_hcWriteback.value) {
                 runCatching { HealthConnectWriter.writeExercise(appContext, row, w.sport.exerciseType) }
                 // #528: export the just-captured HR series now (workout row already upserted above, so
-                // the export's window logic keeps these samples at full 1 Hz rather than ~1/30 s).
-                writebackHealthConnectNow()
+                // the export's window logic keeps these samples at full 1 Hz rather than ~1/30 s). Only what
+                // changed: a full write of the 60-day window after every workout is the churn the ledger removed.
+                writebackHealthConnectNow(everything = false)
             }
         }
     }
@@ -2142,7 +2155,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val s = w.samples + HrSample(deviceId = deviceId, ts = ts, bpm = bpm)
         val strain = StrainScorer.strain(
             s, maxHR = profileStore.hrMax.toDouble(),
-            method = NoopPrefs.effortMethod(appContext), sex = profileStore.sex) ?: 0.0
+            method = NoopPrefs.effortMethod(appContext), sex = profileStore.sex, workout = true) ?: 0.0
         val updated = w.copy(
             // Grown by comparison, not recomputed from `s`, so a peak folded in from a repeated second is kept.
             samples = s, avgHr = s.sumOf { it.bpm } / s.size, peakHr = maxOf(w.peakHr, bpm), liveStrain = strain,
@@ -3041,11 +3054,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         NoopPrefs.setHcWriteback(appContext, enabled)
     }
 
-    /** One immediate writeback (permissions assumed granted — the UI gates on that). */
-    fun writebackHealthConnectNow() {
+    /** One immediate writeback (permissions assumed granted — the UI gates on that). [everything] writes every
+     *  record of the window, for the wearer's own requests; the post-workout write leaves it off and sends only
+     *  what changed, mostly the new heart rate. */
+    fun writebackHealthConnectNow(everything: Boolean = true) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                runCatching { HealthConnectWriter.write(appContext, repository, deviceId) }
+                runCatching { HealthConnectWriter.write(appContext, repository, deviceId, everything = everything) }
             }
             refreshHcWritebackStatus()   // #660: surface the just-recorded outcome in Data Sources
         }
@@ -3817,13 +3832,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Record a "moment" (a double-tap marker) with a confirming buzz. Android has no separate moments
-     *  store yet, so — matching the iOS markMoment's user-visible effect (a buzz + a greppable log line)
-     *  — this writes a timestamped line into the shareable strap log and buzzes once. Additive: no new
-     *  persistence, no change to any existing path. */
+    /** Record a "moment" (a double-tap marker) with a confirming buzz. The time also goes to [MomentsStore]
+     *  (the "Recent moments" list in Settings); matching the iOS markMoment's user-visible effect (a buzz + a greppable log line)
+     *  — this writes a timestamped line into the shareable strap log and buzzes once. */
     private fun markMoment() {
         val clock = java.text.DateFormat.getTimeInstance(java.text.DateFormat.SHORT).format(java.util.Date())
         ble.externalLog("Moment marked @ $clock")
+        MomentsStore.add(appContext, System.currentTimeMillis())
         ble.buzz(1)
     }
 
@@ -3837,7 +3852,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             // Use the SAME "my-whoop" series source the Sleep screen's mark card writes (SleepScreen.kt)
             // and reads back from, so a double-tap mark lands in the same place a tapped one does.
-            runCatching { repository.upsertMetricSeries(listOf(mark.metricPoint("my-whoop"))) }
+            runCatching { repository.upsertMetricSeries(listOf(mark.metricPoint("my-whoop"), mark.instantRow("my-whoop"))) }
         }
     }
 
@@ -3850,13 +3865,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return !pattern.contains('a', ignoreCase = true)
     }
 
-    // --- HR-zone haptic coaching setters + behaviour. State (_zoneCoaching/_zoneCoachRecovery/lastZone)
+    // --- HR-zone haptic coaching setters + behaviour. State (_zoneCoaching/_zoneCoachRecovery/hrCeilingMonitor)
     // is declared ABOVE the init block (see the note there) so the synchronous first emission is safe. ---
 
     fun setZoneCoaching(enabled: Boolean) {
         _zoneCoaching.value = enabled
         NoopPrefs.setZoneCoaching(appContext, enabled)
-        if (enabled) lastZone = -1   // a fresh enable shouldn't buzz on the first sample
     }
 
     fun setZoneCoachRecovery(enabled: Boolean) {
@@ -3864,24 +3878,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         NoopPrefs.setZoneCoachRecovery(appContext, enabled)
     }
 
-    /** HR-zone coaching: buzz on climbing into the top zone (ease off) or back to Zone 1 (recovered).
-     *  Fires once per zone change; mirrors macOS AppModel.coachZone. The buzz decision is the pure
-     *  [zoneCoachBuzzLoops] so it can be unit-tested without a strap. */
+    /**
+     * The heart-rate ceiling (Strap Actions › Haptic coaching): each smoothed live sample goes to the core's
+     * `alerts.hrCeiling`, which decides whether the strap buzzes a warning or confirms the recovery; the buzz itself is
+     * the unchanged [ble]`.buzz`. Before the Settings parity work this was a triple buzz on entering Zone 5; the default
+     * ceiling (the start of Zone 5) fires at the same place. Unverified without a strap.
+     */
     private fun coachZone(state: LiveState) {
-        if (!_zoneCoaching.value || !state.bonded || !state.worn) return
-        val hr = _bpm.value ?: return
-        if (hr < 30) return
-        val maxHR = profileStore.hrMax.toDouble()
-        if (maxHR <= 0) return
-        // Memoized on maxHR + personalized bounds: this runs every ~1 Hz live-HR sample while zone
-        // coaching is active, but the zone set only changes when the user edits their max HR or custom
-        // zones — so don't rebuild it per tick.
-        val zone = zoneSetCache.zones(maxHR, profileStore.hrZoneThresholds?.map(Int::toDouble))
-            .zoneNumber(hr.toDouble())
-        val previous = lastZone
-        lastZone = zone
-        val loops = zoneCoachBuzzLoops(previous, zone, _zoneCoachRecovery.value)
-        if (loops > 0) ble.buzz(loops)
+        val hr = _bpm.value?.takeIf { state.bonded && state.worn }
+        hrCeilingMonitor.onSample(
+            scope = viewModelScope, profile = profileStore, bpm = hr, nowSec = System.currentTimeMillis() / 1000L,
+            switchOn = _zoneCoaching.value, linked = state.bonded && state.worn,
+            // The first LiveState emission can arrive before `_activeWorkout` is declared (the #84 class), so a
+            // read that finds it missing counts as no workout.
+            workoutRunning = runCatching { _activeWorkout.value != null }.getOrDefault(false) ||
+                LiveSessionRunner.active.value != null,
+            confirmRecovery = _zoneCoachRecovery.value, buzz = { loops -> ble.buzz(loops) },
+        )
     }
 
     override fun onCleared() {

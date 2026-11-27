@@ -57,6 +57,8 @@ public enum ShadowSession {
         var registeredWhoopIds: [String] = []
         /// Replaces the daily pass in a test that has to hold one open.
         var analysisPassForTesting: (@MainActor @Sendable () async -> Void)?
+        /// The running session's offload watch, so work started outside its pass queue waits as a pass does.
+        var offload: OffloadWatch?
     }
     private static let state = State()
 
@@ -163,6 +165,14 @@ public enum ShadowSession {
         return state.store.map { ($0, state.path) }
     }
 
+    /// True while the strap is handing history over and analysis must wait (`OffloadWatch`), for work that runs
+    /// outside the session's pass queue; false without a session. Read on the main actor, as the queue reads it.
+    @MainActor
+    public static var holdsAnalysis: Bool {
+        let watch = state.lock.withLock { state.offload }
+        return watch?.holdsAnalysis() ?? false
+    }
+
     /// Today's scores from the last `analyze` event, as one line; nil before one ran or when today has no row.
     public static var today: String? {
         state.lock.lock(); defer { state.lock.unlock() }
@@ -228,6 +238,7 @@ public enum ShadowSession {
         // While the strap is handing history over, the daily pass waits: it would otherwise hold this actor
         // for longer than the client waits for a chunk to be banked (#53, finding 1).
         let offload = OffloadWatch()
+        state.lock.withLock { state.offload = offload }
         let analyses = AnalysisRuns(hold: { offload.holdsAnalysis() }) { request in
             if let passForTesting { await passForTesting(); return }
             let result = await CoreAnalysis.run(store: store, deviceId: request.deviceId, profile: request.profile,
@@ -263,7 +274,9 @@ public enum ShadowSession {
                 state.lock.withLock { state.tally = Tally() }
             case .analyze(let profile, let settings):
                 await collector.flush()
-                analyses.request(.init(profile: profile, settings: settings, deviceId: deviceId))
+                let request = AnalysisRuns.Request(profile: profile, settings: settings, deviceId: deviceId)
+                // A post-offload pass in the background may be put off, as Apple spaces them (`Background`).
+                if CoreAnalysis.Background.admit(request) { analyses.request(request) }
             case .barrier(let completed):
                 analyses.whenSettled(completed)
             case .device(let id):

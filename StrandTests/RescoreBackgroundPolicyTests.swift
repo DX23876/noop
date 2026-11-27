@@ -1,4 +1,5 @@
 import XCTest
+import StrandCore
 @testable import Strand
 
 /// #1538: what a backgrounded re-score is allowed to attempt, and how it paces itself.

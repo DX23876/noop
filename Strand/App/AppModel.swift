@@ -1518,9 +1518,11 @@ final class AppModel: ObservableObject {
         // disagree with its own re-score. Read once here, at save time; the live readout during the
         // session is a transient running estimate and deliberately left alone.
         let restingHR = repo.today?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
+        // Effort on its own resting heart rate, the one its day is scored against (`EffortRestingHR`), so the
+        // day never shows less than this workout; calories keep the day's shown resting HR.
         let strain = samples.count >= 2
             ? StrainScorer.strain(samples, maxHR: Double(profile.hrMax),
-                                  restingHR: restingHR, lowIntensity: .counted) : nil
+                                  restingHR: repo.effortRestingHRToday, lowIntensity: .counted) : nil
         // Estimate calories from the captured HR window so a manual session shows energy too, not just
         // duration/strain (#117). Through `boutKcal`, the session price the day model uses — the figure
         // stored here is later shown as the session's own. The analytics profile, so the basal share is
@@ -1533,7 +1535,7 @@ final class AppModel: ObservableObject {
                                          in: [latest.day: latest.peakMET])
         }
         let kcal = samples.count >= 2
-            // #983: same measured resting HR as the strain above, not nil. The calories model's
+            // #983: the day's measured resting HR, not nil. The calories model's
             // active-vs-resting threshold sits at resting + 30% HRR, so the default silently shifts what
             // counts as active — and #972 already threads it in the rescore path, so leaving it nil here
             // meant a saved workout's kcal disagreed with its own re-score just as its Effort did.
@@ -2782,7 +2784,7 @@ final class AppModel: ObservableObject {
         // change. The UserDefaults timestamp list and confirming buzz above retain the existing path.
         Task { [weak self] in
             guard let self, let store = await self.repo.storeHandle() else { return }
-            _ = try? await store.upsertMetricSeries([mark.metricPoint], deviceId: self.repo.deviceId)
+            _ = try? await store.upsertMetricSeries([mark.metricPoint, mark.instantPoint], deviceId: self.repo.deviceId)
         }
     }
 

@@ -79,7 +79,7 @@ internal fun ForgeEcgPage(onBack: () -> Unit) {
         SettingsColumn {
             PageTitle(stringResource(R.string.forge_ecg_title), onBack, infoButton)
             val list = readings ?: return@SettingsColumn
-            SettingsCard(title = stringResource(R.string.forge_ecg_whoop_mg), blurb = null) {
+            ForgeTitledCard(title = stringResource(R.string.forge_ecg_whoop_mg), blurb = null) {
                 if (list.isEmpty()) {
                     Text(stringResource(R.string.forge_ecg_empty), style = Forge.type.body, color = Forge.colors.textSecondary)
                     Text(stringResource(R.string.forge_ecg_android_note), style = Forge.type.footnote, color = Forge.colors.textTertiary)
@@ -150,7 +150,7 @@ private fun EcgDetail(reading: CoreEcg.Reading, onBack: () -> Unit, infoButton: 
     LaunchedEffect(reading.id) { detail = withContext(Dispatchers.IO) { CoreEcg.reading(reading.id) } }
     SettingsColumn {
         PageTitle(stringResource(R.string.forge_ecg_reading), onBack, infoButton)
-        SettingsCard(title = null, blurb = null) {
+        ForgeTitledCard(title = null, blurb = null) {
             Text(reading.title, style = Forge.type.headline, color = toneColor(reading.tone))
             Text(dateTime(reading.startTs), style = Forge.type.caption, color = Forge.colors.textSecondary)
             reading.unreadable.forEach { Text(it, style = Forge.type.footnote, color = Forge.colors.textSecondary) }
@@ -167,7 +167,7 @@ private fun EcgDetail(reading: CoreEcg.Reading, onBack: () -> Unit, infoButton: 
         if (a == null) {
             Text(stringResource(R.string.forge_ecg_too_few), style = Forge.type.subhead, color = Forge.colors.textSecondary)
         } else {
-            SettingsCard(title = stringResource(R.string.forge_ecg_rhythm), blurb = null) {
+            ForgeTitledCard(title = stringResource(R.string.forge_ecg_rhythm), blurb = null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space4)) {
                     Stat(stringResource(R.string.forge_ecg_average), a.meanHeartRate.roundToInt().toString(), "bpm")
                     Stat(stringResource(R.string.forge_ecg_lowest), a.minHeartRate.roundToInt().toString(), "bpm")
@@ -177,7 +177,7 @@ private fun EcgDetail(reading: CoreEcg.Reading, onBack: () -> Unit, infoButton: 
                      else stringResource(R.string.forge_ecg_irregular, a.irregularBeats),
                      style = Forge.type.subhead, color = Forge.colors.textSecondary)
             }
-            SettingsCard(title = stringResource(R.string.forge_ecg_variability), blurb = null) {
+            ForgeTitledCard(title = stringResource(R.string.forge_ecg_variability), blurb = null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space4)) {
                     Stat("RMSSD", a.rmssdMs?.roundToInt()?.toString() ?: "–", "ms")
                     Stat("SDNN", a.sdnnMs?.roundToInt()?.toString() ?: "–", "ms")
@@ -185,11 +185,11 @@ private fun EcgDetail(reading: CoreEcg.Reading, onBack: () -> Unit, infoButton: 
                 }
             }
             if (a.template.isNotEmpty()) {
-                SettingsCard(title = stringResource(R.string.forge_ecg_avg_beat),
+                ForgeTitledCard(title = stringResource(R.string.forge_ecg_avg_beat),
                              blurb = stringResource(R.string.forge_ecg_from_beats, a.beatsAveraged, a.beatsDetected)) {
                     AverageBeat(a)
                 }
-                SettingsCard(title = stringResource(R.string.forge_ecg_intervals), blurb = null) {
+                ForgeTitledCard(title = stringResource(R.string.forge_ecg_intervals), blurb = null) {
                     Interval(stringResource(R.string.forge_ecg_pr), a.prMs, stringResource(R.string.forge_ecg_pr_typ))
                     RowDivider()
                     Interval(stringResource(R.string.forge_ecg_qrs), a.qrsMs, stringResource(R.string.forge_ecg_qrs_typ))
@@ -201,7 +201,7 @@ private fun EcgDetail(reading: CoreEcg.Reading, onBack: () -> Unit, infoButton: 
                 Text(stringResource(R.string.forge_ecg_experimental_note), style = Forge.type.footnote, color = Forge.colors.textTertiary)
             }
         }
-        SettingsCard(title = null, blurb = null) {
+        ForgeTitledCard(title = null, blurb = null) {
             Fact(stringResource(R.string.forge_ecg_wrist),
                  stringResource(if (reading.wrist == "right") R.string.forge_ecg_right else R.string.forge_ecg_left))
             Fact(stringResource(R.string.forge_ecg_result_code), reading.resultCode.toString())

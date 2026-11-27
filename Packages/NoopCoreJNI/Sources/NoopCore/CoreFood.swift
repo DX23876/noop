@@ -56,6 +56,21 @@ enum CoreFood {
             // Builds the BLS search file on first use, or after an app update brought a newer table.
             do { try await catalog.prepareBundled(); return #"{"ok":true}"# }
             catch { return #"{"error":"catalogUnavailable"}"# }
+        case "food.portions":
+            // The amount sheet's choices (`FoodPortions`), so Android offers exactly what iOS offers.
+            guard let food = item(args["item"]) else { return #"{"options":[]}"# }
+            struct OptionWire: Codable { var kind: String; var label: String?; var count: Int?; var amount: Double }
+            let options = FoodPortions.options(for: food, lastAmount: double("lastGrams")).map { option -> OptionWire in
+                switch option.kind {
+                case .serving(let label): return OptionWire(kind: "serving", label: label, amount: option.amount)
+                case .lastTime: return OptionWire(kind: "lastTime", amount: option.amount)
+                case .piece(let count): return OptionWire(kind: "piece", count: count, amount: option.amount)
+                case .halfPack: return OptionWire(kind: "halfPack", amount: option.amount)
+                case .wholePack(let count): return OptionWire(kind: "wholePack", count: count, amount: option.amount)
+                case .amount: return OptionWire(kind: "amount", amount: option.amount)
+                }
+            }
+            return CoreRead.json(["options": options])
         case "food.attribution":
             return CoreRead.json(["bls": FoodCatalog.bundledMeta()])
         case "food.search":

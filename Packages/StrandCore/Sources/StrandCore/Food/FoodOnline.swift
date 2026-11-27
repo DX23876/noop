@@ -15,7 +15,8 @@ public enum FoodOnline {
     public static let minimumQueryLength = 3
 
     static let fields = "code,product_name,product_name_de,product_name_en,generic_name,brands,serving_size,"
-        + "serving_quantity,nova_group,pnns_groups_2,nutriments"
+        + "serving_quantity,nova_group,pnns_groups_2,categories_tags,quantity,product_quantity,product_quantity_unit,"
+        + "nutriments"
 
     /// The fields to ask for, with the product name in the app language when that is neither German nor English,
     /// so a Spanish app reads `product_name_es` where a product has one.
@@ -30,24 +31,46 @@ public enum FoodOnline {
     /// Products matching `query`, sold in one of `countries` (Open Food Facts tags such as "germany").
     public static func search(_ query: String, countries: [String], language: String,
                               session: URLSession = .shared) async throws -> [FoodItem] {
+        guard let url = searchURL(query, countries: countries, language: language) else { return [] }
+        let object = try await get(url, session: session)
+        let products = (object["products"] as? [[String: Any]]) ?? []
+        return ranked(products, countries: countries).compactMap { product($0, language: language) }
+    }
+
+    /// The search request. One country is a filter. Several are not: the search ANDs its tag filters, so a
+    /// product had to be sold in every chosen country at once, and "haferflocken" in Germany and Portugal
+    /// found one product where Germany alone found 523 (measured 2026-11-25). With several countries the
+    /// request goes out unfiltered and wider, and `ranked` puts their products first.
+    static func searchURL(_ query: String, countries: [String], language: String) -> URL? {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= minimumQueryLength else { return [] }
+        guard trimmed.count >= minimumQueryLength else { return nil }
+        let chosen = Array(countries.prefix(3))
+        let filtered = chosen.count == 1
         var items: [URLQueryItem] = [
             .init(name: "search_terms", value: trimmed), .init(name: "search_simple", value: "1"),
             .init(name: "action", value: "process"), .init(name: "json", value: "1"),
-            .init(name: "page_size", value: "25"), .init(name: "fields", value: fields(language: language)),
+            .init(name: "page_size", value: filtered ? "25" : "50"),
+            .init(name: "fields", value: fields(language: language) + (filtered ? "" : ",countries_tags")),
             .init(name: "lc", value: language),
         ]
-        for (index, country) in countries.prefix(3).enumerated() {
-            items += [.init(name: "tagtype_\(index)", value: "countries"),
-                      .init(name: "tag_contains_\(index)", value: "contains"),
-                      .init(name: "tag_\(index)", value: country)]
+        if filtered, let country = chosen.first {
+            items += [.init(name: "tagtype_0", value: "countries"),
+                      .init(name: "tag_contains_0", value: "contains"),
+                      .init(name: "tag_0", value: country)]
         }
         var components = URLComponents(string: host + "/cgi/search.pl")!
         components.queryItems = items
-        let object = try await get(components.url!, session: session)
-        let products = (object["products"] as? [[String: Any]]) ?? []
-        return products.compactMap { product($0, language: language) }
+        return components.url
+    }
+
+    /// Products sold in one of `countries` first, in the order the search gave them, then the rest.
+    static func ranked(_ products: [[String: Any]], countries: [String]) -> [[String: Any]] {
+        guard countries.count > 1 else { return products }
+        let wanted = Set(countries.map { "en:" + $0.lowercased() })
+        func sold(_ product: [String: Any]) -> Bool {
+            ((product["countries_tags"] as? [String]) ?? []).contains { wanted.contains($0.lowercased()) }
+        }
+        return products.filter(sold) + products.filter { !sold($0) }
     }
 
     /// One product by barcode, or nil when Open Food Facts does not know it.
@@ -65,11 +88,18 @@ public enum FoodOnline {
     static func get(_ url: URL, session: URLSession) async throws -> [String: Any] {
         var request = URLRequest(url: url, timeoutInterval: 15)
         request.setValue(userAgent, forHTTPHeaderField: "User-Agent")
-        let (data, response) = try await session.data(for: request)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw URLError(.badServerResponse)
+        // Open Food Facts answers "temporarily unavailable" now and then (a 503 on 2026-11-25, the next
+        // request a second later fine). One quiet second try, then the failure goes to the screen.
+        for attempt in 0..<2 {
+            let (data, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+            if (200..<300).contains(http.statusCode) {
+                return (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+            }
+            guard attempt == 0, [502, 503, 504].contains(http.statusCode) else { break }
+            try await Task.sleep(nanoseconds: 1_200_000_000)
         }
-        return (try JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
+        throw URLError(.badServerResponse)
     }
 
     /// The export's per-100 g fields, the same conversion `Tools/build_food_packs.py` applies to packs.
@@ -111,13 +141,26 @@ public enum FoodOnline {
               let kcal = energy.amounts[.energyKcal], kcal <= 950 else { return nil }
         let serving = (json["serving_quantity"] as? NSNumber)?.doubleValue
             ?? (json["serving_quantity"] as? String).flatMap(Double.init)
-        let group = text("pnns_groups_2").flatMap { $0 == "unknown" ? nil : $0.lowercased().replacingOccurrences(of: " ", with: "-") }
+        // The category IDs first: they are the same in every language and say more than the coarse group.
+        let categories = FoodCategoryGroups.group(for: (json["categories_tags"] as? [String]) ?? [])
+        let group = categories ?? text("pnns_groups_2").flatMap {
+            $0 == "unknown" ? nil : $0.lowercased().replacingOccurrences(of: " ", with: "-")
+        }
+        // The package, and whether this is a drink. `nutrition_data_per` says "100g" for a cola whose values are
+        // per 100 ml (seen 2026-11-25), so the package's own unit and the drink categories decide.
+        let productQuantity = (json["product_quantity"] as? NSNumber)?.doubleValue
+            ?? (json["product_quantity"] as? String).flatMap { Double($0.replacingOccurrences(of: ",", with: ".")) }
+        let package = FoodPackage.parse(quantity: text("quantity"), productQuantity: productQuantity,
+                                        unit: text("product_quantity_unit"))
+        let liquid = package?.liquid == true || (group?.split(separator: ",").contains { $0.contains("beverage") } ?? false)
         return FoodItem(id: "off:\(code)", source: .online, name: name,
                         brand: text("brands")?.components(separatedBy: ",").first?.trimmingCharacters(in: .whitespaces),
                         group: group, nova: (json["nova_group"] as? NSNumber)?.intValue,
                         servingG: serving.flatMap { $0 > 0 && $0 <= 5_000 ? $0 : nil }, servingLabel: text("serving_size"),
                         per100g: energy.amounts, barcode: code,
-                        estimatedKeys: energy.filled ? [FoodEnergy.mark] : nil)
+                        estimatedKeys: energy.filled ? [FoodEnergy.mark] : nil,
+                        liquid: liquid ? true : nil, packageAmount: package?.amount,
+                        packageCount: package.map { $0.count })
     }
 }
 

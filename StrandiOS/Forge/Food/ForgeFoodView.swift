@@ -76,6 +76,8 @@ struct ForgeFoodView: View {
                     ForgeDetailHeader(overline: FoodDayPicker.title(model.day), title: String(localized: "Nutrition"),
                                       scrolledPast: $scrolledPast)
                 }
+                // The day's own row: arrows, the date with its calendar and a way back to today.
+                FoodDayPicker(model: model)
                 DietPlanLine(model: model, open: openPlan)
                 hero
                 if let other = model.otherIntake {

@@ -468,6 +468,8 @@ struct StrandiOSApp: App {
                         model.handleHealthImportURL(url)
                     } else if url.scheme == "noop", url.host == "energy" {
                         router.openEnergy()
+                    } else if url.scheme == "noop", url.host == "food" {
+                        router.openFood()
                     } else if url.scheme == "noop", url.host == "goals" {
                         // noop://goals or noop://goals/<uuid> from the goal widget and accessories.
                         router.openGoals(goalId: UUID(uuidString: url.lastPathComponent))

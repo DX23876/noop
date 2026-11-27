@@ -39,6 +39,8 @@ final class NavRouter: ObservableObject {
         case sleep
         /// Today's energy detail. Used by the dedicated iOS Home/Lock-Screen widget.
         case energy
+        /// The Food page. Used by the iOS Nutrition widget (owner, 2026-11-25).
+        case food
         /// #1862: the Coach screen, opened from the Today Coach launcher sheet once the user picks a
         /// suggestion or submits the composer. The launcher deliberately owns no send/stream/consent
         /// surface of its own — it hands the question to the one screen that already has them.
@@ -147,6 +149,7 @@ final class NavRouter: ObservableObject {
     func openSleep() { requestedDestination = .sleep }
     /// Open the expenditure detail behind Today's Energy card.
     func openEnergy() { requestedDestination = .energy }
+    func openFood() { requestedDestination = .food }
 
     /// Posted by a What's New card's button with the link target as the object. The router listens, so
     /// the sheet needs no router of its own, whichever screen presented it.

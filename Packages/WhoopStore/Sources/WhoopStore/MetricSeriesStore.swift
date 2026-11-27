@@ -112,6 +112,19 @@ extension WhoopStore {
         }
     }
 
+    /// Points for `key` on days in [from, to] under every device id, oldest day first. For wearer input the
+    /// platforms write under different ids (the strap's on iOS, "my-whoop" on Android), such as sleep marks.
+    public func metricSeriesAnyDevice(key: String, from: String, to: String) async throws -> [MetricPoint] {
+        try syncRead { db in
+            try Row.fetchAll(db, sql: """
+                SELECT day, key, value FROM metricSeries
+                WHERE key = ? AND day >= ? AND day <= ?
+                ORDER BY day ASC
+                """, arguments: [key, from, to])
+                .map { MetricPoint(day: $0["day"], key: $0["key"], value: $0["value"]) }
+        }
+    }
+
     /// Scalar count for a single source/key, without materializing its daily points.
     public func metricSeriesKeyCount(deviceId: String, key: String) async throws -> Int {
         try syncRead { db in

@@ -75,6 +75,12 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.roundToInt
 
 /**
+ * The cards of [TestCentreScreen] one at a time, for the Forge Test Centre page (`ForgeSettingsTestCentre.kt`), which
+ * opens each behind its own row. A null section is the whole classic screen.
+ */
+enum class TestCentreSection { Modes, Protocol, Diagnostics, Export, Experimental }
+
+/**
  * Settings -> Test Centre (spec section 7), the Android twin of TestCentreView. Four sections: domain
  * test modes (rendered from the registry projection), diagnostic tools, export and auto-export, and
  * advanced/experimental. A NEW file because SettingsScreen.kt (132 KB) cannot grow. Section 1 renders
@@ -82,7 +88,7 @@ import kotlin.math.roundToInt
  * scheduled-export / experimental controls on the same bindings the Settings cards use. No em-dash.
  */
 @Composable
-fun TestCentreScreen(vm: AppViewModel, onOpenGroundTruthCollector: () -> Unit = {}) {
+fun TestCentreScreen(vm: AppViewModel, onOpenGroundTruthCollector: () -> Unit = {}, section: TestCentreSection? = null) {
     val context = LocalContext.current
     val testCentre = remember { TestCentre.from(context) }
     // CAPTURE-D: a UI scope to emit the data-volume line off the toggle-on path (a store read, so it can't
@@ -135,8 +141,9 @@ fun TestCentreScreen(vm: AppViewModel, onOpenGroundTruthCollector: () -> Unit = 
     // survives a navigation away. The mode flag stays on (the user's test is still active); the monitor
     // resumes next time this screen is shown. This keeps the perpetual-callback contract: a callback
     // exists only while the Test Centre is on screen with the Display mode on.
+    val showModes = section == null || section == TestCentreSection.Modes
     DisposableEffect(Unit) {
-        if (testCentre.active(TestDomain.DISPLAY)) {
+        if (showModes && testCentre.active(TestDomain.DISPLAY)) {
             // CAPTURE-D (#797): wire the data-volume provider so the monitor can emit ONE `dataVolume` line
             // read STRAIGHT from the store (not the reactive caches), against the registry's active strap id.
             DisplayPerformanceMonitor.dataVolumeProvider = { vm.repo.dataVolumeSnapshot(vm.activeStrapId) }
@@ -149,15 +156,17 @@ fun TestCentreScreen(vm: AppViewModel, onOpenGroundTruthCollector: () -> Unit = 
     // CAPTURE-D: emit the data-volume line once when the Display mode is active on entry. Kept off the
     // (non-suspend) DisposableEffect: the read hits the store, so it runs from a coroutine.
     LaunchedEffect(Unit) {
-        if (testCentre.active(TestDomain.DISPLAY)) DisplayPerformanceMonitor.emitDataVolume()
+        if (showModes && testCentre.active(TestDomain.DISPLAY)) DisplayPerformanceMonitor.emitDataVolume()
     }
 
     ScreenScaffold(
         title = uiString(R.string.l10n_test_centre_screen_test_centre_37b36828),
-        subtitle = "Turn on a test for the thing that's wrong, wear the strap, then tap Report. Everything stays on this phone.",
+        subtitle = if (section == null) {
+            "Turn on a test for the thing that's wrong, wear the strap, then tap Share. Everything stays on this phone."
+        } else null,
     ) {
         // --- Section 1: Domain test modes ---
-        SettingsSectionTC(
+        if (showModes) SettingsSectionTC(
             icon = Icons.Filled.BugReport,
             title = uiString(R.string.l10n_test_centre_screen_test_modes_e21f1d3c),
             blurb = "Each test logs extra detail for one part of the app while you wear the strap, then bundles it for a bug report.",
@@ -228,9 +237,9 @@ fun TestCentreScreen(vm: AppViewModel, onOpenGroundTruthCollector: () -> Unit = 
         }
 
         // --- Section 2: Diagnostic tools ---
-        DiagnosticToolsCard(vm)
+        if (section == null || section == TestCentreSection.Diagnostics) DiagnosticToolsCard(vm)
 
-        SettingsSectionTC(
+        if (section == null) SettingsSectionTC(
             icon = Icons.AutoMirrored.Filled.DirectionsWalk,
             title = stringResource(R.string.ground_truth_title),
             blurb = stringResource(R.string.ground_truth_test_centre_desc),
@@ -249,7 +258,7 @@ fun TestCentreScreen(vm: AppViewModel, onOpenGroundTruthCollector: () -> Unit = 
             )
         }
 
-        if (is5MG) {
+        if (is5MG && (section == null || section == TestCentreSection.Protocol)) {
             SettingsSectionTC(
                 icon = Icons.Filled.Science,
                 title = stringResource(R.string.raw_diag_title),
@@ -473,7 +482,7 @@ fun TestCentreScreen(vm: AppViewModel, onOpenGroundTruthCollector: () -> Unit = 
         }
 
         // --- Section 3: Export and auto-export ---
-        ExportCard(
+        if (section == null || section == TestCentreSection.Export) ExportCard(
             vm = vm,
             onReport = {
                 // Launched (#1002): buildPending is now suspend (storage probe reads the store).
@@ -482,7 +491,7 @@ fun TestCentreScreen(vm: AppViewModel, onOpenGroundTruthCollector: () -> Unit = 
         )
 
         // --- Section 4: Experimental algorithms ---
-        ExperimentalAlgorithmsCard(vm)
+        if (section == null || section == TestCentreSection.Experimental) ExperimentalAlgorithmsCard(vm)
     }
 
     pendingReport?.let { p ->

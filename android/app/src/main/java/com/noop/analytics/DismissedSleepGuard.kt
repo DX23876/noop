@@ -24,7 +24,16 @@ object DismissedSleepGuard {
         sessionStart: Long,
         sessionEnd: Long,
         dismissedWindows: List<Pair<Long, Long>>,
-    ): Boolean = dismissedWindows.any { (start, end) -> sessionStart < end && start < sessionEnd }
+    ): Boolean {
+        // Half of the session inside one window, as the Swift twin (tester report, 2026-11-24): a real night
+        // that only starts inside a deleted false one is a different night.
+        val length = sessionEnd - sessionStart
+        if (length <= 0) return dismissedWindows.any { (start, end) -> sessionStart < end && start < sessionEnd }
+        return dismissedWindows.any { (start, end) ->
+            val overlap = minOf(sessionEnd, end) - maxOf(sessionStart, start)
+            overlap > 0 && overlap * 2 >= length
+        }
+    }
 
     /** Drop every session in [sessions] that overlaps a dismissed window: the engine's `sleepKept`
      *  filter, as a pure function so a JVM test can pin it. [windowOf] projects a session to its

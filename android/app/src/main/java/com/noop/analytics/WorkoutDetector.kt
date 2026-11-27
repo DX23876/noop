@@ -550,7 +550,7 @@ object WorkoutDetector {
                 val avg = bpms.sum() / bpms.size.toDouble()
                 val peak = window.maxOf { it.bpm }
                 val strain = StrainScorer.strain(
-                    window, effMaxHR, restHR, effortMethod, profile?.sex ?: "male")
+                    window, effMaxHR, restHR, effortMethod, profile?.sex ?: "male", workout = true)
 
                 sessions.add(
                     ExerciseSession(

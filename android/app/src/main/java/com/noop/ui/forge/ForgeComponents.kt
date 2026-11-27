@@ -93,8 +93,10 @@ fun ForgeCard(modifier: Modifier = Modifier, radius: Dp = ForgeMetrics.cardRadiu
     // The new design (preview) draws its cards as iOS's `ForgeCardModifier`: its own glass until a transparency is
     // chosen, no rim at any transparency, and the shadow fading with the fill.
     val newDesign = ForgeDesign.preview
+    val todaySurface = LocalTodaySurface.current
     val opacity = when {
         glass -> 1f
+        todaySurface != null -> todaySurface
         newDesign && !CardAppearance.chosen -> NEW_DESIGN_GLASS
         else -> CardAppearance.opacity
     }

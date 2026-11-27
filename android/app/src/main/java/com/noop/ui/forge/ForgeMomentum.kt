@@ -102,7 +102,11 @@ private fun momentumFeed(retry: Int, live: CoreMomentum.Live = CoreMomentum.Live
     }
     var state by remember { mutableStateOf(MomentumFeedState()) }
     LaunchedEffect(revision, retry, foregroundRefresh, live) {
-        state = state.copy(loaded = false)
+        // Only a retry after a failed read goes back to "loading". Every other reload keeps what is on
+        // screen until the new answer is in: the data revision ticks with each synced batch, and
+        // resetting here blanked the Momentum page every few seconds while a strap synced (tester
+        // report, 2026-11-23).
+        if (state.messages == null) state = state.copy(loaded = false)
         val messages = withContext(Dispatchers.IO) {
             CoreRead.open(context)
             CoreMomentum.feed(context, dismissedTrainingWorkouts(context), live)
@@ -136,7 +140,13 @@ internal fun ForgeTodayMomentum(viewModel: com.noop.ui.AppViewModel) {
             }
             Spacer(Modifier.height(ForgeMetrics.space3))
             if (top == null) {
-                Text(stringResource(R.string.forge_mw_none), style = Forge.type.caption, color = Forge.colors.textSecondary)
+                // "Nothing stands out" only for a feed that was read; not yet read or not readable says so.
+                val line = when {
+                    !state.loaded -> R.string.forge_momentum_loading
+                    state.messages == null -> R.string.forge_momentum_unavailable
+                    else -> R.string.forge_mw_none
+                }
+                Text(stringResource(line), style = Forge.type.caption, color = Forge.colors.textSecondary)
             } else {
                 Row(verticalAlignment = Alignment.Top) {
                     Box(Modifier.size(40.dp).background(tint.copy(alpha = 0.15f), RoundedCornerShape(10.dp)),
@@ -150,6 +160,9 @@ internal fun ForgeTodayMomentum(viewModel: com.noop.ui.AppViewModel) {
                                                           maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     }
                 }
+                val more = (state.messages?.size ?: 0) - 1
+                if (more > 0) Text(stringResource(R.string.forge_momentum_more, more), style = Forge.type.caption,
+                                   color = Forge.colors.textTertiary, modifier = Modifier.padding(top = 4.dp))
                 top.progress?.let { p ->
                     Spacer(Modifier.height(ForgeMetrics.space3))
                     Box(Modifier.fillMaxWidth().height(4.dp).background(Forge.colors.inset, RoundedCornerShape(2.dp))) {

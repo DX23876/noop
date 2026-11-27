@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 #if os(iOS)
 import BackgroundTasks
 import UIKit

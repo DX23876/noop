@@ -5975,5 +5975,15 @@
   "Is anything unusual?": "Czy coś jest nietypowe?",
   "How are my values developing?": "Jak zmieniają się moje wartości?",
   "Opens the coach for this page": "Otwiera coacha dla tej strony",
-  "New message from the coach": "Nowa wiadomość od coacha"
+  "New message from the coach": "Nowa wiadomość od coacha",
+  "Swipe between tabs": "Przesuwanie między kartami",
+  "Millilitres": "Mililitry",
+  "Last time %@ ml": "Ostatnio %@ ml",
+  "1 portion (%@ ml)": "1 porcja (%@ ml)",
+  "1 of %lld (%@)": "1 z %lld (%@)",
+  "Half a pack (%@)": "Pół opakowania (%@)",
+  "Whole pack (%@)": "Całe opakowanie (%@)",
+  "Whole pack (%lld × %@ %@)": "Całe opakowanie (%lld × %@ %@)",
+  "Choose a day": "Wybierz dzień",
+  "Add %@ %@": "Dodaj %1$@ %2$@"
 }

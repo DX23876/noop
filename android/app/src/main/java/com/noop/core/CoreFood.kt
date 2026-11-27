@@ -14,6 +14,8 @@ object CoreFood {
         val json: JSONObject, val id: String, val source: String, val name: String, val brand: String?,
         val servingG: Double?, val servingLabel: String?, val per100g: Map<String, Double>, val barcode: String?,
         val estimatedFrom: String? = null, val estimatedCount: Int = 0,
+        /** A drink, measured in millilitres; one package piece and how many the pack holds (core `FoodItem`). */
+        val liquid: Boolean = false, val packageAmount: Double? = null, val packageCount: Int? = null,
     ) {
         fun scaled(grams: Double): Map<String, Double> = per100g.mapValues { it.value * grams / 100.0 }
     }
@@ -35,7 +37,17 @@ object CoreFood {
     data class Day(val day: String, val meals: List<Meal>, val totals: Map<String, Double>, val otherKcal: Double?, val otherSource: String?)
     data class Pack(val country: String, val iso: String, val rows: Int, val builtAt: String, val sha256: String)
     data class Label(val per100: Map<String, Double>, val servingAmount: Double?, val complete: Boolean)
-    data class CartLine(val item: Item, val grams: Double, val portionLabel: String? = null)
+    data class CartLine(val item: Item, val grams: Double, val portionLabel: String? = null) {
+        companion object {
+            /** A one-tap add: the stated portion keeps its name, a drink its millilitres (iOS `FoodItemRow.quickLine`). */
+            fun quick(item: Item, amount: Double, portionName: (String) -> String): CartLine {
+                val serving = item.servingG?.let { kotlin.math.abs(it - amount) < 0.01 } == true
+                val named = if (serving) item.servingLabel?.let(portionName) else null
+                val text = if (amount % 1.0 == 0.0) amount.toLong().toString() else "%.1f".format(java.util.Locale.ROOT, amount)
+                return CartLine(item, amount, named ?: if (item.liquid) "$text ml" else null)
+            }
+        }
+    }
 
     private fun call(op: String, args: JSONObject = JSONObject()): JSONObject? {
         if (!SwiftCore.available) return null
@@ -56,7 +68,22 @@ object CoreFood {
         json, json.optString("id"), json.optString("source"), json.optString("name"), json.text("brand"),
         json.number("servingG"), json.text("servingLabel"), numbers(json.optJSONObject("per100g")), json.text("barcode"),
         json.text("estimatedFrom"), json.optJSONArray("estimatedKeys")?.length() ?: 0,
+        json.optBoolean("liquid", false), json.number("packageAmount"),
+        json.number("packageCount")?.toInt(),
     )
+
+    /** One choice in the amount dialog, from the core (`FoodPortions`): [kind] is serving, lastTime, piece,
+     *  halfPack, wholePack or amount; [amount] is grams, or millilitres for a drink. */
+    data class Portion(val kind: String, val label: String?, val count: Int?, val amount: Double)
+
+    fun portions(item: Item, lastGrams: Double?): List<Portion> {
+        val args = JSONObject().put("item", item.json)
+        lastGrams?.let { args.put("lastGrams", it) }
+        val array = call("food.portions", args)?.optJSONArray("options") ?: return emptyList()
+        return (0 until array.length()).mapNotNull { i ->
+            array.optJSONObject(i)?.let { Portion(it.optString("kind"), it.text("label"), it.number("count")?.toInt(), it.optDouble("amount")) }
+        }
+    }
 
     private fun entry(json: JSONObject) = Entry(
         json.optString("id"), json.optLong("loggedAt"), json.optString("day"), json.text("meal"), json.text("foodId"),

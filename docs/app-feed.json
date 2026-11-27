@@ -1,11 +1,17 @@
 {
   "counts": {
     "fixed": 5,
-    "reported": 1,
+    "reported": 2,
     "working": 0
   },
   "decided": [],
   "fixed": [
+    {
+      "closed": "2026-11-26",
+      "n": 49,
+      "status": "fixed",
+      "title": "Nap algorithm"
+    },
     {
       "closed": "2026-11-21",
       "n": 42,
@@ -29,21 +35,21 @@
       "n": 51,
       "status": "fixed",
       "title": "Native training sessions show no HR / Effort in workout lists (grey on Today)"
-    },
-    {
-      "closed": "2026-11-20",
-      "n": 48,
-      "status": "fixed",
-      "title": "UI: Syncing bar stops working if I switch to other views"
     }
   ],
-  "generated": "2026-11-21T10:42:55Z",
+  "generated": "2026-11-27T10:33:57Z",
   "issues": [
     {
-      "n": 49,
-      "opened": "2026-11-14",
+      "n": 61,
+      "opened": "2026-11-27",
       "status": "reported",
-      "title": "Nap algorithm"
+      "title": "Today Steps tile shows 0 with \"Health Connect\" selected while the steps detail shows the phone's count"
+    },
+    {
+      "n": 60,
+      "opened": "2026-11-27",
+      "status": "reported",
+      "title": "Automatic sleep detection records evening couch sitting as a nap after 20:00"
     }
   ],
   "schema": 1,

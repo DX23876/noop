@@ -15,6 +15,9 @@ import org.json.JSONObject
 internal fun JSONObject.withGoalProfile(profile: ProfileStore): JSONObject = put("energyProfile", JSONObject()
     .put("weightKg", profile.weightKg).put("heightCm", profile.heightCm)
     .put("age", profile.age).put("maxHR", profile.hrMax))
+    // The aerobic ceiling beside it, so goals and the energy reads scale workouts as the daily pass does.
+    .put("manualVO2max", profile.vo2maxManual).put("manualVO2maxDay", profile.vo2maxManualDay)
+    .put("manualVO2maxWeightKg", profile.vo2maxManualWeightKg).put("activityLevelOverride", profile.activityLevelOverride)
 
 /** The wearer's opt-ins and energy choices the goal reader needs, as `GoalTrackingStore.goalHostState` reads them on Apple. */
 internal fun JSONObject.withGoalHostSettings(context: Context): JSONObject =

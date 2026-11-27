@@ -73,6 +73,26 @@ final class FoodCatalogTests: XCTestCase {
         XCTAssertEqual(FoodOnline.fields(language: "de-DE"), FoodOnline.fields)
     }
 
+    func testSeveralCountriesAreNotAllRequiredAtOnce() throws {
+        func query(_ url: URL?) throws -> [String: String] {
+            let items = try XCTUnwrap(url.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false)?.queryItems })
+            return Dictionary(items.map { ($0.name, $0.value ?? "") }, uniquingKeysWith: { a, _ in a })
+        }
+        let one = try query(FoodOnline.searchURL("haferflocken", countries: ["germany"], language: "de"))
+        XCTAssertEqual(one["tag_0"], "germany", "one country is still a filter")
+        let two = try query(FoodOnline.searchURL("haferflocken", countries: ["germany", "portugal"], language: "de"))
+        XCTAssertNil(two["tag_0"], "several countries would be ANDed, so they are not sent as filters")
+        XCTAssertNil(two["tag_1"])
+        XCTAssertTrue(two["fields"]?.hasSuffix(",countries_tags") == true)
+        XCTAssertNil(FoodOnline.searchURL("ha", countries: [], language: "de"), "too short to search")
+
+        let products: [[String: Any]] = [["code": "1", "countries_tags": ["en:france"]],
+                                         ["code": "2", "countries_tags": ["en:portugal"]],
+                                         ["code": "3", "countries_tags": ["en:germany", "en:austria"]]]
+        let order = FoodOnline.ranked(products, countries: ["germany", "portugal"]).compactMap { $0["code"] as? String }
+        XCTAssertEqual(order, ["2", "3", "1"], "products from a chosen country first, each group in search order")
+    }
+
     func testLoggedBlsFoodsAreNamedInTheAppLanguage() async throws {
         let catalog = FoodCatalog(directory: directory)
         try await catalog.prepareBundled()
@@ -181,6 +201,17 @@ final class FoodLogTests: XCTestCase {
         let edited = FoodLog.edited(entry, grams: 100)
         XCTAssertEqual(edited.totals["energy_kcal"], 348)
         XCTAssertEqual(edited.per100g, entry.per100g)
+    }
+
+    func testANewAmountRetiresTheOldPortionName() {
+        let portion = FoodLog.entry(for: oats, grams: 40, at: date("2026-11-08", 7), origin: .search,
+                                    portionLabel: "1 portion (40 g)", id: "p")
+        XCTAssertNil(FoodLog.edited(portion, grams: 80).portionLabel, "80 g is no longer the 40 g portion")
+        XCTAssertEqual(FoodLog.edited(portion, grams: 40).portionLabel, "1 portion (40 g)", "the same amount keeps it")
+        let can = FoodLog.entry(for: oats, grams: 330, at: date("2026-11-08", 7), origin: .search,
+                                portionLabel: "1 of 6 (330 ml)", id: "c")
+        XCTAssertEqual(FoodLog.edited(can, grams: 250).portionLabel, "250 ml", "a drink stays in millilitres")
+        XCTAssertEqual(FoodLog.edited(can, grams: 12.25).portionLabel, "12.3 ml")
     }
 
     func testMealsGroupByTimeAndByChosenMeal() {

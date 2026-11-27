@@ -22,15 +22,44 @@ struct FoodPortionSheet: View {
         _grams = State(initialValue: lastGrams ?? item.servingG ?? 100)
     }
 
-    private var presets: [(label: String, grams: Double)] {
-        var out: [(String, Double)] = []
-        if let serving = item.servingG {
-            out.append((item.servingLabel.map { String(localized: "1 portion (\($0))") }
-                        ?? String(localized: "1 portion (\(FoodText.grams(serving)) g)"), serving))
+    /// The amounts offered, from the core (`FoodPortions`), so both platforms offer the same ones.
+    private var presets: [(label: String, grams: Double, names: Bool)] {
+        FoodPortions.options(for: item, lastAmount: lastGrams).map { option in
+            (Self.label(option, item: item), option.amount, Self.names(option.kind))
         }
-        if let lastGrams, lastGrams != item.servingG { out.append((String(localized: "Last time \(FoodText.grams(lastGrams)) g"), lastGrams)) }
-        out += [("50 g", 50), ("100 g", 100), ("250 g", 250)]
-        return out
+    }
+
+    /// Millilitres for a drink, grams for everything else. The nutrients of a drink are stated per 100 ml, so
+    /// the number is used as it is.
+    static func label(_ option: FoodPortions.Option, item: FoodItem) -> String {
+        let unit = item.liquid == true ? "ml" : "g"
+        let amount = "\(FoodText.grams(option.amount)) \(unit)"
+        switch option.kind {
+        case .serving(let label):
+            if let label { return String(localized: "1 portion (\(label))") }
+            let number = FoodText.grams(option.amount)
+            return item.liquid == true ? String(localized: "1 portion (\(number) ml)") : String(localized: "1 portion (\(number) g)")
+        case .lastTime:
+            let number = FoodText.grams(option.amount)
+            return item.liquid == true ? String(localized: "Last time \(number) ml") : String(localized: "Last time \(number) g")
+        case .piece(let count):
+            return String(localized: "1 of \(count) (\(amount))")
+        case .halfPack:
+            return String(localized: "Half a pack (\(amount))")
+        case .wholePack(let count):
+            guard count > 1, let one = item.packageAmount else { return String(localized: "Whole pack (\(amount))") }
+            return String(localized: "Whole pack (\(count) × \(FoodText.grams(one)) \(unit))")
+        case .amount:
+            return amount
+        }
+    }
+
+    /// Whether the option's name is worth keeping on the entry ("1 of 6 (330 ml)"), rather than only its amount.
+    static func names(_ kind: FoodPortions.Kind) -> Bool {
+        switch kind {
+        case .serving, .piece, .halfPack, .wholePack: return true
+        case .lastTime, .amount: return false
+        }
     }
 
     var body: some View {
@@ -40,7 +69,8 @@ struct FoodPortionSheet: View {
                     LabeledContent(item.name, value: item.brand ?? "")
                 }
                 Section("Amount") {
-                    TextField("Grams", value: $grams, format: .number.precision(.fractionLength(0...1))).keyboardType(.decimalPad)
+                    TextField(item.liquid == true ? "Millilitres" : "Grams", value: $grams,
+                              format: .number.precision(.fractionLength(0...1))).keyboardType(.decimalPad)
                     ScrollView(.horizontal) {
                         HStack(spacing: 8) {
                             ForEach(presets, id: \.label) { preset in
@@ -101,7 +131,10 @@ struct FoodPortionSheet: View {
 
     private func cancel() { dismiss() }
     private func confirm() {
-        let label = item.servingG.flatMap { abs($0 - grams) < 0.01 ? item.servingLabel ?? String(localized: "1 portion") : nil }
+        // A named choice keeps its name ("1 of 6 (330 ml)"); a drink typed in by hand keeps its millilitres, since
+        // the entry rows would otherwise read it as grams.
+        let named = presets.first { $0.names && abs($0.grams - grams) < 0.01 }?.label
+        let label = named ?? (item.liquid == true ? "\(FoodText.grams(grams)) ml" : nil)
         add(FoodCartLine(item: item, grams: grams, portionLabel: label))
         dismiss()
     }

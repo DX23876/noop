@@ -98,10 +98,11 @@ struct ForgeDevicesSourcesView: View {
                     Label { Text("Steps from") } icon: { Image(systemName: "figure.walk").foregroundStyle(ForgeColor.charge) }
                 }
                 .tint(ForgeColor.accent)
+                .font(SettingsRowFont.value)
                 .padding(.horizontal, 16).padding(.vertical, 8)
             }
             Text("Automatic takes the strap's count first, then the phone's.")
-                .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary).padding(.horizontal, 4)
+                .settingsCaption().padding(.horizontal, NoopMetrics.space4)
         }
         .onChange(of: stepsSourceRaw) { _, _ in
             Task {

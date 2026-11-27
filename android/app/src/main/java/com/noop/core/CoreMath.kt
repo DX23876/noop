@@ -33,9 +33,12 @@ object CoreMath {
     fun optDouble(json: JSONObject, key: String): Double? =
         if (!json.has(key) || json.isNull(key)) null else json.optDouble(key).takeUnless { it.isNaN() }
 
-    /** `StrainScorer.strain` in the core: one Effort curve with the fork's calibration, as on iOS. */
-    fun strain(hr: List<com.noop.data.HrSample>, maxHR: Double?, restingHR: Double): Answer<Double?>? {
+    /** `StrainScorer.strain` in the core: one Effort curve with the fork's calibration, as on iOS. [workout]
+     *  scores [hr] as one workout (its time below 50 % HRR counts); false scores a day. */
+    fun strain(hr: List<com.noop.data.HrSample>, maxHR: Double?, restingHR: Double,
+               workout: Boolean = false): Answer<Double?>? {
         val args = JSONObject().put("hr", hr(hr, { it.ts }, { it.bpm })).put("restingHR", restingHR)
+            .put("workout", workout)
         if (maxHR != null) args.put("maxHR", maxHR)
         val answer = call("math.strain", args) ?: return null
         return Answer(optDouble(answer, "value"))

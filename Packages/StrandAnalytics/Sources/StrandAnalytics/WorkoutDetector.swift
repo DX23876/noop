@@ -426,7 +426,10 @@ public enum WorkoutDetector {
     ///   - hr: heart-rate stream (required; empty → []).
     ///   - gravity: gravity stream (required; empty → []).
     ///   - restingHR: day resting-HR baseline (bpm). nil → derived as the 10th
-    ///     percentile of the day's HR.
+    ///     percentile of the day's HR. Decides where a bout begins and whether it qualifies.
+    ///   - effortRestingHR: the resting HR a found bout is scored against (`EffortRestingHR`): its Effort,
+    ///     zones and mean intensity. nil → `restingHR`'s value. Detection itself never reads it, so a bout
+    ///     is found exactly as before and only measured on Effort's yardstick.
     ///   - maxHR: HRmax (bpm). nil → estimated via StrainScorer.estimateHRmax.
     ///   - age: used only for the `MaxHeartRate` fallback when maxHR is nil.
     ///   - profile: when provided, per-bout calories are estimated.
@@ -437,6 +440,7 @@ public enum WorkoutDetector {
     public static func detect(hr: [HRSample],
                               gravity: [GravitySample],
                               restingHR: Double? = nil,
+                              effortRestingHR: Double? = nil,
                               maxHR: Double? = nil,
                               age: Double? = nil,
                               profile: UserProfile? = nil,
@@ -461,6 +465,7 @@ public enum WorkoutDetector {
         if hrSeg.isEmpty || motion.isEmpty { return [] }
 
         let restHR = restingHR ?? deriveRestingHR(hrSeg)
+        let scoreRestHR = effortRestingHR ?? restHR
         let hrFloor = restHR + hrMarginBPM
         f.restingHR = restHR
         f.hrFloor = hrFloor
@@ -532,16 +537,20 @@ public enum WorkoutDetector {
             let core = hrSeg.filter { $0.ts >= start && $0.ts <= end }
             if core.isEmpty { f.droppedNoHR += 1; continue }
 
-            var zonePct: [Int: Double] = [:]
-            var avgHRR: Double? = nil
+            // Qualified on the detection baseline, described on Effort's (`effortRestingHR`).
+            var gate: ([Int: Double], Double?) = ([:], nil)
             if let m = effMaxHR, m > restHR {
-                (zonePct, avgHRR) = boutIntensity(core, restingHR: restHR, maxHR: m)
+                gate = boutIntensity(core, restingHR: restHR, maxHR: m)
             }
 
             // Intensity qualification: require ≥ MIN_INTENSITY_Z2PLUS in zone 2+.
-            if !zonePct.isEmpty {
-                let z2plus = (2...5).reduce(0.0) { $0 + (zonePct[$1] ?? 0.0) } / 100.0
+            if !gate.0.isEmpty {
+                let z2plus = (2...5).reduce(0.0) { $0 + (gate.0[$1] ?? 0.0) } / 100.0
                 if z2plus < minIntensityZ2Plus { f.droppedLowIntensity += 1; continue }
+            }
+            var (zonePct, avgHRR) = gate
+            if scoreRestHR != restHR {
+                (zonePct, avgHRR) = effMaxHR.map { boutIntensity(core, restingHR: scoreRestHR, maxHR: $0) } ?? ([:], nil)
             }
 
             // Qualified → back-date the start over the warm-up and report stats on the full window (#148).
@@ -567,7 +576,7 @@ public enum WorkoutDetector {
             let avg = bpms.reduce(0, +) / Double(bpms.count)
             let peak = Int(bpms.max()!.rounded())
             // A bout is a workout: its time below 50 % HRR counts too (#2438).
-            let strain = StrainScorer.strain(hrSamples, maxHR: effMaxHR, restingHR: restHR,
+            let strain = StrainScorer.strain(hrSamples, maxHR: effMaxHR, restingHR: scoreRestHR,
                                              lowIntensity: .counted)
 
             sessions.append(ExerciseSession(

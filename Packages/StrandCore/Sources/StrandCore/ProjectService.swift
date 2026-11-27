@@ -23,7 +23,9 @@ import FoundationNetworking
 /// again later". A reporter who reads that cannot tell a switch they threw themselves from a service
 /// that said no from a dead connection, and neither can anybody trying to help them.
 public enum ProjectWriteFailure: String, Equatable, Sendable, CaseIterable {
-    /// Nothing left the device. Sending is switched off, or the feed carries no address at all.
+    /// Nothing left the device because the wearer switched sending off. Only the switch: a device that
+    /// simply has no address yet answers `unreachable`, because telling a wearer who left the switch on
+    /// that it is off sends them looking for a setting that is already right (tester report, 2026-11-24).
     case notSending
     /// The service answered, and asked for less: this device has written too often in the last hour.
     case tooMany
@@ -73,6 +75,10 @@ public actor ProjectService {
     /// kill switch, and the wearer's own switch. Reading is not gated here, because reading sends
     /// nothing about the reader, and a roadmap withheld for privacy helps nobody.
     var endpoint: URL? { sharing.isOn ? service : nil }
+
+    /// Why `endpoint` is closed, for the writes that report it. The switch is named only when it is the
+    /// switch; a missing address is the same as nothing answering, which is what the wearer can act on.
+    var closedReason: ProjectWriteFailure { sharing.isOn ? .unreachable : .notSending }
 
     /// The device key, for the routes that are rate limited. Never stored beside a report code.
     func deviceKey() -> String { keyStore.key() }
@@ -124,7 +130,7 @@ public actor ProjectService {
 
     /// Set or withdraw this device's thumb. Returns the new total when the service reports one.
     public func vote(id: String, on: Bool) async -> ProjectServiceResult {
-        guard let service = endpoint else { return .failed(.notSending) }
+        guard let service = endpoint else { return .failed(closedReason) }
         guard ProjectService.isVotableID(id) else { return .refused }
         let body: [String: Any] = ["id": id, "on": on, "key": keyStore.key()]
         let result = await post(service.appendingPathComponent("v1/vote"), body: body)
@@ -135,7 +141,7 @@ public actor ProjectService {
     /// Send a suggestion. It becomes an issue in the owner's private repository; nothing is public until
     /// the owner releases it, and the app never reads it back.
     public func suggest(text: String) async -> ProjectServiceResult {
-        guard let service = endpoint else { return .failed(.notSending) }
+        guard let service = endpoint else { return .failed(closedReason) }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed.count <= ProjectService.maximumSuggestion else { return .refused }
         return await post(service.appendingPathComponent("v1/suggestion"),

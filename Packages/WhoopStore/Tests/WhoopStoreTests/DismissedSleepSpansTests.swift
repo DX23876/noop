@@ -48,6 +48,16 @@ final class DismissedSleepSpansTests: XCTestCase {
         XCTAssertTrue(DismissedSleepSpans.isSuppressed(sessionStart: 900, sessionEnd: 1500, windows: windows))
     }
 
+    func testARealNightThatOnlyStartsInADeletedWindowIsKept() {
+        // Deleted: 2 to 4 am awake in bed. Detected afterwards: one night from 2 am to 11 am.
+        let windows = [(start: 2 * 3600, end: 4 * 3600)]
+        XCTAssertFalse(DismissedSleepSpans.isSuppressed(sessionStart: 2 * 3600, sessionEnd: 11 * 3600, windows: windows),
+                       "two of nine hours inside the deleted window do not make it the deleted night")
+        XCTAssertTrue(DismissedSleepSpans.isSuppressed(sessionStart: 2 * 3600 + 300, sessionEnd: 4 * 3600 + 600,
+                                                       windows: windows),
+                      "the deleted night found again with a drifted onset stays deleted")
+    }
+
     func testDisjointSessionIsNotSuppressed() {
         let windows = [(start: 1000, end: 2000)]
         XCTAssertFalse(DismissedSleepSpans.isSuppressed(sessionStart: 2000, sessionEnd: 3000, windows: windows),

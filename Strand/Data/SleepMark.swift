@@ -1,10 +1,11 @@
 import Foundation
 import WhoopStore
+import StrandCore
 
 // MARK: - SleepMark (#461 Phase 1 — tap-to-mark "going to sleep" / "awake")
 //
-// A user-tapped sleep boundary, captured for the record only — it does NOT feed the sleep detector
-// (that stays the strap's job). Phase 1 is pure logging: every mark is persisted into the existing
+// A user-tapped sleep boundary. The strap still detects the night; since 2026-11-25 a tap inside a
+// detected night bounds it (`SleepMarkBounds`, through `instantPoint`). Phase 1 is pure logging: every mark is persisted into the existing
 // long-format `metricSeries` store under the key "sleep_mark" AND appended as a human-readable line
 // to the shareable strap log, so a mark shows up in a debug export.
 //
@@ -63,6 +64,13 @@ struct SleepMark: Equatable, Sendable {
     /// earlier value — the strap log keeps the full sequence, which Phase-1 logging relies on.)
     var metricPoint: MetricPoint {
         MetricPoint(day: dayKey, key: SleepMark.seriesKey, value: type.seriesValue)
+    }
+
+    /// The tap's instant, which the night's bounds are read from (`SleepMarkBounds`, 2026-11-25): the typed row
+    /// above keeps only the day. One per type and day; a later tap the same day replaces it.
+    var instantPoint: MetricPoint {
+        MetricPoint(day: dayKey, key: type == .bedtime ? SleepMarkBounds.bedtimeKey : SleepMarkBounds.wakeKey,
+                    value: (Double(tsMs) / 1000).rounded())
     }
 
     /// Reconstruct a mark from a persisted point — the round-trip read-back. The point carries no

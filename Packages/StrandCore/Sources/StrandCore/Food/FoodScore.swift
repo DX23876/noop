@@ -144,7 +144,7 @@ public enum FoodScore {
                 if let per100 = entry.per100g?["sugar_g"], per100 >= 2.5 { sugaryDrinks += g }
             case nil: break
             }
-            if wholeGrainWords.contains(where: name.contains) { grams[.wholeGrains, default: 0] += g }
+            if isWholeGrain(group: info?.group, name: name) { grams[.wholeGrains, default: 0] += g }
         }
         let kcal = max(1, total[.energyKcal] ?? 0)
         let sodium = total[.sodiumMg] ?? (total[.saltG].map { $0 * 400 } ?? 0)
@@ -215,7 +215,19 @@ public enum FoodScore {
     static let processedMeatWords = ["wurst", "salami", "schinken", "speck", "bacon", "sausage", "chorizo",
                                      "leberkäse", "pastrami", "mortadella", "kassler", "frankfurter", "wiener"]
 
-    static let wholeGrainWords = ["vollkorn", "whole grain", "wholegrain", "whole wheat", "wholemeal"]
+    /// Names that mean whole grain, for a food without category IDs (the BLS table, foods typed in by hand).
+    /// Oat flakes are made from the whole kernel, so their name in the app's languages counts as well.
+    static let wholeGrainWords = ["vollkorn", "whole grain", "wholegrain", "whole wheat", "wholemeal",
+                                  "haferflocken", "hafer flocken", "oat flakes", "rolled oats", "porridge oats",
+                                  "flocons d'avoine", "flocons d’avoine", "copos de avena", "fiocchi d'avena",
+                                  "fiocchi di avena", "flocos de aveia", "płatki owsiane", "овсяные хлопья",
+                                  "燕麦片"]
+
+    /// Whole grain by the food's category IDs (`FoodCategoryGroups`) when it has them, else by its name.
+    static func isWholeGrain(group: String?, name: String) -> Bool {
+        if let group, group.split(separator: ",").contains(where: { $0 == FoodCategoryGroups.wholeGrain }) { return true }
+        return wholeGrainWords.contains(where: name.contains)
+    }
     static let juiceWords = ["saft", "juice", "nektar", "nectar", "smoothie"]
     static let nutWords = ["nuss", "nüsse", "mandel", "nut", "almond", "kern", "seed", "samen", "pistazie", "pistachio"]
 

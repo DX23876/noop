@@ -46,7 +46,7 @@ and through 18 `Repository` members.
 | `WorkoutSource.sourceLabel` | `Data/WorkoutSource.swift` | One diagnostic label | Moves with its pure part |
 | `DayCycleIntelligenceIntegration` | `Data/` (Foundation, packages only) | Day-cycle worker | Moves whole |
 | `AnalysisProgress` | `Data/` (Foundation only; uses `AppLanguage` for text) | Progress steps | Data part moves; the localised text stays |
-| `RescoreBackgroundPolicy` | `Data/` (Foundation only) | Pure decision for iOS background pacing | Stays in the app behind `AnalysisHost` (decided in step 2) |
+| `RescoreBackgroundPolicy` | `Data/` (Foundation only) | Pure decision for background pacing and spacing | Moved to `StrandCore` on 2026-11-26: the Android core follows the same rules (`CoreAnalysis.Background`) |
 
 ## 3. Repository members the pass calls
 
@@ -119,8 +119,8 @@ Steps, one concern per commit, each with `Tools/local-tests.sh`, the macOS and i
    (`AnalysisRecipe`), `StressMath` with the stored stress proxy, `DayCycleIntelligenceIntegration`.
    Done 2026-10-24. Re-sorted while doing it: the diagnostic line builders and the data part of
    `AnalysisProgress` move with the pass in step 5, `peakMET` and the pure `WeightSeries` statics with
-   their data functions in step 4, so no file is split twice. `RescoreBackgroundPolicy` stays in the app:
-   it paces iOS background tasks and belongs behind `AnalysisHost`, Android brings its own.
+   their data functions in step 4, so no file is split twice. `RescoreBackgroundPolicy` stayed in the app then;
+   since 2026-11-26 it is in `StrandCore`, so the Android core paces and spaces by the same rules.
 3. Inside the app, without moving the pass: introduce `AnalysisSettings` and `AnalysisHost` and route every
    `UserDefaults`, flag, Test Centre, scheduler and sink access of the pass through them.
    **Real-data check 1 (B4).**

@@ -157,6 +157,29 @@ final class ProjectFeedTests: XCTestCase {
         XCTAssertEqual(cached.fetchedAt, Date(timeIntervalSince1970: 500))
     }
 
+    func testAWriteReadsTheFeedWhenTheCacheHasNoAddress() async throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let sources = ProjectFeedSources(roadmap: URL(string: "https://x.test/roadmap.json")!,
+                                         feed: URL(string: "https://x.test/app-feed.json")!)
+        let roadmap = roadmapJSON
+        let feed = String(decoding: feedJSON, as: UTF8.self)
+            .replacingOccurrences(of: "\"service\": null", with: "\"service\": \"https://relay.test\"")
+            .data(using: .utf8)!
+        let reads = ReadCount()
+        let store = ProjectPageStore(directory: directory, sources: sources) { url in
+            reads.add()
+            return url.lastPathComponent == "roadmap.json" ? roadmap : feed
+        }
+        let empty = await store.cached()
+        XCTAssertNil(empty.service, "nothing cached yet")
+        let page = await store.forWriting(now: Date(timeIntervalSince1970: 500))
+        XCTAssertNotNil(page.service, "an empty cache is read again before a write gives up")
+        XCTAssertEqual(reads.value, 2, "one read of each file")
+        _ = await store.forWriting(now: Date(timeIntervalSince1970: 600))
+        XCTAssertEqual(reads.value, 2, "a cache that knows the address is used as it is")
+    }
+
     func testAFailedReadShowsTheLastCopyRatherThanAnEmptyPage() async throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -209,4 +232,12 @@ final class ProjectFeedTests: XCTestCase {
         XCTAssertFalse(page.reported.isEmpty && page.fixed.isEmpty,
                        "the shipped feed parsed to nothing")
     }
+}
+
+/// How many times a test's fake transport was asked for a file.
+private final class ReadCount: @unchecked Sendable {
+    private let lock = NSLock()
+    private var count = 0
+    var value: Int { lock.lock(); defer { lock.unlock() }; return count }
+    func add() { lock.lock(); count += 1; lock.unlock() }
 }

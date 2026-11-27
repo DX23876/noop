@@ -431,8 +431,13 @@ struct ForgeDetailHeader: View {
             .legibleOnPhoto()
             Spacer(minLength: 0)
             if let picture {
-                CoachPicture(main: picture.symbol, accentA: picture.accent, accentB: "sparkle", tint: picture.tint)
-                    .frame(width: CoachPictureSize.medium, height: CoachPictureSize.medium)
+                // A picture without an accent is the plain mark the Health focus areas use (owner, 2026-11-25).
+                if picture.accent.isEmpty {
+                    TrendsChangeSummary.categoryMark(picture.symbol, tint: picture.tint, size: 52)
+                } else {
+                    CoachPicture(main: picture.symbol, accentA: picture.accent, accentB: "sparkle", tint: picture.tint)
+                        .frame(width: CoachPictureSize.medium, height: CoachPictureSize.medium)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

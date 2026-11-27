@@ -57,7 +57,7 @@ object ManualWorkoutRescore {
         val strain = StrainScorer.strain(
             windowSamples, maxHR = hrMax,
             restingHR = restingHR ?: StrainScorer.defaultRestingHR,
-            method = effortMethod, sex = profile.sex,
+            method = effortMethod, sex = profile.sex, workout = true,
         )
         val kcalRaw = Calories.estimateBoutCalories(windowSamples, profile, hrMax, restingHR).first
         return Scored(avg, peak, strain, if (kcalRaw > 0) kcalRaw else null)

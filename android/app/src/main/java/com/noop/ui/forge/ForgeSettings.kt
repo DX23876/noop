@@ -127,6 +127,7 @@ import com.noop.ble.PuffinExperiment
 import com.noop.core.CoreShadow
 import com.noop.push.SelfHostedPushScreen
 import com.noop.ui.AppViewModel
+import com.noop.ui.AutomationsScope
 import com.noop.ui.AutomationsScreen
 import com.noop.ui.CardAppearance
 import com.noop.ui.BackupSyncScreen
@@ -140,12 +141,13 @@ import com.noop.ui.HrvWindow
 import com.noop.ui.NoopLimitationsScreen
 import com.noop.ui.NotificationsSettingsScreen
 import com.noop.ui.Palette
-import com.noop.ui.PowerSavingScreen
 import com.noop.ui.ScoringGuideScreen
 import com.noop.ui.SettingsScreen
 import com.noop.ui.StepsCalibrationScreen
 import com.noop.ui.TemperatureUnit
+import com.noop.ui.GroundTruthCollectorScreen
 import com.noop.ui.TestCentreScreen
+import com.noop.ui.TestCentreSection
 import com.noop.ui.WhatsNewSheet
 import com.noop.ui.WhoopModelComparisonScreen
 import com.noop.ui.setAppIcon
@@ -167,11 +169,6 @@ import com.noop.update.UpdateWatch
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
-/** The sex choices the profile stores, by tag, with the onboarding's labels. */
-private val SEX_CHOICES = listOf("male" to R.string.onboarding_male, "female" to R.string.onboarding_female,
-                                 "nonbinary" to R.string.onboarding_other)
-
-private const val SOURCE_URL = "https://github.com/DX23876/noop"
 private const val ISSUES_URL = "https://github.com/DX23876/noop/issues"
 
 /**
@@ -180,56 +177,24 @@ private const val ISSUES_URL = "https://github.com/DX23876/noop/issues"
  * card, which keeps its Bluetooth controls in one place).
  */
 enum class ForgeSettingsPage(val titleRes: Int, val subtitleRes: Int, val icon: ImageVector, val hosted: Boolean = false) {
-    Roadmap(R.string.project_page_title, R.string.project_page_subtitle, Icons.Rounded.Map),
+    Roadmap(R.string.project_page_title, R.string.fsp6_sub_roadmap, Icons.Rounded.Map),
     Profile(R.string.l10n_settings_screen_profile_ff4fc027, R.string.forge_settings_profile_subtitle, Icons.Rounded.AccountCircle),
     Goals(R.string.forge_goals_more_title, R.string.forge_sg_goals_subtitle, Icons.Rounded.TrackChanges),
-    Strap(R.string.l10n_settings_screen_strap_02b88eeb, R.string.forge_settings_strap_subtitle, Icons.Rounded.SettingsInputAntenna, hosted = true),
-    BatteryRecording(R.string.forge_settings_battery, R.string.forge_settings_battery_subtitle, Icons.Rounded.Battery5Bar, hosted = true),
-    StrapActions(R.string.forge_settings_actions, R.string.forge_settings_actions_subtitle, Icons.Rounded.TouchApp, hosted = true),
+    Strap(R.string.l10n_settings_screen_strap_02b88eeb, R.string.fsp6_sub_strap, Icons.Rounded.SettingsInputAntenna),
+    BatteryRecording(R.string.forge_settings_battery, R.string.fsp6_sub_battery, Icons.Rounded.Battery5Bar),
+    StrapActions(R.string.forge_settings_actions, R.string.fsp6_sub_actions, Icons.Rounded.TouchApp),
     Training(R.string.forge_training, R.string.forge_st_subtitle, Icons.Rounded.FitnessCenter),
-    TodayTrends(R.string.forge_settings_today_trends, R.string.forge_settings_today_cards, Icons.Rounded.Dashboard),
-    Notifications(R.string.forge_settings_notifications, R.string.forge_settings_notifications_subtitle, Icons.Rounded.NotificationsActive, hosted = true),
-    Coach(R.string.forge_settings_coach, R.string.forge_settings_coach_subtitle, Icons.Rounded.AutoAwesome, hosted = true),
-    LanguageUnits(R.string.forge_settings_language_units, R.string.forge_settings_language_units_subtitle, Icons.Rounded.Language),
-    Appearance(R.string.l10n_settings_screen_appearance_41def7a0, R.string.forge_settings_appearance_subtitle, Icons.Rounded.Contrast),
+    TodayTrends(R.string.forge_settings_today_trends, R.string.fsp6_sub_today, Icons.Rounded.Dashboard),
+    Notifications(R.string.fsp6_alerts_title, R.string.fsp6_alerts_subtitle, Icons.Rounded.NotificationsActive),
+    Coach(R.string.forge_settings_coach, R.string.fsp6_sub_coach, Icons.Rounded.AutoAwesome, hosted = true),
+    LanguageUnits(R.string.forge_settings_language_units, R.string.fsp6_sub_language, Icons.Rounded.Language),
+    Appearance(R.string.l10n_settings_screen_appearance_41def7a0, R.string.fsp6_sub_appearance, Icons.Rounded.Contrast),
     Calculations(R.string.forge_settings_calculations, R.string.forge_settings_calculations_subtitle, Icons.Rounded.Functions),
-    DataBackup(R.string.forge_settings_data_backup, R.string.forge_settings_data_backup_subtitle, Icons.Rounded.Storage),
+    DataBackup(R.string.forge_settings_data_backup, R.string.fsp6_sub_data, Icons.Rounded.Storage),
     Help(R.string.forge_settings_help, R.string.forge_settings_help_subtitle, Icons.AutoMirrored.Rounded.Help),
     Lab(R.string.forge_settings_lab, R.string.forge_settings_lab_subtitle, Icons.Rounded.Science),
     About(R.string.l10n_settings_screen_about_6b21fb79, R.string.forge_settings_about_subtitle, Icons.Rounded.Info),
 }
-
-/** Search words for each page, after iOS `SettingsSearchCatalog.entries` (English, as iOS keeps them). */
-internal val SETTINGS_SEARCH_WORDS: Map<ForgeSettingsPage, List<String>> = mapOf(
-    ForgeSettingsPage.Roadmap to listOf("roadmap", "plan", "planned", "what's next", "coming", "issues", "bugs",
-                                        "known problems", "reported", "fixed", "project"),
-    ForgeSettingsPage.Profile to listOf("photo", "picture", "avatar", "name", "date of birth", "age", "sex", "weight",
-                                        "height", "waist", "max heart rate", "heart-rate zones"),
-    ForgeSettingsPage.Goals to listOf("goal", "rest days", "step goal", "daily steps", "streak", "badges", "records",
-                                      "motivation", "goal notifications"),
-    ForgeSettingsPage.Strap to listOf("bluetooth", "pairing", "connection", "re-scan", "disconnect", "strap log", "steps",
-                                      "step count", "calibration", "heart rate sharing", "broadcast"),
-    ForgeSettingsPage.BatteryRecording to listOf("battery", "power saving", "low power", "strap battery", "continuous HRV"),
-    ForgeSettingsPage.StrapActions to listOf("double-tap", "haptics", "buzz", "vibration", "heart-rate ceiling"),
-    ForgeSettingsPage.Training to listOf("strength", "workout", "session rating", "rest timer", "weight unit", "sets",
-                                         "exercise media", "workout suggestions", "auto-detect workouts"),
-    ForgeSettingsPage.TodayTrends to listOf("dashboard", "today cards", "water", "hydration", "journal", "journal card"),
-    ForgeSettingsPage.Notifications to listOf("wrist alerts", "inactivity", "reminders", "daily report", "calls"),
-    ForgeSettingsPage.Coach to listOf("chat", "API key", "provider", "model", "memory", "coach"),
-    ForgeSettingsPage.LanguageUnits to listOf("language", "clock", "12-hour", "24-hour", "week start", "Monday", "Sunday",
-                                              "metric", "imperial", "distance", "pace", "temperature"),
-    ForgeSettingsPage.Appearance to listOf("theme", "dark mode", "light mode", "accent colour", "background", "sky",
-                                           "charts", "motion", "animation"),
-    ForgeSettingsPage.Calculations to listOf("day start", "day cycle", "midnight", "recalibrate",
-                                             "reset baseline", "charge baseline"),
-    ForgeSettingsPage.DataBackup to listOf("export", "import", "backup file", "noopbak", "restore", "Health Connect",
-                                           "data sources", "WHOOP export", "CSV"),
-    ForgeSettingsPage.Help to listOf("how NOOP works", "how your scores work", "limitations", "test centre", "diagnostics",
-                                     "bug report", "strap log"),
-    ForgeSettingsPage.Lab to listOf("experimental", "beta", "stress baseline", "training-based VO2max", "AgeLess",
-                                    "daily rhythm"),
-    ForgeSettingsPage.About to listOf("version", "what's new", "update check", "source code", "GitHub", "licence"),
-)
 
 /**
  * The hub's groups in iOS order (`SettingsHubLayout`). Siri has no Android counterpart, so its row is left out;
@@ -254,25 +219,46 @@ internal val HUB_GROUPS = listOf(
  */
 enum class ForgeSettingsSub(val titleRes: Int, val cards: Set<ClassicSettingsCard>? = null, val closes: Boolean = false) {
     StepsCalibration(R.string.l10n_settings_screen_steps_estimate_ce7a604d, closes = true),
+    StrapConnection(R.string.fsw8_strap_conn_title),
+    HeartRateSharing(R.string.fsp2_hrs_title),
+    Devices(R.string.nav_devices),
+    DevicesSources(R.string.forge_set_devices_sources),
+    FusedRecord(R.string.fsp2_values_title),
     Charge(R.string.l10n_settings_screen_charge_d4e1aee4, cards = setOf(ClassicSettingsCard.Charge)),
     BackupSync(R.string.l10n_settings_screen_automatic_backups_8a772f3c),
     DataSources(R.string.nav_data_sources),
     SelfHostedPush(R.string.nav_self_hosted_push),
+    Storage(R.string.fsp5_storage_title),
     HowNoopWorks(R.string.l10n_settings_screen_how_noop_works_3396b27a, closes = true),
     ScoringGuide(R.string.l10n_settings_screen_how_your_scores_work_21a0e2be, closes = true),
+    HowScores(R.string.forge_set_how_scores),
     ModelComparison(R.string.l10n_settings_screen_whoop_4_0_vs_5_0_2babb05a, closes = true),
     Limitations(R.string.nav_noop_limitations),
     TestCentre(R.string.nav_test_centre),
+    // Settings parity, wave 3: the pages the Test Centre index opens, and the classic screen (reached from All settings).
+    TestCentreModes(R.string.l10n_test_centre_screen_test_modes_e21f1d3c),
+    TestCentreCollector(R.string.fsw3_collector),
+    TestCentreProtocol(R.string.raw_diag_title),
+    TestCentreDiagnostics(R.string.l10n_test_centre_screen_diagnostic_tools_04ba4d3f),
+    TestCentreExport(R.string.forge_roadmap_report),
+    TestCentreExperimental(R.string.l10n_test_centre_screen_experimental_algorithms_e09581e2),
+    ClassicTestCentre(R.string.nav_test_centre),
     HealthWellness(R.string.l10n_settings_screen_health_wellness_93475778, cards = setOf(ClassicSettingsCard.HealthWellness)),
     Advanced(R.string.l10n_settings_screen_advanced_4d064726, cards = setOf(ClassicSettingsCard.Advanced)),
     WhatsNew(R.string.l10n_settings_screen_what_s_new_4d8dc5fe, closes = true),
     Acknowledgements(R.string.forge_provider_acknowledgements),
     ExerciseMedia(R.string.forge_st_manage_media),
+    HrZones(R.string.fsp1_hz_title),
+    Equipment(R.string.fsp1_equipment_title),
     ProjectRoadmap(R.string.forge_roadmap_title),
     ProjectProblems(R.string.project_card_problems_title),
     ProjectWishes(R.string.project_card_wishes_title),
     RawDonation(R.string.donation_title, closes = false),
     AllSettings(R.string.forge_settings_all),
+    // Settings parity, package 3: the screens the Strap Actions and Notifications pages open one level down.
+    WristAlerts(R.string.fsp3_wrist_apps, closes = false),
+    NapDetection(R.string.l10n_automations_screen_nap_detection_ca2dedf5),
+    Rhythm(R.string.forge_more_heart_rhythm),
 }
 
 /** One step of the Settings stack: a hub page or a screen below it. */
@@ -301,18 +287,15 @@ private fun decodeRoutes(raw: String): List<Route> = raw.split(",").mapNotNull {
 /** The tile colour of a page's icon, the iOS system colour `AppleInspiredColors` gives its colour key. */
 @Composable
 internal fun ForgeSettingsPage.tint(): Color {
+    // iOS `SettingsPage.forgeTint`: four system colours, one per kind of page, the same on the index row and
+    // on the page's own head, so no area shouts louder than another; alerts keep red.
     val token = when (this) {
-        ForgeSettingsPage.Profile, ForgeSettingsPage.DataBackup -> ForgeTokens.Color.systemBlue
-        ForgeSettingsPage.Goals, ForgeSettingsPage.Training -> ForgeTokens.Color.systemOrange
-        ForgeSettingsPage.Strap -> ForgeTokens.Color.systemGreen
-        ForgeSettingsPage.BatteryRecording -> ForgeTokens.Color.systemYellow
-        ForgeSettingsPage.StrapActions, ForgeSettingsPage.Notifications, ForgeSettingsPage.Coach,
-        ForgeSettingsPage.Appearance -> ForgeTokens.Color.systemPurple
-        ForgeSettingsPage.LanguageUnits -> ForgeTokens.Color.systemOrange
-        ForgeSettingsPage.Roadmap, ForgeSettingsPage.Calculations, ForgeSettingsPage.Lab -> ForgeTokens.Color.systemIndigo
-        ForgeSettingsPage.Help -> ForgeTokens.Color.systemTeal
-        ForgeSettingsPage.TodayTrends -> ForgeTokens.Color.systemCyan
-        ForgeSettingsPage.About -> ForgeTokens.Color.systemGray
+        ForgeSettingsPage.Profile, ForgeSettingsPage.Goals, ForgeSettingsPage.Strap, ForgeSettingsPage.BatteryRecording,
+        ForgeSettingsPage.TodayTrends, ForgeSettingsPage.Calculations -> ForgeTokens.Color.systemGreen
+        ForgeSettingsPage.StrapActions, ForgeSettingsPage.Help, ForgeSettingsPage.Training -> ForgeTokens.Color.systemOrange
+        ForgeSettingsPage.Notifications -> ForgeTokens.Color.systemRed
+        ForgeSettingsPage.Roadmap, ForgeSettingsPage.Coach, ForgeSettingsPage.Appearance, ForgeSettingsPage.LanguageUnits,
+        ForgeSettingsPage.DataBackup, ForgeSettingsPage.Lab, ForgeSettingsPage.About -> ForgeTokens.Color.systemIndigo
     }
     return token.resolve()
 }
@@ -360,7 +343,8 @@ fun ForgeSettings(viewModel: AppViewModel, onClose: () -> Unit, initialPage: For
                         else Hub(onClose, onOpen = { push(Route.Page(it)) }, onAll = { push(Route.Sub(ForgeSettingsSub.AllSettings)) })
                 is Route.Page ->
                     if (top.page.hosted) HostedPage(top.page, viewModel, onBack = ::pop)
-                    else Page(top.page, viewModel, onBack = ::pop, onOpen = { push(Route.Sub(it)) })
+                    else Page(top.page, viewModel, onBack = ::pop, onOpen = { push(Route.Sub(it)) },
+                              onOpenPage = { push(Route.Page(it)) })
                 is Route.Sub -> SubScreen(top.sub, viewModel, onBack = ::pop, onOpen = { push(Route.Sub(it)) })
             }
             }
@@ -410,7 +394,7 @@ private fun NewDesignHub(onClose: () -> Unit, onOpen: (ForgeSettingsPage) -> Uni
     LaunchedEffect(Unit) { ForgeBackground.load(context) }
     @Composable
     fun group(title: Int?, rows: List<@Composable () -> Unit>) {
-        if (title != null) SectionHeader(stringResource(title))
+        if (title != null) SettingsGroupHeader(stringResource(title))
         ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
             rows.forEachIndexed { i, row -> row(); if (i < rows.lastIndex) HubDivider() }
         }
@@ -449,10 +433,12 @@ private fun NewDesignHub(onClose: () -> Unit, onOpen: (ForgeSettingsPage) -> Uni
         // someone who does not care never notices it.
         group(null, listOf(page(ForgeSettingsPage.Roadmap)))
         group(R.string.forge_settings_group_you, listOf(page(ForgeSettingsPage.Goals)))
+        // As iOS `ForgeSettingsView`: the Strap page (which holds the connection, recording and battery and double-tap
+        // pages) and Devices and data sources.
         group(R.string.forge_set_strap_devices, listOf(
-            page(ForgeSettingsPage.Strap), page(ForgeSettingsPage.BatteryRecording), page(ForgeSettingsPage.StrapActions),
+            page(ForgeSettingsPage.Strap),
             { HubRow(Icons.Rounded.DeviceHub, ForgeTokens.Color.systemIndigo.resolve(), stringResource(R.string.forge_set_devices_sources),
-                     stringResource(R.string.forge_set_devices_sources_detail)) { onSub(ForgeSettingsSub.DataSources) } },
+                     stringResource(R.string.forge_set_devices_sources_detail)) { onSub(ForgeSettingsSub.DevicesSources) } },
         ))
         group(R.string.forge_set_alerts, listOf(page(ForgeSettingsPage.Notifications)))
         group(R.string.forge_set_app, listOf(page(ForgeSettingsPage.Appearance), page(ForgeSettingsPage.LanguageUnits),
@@ -461,7 +447,7 @@ private fun NewDesignHub(onClose: () -> Unit, onOpen: (ForgeSettingsPage) -> Uni
         group(R.string.forge_set_data_help, listOf(
             page(ForgeSettingsPage.DataBackup), page(ForgeSettingsPage.Calculations),
             { HubRow(Icons.Rounded.Speed, ForgeTokens.Color.systemGreen.resolve(), stringResource(R.string.forge_set_how_scores),
-                     stringResource(R.string.forge_set_how_scores_detail)) { onSub(ForgeSettingsSub.ScoringGuide) } },
+                     stringResource(R.string.forge_set_how_scores_detail)) { onSub(ForgeSettingsSub.HowScores) } },
             page(ForgeSettingsPage.Help),
         ))
         group(null, listOf(page(ForgeSettingsPage.Lab), page(ForgeSettingsPage.About),
@@ -479,8 +465,9 @@ internal fun PageTitle(title: String?, onBack: () -> Unit, trailing: (@Composabl
                  tint = Forge.sceneInk.text)
         }
         if (title != null) {
+            // Two lines before an ellipsis: German page names ("Hinweise und Erinnerungen") outgrow one.
             Text(title, style = Forge.type.title1, color = Forge.sceneInk.text,
-                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                 maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         } else {
             Spacer(Modifier.weight(1f))
         }
@@ -489,7 +476,8 @@ internal fun PageTitle(title: String?, onBack: () -> Unit, trailing: (@Composabl
 }
 
 @Composable
-private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () -> Unit, onOpen: (ForgeSettingsSub) -> Unit) {
+private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () -> Unit, onOpen: (ForgeSettingsSub) -> Unit,
+                 onOpenPage: (ForgeSettingsPage) -> Unit) {
     val context = LocalContext.current
     val profile = remember { ProfileStore.from(context) }
     // The stores are plain preferences; one counter re-reads them after a change, as the classic screen does.
@@ -499,6 +487,9 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
     var profileEditing by remember { mutableStateOf(false) }
     SettingsColumn {
         PageTitle(stringResource(page.titleRes), onBack)
+        // The profile opens on the wearer, every other page on its head (iOS `SettingsPageBanner`).
+        // The Strap page opens on the device row, as iOS's grouped Strap page does.
+        if (page != ForgeSettingsPage.Profile && page != ForgeSettingsPage.Strap) SettingsPageHead(page)
         key(revision) {
             when (page) {
                 ForgeSettingsPage.Roadmap -> ProjectHubSection(
@@ -509,15 +500,14 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
                 )
                 ForgeSettingsPage.Profile -> ProfileSection(profile, viewModel, ::change, onOpen, profileEditing) { profileEditing = it }
                 ForgeSettingsPage.Goals -> GoalsSettingsSection(viewModel)
+                ForgeSettingsPage.Strap -> StrapSettingsPage(viewModel, onOpenPage, onOpen)
+                ForgeSettingsPage.BatteryRecording -> BatteryRecordingSettings(viewModel)
+                ForgeSettingsPage.StrapActions -> StrapActionsSection(viewModel, onOpen)
+                ForgeSettingsPage.Notifications -> NotificationsSection(viewModel, onOpen)
                 ForgeSettingsPage.Training -> {
-                    TrainingSettingsSection(onOpenMedia = { onOpen(ForgeSettingsSub.ExerciseMedia) })
-                    // The donation page, reached from the sport settings because that is where the
-                    // ticks apply. Named for what it does for the wearer, not for the data it moves.
-                    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
-                        HubRow(Icons.Rounded.School, ForgeTokens.Color.systemTeal.resolve(),
-                               stringResource(R.string.donation_title),
-                               stringResource(R.string.donation_subtitle)) { onOpen(ForgeSettingsSub.RawDonation) }
-                    }
+                    TrainingSettingsSection(onOpenMedia = { onOpen(ForgeSettingsSub.ExerciseMedia) },
+                                            onOpenEquipment = { onOpen(ForgeSettingsSub.Equipment) },
+                                            onOpenDonation = { onOpen(ForgeSettingsSub.RawDonation) })
                 }
                 ForgeSettingsPage.LanguageUnits -> LanguageUnitsSection(context, ::change)
                 ForgeSettingsPage.Appearance -> AppearanceSection(::change)
@@ -538,21 +528,24 @@ private fun Page(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () ->
 
 /** A classic screen under a Forge back bar. Screens that carry their own title get the bar without one. */
 @Composable
-internal fun Hosted(title: String?, onBack: () -> Unit, content: @Composable () -> Unit) {
+internal fun Hosted(title: String?, onBack: () -> Unit, head: ForgeSettingsPage? = null, content: @Composable () -> Unit) {
     // Every Settings page has one look, as on iOS: the classic screen takes the Forge colours (no beige canvas),
     // draws nothing behind itself so the backdrop runs through, and puts the Forge title at the top of its own
     // scroll instead of under a fixed bar.
     val colors = Forge.colors
     val ink = Forge.sceneInk
     val tokens = remember(colors) { hostedTokens(colors) }
-    val chrome = remember(title, onBack, ink) {
+    val chrome = remember(title, onBack, ink, head) {
         HostedChrome(
             horizontalPadding = ForgeMetrics.screenPadding, maxContentWidth = ForgeMetrics.maxContentWidth,
             rowSpacing = ForgeMetrics.gap, cardRadius = ForgeMetrics.groupedRadius,
         ) { pageTitle, subtitle, trailing ->
             Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space1)) {
                 PageTitle(title ?: pageTitle, onBack, trailing)
-                if (subtitle != null) {
+                // A Settings page says what it is for in its head, which replaces the classic subtitle.
+                if (head != null) {
+                    SettingsPageHead(head)
+                } else if (subtitle != null) {
                     Text(subtitle, style = Forge.type.subhead, color = ink.secondary,
                          modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
                 }
@@ -664,28 +657,7 @@ internal fun hostedTokens(c: ForgeColors): PaletteTokens {
 @Composable
 private fun HostedPage(page: ForgeSettingsPage, viewModel: AppViewModel, onBack: () -> Unit) {
     when (page) {
-        ForgeSettingsPage.Strap -> Hosted(stringResource(page.titleRes), onBack) {
-            SettingsScreen(viewModel, cards = setOf(ClassicSettingsCard.Strap))
-        }
-        ForgeSettingsPage.BatteryRecording -> Hosted(stringResource(page.titleRes), onBack) { PowerSavingScreen(viewModel) }
-        ForgeSettingsPage.StrapActions -> Hosted(stringResource(page.titleRes), onBack) { AutomationsScreen(viewModel) }
-        ForgeSettingsPage.Notifications -> Hosted(stringResource(page.titleRes), onBack) { NotificationsSettingsScreen(viewModel) }
-        ForgeSettingsPage.Coach -> {
-            val vm = viewModel<CoachViewModel>()
-            var sub by remember { mutableStateOf<String?>(null) }
-            androidx.activity.compose.BackHandler(enabled = sub != null) { sub = null }
-            when (sub) {
-                "identity" -> Hosted(stringResource(R.string.coach_identity), { sub = null }) { com.noop.ui.CoachIdentityEditor(vm) }
-                "memory" -> Hosted(stringResource(R.string.coach_memory), { sub = null }) { com.noop.ui.CoachMemoryPage() }
-                "info" -> Hosted(vm.info.collectAsStateWithLifecycle().value?.infoTitle.orEmpty(), { sub = null }) {
-                    com.noop.ui.CoachInfoPage(vm)
-                }
-                else -> Hosted(stringResource(page.titleRes), onBack) {
-                    CoachSettingsScreen(vm, onOpenIdentity = { sub = "identity" }, onOpenMemory = { sub = "memory" },
-                                        onOpenInfo = { sub = "info" })
-                }
-            }
-        }
+        ForgeSettingsPage.Coach -> CoachSettingsPages(stringResource(page.titleRes), onBack, headPage = page)
         else -> Unit
     }
 }
@@ -701,17 +673,51 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
                 StepsCalibrationScreen(vm = viewModel, profile = profile, onProfileChanged = { revision++ }, onClose = onBack)
             }
         }
+        ForgeSettingsSub.StrapConnection -> SettingsColumn {
+            PageTitle(stringResource(sub.titleRes), onBack)
+            SettingsPageHead(ForgeSettingsPage.Strap)
+            StrapConnectionSettings(viewModel, onOpen)
+        }
+        ForgeSettingsSub.HeartRateSharing -> SettingsColumn {
+            PageTitle(stringResource(sub.titleRes), onBack)
+            HeartRateSharingSettings(viewModel)
+        }
+        ForgeSettingsSub.Devices -> DevicesSettingsPage(viewModel, onBack, stringResource(sub.titleRes))
+        ForgeSettingsSub.DevicesSources -> SettingsColumn {
+            PageTitle(stringResource(sub.titleRes), onBack)
+            DevicesSourcesSettings(onOpen)
+        }
+        ForgeSettingsSub.FusedRecord -> ValuesBySourcePage(viewModel, onBack, stringResource(sub.titleRes))
         ForgeSettingsSub.HowNoopWorks -> Hosted(stringResource(sub.titleRes), onBack) { HowNoopWorksScreen(onClose = onBack) }
         ForgeSettingsSub.ScoringGuide -> Hosted(stringResource(sub.titleRes), onBack) { ScoringGuideScreen(onClose = onBack) }
+        ForgeSettingsSub.HowScores -> HowScoresPage(viewModel, onBack, stringResource(sub.titleRes))
         ForgeSettingsSub.ModelComparison -> Hosted(stringResource(sub.titleRes), onBack) { WhoopModelComparisonScreen(onClose = onBack) }
         ForgeSettingsSub.WhatsNew -> Hosted(stringResource(sub.titleRes), onBack) { WhatsNewSheet(onClose = onBack) }
-        ForgeSettingsSub.BackupSync -> Hosted(stringResource(sub.titleRes), onBack) { BackupSyncScreen() }
+        ForgeSettingsSub.BackupSync -> BackupSyncSettingsPage(onBack)
         ForgeSettingsSub.DataSources -> Hosted(stringResource(sub.titleRes), onBack) { DataSourcesScreen(viewModel) }
         ForgeSettingsSub.SelfHostedPush -> Hosted(stringResource(sub.titleRes), onBack) { SelfHostedPushScreen() }
-        ForgeSettingsSub.Limitations -> Hosted(stringResource(sub.titleRes), onBack) { NoopLimitationsScreen() }
-        ForgeSettingsSub.TestCentre -> Hosted(stringResource(sub.titleRes), onBack) { TestCentreScreen(viewModel) }
-        ForgeSettingsSub.Acknowledgements -> ForgeExerciseProviderAcknowledgements(onBack)
+        ForgeSettingsSub.Limitations -> LimitationsSettingsPage(stringResource(sub.titleRes), onBack)
+        ForgeSettingsSub.TestCentre -> TestCentreSettingsPage(viewModel, stringResource(sub.titleRes), onBack, onOpen)
+        ForgeSettingsSub.TestCentreModes, ForgeSettingsSub.TestCentreProtocol, ForgeSettingsSub.TestCentreDiagnostics,
+        ForgeSettingsSub.TestCentreExport, ForgeSettingsSub.TestCentreExperimental ->
+            Hosted(stringResource(sub.titleRes), onBack) {
+                TestCentreScreen(viewModel, section = when (sub) {
+                    ForgeSettingsSub.TestCentreModes -> TestCentreSection.Modes
+                    ForgeSettingsSub.TestCentreProtocol -> TestCentreSection.Protocol
+                    ForgeSettingsSub.TestCentreDiagnostics -> TestCentreSection.Diagnostics
+                    ForgeSettingsSub.TestCentreExport -> TestCentreSection.Export
+                    else -> TestCentreSection.Experimental
+                })
+            }
+        ForgeSettingsSub.TestCentreCollector -> Hosted(stringResource(sub.titleRes), onBack) { GroundTruthCollectorScreen(viewModel) }
+        ForgeSettingsSub.ClassicTestCentre -> Hosted(stringResource(sub.titleRes), onBack) {
+            TestCentreScreen(viewModel, onOpenGroundTruthCollector = { onOpen(ForgeSettingsSub.TestCentreCollector) })
+        }
+        ForgeSettingsSub.Acknowledgements -> AcknowledgementsPage(onBack)
         ForgeSettingsSub.ExerciseMedia -> ForgeExerciseMediaSettings(onBack)
+        ForgeSettingsSub.HrZones -> HrZonesSettingsPage(onBack)
+        ForgeSettingsSub.Equipment -> EquipmentSettingsPage(onBack)
+        ForgeSettingsSub.Storage -> StorageSettingsPage(onBack)
         ForgeSettingsSub.ProjectRoadmap -> SettingsColumn {
             PageTitle(stringResource(R.string.forge_roadmap_title), onBack)
             RoadmapPlanSection()
@@ -732,10 +738,14 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
             PageTitle(stringResource(R.string.donation_title), onBack)
             RawDonationSection()
         }
+        ForgeSettingsSub.WristAlerts -> Hosted(stringResource(sub.titleRes), onBack) { NotificationsSettingsScreen(viewModel) }
+        ForgeSettingsSub.NapDetection -> Hosted(stringResource(sub.titleRes), onBack) { AutomationsScreen(viewModel, AutomationsScope.NapDetection) }
+        ForgeSettingsSub.Rhythm -> Hosted(stringResource(sub.titleRes), onBack) { com.noop.ui.RhythmRoute(viewModel) }
         ForgeSettingsSub.AllSettings -> Hosted(stringResource(sub.titleRes), onBack) {
             SettingsScreen(
                 viewModel,
-                onOpenTestCentre = { onOpen(ForgeSettingsSub.TestCentre) },
+                // All settings keeps the classic Test Centre, as one long screen; the Forge page is the way in everywhere else.
+                onOpenTestCentre = { onOpen(ForgeSettingsSub.ClassicTestCentre) },
                 onOpenBackupSync = { onOpen(ForgeSettingsSub.BackupSync) },
                 onOpenSelfHostedPush = { onOpen(ForgeSettingsSub.SelfHostedPush) },
                 onOpenStepsCalibration = { onOpen(ForgeSettingsSub.StepsCalibration) },
@@ -749,994 +759,4 @@ private fun SubScreen(sub: ForgeSettingsSub, viewModel: AppViewModel, onBack: ()
                                cards = sub.cards)
             }
     }
-}
-
-/** The scrolling column every Settings screen sits in, clear of the system bars. */
-@Composable
-internal fun SettingsColumn(scroll: androidx.compose.foundation.ScrollState = rememberScrollState(),
-                            content: @Composable ColumnScope.() -> Unit) {
-    Column(
-        Modifier.fillMaxSize().statusBarsPadding().verticalScroll(scroll)
-            .padding(horizontal = ForgeMetrics.screenPadding).widthIn(max = ForgeMetrics.maxContentWidth)
-            .navigationBarsPadding().padding(bottom = ForgeMetrics.space4),
-        verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap),
-        content = content,
-    )
-}
-
-/** One hub row as iOS draws it (`SettingsHubRow`): icon tile, title over subtitle, chevron. */
-@Composable
-internal fun HubRow(icon: ImageVector, tint: Color, title: String, subtitle: String, onClick: () -> Unit) {
-    val colors = Forge.colors
-    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = ForgeMetrics.space4, vertical = ForgeMetrics.space3),
-        verticalAlignment = Alignment.CenterVertically) {
-        // `appleInspiredMenuIcon`: a 30 pt tile, corner 0.28 of its size, the white symbol at half its size.
-        Box(Modifier.size(30.dp).background(tint, RoundedCornerShape(8.4.dp)), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
-        }
-        Spacer(Modifier.width(ForgeMetrics.space3))
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space1)) {
-            Text(title, style = Forge.type.body, color = colors.text)
-            if (subtitle.isNotEmpty()) Text(subtitle, style = Forge.type.subhead, color = colors.textSecondary)
-        }
-        Spacer(Modifier.width(ForgeMetrics.space2))
-        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))
-    }
-}
-
-@Composable
-internal fun HubDivider() {
-    HorizontalDivider(color = Forge.colors.divider.copy(alpha = 0.5f), modifier = Modifier.padding(start = ForgeMetrics.space6))
-}
-
-/**
- * One settings card as iOS draws it (`SettingsSection`): a title over its blurb, then the rows. A page with one
- * card leaves the title out, since the page title already names it.
- */
-@Composable
-internal fun SettingsCard(title: String?, blurb: String?, icon: ImageVector? = null, tint: Color? = null,
-                          active: Boolean = false, content: @Composable ColumnScope.() -> Unit) {
-    ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = ForgeMetrics.space5) {
-        // `Section2` on iOS: an active automation says ON above its title.
-        if (active) {
-            Text(stringResource(R.string.forge_sp_on).uppercase(), style = Forge.type.overline, color = Forge.colors.accent)
-        }
-        if (title != null) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (icon != null) {
-                    Box(Modifier.size(26.dp).background(tint ?: Forge.colors.accent, RoundedCornerShape(7.dp)),
-                        contentAlignment = Alignment.Center) {
-                        Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
-                    }
-                    Spacer(Modifier.width(ForgeMetrics.space2))
-                }
-                Text(title, style = Forge.type.title2, color = Forge.colors.text)
-            }
-        }
-        if (blurb != null) {
-            Text(blurb, style = Forge.type.footnote, color = Forge.colors.textSecondary,
-                 modifier = Modifier.padding(top = if (title != null) ForgeMetrics.space1 else 0.dp))
-        }
-        if (title != null || blurb != null) Spacer(Modifier.height(ForgeMetrics.space3))
-        content()
-    }
-}
-
-@Composable
-private fun ProfileSection(profile: ProfileStore, viewModel: AppViewModel, change: (() -> Unit) -> Unit,
-                           onOpen: (ForgeSettingsSub) -> Unit, editing: Boolean, onEditing: (Boolean) -> Unit) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val imperial = UnitPrefs.system(context) == UnitSystem.IMPERIAL
-    // iOS keeps the fields still until "Edit" (`profileEditing`): plain values, then steppers and pickers.
-    SettingsCard(title = null, blurb = stringResource(R.string.forge_settings_profile_detail)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            TextButton(onClick = { onEditing(!editing) }) {
-                Text(stringResource(if (editing) R.string.forge_profile_done else R.string.forge_profile_edit),
-                     style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.accent)
-            }
-        }
-        // The photo first, as iOS's `profilePhotoRow`: the avatar, Choose or Change, and Remove once one is set. On this
-        // phone only (`ProfileAvatarStore`).
-        val photoPicker = androidx.activity.compose.rememberLauncherForActivityResult(
-            androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia()) { uri ->
-            if (uri != null) scope.launch { kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.noop.ui.ProfileAvatarStore.setAvatarFromUri(context, uri) } }
-        }
-        Row(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space2), verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space4)) {
-            com.noop.ui.ProfileAvatar(size = 56.dp, contentDescription = null)
-            Box(Modifier.weight(1f).heightIn(min = 48.dp).background(Forge.colors.inset, RoundedCornerShape(14.dp))
-                    .clickable {
-                        photoPicker.launch(androidx.activity.result.PickVisualMediaRequest(
-                            androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    }, contentAlignment = Alignment.Center) {
-                Text(stringResource(if (com.noop.ui.ProfileAvatarStore.hasAvatar) R.string.forge_profile_change_photo
-                                    else R.string.forge_profile_choose_photo),
-                     style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.accent)
-            }
-            if (com.noop.ui.ProfileAvatarStore.hasAvatar) {
-                TextButton(onClick = { com.noop.ui.ProfileAvatarStore.clearAvatar(context) }) {
-                    Text(stringResource(R.string.l10n_settings_screen_remove_photo_c8f5eda8), color = Forge.colors.textSecondary)
-                }
-            }
-        }
-        RowDivider()
-        // The name More's profile row shows (iOS `ProfileStore.name`); saved as typed, blank clears it. No frame, as iOS.
-        var name by remember { mutableStateOf(profile.name) }
-        SettingRow(stringResource(R.string.forge_profile_name)) {
-            androidx.compose.foundation.text.BasicTextField(
-                value = name, onValueChange = { name = it; profile.name = it }, singleLine = true, enabled = editing,
-                textStyle = Forge.type.bodyNumber.copy(color = Forge.colors.text, textAlign = TextAlign.End),
-                cursorBrush = androidx.compose.ui.graphics.SolidColor(Forge.colors.accent),
-                decorationBox = { inner ->
-                    Box(Modifier.widthIn(min = 120.dp), contentAlignment = Alignment.CenterEnd) {
-                        if (name.isEmpty()) Text(stringResource(R.string.forge_profile_name_hint), style = Forge.type.bodyNumber,
-                                                 color = Forge.colors.textTertiary)
-                        inner()
-                    }
-                })
-        }
-        RowDivider()
-        // The date of birth is what is stored; the age shown beside it is derived and advances on its own (#146).
-        var pickingBirthday by remember { mutableStateOf(false) }
-        SettingRow(stringResource(R.string.forge_profile_birthday)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.clickable(enabled = editing) { pickingBirthday = true }) {
-                Text(profile.age.toString(), style = Forge.type.bodyNumber, color = Forge.colors.text)
-                Text(java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM).format(java.util.Date(profile.dateOfBirthMillis)),
-                     style = Forge.type.bodyNumber, color = if (editing) Forge.colors.accent else Forge.colors.text)
-            }
-        }
-        if (pickingBirthday) BirthdayPicker(profile.dateOfBirthMillis, onPick = { ms -> change { profile.dateOfBirthMillis = ms } },
-                                            onDismiss = { pickingBirthday = false })
-        RowDivider()
-        SettingRow(stringResource(R.string.l10n_settings_screen_sex_e301dd60)) {
-            var open by remember { mutableStateOf(false) }
-            Box {
-                Row(Modifier.clickable(enabled = editing) { open = true }, verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(SEX_CHOICES.first { it.first == profile.sex }.second), style = Forge.type.bodyNumber,
-                         color = if (editing) Forge.colors.accent else Forge.colors.text)
-                    if (editing) Icon(Icons.Rounded.UnfoldMore, null, tint = Forge.colors.textTertiary, modifier = Modifier.size(18.dp))
-                }
-                androidx.compose.material3.DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
-                    SEX_CHOICES.forEach { (tag, label) ->
-                        androidx.compose.material3.DropdownMenuItem(text = { Text(stringResource(label)) },
-                            onClick = { open = false; change { profile.sex = tag } })
-                    }
-                }
-            }
-        }
-        RowDivider()
-        // With "Use weight from Health Connect" on, the synced reading owns the value (classic Settings).
-        val fromHealthConnect = profile.useHealthConnectWeight
-        SettingRow(stringResource(R.string.l10n_settings_screen_weight_69c0b815)) {
-            if (imperial) {
-                val lb = UnitFormatter.kgToPounds(profile.weightKg)
-                ProfileStepper(editing, "%.0f lb".format(lb), enabled = !fromHealthConnect,
-                        onMinus = { change { profile.weightKg = (lb - 1) / UnitFormatter.POUNDS_PER_KILOGRAM } },
-                        onPlus = { change { profile.weightKg = (lb + 1) / UnitFormatter.POUNDS_PER_KILOGRAM } })
-            } else {
-                ProfileStepper(editing, "%.1f kg".format(profile.weightKg), enabled = !fromHealthConnect,
-                        onMinus = { change { profile.weightKg -= 0.5 } }, onPlus = { change { profile.weightKg += 0.5 } })
-            }
-        }
-        if (fromHealthConnect) {
-            Text(stringResource(R.string.forge_settings_weight_health_connect), style = Forge.type.caption,
-                 color = Forge.colors.textTertiary)
-        }
-        RowDivider()
-        ToggleRow(stringResource(R.string.l10n_settings_screen_use_weight_from_health_connect_c1fe3e2a),
-                  stringResource(R.string.l10n_settings_screen_use_weight_from_health_connect_detail_40238f8a),
-                  fromHealthConnect) { on ->
-            change { profile.useHealthConnectWeight = on }
-            // The classic switch pulls the newest reading at once, so the row shows it without waiting for a sync.
-            if (on) scope.launch { HealthConnectWeightSync.syncFromRepository(context, viewModel.repo); change {} }
-        }
-        RowDivider()
-        SettingRow(stringResource(R.string.l10n_settings_screen_height_3f608b49)) {
-            if (imperial) {
-                val (ft, inch) = UnitFormatter.cmToFeetInches(profile.heightCm)
-                val inches = UnitFormatter.cmToInches(profile.heightCm).roundToInt()
-                ProfileStepper(editing, "$ft′ $inch″",
-                        onMinus = { change { profile.heightCm = (inches - 1) * UnitFormatter.CENTIMETERS_PER_INCH } },
-                        onPlus = { change { profile.heightCm = (inches + 1) * UnitFormatter.CENTIMETERS_PER_INCH } })
-            } else {
-                ProfileStepper(editing, "%.0f cm".format(profile.heightCm),
-                        onMinus = { change { profile.heightCm -= 1 } }, onPlus = { change { profile.heightCm += 1 } })
-            }
-        }
-        RowDivider()
-        // Waist is optional; the first step from "Add" starts at the classic default, as its stepper does.
-        val hasWaist = profile.waistCm > 0.0
-        SettingRow(stringResource(R.string.l10n_settings_screen_waist_optional_d5356703)) {
-            if (imperial) {
-                val inches = UnitFormatter.cmToInches(profile.waistCm).roundToInt()
-                ProfileStepper(editing, if (hasWaist) "$inches″" else stringResource(if (editing) R.string.forge_settings_add else R.string.forge_profile_not_set),
-                        onMinus = { change { profile.waistCm = waistInchesStep(profile.waistCm, up = false) } },
-                        onPlus = { change { profile.waistCm = waistInchesStep(profile.waistCm, up = true) } })
-            } else {
-                ProfileStepper(editing, if (hasWaist) "%.0f cm".format(profile.waistCm) else stringResource(if (editing) R.string.forge_settings_add else R.string.forge_profile_not_set),
-                        onMinus = { change { profile.waistCm = waistCmStep(profile.waistCm, up = false) } },
-                        onPlus = { change { profile.waistCm = waistCmStep(profile.waistCm, up = true) } })
-            }
-        }
-        Text(stringResource(if (hasWaist) R.string.settings_waist_footnote_set else R.string.settings_waist_footnote_unset),
-             style = Forge.type.caption, color = Forge.colors.textTertiary)
-        RowDivider()
-        // Auto is Tanaka's estimate from the age; a step from Auto starts at that estimate, as iOS does.
-        val override = profile.hrMaxOverride
-        SettingRow(stringResource(R.string.l10n_settings_screen_max_heart_rate_3d4ed858)) {
-            ProfileStepper(editing, if (override > 0) "$override bpm" else stringResource(R.string.forge_settings_hr_auto, profile.hrMaxAuto),
-                    onMinus = { change { profile.hrMaxOverride = (if (override > 0) override else profile.hrMaxAuto) - 1 } },
-                    onPlus = { change { profile.hrMaxOverride = (if (override > 0) override else profile.hrMaxAuto) + 1 } })
-        }
-        if (override > 0) {
-            TextButton(onClick = { change { profile.hrMaxOverride = 0 } }) {
-                Text(stringResource(R.string.forge_settings_hr_use_auto), color = Forge.colors.accent)
-            }
-        }
-    }
-    SettingsCard(title = stringResource(R.string.l10n_settings_screen_custom_hr_zones_84736ca5), blurb = null) {
-        ToggleRow(stringResource(R.string.l10n_settings_screen_custom_hr_zones_84736ca5),
-                  stringResource(R.string.l10n_settings_screen_custom_hr_zones_hint_f7fa3bae),
-                  profile.hasCustomHrZones) { change { profile.setCustomHrZonesEnabled(it) } }
-        profile.hrZoneThresholds?.forEachIndexed { index, value ->
-            RowDivider()
-            SettingRow(stringResource(R.string.l10n_settings_screen_zone_starts_a0a60d45, index + 1)) {
-                Stepper("$value bpm", onMinus = { change { profile.stepHrZoneThreshold(index, up = false) } },
-                        onPlus = { change { profile.stepHrZoneThreshold(index, up = true) } })
-            }
-        }
-    }
-}
-
-/** A profile value: plain text while the page is locked, the stepper once "Edit" is on (iOS `profileEditing`). */
-@Composable
-private fun ProfileStepper(editing: Boolean, value: String, enabled: Boolean = true, onMinus: () -> Unit, onPlus: () -> Unit) {
-    if (editing) Stepper(value, enabled, onMinus, onPlus)
-    else Text(value, style = Forge.type.bodyNumber, color = Forge.colors.text)
-}
-
-/** The date of birth picker: any day from 1900 up to today. */
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
-@Composable
-private fun BirthdayPicker(currentMillis: Long, onPick: (Long) -> Unit, onDismiss: () -> Unit) {
-    val utc = java.time.ZoneOffset.UTC
-    val local = java.time.ZoneId.systemDefault()
-    val initial = java.time.Instant.ofEpochMilli(currentMillis).atZone(local).toLocalDate().atStartOfDay(utc).toInstant().toEpochMilli()
-    val state = androidx.compose.material3.rememberDatePickerState(initialSelectedDateMillis = initial,
-        yearRange = 1900..java.time.LocalDate.now().year,
-        selectableDates = object : androidx.compose.material3.SelectableDates {
-            override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis <= System.currentTimeMillis()
-        })
-    androidx.compose.material3.DatePickerDialog(onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = {
-                state.selectedDateMillis?.let { ms ->
-                    val day = java.time.Instant.ofEpochMilli(ms).atZone(utc).toLocalDate()
-                    onPick(day.atStartOfDay(local).toInstant().toEpochMilli())
-                }
-                onDismiss()
-            }) { Text(stringResource(R.string.forge_lay_save)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.forge_lay_cancel)) } },
-    ) { androidx.compose.material3.DatePicker(state = state) }
-}
-
-@Composable
-private fun LanguageUnitsSection(context: Context, change: (() -> Unit) -> Unit) {
-    val language = AppLanguagePrefs.selected(context)
-    var picking by remember { mutableStateOf(false) }
-    SettingsCard(title = stringResource(R.string.settings_language), blurb = null) {
-        SettingRow(stringResource(R.string.settings_language)) {
-            Text(if (language == AppLanguage.SYSTEM) stringResource(R.string.settings_language_system) else language.autonym,
-                 style = Forge.type.body, color = Forge.colors.accent,
-                 modifier = Modifier.clickable(role = Role.Button) { picking = true }.padding(vertical = 8.dp))
-        }
-        RowDivider()
-        SettingRow(stringResource(R.string.l10n_settings_screen_clock_04f6b3ea)) {
-            Segmented(listOf(ClockFormatPreference.SYSTEM, ClockFormatPreference.TWELVE_HOUR,
-                             ClockFormatPreference.TWENTY_FOUR_HOUR), ClockPrefs.preference(context),
-                      label = {
-                          when (it) {
-                              ClockFormatPreference.TWELVE_HOUR -> stringResource(R.string.l10n_settings_screen_12_hour_41c18ba0)
-                              ClockFormatPreference.TWENTY_FOUR_HOUR -> stringResource(R.string.l10n_settings_screen_24_hour_18e86819)
-                              else -> stringResource(R.string.settings_language_system)
-                          }
-                      },
-                      onSelect = { change { ClockPrefs.setPreference(context, it) } })
-        }
-    }
-    SettingsCard(title = stringResource(R.string.l10n_settings_screen_units_12748281),
-                 blurb = stringResource(R.string.forge_settings_units_blurb)) {
-        SettingRow(stringResource(R.string.units_body_measurements)) {
-            Segmented(listOf(UnitSystem.METRIC, UnitSystem.IMPERIAL), UnitPrefs.system(context),
-                      label = {
-                          stringResource(if (it == UnitSystem.METRIC) R.string.onboarding_metric else R.string.onboarding_imperial)
-                      },
-                      onSelect = { change { NoopPrefs.setUnitSystem(context, it) } })
-        }
-        RowDivider()
-        SettingRow(stringResource(R.string.units_exercise_distance_pace)) {
-            Segmented(listOf(UnitSystem.METRIC, UnitSystem.IMPERIAL), UnitPrefs.distanceSystem(context),
-                      label = { stringResource(if (it == UnitSystem.METRIC) R.string.units_kilometres else R.string.units_miles) },
-                      onSelect = { change { NoopPrefs.setDistanceUnitSystem(context, it) } })
-        }
-        RowDivider()
-        // Unset follows the body measurements, which is what the first choice says.
-        val temperatureRaw = NoopPrefs.of(context).getString(NoopPrefs.KEY_TEMPERATURE_UNIT, null)
-            ?.takeIf { raw -> TemperatureUnit.entries.any { it.raw == raw } } ?: ""
-        SettingRow(stringResource(R.string.l10n_settings_screen_temperature_0a9062a9)) {
-            Segmented(listOf("", TemperatureUnit.CELSIUS.raw, TemperatureUnit.FAHRENHEIT.raw), temperatureRaw,
-                      label = {
-                          when (it) {
-                              TemperatureUnit.CELSIUS.raw -> "°C"
-                              TemperatureUnit.FAHRENHEIT.raw -> "°F"
-                              else -> stringResource(R.string.units_follow_body)
-                          }
-                      },
-                      onSelect = { change { NoopPrefs.setTemperatureUnit(context, TemperatureUnit.fromRaw(it)) } })
-        }
-        RowDivider()
-        SettingRow(stringResource(R.string.l10n_settings_screen_skin_temperature_fc103030)) {
-            Segmented(listOf(SkinTempDisplay.Kind.ABSOLUTE, SkinTempDisplay.Kind.DEVIATION), UnitPrefs.skinTempPreferred(context),
-                      label = {
-                          stringResource(if (it == SkinTempDisplay.Kind.ABSOLUTE) R.string.l10n_settings_screen_temperature_0a9062a9
-                                         else R.string.skin_temp_vs_baseline)
-                      },
-                      onSelect = { change { NoopPrefs.setSkinTempDisplay(context, it) } })
-        }
-        RowDivider()
-        SettingRow(stringResource(R.string.l10n_settings_screen_effort_scale_81afa9ef)) {
-            Segmented(listOf(EffortScale.HUNDRED, EffortScale.WHOOP), UnitPrefs.effortScale(context),
-                      label = { if (it == EffortScale.HUNDRED) "0–100" else "0–21" },
-                      onSelect = { change { UnitPrefs.setEffortScale(context, it) } })
-        }
-    }
-    if (picking) {
-        AlertDialog(
-            onDismissRequest = { picking = false },
-            title = { Text(stringResource(R.string.settings_choose_language)) },
-            text = {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    AppLanguage.entries.forEach { option ->
-                        Text(if (option == AppLanguage.SYSTEM) stringResource(R.string.settings_language_system) else option.autonym,
-                             style = Forge.type.body,
-                             color = if (option == language) Forge.colors.accent else Forge.colors.text,
-                             modifier = Modifier.fillMaxWidth().clickable(role = Role.Button) {
-                                 picking = false
-                                 if (option != language) {
-                                     // Every string switches at once by recreating the activity, as the classic row does.
-                                     AppLanguagePrefs.set(context, option)
-                                     context.hostingActivity()?.recreate()
-                                 }
-                             }.padding(vertical = 12.dp))
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { picking = false }) { Text(stringResource(R.string.forge_cancel)) } },
-        )
-    }
-}
-
-@Composable
-private fun AppearanceSection(change: (() -> Unit) -> Unit) {
-    val context = LocalContext.current
-    SettingsCard(title = null, blurb = null) {
-        SettingRow(stringResource(R.string.l10n_settings_screen_theme_a797e309)) {
-            Segmented(listOf(AppearanceMode.SYSTEM, AppearanceMode.LIGHT, AppearanceMode.DARK), AppearancePrefs.mode,
-                      label = {
-                          when (it) {
-                              AppearanceMode.LIGHT -> stringResource(R.string.settings_theme_light)
-                              AppearanceMode.DARK -> stringResource(R.string.settings_theme_dark)
-                              AppearanceMode.SYSTEM -> stringResource(R.string.settings_language_system)
-                          }
-                      },
-                      onSelect = { change { AppearancePrefs.set(context, it) } })
-        }
-        RowDivider()
-        // The launcher icon swaps manifest aliases through the classic helper; the launcher may take a moment.
-        SettingRow(stringResource(R.string.l10n_settings_screen_app_icon_abde7a74)) {
-            Segmented(listOf(false, true), NoopPrefs.appIconNavy(context),
-                      label = { stringResource(if (it) R.string.forge_settings_icon_blue else R.string.forge_settings_icon_titanium) },
-                      onSelect = { navy -> change { setAppIcon(context, navy) } })
-        }
-        // The new design's colour profiles, as iOS's Design card: colourful by default, Stone, Slate and Sage calm.
-        if (ForgeDesign.preview) {
-            RowDivider()
-            SettingRow(stringResource(R.string.forge_ap_color_profile)) {
-                Segmented(ForgeColorProfile.entries.toList(), ForgeColorProfile.current,
-                          label = { stringResource(when (it) {
-                              ForgeColorProfile.Colorful -> R.string.forge_ap_colorful
-                              ForgeColorProfile.Stone -> R.string.forge_ap_stone
-                              ForgeColorProfile.Slate -> R.string.forge_ap_slate
-                              ForgeColorProfile.Sage -> R.string.forge_ap_sage
-                          }) },
-                          onSelect = { change { ForgeColorProfile.set(context, it) } })
-            }
-            // iOS shows the accent choice only for the colourful profile; the calm ones bring their own.
-            if (ForgeColorProfile.current == ForgeColorProfile.Colorful) {
-                RowDivider()
-                SettingRow(stringResource(R.string.forge_ap_accent)) {
-                    // A custom colour chosen in the classic settings stays visible as its own choice, so the row never
-                    // claims System Blue while the app wears another colour.
-                    val accents = listOf("systemBlue", "mint", "whoopBlue") + listOfNotNull("custom".takeIf { ForgeAccent.raw == it })
-                    Segmented(accents, ForgeAccent.raw.takeIf { it in accents } ?: "systemBlue",
-                              label = { stringResource(when (it) {
-                                  "mint" -> R.string.forge_ap_mint
-                                  "whoopBlue" -> R.string.forge_ap_whoop_blue
-                                  "custom" -> R.string.forge_ap_custom
-                                  else -> R.string.forge_ap_system_blue
-                              }) },
-                              onSelect = { change { ForgeAccent.set(context, it) } })
-                }
-            }
-        }
-    }
-    BackgroundCard()
-    // iOS's Motion card: hold every looping surface still, and choose living or classic score rings.
-    SettingsCard(title = stringResource(R.string.forge_ap_motion), blurb = null) {
-        var quiet by remember { mutableStateOf(NoopPrefs.quietMotion(context)) }
-        ToggleRow(stringResource(R.string.forge_ap_reduce_motion), stringResource(R.string.forge_ap_reduce_motion_note), quiet) { on ->
-            quiet = on; change { NoopPrefs.setQuietMotion(context, on) }
-        }
-        RowDivider()
-        SettingRow(stringResource(R.string.forge_ap_score_rings)) {
-            Segmented(ScoreRingStyle.entries.toList(), ScoreRingStyle.current,
-                      label = { stringResource(if (it == ScoreRingStyle.Classic) R.string.forge_ap_classic else R.string.forge_ap_living) },
-                      onSelect = { change { ScoreRingStyle.set(context, it) } })
-        }
-        Text(stringResource(R.string.forge_ap_rings_note), style = Forge.type.caption, color = Forge.colors.textTertiary)
-    }
-}
-
-/** The iOS Settings › Dashboard card: which dashboard Today shows, and for Trends its four metric slots. */
-@Composable
-private fun DashboardStyleSection(change: (() -> Unit) -> Unit) {
-    val context = LocalContext.current
-    var style by remember { mutableStateOf(DashboardStylePrefs.style(context)) }
-    val ids = DashboardStylePrefs.STYLES
-    // One list names the styles; the labels come from it, so a reorder cannot label a style wrongly.
-    val labels = ids.map { stringResource(DashboardStylePrefs.labelRes(it)) }
-    SettingsCard(title = stringResource(R.string.forge_db_style), blurb = null) {
-        SettingRow(stringResource(R.string.forge_db_style)) {
-            ReportPicker(labels[ids.indexOf(style).coerceAtLeast(0)], labels) { i ->
-                change { DashboardStylePrefs.set(context, ids[i]); style = ids[i] }
-            }
-        }
-        if (style == "trends") {
-            val slotLabels = listOf(R.string.forge_db_slot1, R.string.forge_db_slot2, R.string.forge_db_slot3, R.string.forge_db_slot4)
-            val cards = com.noop.ui.DashboardCard.entries
-            val titles = cards.map { stringResource(it.titleRes) }
-            val chosen = remember { mutableStateOf(TrendsMetricSlots.slots(context)) }
-            TrendsMetricSlots.KEYS.forEachIndexed { i, key ->
-                RowDivider()
-                SettingRow(stringResource(slotLabels[i])) {
-                    ReportPicker(titles[cards.indexOf(chosen.value[i]).coerceAtLeast(0)], titles) { k ->
-                        change { NoopPrefs.of(context).edit().putString(key, cards[k].raw).apply()
-                                 chosen.value = chosen.value.toMutableList().also { it[i] = cards[k] } }
-                    }
-                }
-            }
-        }
-    }
-}
-
-/**
- * The iOS "Cards on Today" card: water gates the water card, its page and hydration goals; the journal switch gates
- * the journal card. Its Dashboard card is above it.
- */
-@Composable
-private fun TodayCardsSection(change: (() -> Unit) -> Unit) {
-    val context = LocalContext.current
-    SettingsCard(title = stringResource(R.string.forge_settings_today_cards), blurb = null) {
-        ToggleRow(stringResource(R.string.forge_settings_water), stringResource(R.string.forge_settings_water_detail),
-                  NoopPrefs.hydrationTracking(context)) { on -> change { NoopPrefs.setHydrationTracking(context, on) } }
-        RowDivider()
-        ToggleRow(stringResource(R.string.forge_settings_journal_card), stringResource(R.string.forge_settings_journal_card_detail),
-                  NoopPrefs.journalReminderEnabled(context)) { on -> change { NoopPrefs.setJournalReminderEnabled(context, on) } }
-    }
-}
-
-/** The iOS Appearance "Background" card: time-of-day sky, sky behind cards and card transparency. */
-@Composable
-private fun BackgroundCard() {
-    val context = LocalContext.current
-    val opacityPercent = (CardAppearance.opacity * 100).roundToInt()
-    SettingsCard(title = stringResource(R.string.forge_settings_background), blurb = null) {
-        ToggleRow(stringResource(R.string.forge_settings_day_sky), stringResource(R.string.forge_settings_day_sky_detail),
-                  ForgeBackground.dayCycle) { ForgeBackground.setDayCycle(context, it) }
-        if (ForgeBackground.dayCycle) {
-            RowDivider()
-            ToggleRow(stringResource(R.string.forge_settings_sky_behind_cards),
-                      stringResource(R.string.forge_settings_sky_behind_cards_detail),
-                      ForgeBackground.behindCards) { ForgeBackground.setBehindCards(context, it) }
-        }
-        RowDivider()
-        // The switch is a shortcut over the same percentage, as on iOS: on starts at 70 % unless already set lower.
-        ToggleRow(stringResource(R.string.forge_settings_transparent_cards),
-                  stringResource(R.string.forge_settings_transparent_cards_detail), opacityPercent < 100) { on ->
-            ForgeBackground.setCardOpacity(context, if (on) (if (opacityPercent >= 100) 70 else opacityPercent) else 100)
-        }
-        if (opacityPercent < 100) {
-            RowDivider()
-            SettingRow(stringResource(R.string.forge_settings_card_transparency)) {
-                Text(stringResource(R.string.forge_percent, 100 - opacityPercent), style = Forge.type.bodyNumber, color = Forge.colors.accent)
-            }
-            Slider(value = (100 - opacityPercent).toFloat(), valueRange = 0f..100f,
-                   onValueChange = { ForgeBackground.setCardOpacity(context, 100 - it.roundToInt()) },
-                   colors = SliderDefaults.colors(thumbColor = Forge.colors.accent, activeTrackColor = Forge.colors.accent))
-            Text(stringResource(R.string.forge_settings_card_transparency_detail), style = Forge.type.caption,
-                 color = Forge.colors.textTertiary)
-        }
-    }
-}
-
-@Composable
-private fun CalculationsSection(viewModel: AppViewModel, change: (() -> Unit) -> Unit, onOpen: (ForgeSettingsSub) -> Unit) {
-    val context = LocalContext.current
-    val experiment = remember { PuffinExperiment.from(context) }
-    // Day start rescores at once through the view model, as the classic row does.
-    val dayCycle = NoopPrefs.dayCycleMode(context)
-    SettingsCard(title = stringResource(R.string.settings_day_cycle_title), blurb = stringResource(R.string.settings_day_cycle_description)) {
-        SettingRow(stringResource(R.string.settings_day_cycle_starts)) {
-            Segmented(listOf(DayCycleMode.SLEEP_ONSET, DayCycleMode.MIDNIGHT), dayCycle,
-                      label = {
-                          stringResource(if (it == DayCycleMode.SLEEP_ONSET) R.string.settings_day_cycle_sleep
-                                         else R.string.settings_day_cycle_midnight)
-                      },
-                      onSelect = { change { viewModel.setDayCycleMode(it) } })
-        }
-        Text(stringResource(if (dayCycle == DayCycleMode.SLEEP_ONSET) R.string.settings_day_cycle_sleep_description
-                            else R.string.settings_day_cycle_midnight_description),
-             style = Forge.type.caption, color = Forge.colors.textTertiary)
-    }
-    SettingsCard(title = stringResource(R.string.forge_settings_scores), blurb = null) {
-        // No Effort-model switch: the shared core scores Effort with one fitted curve since #2438 and ignores the
-        // former Banister preference (`CoreAnalysis.Settings.effortBanister`), as iOS removed its row.
-        SettingRow(stringResource(R.string.l10n_settings_screen_hrv_window_e74320b8)) {
-            Segmented(listOf(HrvWindow.WHOLE_NIGHT, HrvWindow.DEEP_SLEEP), UnitPrefs.hrvWindow(context),
-                      label = { stringResource(if (it == HrvWindow.DEEP_SLEEP) R.string.forge_settings_hrv_deep else R.string.forge_settings_hrv_night) },
-                      onSelect = {
-                          // The classic row clears the analysis watermark and syncs, so recent nights are scored again.
-                          change {
-                              UnitPrefs.setHrvWindow(context, it)
-                              NoopPrefs.setAnalyzeWatermark(context, "")
-                              viewModel.syncNow()
-                          }
-                          Toast.makeText(context, context.getString(R.string.forge_settings_hrv_rescoring), Toast.LENGTH_LONG).show()
-                      })
-        }
-        Text(stringResource(R.string.l10n_settings_screen_whole_night_is_noop_s_default_fbfff434),
-             style = Forge.type.caption, color = Forge.colors.textTertiary)
-    }
-    SettingsCard(title = stringResource(R.string.forge_settings_sleep), blurb = null) {
-        // V3 runs in the shared Swift core; the optional legacy Kotlin screen keeps its V1/V2 choice.
-        if (com.noop.core.CoreDailyRows.coreReads(context)) {
-            Text(stringResource(R.string.sleep_stager_method), style = Forge.type.body,
-                 color = Forge.colors.text)
-            Segmented(com.noop.ble.PuffinExperiment.SLEEP_METHODS, experiment.sleepStagerMethod,
-                      label = { it.uppercase(java.util.Locale.ROOT) }, onSelect = { method ->
-                          change {
-                              viewModel.setSleepStagerMethod(method)
-                          }
-                      })
-            Text(stringResource(R.string.sleep_stager_method_detail), style = Forge.type.caption,
-                 color = Forge.colors.textTertiary)
-        } else {
-            ToggleRow(stringResource(R.string.l10n_settings_screen_sleep_staging_v2_a4176770),
-                      stringResource(R.string.l10n_settings_screen_a_transparent_cardiorespiratory_recipe_that_recovers_eebe00c2),
-                      experiment.experimentalSleepV2) { on -> change { viewModel.setSleepStagerMethod(if (on) "v2" else "v1") } }
-        }
-        RowDivider()
-        ToggleRow(stringResource(R.string.l10n_settings_screen_motion_aware_wake_refinement_67a91e47),
-                  stringResource(R.string.l10n_settings_screen_reviews_each_scored_wake_block_for_537924ea),
-                  experiment.motionAwareWake) { on -> change { experiment.motionAwareWake = on } }
-        // iOS's Lab switch beside the wake check: hourly stress against the wearer's usual days (display only).
-        RowDivider()
-        val stressContext = androidx.compose.ui.platform.LocalContext.current
-        var stressBaseline by remember { mutableStateOf(com.noop.ui.NoopPrefs.stressPersonalBaseline(stressContext)) }
-        ToggleRow(stringResource(R.string.forge_lab_stress_baseline), stringResource(R.string.forge_lab_stress_baseline_note),
-                  stressBaseline) { on -> stressBaseline = on; com.noop.ui.NoopPrefs.setStressPersonalBaseline(stressContext, on) }
-    }
-    SettingsCard(title = null, blurb = null) {
-        LinkRow(stringResource(R.string.l10n_settings_screen_charge_d4e1aee4), stringResource(R.string.forge_settings_charge_detail)) {
-            onOpen(ForgeSettingsSub.Charge)
-        }
-    }
-}
-
-@Composable
-private fun DataBackupSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Unit) {
-    val backup = rememberBackupActions()
-    // The WHOOP-format CSV export, moved here from the classic Backup card, which All settings no longer shows:
-    // this card is the one place for backups (CORE-ONLY-PLAN).
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val csvExport = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        scope.launch {
-            val result = withContext(Dispatchers.IO) {
-                runCatching { WhoopCsvExporter.exportZip(context, uri, viewModel.repo, viewModel.activeStrapId) }
-            }
-            result.fold(
-                onSuccess = { msg ->
-                    Toast.makeText(context, "$msg Re-import it via Data sources → WHOOP import, on Android or Mac.",
-                                   Toast.LENGTH_LONG).show()
-                },
-                onFailure = { e -> Toast.makeText(context, "CSV export problem: ${e.message}", Toast.LENGTH_LONG).show() },
-            )
-        }
-    }
-    SettingsCard(title = stringResource(R.string.forge_backup_section), blurb = null) {
-        LinkRow(stringResource(R.string.forge_backup_export), stringResource(R.string.forge_backup_export_detail), onClick = backup.export)
-        RowDivider()
-        LinkRow(stringResource(R.string.forge_backup_import), stringResource(R.string.forge_backup_import_detail), onClick = backup.import)
-        RowDivider()
-        LinkRow(stringResource(R.string.l10n_settings_screen_export_csv_6bce63a3), null) {
-            csvExport.launch("noop-export-${java.time.LocalDate.now()}.zip")
-        }
-        RowDivider()
-        LinkRow(stringResource(R.string.l10n_settings_screen_automatic_backups_8a772f3c),
-                stringResource(R.string.forge_settings_auto_backup_detail)) { onOpen(ForgeSettingsSub.BackupSync) }
-    }
-    SettingsCard(title = stringResource(R.string.forge_settings_imports), blurb = null) {
-        LinkRow(stringResource(R.string.nav_data_sources), stringResource(R.string.forge_settings_data_sources_detail)) {
-            onOpen(ForgeSettingsSub.DataSources)
-        }
-        RowDivider()
-        LinkRow(stringResource(R.string.nav_self_hosted_push), stringResource(R.string.push_settings_row_detail)) {
-            onOpen(ForgeSettingsSub.SelfHostedPush)
-        }
-    }
-    StepsSourceCard()
-}
-
-/**
- * Where daily steps come from, as iOS's Devices and data sources picker (`StepsSource`): automatically (the strap's
- * count, then the phone's, then the 4.0's estimate), the strap alone, or Health Connect alone. The one steps reader
- * in the core follows it, so the Today tile, the steps page and AgeLess show the same count.
- */
-@Composable
-private fun StepsSourceCard() {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var chosen by remember { mutableStateOf("automatic") }
-    LaunchedEffect(Unit) {
-        chosen = withContext(Dispatchers.IO) { com.noop.core.CorePrefs.read(context).optString(com.noop.core.CorePrefs.STEPS_SOURCE, "automatic") }
-            .ifEmpty { "automatic" }
-    }
-    SettingsCard(title = stringResource(R.string.forge_steps_from), blurb = stringResource(R.string.forge_steps_auto_note)) {
-        listOf("automatic" to stringResource(R.string.forge_steps_auto), "strap" to stringResource(R.string.forge_steps_strap),
-               "phone" to stringResource(R.string.today_source_health_connect)).forEachIndexed { i, (key, label) ->
-            if (i > 0) RowDivider()
-            Row(Modifier.fillMaxWidth().selectable(selected = chosen == key, role = androidx.compose.ui.semantics.Role.RadioButton) {
-                    if (chosen == key) return@selectable
-                    chosen = key
-                    scope.launch { withContext(Dispatchers.IO) { com.noop.core.CorePrefs.setStepsSource(context, key) } }
-                }.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(label, style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
-                if (chosen == key) Icon(Icons.Rounded.Check, contentDescription = null, tint = Forge.colors.accent)
-            }
-        }
-    }
-}
-
-@Composable
-private fun HelpSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Unit) {
-    val context = LocalContext.current
-    val sharing by viewModel.strapLogSharing.collectAsStateWithLifecycle()
-    SettingsCard(title = stringResource(R.string.forge_settings_guides), blurb = null) {
-        LinkRow(stringResource(R.string.l10n_settings_screen_how_noop_works_3396b27a),
-                stringResource(R.string.l10n_settings_screen_sleep_sorting_scores_recording_and_where_832378b5)) {
-            onOpen(ForgeSettingsSub.HowNoopWorks)
-        }
-        RowDivider()
-        LinkRow(stringResource(R.string.l10n_settings_screen_how_your_scores_work_21a0e2be),
-                stringResource(R.string.l10n_settings_screen_charge_effort_and_rest_and_how_d2c423a4)) {
-            onOpen(ForgeSettingsSub.ScoringGuide)
-        }
-        RowDivider()
-        LinkRow(stringResource(R.string.l10n_settings_screen_whoop_4_0_vs_5_0_2babb05a),
-                stringResource(R.string.l10n_settings_screen_what_each_strap_can_read_and_51e7d3fc)) {
-            onOpen(ForgeSettingsSub.ModelComparison)
-        }
-        RowDivider()
-        LinkRow(stringResource(R.string.nav_noop_limitations), null) { onOpen(ForgeSettingsSub.Limitations) }
-    }
-    SettingsCard(title = stringResource(R.string.forge_settings_diagnostics), blurb = null) {
-        LinkRow(stringResource(R.string.nav_test_centre), stringResource(R.string.forge_settings_test_centre_detail)) {
-            onOpen(ForgeSettingsSub.TestCentre)
-        }
-        RowDivider()
-        LinkRow(stringResource(R.string.forge_strap_log_share), stringResource(R.string.forge_strap_log_detail),
-                busy = sharing) {
-            viewModel.shareStrapLog(context)
-        }
-    }
-}
-
-@Composable
-private fun LabSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> Unit) {
-    val context = LocalContext.current
-    SettingsCard(title = stringResource(R.string.forge_experimental_section), blurb = null) {
-        // The redesign's switch stood here until 2026-11-20. It is gone, not hidden: the design ships to
-        // everyone and the screens under it are not maintained any more, so a way back only produces
-        // reports from pages nobody is looking at (`ForgeDesign.retireTheOldDesign`).
-        // The two Lab passes of the shared core, as on iOS: off by default, scored at the next analysis.
-        var ageless by remember { mutableStateOf(com.noop.core.CoreFeatures.healthspan(context)) }
-        ToggleRow(stringResource(R.string.forge_lab_ageless), stringResource(R.string.forge_lab_ageless_detail), ageless) {
-            ageless = it
-            com.noop.core.CoreFeatures.setHealthspan(context, it)
-        }
-        RowDivider()
-        var rhythm by remember { mutableStateOf(com.noop.core.CoreFeatures.rhythmAge(context)) }
-        ToggleRow(stringResource(R.string.forge_lab_rhythm), stringResource(R.string.forge_lab_rhythm_detail), rhythm) {
-            rhythm = it
-            com.noop.core.CoreFeatures.setRhythmAge(context, it)
-        }
-        RowDivider()
-        var exerciseVO2max by remember { mutableStateOf(com.noop.core.CoreFeatures.exerciseVO2max(context)) }
-        ToggleRow(stringResource(R.string.forge_lab_xvo2), stringResource(R.string.forge_lab_xvo2_detail), exerciseVO2max) {
-            exerciseVO2max = it
-            com.noop.core.CoreFeatures.setExerciseVO2max(context, it)
-        }
-        RowDivider()
-        // #2438: rated strength sessions add to Effort, as iOS's Lab switch; the flip rescores the whole history.
-        var strengthEffort by remember { mutableStateOf(com.noop.core.CoreFeatures.effortStrengthBonus(context)) }
-        ToggleRow(stringResource(R.string.forge_lab_strength_effort),
-                  stringResource(R.string.forge_lab_strength_effort_detail), strengthEffort) {
-            strengthEffort = it
-            viewModel.setEffortStrengthBonus(it)
-        }
-        RowDivider()
-        // Parity plan 1.3: the check that the classic screens' rows and the core's agree. Since Android has no
-        // Room store the classic rows come from the core as well (CORE-ONLY-PLAN), so the switch is gone.
-        val scope = rememberCoroutineScope()
-        var comparison by remember { mutableStateOf<String?>(null) }
-        val same = stringResource(R.string.forge_lab_compare_same)
-        val unavailable = stringResource(R.string.forge_lab_compare_none)
-        val res = LocalContext.current.resources
-        TextButton(onClick = {
-            scope.launch {
-                // The daily rows first, then the workout list: one count over both, naming the first difference.
-                val days = viewModel.compareDailyRowsWithCore()
-                val workouts = viewModel.compareWorkoutsWithCore()
-                val found = if (days == null || workouts == null) null
-                    else days.map { listOf(it.day, it.field, it.room, it.core) } +
-                         workouts.map { listOf(it.session, it.field, it.room, it.core) }
-                comparison = when {
-                    found == null -> unavailable
-                    found.isEmpty() -> same
-                    else -> found.first().let { (where, field, room, core) ->
-                        res.getString(R.string.forge_lab_compare_diff, found.size,
-                                      res.getString(R.string.forge_join_dot, where,
-                                                    res.getString(R.string.forge_join_arrow, res.getString(R.string.forge_join_space, field, room), core)))
-                    }
-                }
-            }
-        }) { Text(stringResource(R.string.forge_lab_compare)) }
-        comparison?.let { Text(it, style = Forge.type.caption, color = Forge.colors.textSecondary) }
-    }
-    SettingsCard(title = null, blurb = null) {
-        LinkRow(stringResource(R.string.l10n_settings_screen_health_wellness_93475778),
-                stringResource(R.string.forge_settings_wellness_detail)) { onOpen(ForgeSettingsSub.HealthWellness) }
-        RowDivider()
-        LinkRow(stringResource(R.string.l10n_settings_screen_advanced_4d064726),
-                stringResource(R.string.forge_settings_advanced_detail)) { onOpen(ForgeSettingsSub.Advanced) }
-    }
-}
-
-@Composable
-private fun AboutSection(onOpen: (ForgeSettingsSub) -> Unit) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    var checking by remember { mutableStateOf(false) }
-    var result by remember { mutableStateOf<UpdateCheck.Result?>(null) }
-    var automatic by remember { mutableStateOf(UpdateWatch.isEnabled(context)) }
-    SettingsCard(title = null, blurb = null) {
-        SettingRow(stringResource(R.string.forge_version, BuildIdentity.uiVersion)) {}
-        RowDivider()
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.l10n_settings_screen_check_automatically_7cd229d2), style = Forge.type.body,
-                     color = Forge.colors.text)
-                Text(stringResource(R.string.l10n_settings_screen_once_a_day_noop_asks_github_5683aad3),
-                     style = Forge.type.caption, color = Forge.colors.textTertiary)
-            }
-            Switch(checked = automatic, onCheckedChange = { automatic = it; UpdateWatch.setEnabled(context, it) },
-                   colors = forgeSwitchColors())
-        }
-        RowDivider()
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(enabled = !checking, onClick = {
-                checking = true; result = null
-                scope.launch { result = UpdateCheck.check(BuildConfig.VERSION_NAME); checking = false }
-            }) {
-                Text(stringResource(if (checking) R.string.l10n_settings_screen_checking_820d6004
-                                    else R.string.l10n_settings_screen_check_for_updates_736b9062),
-                     color = Forge.colors.accent)
-            }
-            Text(
-                when (val r = result) {
-                    is UpdateCheck.Result.UpToDate -> stringResource(R.string.l10n_settings_screen_you_re_on_the_latest_r_027a82be, r.version)
-                    is UpdateCheck.Result.Available -> stringResource(R.string.forge_settings_update_available, r.version)
-                    UpdateCheck.Result.Failed -> stringResource(R.string.l10n_settings_screen_couldn_t_check_try_again_b3c885d9)
-                    null -> ""
-                },
-                style = Forge.type.caption, color = Forge.colors.textSecondary, modifier = Modifier.weight(1f),
-            )
-        }
-        (result as? UpdateCheck.Result.Available)?.let { available ->
-            TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(available.url))) }) {
-                Text(stringResource(R.string.forge_settings_update_open), color = Forge.colors.accent)
-            }
-        }
-        RowDivider()
-        TextButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(SOURCE_URL))) }) {
-            Text(stringResource(R.string.forge_settings_source), color = Forge.colors.accent)
-        }
-    }
-    SettingsCard(title = null, blurb = null) {
-        LinkRow(stringResource(R.string.forge_provider_acknowledgements),
-                stringResource(R.string.forge_provider_acknowledgements_detail)) { onOpen(ForgeSettingsSub.Acknowledgements) }
-        RowDivider()
-        LinkRow(stringResource(R.string.l10n_settings_screen_what_s_new_4d8dc5fe),
-                stringResource(R.string.l10n_settings_screen_recent_changes_and_what_to_expect_3ceb660b)) {
-            onOpen(ForgeSettingsSub.WhatsNew)
-        }
-    }
-    SettingsCard(title = null, blurb = null) {
-        // The classic screens stay one switch away for what the Forge screens do not cover; their Settings switch back.
-        LinkRow(stringResource(R.string.forge_classic_screens), stringResource(R.string.forge_classic_screens_detail)) {
-            ForgeUi.setEnabled(context, false)
-            ForgeUi.restart(context)
-        }
-    }
-}
-
-/** A labelled row: the label on the left, its control on the right. */
-@Composable
-internal fun SettingRow(label: String, control: @Composable () -> Unit) {
-    Row(Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, style = Forge.type.body, color = Forge.colors.text, maxLines = 2, overflow = TextOverflow.Ellipsis,
-             modifier = Modifier.weight(1f).padding(end = ForgeMetrics.space2))
-        control()
-    }
-}
-
-/** A row that opens something: title over an optional detail line, then a chevron. */
-@Composable
-internal fun LinkRow(title: String, detail: String?, busy: Boolean = false, onClick: () -> Unit) {
-    val colors = Forge.colors
-    Row(Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
-            .clickable(enabled = !busy, role = Role.Button, onClick = onClick)
-            .padding(vertical = ForgeMetrics.space2),
-        verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = Forge.type.body, color = colors.text)
-            if (detail != null) Text(detail, style = Forge.type.caption, color = colors.textSecondary)
-        }
-        Spacer(Modifier.width(ForgeMetrics.space2))
-        if (busy) {
-            CircularProgressIndicator(Modifier.size(18.dp), color = colors.textTertiary, strokeWidth = 2.dp)
-        } else {
-            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))
-        }
-    }
-}
-
-/** A switch with its title and the line that explains it. */
-@Composable
-internal fun ToggleRow(title: String, detail: String?, checked: Boolean, enabled: Boolean = true,
-                       onChange: (Boolean) -> Unit) {
-    // The whole row flips the switch, as a SwiftUI Toggle's label does.
-    Row(Modifier.fillMaxWidth().heightIn(min = ForgeMetrics.minHitTarget)
-            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
-            .alpha(if (enabled) 1f else 0.45f)
-            .padding(vertical = ForgeMetrics.space1),
-        verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f).padding(end = ForgeMetrics.space2), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = Forge.type.body, color = Forge.colors.text)
-            if (detail != null) Text(detail, style = Forge.type.caption, color = Forge.colors.textTertiary)
-        }
-        Switch(checked = checked, onCheckedChange = null, enabled = enabled, colors = forgeSwitchColors())
-    }
-}
-
-/**
- * A text field in Forge's own colours: the quiet inset grey iOS uses for fields inside a card, not the classic screens'
- * paper tone. A search field on the page itself passes the card surface as [container], so it stands off the canvas.
- */
-@Composable
-internal fun forgeFieldColors(container: androidx.compose.ui.graphics.Color = Forge.colors.inset) =
-    androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-    focusedTextColor = Forge.colors.text,
-    unfocusedTextColor = Forge.colors.text,
-    disabledTextColor = Forge.colors.textTertiary,
-    focusedPlaceholderColor = Forge.colors.textTertiary,
-    unfocusedPlaceholderColor = Forge.colors.textTertiary,
-    focusedLeadingIconColor = Forge.colors.textSecondary,
-    unfocusedLeadingIconColor = Forge.colors.textSecondary,
-    cursorColor = Forge.colors.accent,
-    focusedBorderColor = Forge.colors.accent,
-    unfocusedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
-    disabledBorderColor = androidx.compose.ui.graphics.Color.Transparent,
-    focusedContainerColor = container,
-    unfocusedContainerColor = container,
-    disabledContainerColor = container,
-)
-
-/** The switch as iOS draws it: green when on, a quiet grey track when off, a white thumb and no outline. */
-@Composable
-internal fun forgeSwitchColors() = SwitchDefaults.colors(
-    checkedTrackColor = ForgeTokens.Color.systemGreen.resolve(), checkedThumbColor = androidx.compose.ui.graphics.Color.White,
-    checkedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
-    uncheckedTrackColor = Forge.colors.textTertiary.copy(alpha = 0.35f), uncheckedThumbColor = androidx.compose.ui.graphics.Color.White,
-    uncheckedBorderColor = androidx.compose.ui.graphics.Color.Transparent,
-)
-
-@Composable
-internal fun RowDivider() {
-    HorizontalDivider(color = Forge.colors.divider.copy(alpha = 0.4f), modifier = Modifier.padding(vertical = 2.dp))
-}
-
-/** Minus, the value, plus: the iOS stepper the classic Settings mirror. */
-@Composable
-internal fun Stepper(value: String, enabled: Boolean = true, onMinus: () -> Unit, onPlus: () -> Unit) {
-    val colors = Forge.colors
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        StepButton(Icons.Rounded.Remove, stringResource(R.string.forge_settings_less), enabled, onMinus)
-        // An empty value draws the bare pair, as iOS's Stepper does when its label already states the value.
-        if (value.isEmpty()) {
-            Spacer(Modifier.width(8.dp))
-            StepButton(Icons.Rounded.Add, stringResource(R.string.forge_settings_more_step), enabled, onPlus)
-            return@Row
-        }
-        Text(value, style = Forge.type.bodyNumber, color = if (enabled) colors.text else colors.textTertiary,
-             textAlign = TextAlign.Center, maxLines = 1, modifier = Modifier.widthIn(min = 72.dp).padding(horizontal = 6.dp))
-        StepButton(Icons.Rounded.Add, stringResource(R.string.forge_settings_more_step), enabled, onPlus)
-    }
-}
-
-@Composable
-private fun StepButton(icon: androidx.compose.ui.graphics.vector.ImageVector, description: String, enabled: Boolean,
-                       onClick: () -> Unit) {
-    val colors = Forge.colors
-    Box(Modifier.size(36.dp).background(colors.inset, CircleShape)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = description },
-        contentAlignment = Alignment.Center) {
-        Icon(icon, contentDescription = null, tint = if (enabled) colors.text else colors.textTertiary,
-             modifier = Modifier.size(18.dp))
-    }
-}
-
-/** A segmented pill: one choice of a few, the chosen one raised. */
-@Composable
-internal fun <T> Segmented(options: List<T>, selected: T, label: @Composable (T) -> String, onSelect: (T) -> Unit) {
-    val colors = Forge.colors
-    Row(Modifier.background(colors.inset, RoundedCornerShape(10.dp)).padding(2.dp)) {
-        options.forEach { option ->
-            val chosen = option == selected
-            Text(label(option), style = Forge.type.footnote, color = if (chosen) colors.text else colors.textSecondary,
-                 maxLines = 1,
-                 modifier = Modifier
-                     .background(if (chosen) colors.surface else colors.inset, RoundedCornerShape(8.dp))
-                     .clickable(role = Role.RadioButton) { onSelect(option) }
-                     .padding(horizontal = 10.dp, vertical = 7.dp))
-        }
-    }
-}
-
-
-private fun Context.hostingActivity(): Activity? {
-    var current: Context = this
-    while (current is ContextWrapper) {
-        if (current is Activity) return current
-        current = current.baseContext
-    }
-    return null
 }

@@ -33,7 +33,7 @@ enum CoreProject {
         case "project.cached": return CoreRead.json(Wire(await store.cached()))
         case "project.page": return CoreRead.json(Wire(await store.refresh()))
         case "project.vote":
-            let page = await store.cached()
+            let page = await store.forWriting()
             guard let id = args["id"] as? String else { return #"{"ok":false}"# }
             let service = ProjectService(service: page.service)
             let result = await service.vote(id: id, on: args["on"] as? Bool ?? true)
@@ -44,13 +44,13 @@ enum CoreProject {
             }
             return no(result)
         case "project.suggest":
-            let page = await store.cached()
+            let page = await store.forWriting()
             let service = ProjectService(service: page.service)
             let result = await service.suggest(text: args["text"] as? String ?? "")
             if case .sent = result { return #"{"ok":true}"# }
             return no(result)
         case "project.report":
-            let page = await store.cached()
+            let page = await store.forWriting()
             let service = ProjectService(service: page.service)
             let result = await service.report(text: args["text"] as? String ?? "",
                                               wantsThread: args["thread"] as? Bool ?? true,
@@ -76,7 +76,7 @@ enum CoreProject {
                     seenStatus: $0.seenStatus.rawValue, seenMessages: $0.seenMessages)
             }])
         case "project.thread":
-            let page = await store.cached()
+            let page = await store.forWriting()
             let code = args["code"] as? String ?? ""
             guard let thread = await ProjectService(service: page.service).thread(code: code) else {
                 return #"{"ok":false}"#
@@ -97,7 +97,7 @@ enum CoreProject {
         case "project.reportLog":
             // The bytes come over as base64 because the bridge carries JSON. The app has already shown
             // the wearer exactly what is in this bundle; the core never builds or opens it.
-            let page = await store.cached()
+            let page = await store.forWriting()
             guard let encoded = args["data"] as? String,
                   let data = Data(base64Encoded: encoded) else { return #"{"ok":false}"# }
             let result = await ProjectService(service: page.service)
@@ -105,13 +105,13 @@ enum CoreProject {
             if case .sent = result { return #"{"ok":true}"# }
             return no(result)
         case "project.reply":
-            let page = await store.cached()
+            let page = await store.forWriting()
             let result = await ProjectService(service: page.service)
                 .reply(code: args["code"] as? String ?? "", text: args["text"] as? String ?? "")
             if case .sent = result { return #"{"ok":true}"# }
             return no(result)
         case "project.withdraw":
-            let page = await store.cached()
+            let page = await store.forWriting()
             let code = args["code"] as? String ?? ""
             let result = await ProjectService(service: page.service).withdraw(code: code)
             if case .sent = result {
@@ -129,7 +129,7 @@ enum CoreProject {
             if let on = args["on"] as? Bool { ProjectSharing.standard.set(on) }
             return CoreRead.json(["on": ProjectSharing.standard.isOn])
         case "project.counts":
-            let page = await store.cached()
+            let page = await store.forWriting()
             return CoreRead.json(["counts": await ProjectService(service: page.service).counts()])
         default: return nil
         }

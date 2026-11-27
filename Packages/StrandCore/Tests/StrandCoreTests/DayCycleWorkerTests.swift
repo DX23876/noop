@@ -62,12 +62,15 @@ final class DayCycleWorkerTests: XCTestCase {
         let profile = UserProfile()
         let worker = DayCycleIntelligenceIntegration()
         for _ in 0..<2 {
-            let result = try await worker.compute(nights: [.init(daily: row, sleeps: [night], workouts: [], owner: "strap")],
+            // Effort takes the resting rate the pass scored the day against (`EffortRestingHR`), energy the
+            // day's shown one.
+            let result = try await worker.compute(nights: [.init(daily: row, sleeps: [night], workouts: [], owner: "strap",
+                                                                 effortRestingHR: 56)],
                 editedRows: [], store: store, candidates: [(owner: "strap", priority: 0)],
                 physiologyOwners: ["strap"], workouts: [], windowStart: start, now: start + 10 * 3600,
                 offsetSec: 0, habitualMidsleepSec: nil, ticksPerStep: 1, mode: .sleepOnset,
                 profile: profile, maxHROverride: 190, recoveryReader: .init(sleepSessions: { _, _, _ in [] }, markers: { _, _, _ in [] }))
-            let expectedStrain = StrainScorer.strain(samples, maxHR: 190, restingHR: 52)
+            let expectedStrain = StrainScorer.strain(samples, maxHR: 190, restingHR: 56)
             XCTAssertEqual(result.strainByWakeDay[day], expectedStrain)
             XCTAssertEqual(result.caloriesByWakeDay[day], Calories.estimateDayCalories(samples,
                 profile: profile, hrmax: 190, restingHR: 52))

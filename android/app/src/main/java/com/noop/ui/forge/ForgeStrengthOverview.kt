@@ -66,10 +66,10 @@ internal fun ForgeStrengthHub(onClose: () -> Unit, onStart: (String) -> Unit, on
     val context = LocalContext.current
     var sub by rememberSaveable { mutableStateOf<String?>(null) }
     val revision by CoreShadow.dataRevision.collectAsState()
-    val snapshot by produceState<CoreTraining.Snapshot?>(null, revision) {
+    val sunday = WeekStartPrefs.sundayFirst(context)
+    val snapshot by produceState<CoreTraining.Snapshot?>(null, revision, sunday) {
         value = withContext(Dispatchers.IO) {
             CoreRead.open(context)
-            val sunday = NoopPrefs.of(context).getString("training.weekStartsOn", null) == "sunday"
             CoreTraining.snapshot(dismissedTrainingWorkouts(context), weekStartsOn = if (sunday) "sunday" else "monday")
         }
     }
