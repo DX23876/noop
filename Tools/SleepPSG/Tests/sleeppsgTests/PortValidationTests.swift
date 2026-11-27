@@ -75,6 +75,34 @@ final class PortValidationTests: XCTestCase {
         XCTAssertEqual(r.matchingEpochs, r.epochs, "\(r.divergences.first.map(String.init(describing:)) ?? "")")
     }
 
+    /// The restless term the app runs (`SleepStagerV2.RestlessTerm.remOnly`) is the form section 8 scored as
+    /// "#59 sustained, REM only", label for label; and the corpus reaches it, or the match proves nothing.
+    func testCoreRestlessTermReproducesTheScoredForm() {
+        let r = PortValidation.run(randomNights: 12, restless: .remOnly)
+        XCTAssertGreaterThan(r.epochs, 2_000)
+        XCTAssertEqual(r.matchingEpochs, r.epochs, "\(r.divergences.first.map(String.init(describing:)) ?? "")")
+        var moved = 0
+        for n in PortValidation.corpus(randomNights: 12) {
+            let plain = SleepStagerV2.stageSession(start: n.start, end: n.end, grav: n.grav, hr: n.hr, rr: n.rr,
+                                                   resp: n.resp)
+            let restless = SleepStagerV2.stageSession(start: n.start, end: n.end, grav: n.grav, hr: n.hr, rr: n.rr,
+                                                      resp: n.resp, restless: .remOnly)
+            let a = epochLabels(plain, start: n.start, end: n.end)
+            let b = epochLabels(restless, start: n.start, end: n.end)
+            moved += zip(a, b).filter { $0 != $1 }.count
+        }
+        XCTAssertGreaterThan(moved, 0, "the term moved no label on the corpus, so the match above is vacuous")
+    }
+
+    /// The wake-arguing form with the heart-rate gate, which a bench builds to compare against, matches its
+    /// section 8 row ("#59 sustained, HR-gated") too.
+    func testCoreHeartRateGatedTermReproducesItsScoredForm() {
+        let term = SleepStagerV2.RestlessTerm(remWeight: 0.5, awakeWeight: 0.75, awakeNeedsRaisedHR: true)
+        let r = PortValidation.run(randomNights: 12, restless: term)
+        XCTAssertGreaterThan(r.epochs, 2_000)
+        XCTAssertEqual(r.matchingEpochs, r.epochs, "\(r.divergences.first.map(String.init(describing:)) ?? "")")
+    }
+
     /// The randomised nights have to exercise the R-R / RSA path, which the PhysioNet dataset cannot:
     /// sleep-accel carries no beat-to-beat intervals, so without this the respiration term would be
     /// unvalidated in the port everywhere it matters.

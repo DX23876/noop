@@ -2132,3 +2132,21 @@ Decided with the owner:
   dropped rather than retuned on the data it is checked on.
 
 Analysis migration required: no (a Lab choice, default standard; switching it restages the history itself)
+
+## 2026-11-27 — Restless movement argues against REM, in the core; the Lab entry waits for the owner
+
+Refs #59. On Wearanize+ (88 nights, Empatica E4 with beat-to-beat intervals) the heart-rate-gated form of the
+proposal broke the guard: it over-called wake by more than 5 points on 4 of 88 nights scaled within the night,
+on 3 of 88 against the other subjects, where 2 are allowed. It is dropped as agreed, not retuned. The one form
+that passed on all three sets is "sustained, REM only": jerks above 5 × the night's quiescent floor in runs of
+5 s or more, averaged over ±5 epochs, z-scored within the night, its positive part taken off REM at 0.5, no
+wake term. On Wearanize+ it moves kappa from 0.352 to 0.354 and the REM share bias from +6.0 to +2.4 points;
+it finds no extra wake. It is in the core as `SleepStagerV2.RestlessTerm.remOnly`, pinned label for label to
+the scored port by the `Tools/SleepPSG` port tests, and nothing in the app calls it yet.
+
+On the owner's 14 most recent MG nights (`Tools/SleepBench` section R, the 2026-11-22 copy) the mean REM share
+falls from 28.9 to 24.7 %, the nights over 30 % REM from 5 to 3; wake rises from 5.8 to 6.3 % (2.5 points on
+the worst night) and deep is unchanged. Whether it becomes a third Lab entry is the owner's call on these
+numbers.
+
+Analysis migration required: no (no product path reaches the term yet)

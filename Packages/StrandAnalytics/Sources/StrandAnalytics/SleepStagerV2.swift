@@ -37,8 +37,10 @@ public enum SleepStagerV2 {
     /// V1↔V2 on a flag with no other change. `resp` (raw resp ADC) is accepted for signature-parity but not
     /// consumed — respiration regularity is recovered from the R-R stream (RSA), the path available on both
     /// WHOOP 4 and 5. The recipe stages "wake" naturally (no separate pre-onset / post-wake forcing).
+    /// `restless` adds the restless-movement term (`RestlessTerm`); nil, the default, stages exactly as before.
     public static func stageSession(start: Int, end: Int, grav: [GravitySample],
-                                    hr: [HRSample], rr: [RRInterval], resp: [RespSample]) -> [StageSegment] {
+                                    hr: [HRSample], rr: [RRInterval], resp: [RespSample],
+                                    restless: RestlessTerm? = nil) -> [StageSegment] {
         // v7.0.2 perf (#707): stage each night AT MOST ONCE per (window, input-fingerprint). The post-sync
         // scoring loop and the self-heal restage call this with byte-identical streams across passes; without
         // the cache each call re-allocates the large per-second HR/gravity dictionaries below before
@@ -86,9 +88,11 @@ public enum SleepStagerV2 {
                 StreamFingerprint.gravityQuant(x: $0.x, y: $0.y, z: $0.z)
             }),
             hr: StreamFingerprint.of(hrW, ts: { $0.ts }, quant: { Int($0.bpm) }),
-            rr: StreamFingerprint.of(rrW, ts: { $0.ts }, quant: { Int($0.rrMs) }))
+            rr: StreamFingerprint.of(rrW, ts: { $0.ts }, quant: { Int($0.rrMs) }),
+            restless: restless)
         return stageCache.value(key) {
-            stageSessionUncached(start: start, end: end, grav: gravW, hr: hrW, rr: rrW, resp: resp)
+            stageSessionUncached(start: start, end: end, grav: gravW, hr: hrW, rr: rrW, resp: resp,
+                                 restless: restless)
         }
     }
 
@@ -118,10 +122,12 @@ public enum SleepStagerV2 {
         return Array(samples[start..<l])
     }
 
-    /// Cache key = locked window + per-stream fingerprints of the inputs the recipe actually reads.
+    /// Cache key = locked window + per-stream fingerprints of the inputs the recipe actually reads + the
+    /// restless term, so a night staged with it never answers a call made without it.
     private struct V2Key: Hashable {
         let start: Int; let end: Int
         let grav: StreamFingerprint; let hr: StreamFingerprint; let rr: StreamFingerprint
+        let restless: RestlessTerm?
     }
 
     /// ≈ a couple of weeks of distinct nights (incl. re-staged edits); FIFO-evicted, result-only.
@@ -130,11 +136,12 @@ public enum SleepStagerV2 {
     /// The unchanged staging recipe. Split out verbatim from `stageSession` so the public entry can memoize
     /// in front of it; behaviour is byte-identical (a cache miss runs exactly this).
     private static func stageSessionUncached(start: Int, end: Int, grav: [GravitySample],
-                                             hr: [HRSample], rr: [RRInterval], resp: [RespSample]) -> [StageSegment] {
+                                             hr: [HRSample], rr: [RRInterval], resp: [RespSample],
+                                             restless: RestlessTerm?) -> [StageSegment] {
         // The public veneer has already established stable timestamp order before clipping.
-        let feats = features(start: start, end: end, grav: grav, hr: hr, rr: rr)
+        let feats = features(start: start, end: end, grav: grav, hr: hr, rr: rr, restless: restless != nil)
         if feats.isEmpty { return [StageSegment(start: start, end: end, stage: "light")] }
-        let labels = stageEpochs(feats)
+        let labels = stageEpochs(feats, restless: restless)
 
         // Tile [start, end] with one segment per staged epoch. The first segment back-fills [start, firstEpoch)
         // and the last extends to `end`; an interior coverage gap is carried by the preceding label. "awake"
@@ -200,6 +207,41 @@ public enum SleepStagerV2 {
     /// Weight of the RSA respiration-regularity term (regular → deep, irregular → REM).
     static let respWeight = 0.6
 
+    /// Restless movement (#59, filed by @andreyeurope), in the one form that passed the sleep-lab guard on all
+    /// three open PSG sets (sleep-accel, Newcastle, Wearanize+; `Tools/SleepPSG` section 8, decided 2026-11-27):
+    /// small movements, too weak for the "moving" threshold but lasting longer than a REM twitch, argue against
+    /// REM. A per-second jerk counts above `restlessJerkMult` × the night's quiescent floor, and only inside a run
+    /// of at least `restlessMinRun` consecutive such seconds (REM carries distal twitches of 3 s or less, Reiter
+    /// 2020). Each epoch's share of counted seconds is averaged over `restlessHalfWindow` epochs either side,
+    /// z-scored within the night, and only its positive part is used: `rem -= remWeight · z⁺`,
+    /// `awake += awakeWeight · z⁺`. A calm stretch keeps its emissions exactly.
+    public struct RestlessTerm: Hashable, Sendable {
+        /// Log-odds taken off the REM emission per unit of z⁺.
+        public var remWeight: Double
+        /// Log-odds added to the wake emission per unit of z⁺; 0 means the term never argues for wake.
+        public var awakeWeight: Double
+        /// When true, the term argues for wake only on an epoch whose heart rate sits above the night's mean.
+        public var awakeNeedsRaisedHR: Bool
+
+        public init(remWeight: Double, awakeWeight: Double, awakeNeedsRaisedHR: Bool) {
+            self.remWeight = remWeight
+            self.awakeWeight = awakeWeight
+            self.awakeNeedsRaisedHR = awakeNeedsRaisedHR
+        }
+
+        /// The form that passed: against REM only, so a calm sleeper gains no wake. The forms that also argue for
+        /// wake, with or without a heart-rate gate, over-called wake on Wearanize+ and were dropped by the rule
+        /// agreed before that run (no retuning); a bench may still build one to compare against.
+        public static let remOnly = RestlessTerm(remWeight: 0.5, awakeWeight: 0, awakeNeedsRaisedHR: false)
+    }
+
+    /// A per-second jerk counts as restless above the night's quiescent floor × this (moving is × 38).
+    static let restlessJerkMult = 5.0
+    /// Shortest run of consecutive restless seconds that counts: longer than a REM twitch.
+    static let restlessMinRun = 5
+    /// Epochs either side the restless share is averaged over (±2.5 min).
+    static let restlessHalfWindow = 5
+
     /// Transition matrix (rows = from, cols = to). Self-transitions dominate; deep↔rem rare; wake mostly
     /// to/from light. A priori, not fit.
     ///
@@ -248,6 +290,9 @@ public enum SleepStagerV2 {
         /// guard reads it — the deep term and the REM ramp stay fractions of the session, which is what they
         /// are (see `cyclePrior`).
         let minutesSinceOnset: Double
+        /// Share of the epoch's per-second jerks that sit in a restless run (`RestlessTerm`); 0 when the
+        /// features were built without it.
+        var restlessFrac: Double = 0.0
     }
 
     // MARK: - Feature extraction
@@ -256,8 +301,9 @@ public enum SleepStagerV2 {
     /// Streams are the sorted streams already clipped (by `stageSession`) to `[start-padLo, end+padHi]` — a
     /// superset of every read window — so the 5-/11-min HR windows and the RSA beat window still reach to the
     /// session edges exactly as before; only rows no window could touch were dropped.
+    /// `restless` also fills each epoch's `restlessFrac`; every other feature is identical either way.
     static func features(start: Int, end: Int, grav: [GravitySample],
-                         hr: [HRSample], rr: [RRInterval]) -> [Epoch] {
+                         hr: [HRSample], rr: [RRInterval], restless: Bool = false) -> [Epoch] {
         if end <= start { return [] }
         let span = Double(max(1, end - start))
 
@@ -382,6 +428,7 @@ public enum SleepStagerV2 {
             return n % 2 == 1 ? s[n / 2] : 0.5 * (s[n / 2 - 1] + s[n / 2])
         }()
         let moveThr = jerkScale * jerkFloorMoveMult
+        let restlessThr = jerkScale * restlessJerkMult
 
         // PASS 2 — move fraction against the night-relative threshold; carry the floor on each epoch so the
         // wake gate in stageEpochs() can be night-relative too.
@@ -389,12 +436,35 @@ public enum SleepStagerV2 {
         feats.reserveCapacity(raws.count)
         for r in raws {
             let moves = r.jerks.reduce(0) { $0 + ($1 > moveThr ? 1 : 0) }
+            let restlessSeconds = restless ? restlessRunSeconds(r.jerks, above: restlessThr) : 0
             feats.append(Epoch(
                 start: r.start, hr: r.hr, hrVar: r.hrVar, hrFlat11: r.hrFlat11,
                 moveFrac: Double(moves) / Double(r.gapSec), jerkMax: r.jerkMax, respReg: r.respReg,
-                clock: r.clock, jerkScale: jerkScale, minutesSinceOnset: r.minutes))
+                clock: r.clock, jerkScale: jerkScale, minutesSinceOnset: r.minutes,
+                restlessFrac: Double(restlessSeconds) / Double(r.gapSec)))
         }
         return feats
+    }
+
+    /// Jerks above `thr` that sit in a run of at least `restlessMinRun` consecutive above-threshold seconds. A run
+    /// is counted within its epoch, so one that straddles an epoch boundary counts in each half only if that half
+    /// is long enough by itself.
+    static func restlessRunSeconds(_ jerks: [Double], above thr: Double) -> Int {
+        var total = 0, run = 0
+        for j in jerks {
+            if j > thr { run += 1 } else { if run >= restlessMinRun { total += run }; run = 0 }
+        }
+        return run >= restlessMinRun ? total + run : total
+    }
+
+    /// The restless neighbourhood per epoch: the mean `restlessFrac` over `restlessHalfWindow` epochs either side
+    /// (clipped at the night's edges).
+    static func restlessDensity(_ feats: [Epoch]) -> [Double] {
+        let h = restlessHalfWindow
+        return feats.indices.map { i in
+            let lo = max(0, i - h), hi = min(feats.count - 1, i + h)
+            return feats[lo...hi].reduce(0.0) { $0 + $1.restlessFrac } / Double(hi - lo + 1)
+        }
     }
 
     /// The band-limited DFT's twiddle factors for one 4 Hz grid length `n`: `cos`/`sin` of
@@ -653,7 +723,7 @@ public enum SleepStagerV2 {
     /// one Viterbi over an already-built lattice, not a second featurisation, and `stageSession` memoizes the
     /// whole thing anyway. When no sustained run exists the origin falls back to the window start, which is
     /// exactly the origin the shipped `c`-based guard used.
-    static func stageEpochs(_ feats: [Epoch]) -> [String] {
+    static func stageEpochs(_ feats: [Epoch], restless: RestlessTerm? = nil) -> [String] {
         if feats.isEmpty { return [] }
 
         // Per-night z-score over the present values (population std; 0 std → 1 so a flat channel is neutral).
@@ -679,9 +749,16 @@ public enum SleepStagerV2 {
             return Double(lo) / Double(fsorted.count)
         }
 
+        // The restless neighbourhood as a positive-only z-score of its windowed density (`RestlessTerm`).
+        let restlessZ: [Double]? = restless.map { _ in
+            let density = restlessDensity(feats)
+            let zd = zfun(density.map { Optional($0) })
+            return density.map { max(0.0, zd($0)) }
+        }
+
         var seq: [[String: Double]] = []
         seq.reserveCapacity(feats.count)
-        for f in feats {
+        for (fi, f) in feats.enumerated() {
             let zhrv = zhr(f.hr), zhvv = zhv(f.hrVar), zmvv = zmv(f.moveFrac)
             let gate = deepGateSlope * max(0.0, fpct(f.hrFlat11) - deepGateThresh)
             // Cardiac contribution to the AWAKE emission. On a motion-quiescent epoch the wrist did not move,
@@ -702,6 +779,12 @@ public enum SleepStagerV2 {
             for s in stageNames { em[s]! += pr[s]! }
             if f.jerkMax > f.jerkScale * jerkFloorGateMult { em["awake"]! += motionGateBoost }
             if let rg = f.respReg { let z = zrg(rg); em["deep"]! += respWeight * z; em["rem"]! -= respWeight * z }
+            if let term = restless, let z = restlessZ?[fi] {
+                em["rem"]! -= term.remWeight * z
+                if term.awakeWeight != 0 && (!term.awakeNeedsRaisedHR || zhrv > 0) {
+                    em["awake"]! += term.awakeWeight * z
+                }
+            }
             seq.append(em)
         }
 
