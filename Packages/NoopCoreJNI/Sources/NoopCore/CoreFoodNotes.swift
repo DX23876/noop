@@ -134,10 +134,10 @@ enum CoreFoodNotes {
         let options = FoodScore.Options.forDiet(DietForm(rawValue: string("dietForm")))
         let profile = UserProfile(weightKg: double("weightKg") ?? 70, heightCm: double("heightCm") ?? 170,
                                   age: double("age") ?? 30, sex: sex)
-        let floor = FoodGoalState.floorKcal(basalKcal: Calories.bmrKcalPerDay(profile: profile), male: male)
         let goals = double("goalKcal").map {
             FoodGoalState.Goals(kcal: $0, proteinG: double("proteinG"), carbCapG: DietForm(rawValue: string("dietForm"))?.carbCapG,
-                                floorKcal: floor)
+                                floorKcal: FoodGoalState.floorKcal(basalKcal: Calories.bmrKcalPerDay(profile: profile),
+                                                                   male: male, goalKcal: $0))
         }
 
         switch op {
