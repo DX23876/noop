@@ -60,6 +60,7 @@ internal fun ForgeHevyCard(onRoutines: () -> Unit) {
             status = withContext(Dispatchers.IO) { CoreHevyImport.sync(context) { status = it } }
             error = status?.error
             refresh()
+            if (key != null) withContext(Dispatchers.IO) { runCatching { com.noop.ui.HevyAutoImportScheduler.reschedule(context) } }
         } finally { busy = false }
     }
     ForgeCard(Modifier.fillMaxWidth()) {
@@ -90,10 +91,12 @@ internal fun ForgeHevyCard(onRoutines: () -> Unit) {
                 }
             }
             Button(enabled = !busy, onClick = { sync() }) { Text(stringResource(R.string.forge_hevy_sync)) }
+            HevyAutoImportChoice()
             TextButton(enabled = !busy, onClick = {
                 scope.launch {
                     busy = true
                     val done = withContext(Dispatchers.IO) { CoreHevyImport.disconnect(context) }
+                    withContext(Dispatchers.IO) { runCatching { com.noop.ui.HevyAutoImportScheduler.reschedule(context) } }
                     if (done) { connected = false; status = null; error = null } else error = "credentialUnavailable"
                     busy = false
                 }
@@ -123,6 +126,28 @@ internal fun ForgeHevyCard(onRoutines: () -> Unit) {
             }
         }) { Text(stringResource(R.string.forge_hevy_remove_confirm)) } },
         dismissButton = { TextButton(onClick = { confirmForget = false }) { Text(stringResource(R.string.forge_th_cancel)) } })
+}
+
+/** How often Hevy is asked on its own (`HevyAutoImport`); off until the wearer picks an interval. */
+@Composable
+private fun HevyAutoImportChoice() {
+    val context = LocalContext.current
+    var interval by remember { mutableStateOf(CoreHevyImport.autoInterval(context)) }
+    val blocked = remember(interval) { CoreHevyImport.autoBlocked(context) }
+    Spacer(Modifier.height(ForgeMetrics.space2))
+    Text(stringResource(R.string.forge_hevy_auto_title), style = Forge.type.subhead, color = Forge.colors.text)
+    Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+        listOf("off" to R.string.forge_hevy_auto_off, "6h" to R.string.forge_hevy_auto_6h,
+               "12h" to R.string.forge_hevy_auto_12h, "24h" to R.string.forge_hevy_auto_daily).forEach { (value, label) ->
+            FilterChip(selected = interval == value, label = { Text(stringResource(label)) }, onClick = {
+                interval = value
+                CoreHevyImport.setAutoInterval(context, value)
+                runCatching { com.noop.ui.HevyAutoImportScheduler.reschedule(context) }
+            })
+        }
+    }
+    Text(stringResource(R.string.forge_hevy_auto_note), style = Forge.type.footnote, color = Forge.colors.textSecondary)
+    if (blocked != null && interval != "off") Text(hevyError(blocked), style = Forge.type.footnote, color = Forge.colors.textSecondary)
 }
 
 @Composable

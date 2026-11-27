@@ -362,6 +362,14 @@ struct RootView: View {
                 await FolderBackup.catchUpIfDue(checkpoint: { await backupRepo.checkpointForBackup() })
             }
         }
+        .task {
+            // The automatic Hevy import. The Mac app usually stays open for days, so instead of a background
+            // wake it looks every half hour whether a run is due; a no-op while the import is off.
+            while !Task.isCancelled {
+                await HevyAutoImportRunner.runIfDue(repo: repo)
+                try? await Task.sleep(nanoseconds: 30 * 60 * 1_000_000_000)
+            }
+        }
         // Honour a cross-screen request to open a top-level destination (e.g. Live's "Manage devices"),
         // then clear it so the same tap can fire again later. Devices maps to the `.devices` sidebar item.
         .activeSessionPresentation()

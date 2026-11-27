@@ -361,6 +361,9 @@ targets:
           # #1538: finishes a re-score that a backgrounded offload started and could not complete. The
           # only BGProcessingTask of the three; the other two are refresh tasks.
           - $(PRODUCT_BUNDLE_IDENTIFIER).rescore
+          # The automatic Hevy import. Default OFF: submitted only while the wearer chose an interval and a
+          # Hevy key is stored. A refresh task; the foreground catches up on any run iOS skips.
+          - $(PRODUCT_BUNDLE_IDENTIFIER).hevyimport
           # The opt-in scheduled morning brief. Default OFF and gated on a configured Coach with data
           # consent, so an install that never turns it on never submits this request at all. Submitted
           # for no-earlier-than the chosen time; iOS decides when the wake actually lands.

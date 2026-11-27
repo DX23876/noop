@@ -45,7 +45,10 @@ object CoreHevyImport {
         if (!reply.optBoolean("ok")) reply.optString("error", "network") else {
             val secure = credentials(context)
             if (secure.getString("api_key", null) != trimmed && !call("hevy.resetSync").optBoolean("ok")) "storeUnavailable"
-            else if (secure.edit().putString("api_key", trimmed).commit()) null else "credentialUnavailable"
+            else if (secure.edit().putString("api_key", trimmed).commit()) {
+                status(context).edit().remove(AUTO_BLOCKED).apply()
+                null
+            } else "credentialUnavailable"
         }
     } catch (_: Exception) { "credentialUnavailable" }
 
@@ -79,6 +82,46 @@ object CoreHevyImport {
     }
 
     fun cancel(id: String) { call("hevy.cancelSync", JSONObject().put("id", id)) }
+
+    // MARK: automatic import (`HevyAutoImport` in the core decides when one is due)
+
+    private const val AUTO_INTERVAL = "autoInterval"
+    private const val AUTO_BLOCKED = "autoBlocked"
+    private fun status(context: Context) = context.getSharedPreferences("noop_hevy_status", Context.MODE_PRIVATE)
+
+    /** The wearer's choice: "off", "6h", "12h" or "24h". Off until chosen (opt-in, as the folder backup). */
+    fun autoInterval(context: Context): String = status(context).getString(AUTO_INTERVAL, null) ?: "off"
+    fun setAutoInterval(context: Context, interval: String) {
+        status(context).edit().putString(AUTO_INTERVAL, interval).remove(AUTO_BLOCKED).apply()
+    }
+
+    /** What stopped the automatic import until the wearer acts (a key Hevy rejects, an account it does not
+     *  serve), or null. Cleared by a new key or a new interval. */
+    fun autoBlocked(context: Context): String? = status(context).getString(AUTO_BLOCKED, null)
+
+    data class AutoPlan(val interval: String, val seconds: Long?, val due: Boolean)
+
+    fun autoPlan(context: Context, nowSec: Long = System.currentTimeMillis() / 1000): AutoPlan {
+        val reply = call("hevy.autoImport", JSONObject().put("interval", autoInterval(context))
+            .put("lastRun", status(context).getLong("lastSync", 0)).put("now", nowSec))
+        return AutoPlan(reply.optString("interval", "off"),
+                        if (reply.isNull("seconds") || !reply.has("seconds")) null else reply.getLong("seconds"),
+                        reply.optBoolean("due"))
+    }
+
+    /** One automatic run: only with a key, an interval and a due time, and never after Hevy refused the key.
+     *  Returns the workouts it brought, or null when it did not run or failed. */
+    suspend fun autoImportIfDue(context: Context): Int? {
+        if (!connected(context) || autoBlocked(context) != null) return null
+        if (!autoPlan(context).due) return null
+        val result = sync(context)
+        val error = result.error
+        if (error in setOf("notConnected", "unauthorized", "notPro")) {
+            status(context).edit().putString(AUTO_BLOCKED, error).apply()
+            return null
+        }
+        return if (error == null && result.state == "completed") result.stored + result.updated else null
+    }
 
     fun disconnect(context: Context, forget: Boolean = false): Boolean {
         // Revoking the local credential must work even if the core or its store is unavailable.

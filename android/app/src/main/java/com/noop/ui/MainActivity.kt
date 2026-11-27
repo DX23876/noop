@@ -187,6 +187,8 @@ class MainActivity : ComponentActivity() {
         // launch-critical setup so a 100MB+ whole-DB zip can never block app startup. Cheap (two prefs
         // reads) when the feature is off, which is the default.
         runCatching { BackupSync.reschedule(applicationContext) }
+        // The automatic Hevy import: re-arm the worker on the chosen interval (cancelled when off or no key).
+        lifecycleScope.launch(Dispatchers.IO) { runCatching { HevyAutoImportScheduler.reschedule(applicationContext) } }
         lifecycleScope.launch(Dispatchers.IO) {
             runCatching { BackupSync.catchUpIfDue(applicationContext) }
         }

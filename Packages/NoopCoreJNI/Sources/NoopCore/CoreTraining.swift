@@ -369,10 +369,16 @@ public enum CoreTraining {
         public let rightReps: Int?
         public let durationS: Int?
         public let distanceM: Double?
+        /// Last time's effort on the scale the wearer reads now (`effortScale` of the call), nil when that set had
+        /// none, the effort column is off, or the other scale has no such value.
+        public var effortScale: String? = nil
+        public var effortValue: Double? = nil
     }
 
-    public static func previousSets(store: WhoopStore, reader: StoreReader,
-                                    dismissedWorkoutSpans: [String]) async -> [String: PreviousSet] {
+    /// `effortScale` is the wearer's choice ("rpe", "rir" or "off"); last time's rating is shown on it.
+    public static func previousSets(store: WhoopStore, reader: StoreReader, dismissedWorkoutSpans: [String],
+                                    effortScale: String = "off") async -> [String: PreviousSet] {
+        let target = TrainingEffortScale(rawValue: effortScale)
         guard let draft = (try? await store.workoutDraft()) ?? nil else { return [:] }
         let exercises = (try? await store.trainingExercises()) ?? []
         let now = Int(Date().timeIntervalSince1970), days = TrainingHistoryWindow.allDays
@@ -389,9 +395,11 @@ public enum CoreTraining {
             for index in exercise.sets.indices {
                 guard let number = NativeWorkoutEngine.workingSetNumber(of: index, in: exercise.sets),
                       let prior = entry.workingSet(number: number) else { continue }
+                let effort = target.flatMap { prior.effort?.converted(to: $0) }
                 result[exercise.sets[index].id.uuidString] = PreviousSet(
                     weightKg: prior.weightKg, reps: prior.reps, leftReps: prior.leftReps, rightReps: prior.rightReps,
-                    durationS: prior.durationS, distanceM: prior.distanceM)
+                    durationS: prior.durationS, distanceM: prior.distanceM,
+                    effortScale: effort?.scale.rawValue, effortValue: effort?.value)
             }
         }
         return result

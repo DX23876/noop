@@ -153,6 +153,15 @@ final class StrandTrainingTests: XCTestCase {
         XCTAssertNil(TrainingEffortRating(scale: .rpe, value: 11))
     }
 
+    /// The previous column shows last time's effort on the scale the wearer reads now.
+    func testEffortConvertsBetweenScales() {
+        let rpe = TrainingEffortRating(scale: .rpe, value: 9.5)!
+        XCTAssertEqual(rpe.converted(to: .rir), TrainingEffortRating(scale: .rir, value: 0.5))
+        XCTAssertEqual(rpe.converted(to: .rpe), rpe)
+        XCTAssertEqual(TrainingEffortRating(scale: .rir, value: 2)!.converted(to: .rpe)?.value, 8)
+        XCTAssertNil(TrainingEffortRating(scale: .rir, value: 10)!.converted(to: .rpe), "RPE 0 does not exist")
+    }
+
     func testDayOverrideReplacesWeekWithoutMutatingIt() {
         let a = TrainingRoutine(title: "Push")
         let b = TrainingRoutine(title: "Pull")

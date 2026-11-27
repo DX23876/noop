@@ -1123,7 +1123,9 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
     val setIds = d?.exercises?.flatMap { e -> e.sets.map { it.id } }
     var previous by remember { mutableStateOf<Map<String, CoreTraining.PreviousSet>>(emptyMap()) }
     LaunchedEffect(setIds) {
-        if (setIds != null) previous = withContext(Dispatchers.IO) { CoreTraining.previousSets(dismissedTrainingWorkouts(context)) }
+        if (setIds != null) previous = withContext(Dispatchers.IO) {
+            CoreTraining.previousSets(dismissedTrainingWorkouts(context), effortScale)
+        }
     }
     var restRequest by remember { mutableStateOf<CoreTraining.DraftExercise?>(null) }
     var noteRequest by remember { mutableStateOf<CoreTraining.DraftExercise?>(null) }

@@ -3631,6 +3631,12 @@
         <item quantity="other">Сохранено тренировок: %1$d</item>
     </plurals>
     <string name="forge_hevy_last_sync">Последняя синхронизация: %1$s</string>
+    <string name="forge_hevy_auto_title">Импортировать автоматически</string>
+    <string name="forge_hevy_auto_off">Выкл.</string>
+    <string name="forge_hevy_auto_6h">Каждые 6 ч</string>
+    <string name="forge_hevy_auto_12h">Каждые 12 ч</string>
+    <string name="forge_hevy_auto_daily">Ежедневно</string>
+    <string name="forge_hevy_auto_note">Новые тренировки из Hevy появляются сами, пока есть подключение. Точный момент выбирает Android.</string>
     <string name="forge_hevy_pages">Страница %1$d из %2$d</string>
     <string name="forge_hevy_skipped_exercises">Пропущено упражнений: %1$d</string>
     <string name="forge_hevy_cached">Не удалось обновить Hevy. Показаны программы, сохранённые на этом устройстве.</string>

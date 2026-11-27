@@ -69,6 +69,7 @@ final class HevyConnectModel: ObservableObject {
             }
             isConnected = true
             HevySyncState.isEnabled = true
+            HevySyncState.autoBlocked = false
             phase = .idle
             await sync(repo: repo)
         }
@@ -90,23 +91,10 @@ final class HevyConnectModel: ObservableObject {
             return
         }
 
-        let coordinator = HevySyncCoordinator(fetcher: HevyAPIClient(), store: store)
         do {
-            let summary = try await coordinator.run { [weak self] progress in
+            let (summary, stored) = try await Self.runSync(store: store, repo: repo) { [weak self] progress in
                 Task { @MainActor in self?.phase = .syncing(Self.describe(progress)) }
             }
-            // Refresh the read spine so the new sessions appear in Workouts and on Today. NOT an
-            // analysis pass: a logged set changes no score, so nothing needs re-deriving — see
-            // `HevySyncCoordinator`'s note on why this lane invalidates no day.
-            await repo.refresh()
-            // A logged session is also the workout context the strap energy model prices its heart
-            // rate under, so a sync that changed sessions re-prices the window the model keeps.
-            if summary.fetchedWorkouts + summary.deletedWorkouts > 0 {
-                repo.scheduleEnergyRefresh(coveringStart: 0)
-            }
-
-            let stored = (try? await store.hevyWorkoutCount()) ?? 0
-            HevySyncState.recordSuccess(storedWorkouts: stored, skipped: summary.skipped)
             status = HevySyncState.load()
             report(Self.describe(summary, stored: stored), failed: false)
         } catch {
@@ -115,6 +103,26 @@ final class HevyConnectModel: ObservableObject {
             status = HevySyncState.load()
             report(text, failed: true)
         }
+    }
+
+    /// One run and what follows it, the same whether the wearer tapped "Sync now" or the automatic import
+    /// started it (`HevyAutoImportRunner`), so the two cannot leave the app in different states.
+    static func runSync(store: WhoopStore, repo: Repository,
+                        onProgress: @escaping @Sendable (HevySyncProgress) -> Void = { _ in })
+        async throws -> (HevySyncSummary, Int) {
+        let summary = try await HevySyncCoordinator(fetcher: HevyAPIClient(), store: store).run(onProgress: onProgress)
+        // Refresh the read spine so the new sessions appear in Workouts and on Today. NOT an
+        // analysis pass: a logged set changes no score, so nothing needs re-deriving — see
+        // `HevySyncCoordinator`'s note on why this lane invalidates no day.
+        await repo.refresh()
+        // A logged session is also the workout context the strap energy model prices its heart
+        // rate under, so a sync that changed sessions re-prices the window the model keeps.
+        if summary.fetchedWorkouts + summary.deletedWorkouts > 0 {
+            repo.scheduleEnergyRefresh(coveringStart: 0)
+        }
+        let stored = (try? await store.hevyWorkoutCount()) ?? 0
+        HevySyncState.recordSuccess(storedWorkouts: stored, skipped: summary.skipped)
+        return (summary, stored)
     }
 
     // MARK: - Disconnect

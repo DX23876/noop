@@ -213,6 +213,12 @@ struct NOOPShortcuts: AppShortcutsProvider {
                     phrases: ["Open my goals in \(.applicationName)", "Show my \(.applicationName) goals"],
                     shortTitle: "Open Goals",
                     systemImageName: "target")
+        // The automatic backup a Shortcuts automation can run (Discord 2026-11-14): the file goes where the
+        // next step saves it.
+        AppShortcut(intent: BackupDataIntent(),
+                    phrases: ["Back up \(.applicationName)", "Back up my \(.applicationName) data"],
+                    shortTitle: "Back Up Data",
+                    systemImageName: "externaldrive.badge.checkmark")
         // K9: "Ask Coach" via Siri — opens Coach with the question and sends it. The question
         // parameter is provided via the Shortcuts app or Siri prompts for it when the phrase fires.
         AppShortcut(intent: AskCoachIntent(),

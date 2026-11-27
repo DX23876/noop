@@ -3775,6 +3775,12 @@
         <item quantity="other">%1$d workouts stored</item>
     </plurals>
     <string name="forge_hevy_last_sync">Last sync: %1$s</string>
+    <string name="forge_hevy_auto_title">Import automatically</string>
+    <string name="forge_hevy_auto_off">Off</string>
+    <string name="forge_hevy_auto_6h">Every 6 h</string>
+    <string name="forge_hevy_auto_12h">Every 12 h</string>
+    <string name="forge_hevy_auto_daily">Daily</string>
+    <string name="forge_hevy_auto_note">New Hevy workouts come in on their own while you have a connection. Android picks the exact moment.</string>
     <string name="forge_hevy_pages">Page %1$d of %2$d</string>
     <string name="forge_hevy_skipped_exercises">%1$d exercises skipped</string>
     <string name="forge_hevy_cached">Could not refresh Hevy. Showing the routines saved on this device.</string>

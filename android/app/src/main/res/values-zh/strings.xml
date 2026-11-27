@@ -3703,6 +3703,12 @@
         <item quantity="other">已保存 %1$d 次训练</item>
     </plurals>
     <string name="forge_hevy_last_sync">上次同步：%1$s</string>
+    <string name="forge_hevy_auto_title">自动导入</string>
+    <string name="forge_hevy_auto_off">关闭</string>
+    <string name="forge_hevy_auto_6h">每 6 小时</string>
+    <string name="forge_hevy_auto_12h">每 12 小时</string>
+    <string name="forge_hevy_auto_daily">每天</string>
+    <string name="forge_hevy_auto_note">连接网络时，新的 Hevy 训练会自动导入。具体时间由 Android 决定。</string>
     <string name="forge_hevy_pages">第 %1$d 页，共 %2$d 页</string>
     <string name="forge_hevy_skipped_exercises">已跳过 %1$d 个动作</string>
     <string name="forge_hevy_cached">无法刷新 Hevy。当前显示保存在此设备上的训练计划。</string>

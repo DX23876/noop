@@ -32,6 +32,7 @@ struct DataSourcesView: View {
     @StateObject private var hevy = HevyConnectModel()
     @State private var hevyKeyDraft = ""
     @State private var confirmHevyForget = false
+    @State private var hevyAutoInterval = HevySyncState.autoInterval
     // Activity-file (GPX / TCX / FIT) import state — same lightweight, self-contained pattern: parse the
     // file, upsert one workout row under the "activity-file" source, and persist optional measured
     // summaries like file steps under that source, refresh. No HR Effort is touched.
@@ -293,6 +294,7 @@ struct DataSourcesView: View {
                     .foregroundStyle(StrandPalette.textTertiary)
             }
             hevySyncDetail
+            hevyAutoImportPicker
             HStack(spacing: NoopMetrics.space3) {
                 Button {
                     Task { await hevy.sync(repo: repo) }
@@ -309,6 +311,31 @@ struct DataSourcesView: View {
                     .disabled(hevy.isBusy)
                 if hevy.isBusy { ProgressView().controlSize(.small) }
             }
+        }
+    }
+
+    /// How often Hevy is asked on its own (`HevyAutoImport`). Off until the wearer picks an interval.
+    private var hevyAutoImportPicker: some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.space1) {
+            Picker(String(localized: "Import automatically"), selection: Binding(
+                get: { hevyAutoInterval },
+                set: { choice in
+                    hevyAutoInterval = choice
+                    HevySyncState.autoInterval = choice
+                    #if os(iOS)
+                    HevyAutoImportBackgroundScheduler.schedule()
+                    #endif
+                    Task { await HevyAutoImportRunner.runIfDue(repo: repo) }
+                })) {
+                Text("Off").tag(HevyAutoImport.Interval.off)
+                Text("Every 6 hours").tag(HevyAutoImport.Interval.sixHours)
+                Text("Every 12 hours").tag(HevyAutoImport.Interval.twelveHours)
+                Text("Daily").tag(HevyAutoImport.Interval.daily)
+            }
+            .disabled(hevy.isBusy)
+            Text("New Hevy workouts come in on their own. In the background the system picks the moment; opening NOOP catches up on anything it skipped.")
+                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

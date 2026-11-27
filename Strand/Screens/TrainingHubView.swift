@@ -2847,18 +2847,32 @@ struct NativeWorkoutLoggerView: View {
                 model.setReps(exerciseIndex: exerciseIndex, setIndex: setIndex, reps: reps)
             }
         } label: {
-            Text(previous.map { TrainingSetText.cell($0, mode: mode, unilateral: unilateral, unit: weightUnit) } ?? "—")
-                .font(StrandFont.caption.monospacedDigit())
-                .foregroundStyle(StrandPalette.textTertiary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-                .frame(minWidth: SetColumns.previous, maxWidth: .infinity, minHeight: 44)
-                .contentShape(Rectangle())
+            VStack(spacing: 0) {
+                Text(previous.map { TrainingSetText.cell($0, mode: mode, unilateral: unilateral, unit: weightUnit) } ?? "—")
+                // Last time's effort under its numbers, on the scale of the effort badge beside it.
+                if let effort = previousEffort(previous) {
+                    Text(verbatim: TrainingSetText.effort(effort))
+                }
+            }
+            .font(StrandFont.caption.monospacedDigit())
+            .foregroundStyle(StrandPalette.textTertiary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+            .frame(minWidth: SetColumns.previous, maxWidth: .infinity, minHeight: 44)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .disabled(previous == nil || set.isCompleted)
         .accessibilityLabel(Text("Last time"))
-        .accessibilityValue(Text(previous.map { previousSetSummary($0, mode: mode, unilateral: unilateral) } ?? "—"))
+        .accessibilityValue(Text(verbatim: [previous.map { previousSetSummary($0, mode: mode, unilateral: unilateral) } ?? "—",
+                                            previousEffort(previous).map(TrainingSetText.effort)]
+            .compactMap { $0 }.joined(separator: ", ")))
+    }
+
+    /// Last time's effort on the scale the wearer reads now (RIR is 10 − RPE), nil when the effort column is off.
+    private func previousEffort(_ previous: TrainingPerformanceHistory.PerformedSet?) -> TrainingEffortRating? {
+        guard effortPreference != .off, let effort = previous?.effort else { return nil }
+        return effort.converted(to: effortPreference == .rir ? .rir : .rpe)
     }
 
     /// Rest, note and progression as one row of small buttons above the sets.

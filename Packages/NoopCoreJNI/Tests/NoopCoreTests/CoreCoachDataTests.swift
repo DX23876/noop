@@ -13,6 +13,38 @@ final class CoreCoachDataTests: XCTestCase {
         .init(profileSex: "female", lastSync: nil, agelessEnabled: false, dismissedWorkoutSpans: [])
     }
 
+    /// The engine outlives a day on Android. A turn started on a later day reads the store again, so the brief
+    /// names the newest day instead of the last one the engine saw at its first question (Discord 2026-11-27:
+    /// a brief on Nov 27 answered from a list ending Nov 23). A read that only shows the transcript does not reload.
+    func testEngineReadsTheNewestDayBeforeATurn() async throws {
+        CoreCoach.resetForTesting()
+        defer { CoreCoach.resetForTesting() }
+        let store = try await WhoopStore.inMemory()
+        let reader = StoreReader(store: store, activeDeviceId: "my-whoop", registeredWhoopIds: [])
+        func day(_ key: String, recovery: Double) -> DailyMetric {
+            DailyMetric(day: key, totalSleepMin: 450, efficiency: 0.9, deepMin: 90, remMin: 100, lightMin: 260,
+                        disturbances: 3, restingHr: 52, avgHrv: 70, recovery: recovery, strain: 30,
+                        exerciseCount: 0, steps: 9_000)
+        }
+        _ = try await store.upsertDailyMetrics([day("2026-11-23", recovery: 84)], deviceId: "my-whoop")
+        let first = WeightSeries.date(forDay: "2026-11-23")!.addingTimeInterval(12 * 3_600)
+        let engine = await CoreCoach.engineForTesting(reader: reader, settings: settings, op: "coach.send", now: first)
+        XCTAssertTrue(engine.buildCompactContext().contains("Latest recorded day: 2026-11-23"))
+
+        // Four days later the strap's own scoring has stored today; the engine is the same object.
+        _ = try await store.upsertDailyMetrics([day("2026-11-27", recovery: 61)], deviceId: "my-whoop-noop")
+        let later = WeightSeries.date(forDay: "2026-11-27")!.addingTimeInterval(12 * 3_600)
+        let shown = await CoreCoach.engineForTesting(reader: reader, settings: settings, op: "coach.state", now: later)
+        XCTAssertTrue(shown === engine)
+        XCTAssertTrue(shown.buildCompactContext().contains("Latest recorded day: 2026-11-23"),
+                      "showing the chat must not re-read")
+
+        let brief = await CoreCoach.engineForTesting(reader: reader, settings: settings, op: "coach.brief", now: later)
+        XCTAssertTrue(brief === engine, "the transcript lives on; only its data is read again")
+        let context = brief.buildCompactContext()
+        XCTAssertTrue(context.contains("Latest recorded day: 2026-11-27"), context)
+    }
+
     /// The coach host reads the same lanes as the goals host, so the two cannot disagree about one fact.
     func testSharedLanesMatchTheGoalsHost() async throws {
         let store = try await WhoopStore.inMemory()

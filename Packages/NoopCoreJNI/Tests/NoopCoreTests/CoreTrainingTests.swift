@@ -231,4 +231,39 @@ final class CoreTrainingTests: XCTestCase {
         let previous = await CoreTraining.previousSets(store: store, reader: reader, dismissedWorkoutSpans: [])
         XCTAssertTrue(previous.isEmpty, "no earlier session, no previous column values")
     }
+
+    /// The previous column carries last time's effort on the scale the wearer reads now (Discord 2026-11-23:
+    /// "70 × 6" without the RIR beside it). An RPE 9.5 set reads RIR 0.5; with the effort column off it is left out.
+    func testThePreviousColumnCarriesLastTimesEffortOnTheChosenScale() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("previous-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let store = try await WhoopStore(path: dir.appendingPathComponent("s.sqlite").path)
+        let reader = StoreReader(store: store, activeDeviceId: "my-whoop", registeredWhoopIds: [])
+        _ = await CoreTraining.startDraft(reader: reader, routineIds: [], dismissedWorkoutSpans: [])
+        let library = try await store.trainingExercises()
+        let weighted = try XCTUnwrap(library.first { $0.mode == .weightReps })
+        let added = await CoreTraining.changeDraft(store: store, args: ["change": "addExercise", "exerciseId": weighted.id])
+        let exercise = try XCTUnwrap(added?.exercises.first)
+        let first = try XCTUnwrap(exercise.sets.first { $0.phase == .work })
+        _ = await CoreTraining.changeDraft(store: store, args: [
+            "change": "set", "exercise": exercise.id.uuidString, "set": first.id.uuidString,
+            "weightKg": 70, "reps": 6, "done": true, "effortScale": "rpe", "effortValue": 9.5])
+        let finished = await CoreTraining.finishDraft(store: store, sessionRPE: nil).workout
+        XCTAssertNotNil(finished)
+
+        _ = await CoreTraining.startDraft(reader: reader, routineIds: [], dismissedWorkoutSpans: [])
+        let again = await CoreTraining.changeDraft(store: store, args: ["change": "addExercise", "exerciseId": weighted.id])
+        let next = try XCTUnwrap(again?.exercises.first?.sets.first { $0.phase == .work })
+        let rir = await CoreTraining.previousSets(store: store, reader: reader, dismissedWorkoutSpans: [], effortScale: "rir")
+        let shown = try XCTUnwrap(rir[next.id.uuidString])
+        XCTAssertEqual(shown.weightKg, 70)
+        XCTAssertEqual(shown.reps, 6)
+        XCTAssertEqual(shown.effortScale, "rir")
+        XCTAssertEqual(shown.effortValue, 0.5)
+        let rpe = await CoreTraining.previousSets(store: store, reader: reader, dismissedWorkoutSpans: [], effortScale: "rpe")
+        XCTAssertEqual(rpe[next.id.uuidString]?.effortValue, 9.5)
+        let off = await CoreTraining.previousSets(store: store, reader: reader, dismissedWorkoutSpans: [], effortScale: "off")
+        XCTAssertNil(off[next.id.uuidString]?.effortScale)
+    }
 }

@@ -64,5 +64,8 @@ struct NOOPShortcuts: AppShortcutsProvider {
         AppShortcut(intent: MarkMomentIntent(),
                     phrases: ["Mark a moment with \(.applicationName)", "Mark a moment in \(.applicationName)"],
                     shortTitle: "Mark a Moment", systemImageName: "mappin.and.ellipse")
+        AppShortcut(intent: BackupDataIntent(),
+                    phrases: ["Back up \(.applicationName)", "Back up my \(.applicationName) data"],
+                    shortTitle: "Back Up Data", systemImageName: "externaldrive.badge.checkmark")
     }
 }

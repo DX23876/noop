@@ -145,18 +145,24 @@ object CoreTraining {
         }.getOrNull()
     }
 
+    /** [effortScale]/[effortValue]: last time's effort, already on the scale the wearer reads (null when none). */
     data class PreviousSet(val weightKg: Double?, val reps: Int?, val leftReps: Int?, val rightReps: Int?,
-                           val durationS: Int?, val distanceM: Double?)
+                           val durationS: Int?, val distanceM: Double?,
+                           val effortScale: String? = null, val effortValue: Double? = null)
 
-    /** The PREVIOUS column: the last session's set with the same number, by draft set id (`CoreTraining.previousSets`). */
-    fun previousSets(dismissedWorkouts: List<String>): Map<String, PreviousSet> =
-        call("training.previousSets", JSONObject().put("dismissedWorkouts", JSONArray(dismissedWorkouts)))?.let { json ->
+    /** The PREVIOUS column: the last session's set with the same number, by draft set id (`CoreTraining.previousSets`),
+     *  with its effort converted to [effortScale] ("rpe", "rir" or "off") by the core. */
+    fun previousSets(dismissedWorkouts: List<String>, effortScale: String): Map<String, PreviousSet> =
+        call("training.previousSets", JSONObject().put("dismissedWorkouts", JSONArray(dismissedWorkouts))
+            .put("effortScale", effortScale))?.let { json ->
             runCatching {
                 val o = JSONObject(json)
                 o.keys().asSequence().associateWith { k ->
                     val p = o.getJSONObject(k)
                     PreviousSet(p.optDoubleOrNull("weightKg"), p.optIntOrNull("reps"), p.optIntOrNull("leftReps"),
-                                p.optIntOrNull("rightReps"), p.optIntOrNull("durationS"), p.optDoubleOrNull("distanceM"))
+                                p.optIntOrNull("rightReps"), p.optIntOrNull("durationS"), p.optDoubleOrNull("distanceM"),
+                                p.optString("effortScale").takeIf { it.isNotEmpty() && !p.isNull("effortScale") },
+                                p.optDoubleOrNull("effortValue"))
                 }
             }.getOrNull()
         } ?: emptyMap()

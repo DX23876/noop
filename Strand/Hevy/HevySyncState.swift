@@ -1,4 +1,5 @@
 import Foundation
+import StrandCore
 
 /// What the last Hevy sync did, kept so the user can see whether their strength data is current.
 ///
@@ -53,17 +54,38 @@ enum HevySyncState {
         // A success clears the previous failure: leaving a stale error under a fresh timestamp reads
         // as "it is still broken", which would be a lie about the current state.
         defaults.removeObject(forKey: lastErrorKey)
+        defaults.removeObject(forKey: autoBlockedKey)
     }
 
     static func recordFailure(_ message: String, _ defaults: UserDefaults = .standard) {
         defaults.set(message, forKey: lastErrorKey)
     }
 
+    // MARK: - Automatic import
+
+    private static let autoBlockedKey = "hevy.autoBlocked"
+
+    /// How often Hevy is asked on its own (`HevyAutoImport`); off until the wearer picks an interval.
+    static var autoInterval: HevyAutoImport.Interval {
+        get { HevyAutoImport.interval(UserDefaults.standard.string(forKey: HevyAutoImport.intervalKey)) }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: HevyAutoImport.intervalKey)
+            UserDefaults.standard.removeObject(forKey: autoBlockedKey)
+        }
+    }
+
+    /// Set when an automatic run met an answer only the wearer can change (a rejected key, no Pro), so the next
+    /// wakes stop asking. Cleared by a new key, a new interval or a run by hand that succeeds.
+    static var autoBlocked: Bool {
+        get { UserDefaults.standard.bool(forKey: autoBlockedKey) }
+        set { UserDefaults.standard.set(newValue, forKey: autoBlockedKey) }
+    }
+
     /// Forget everything this lane remembers. Paired with `WhoopStore.deleteAllHevyData` and a
     /// Keychain clear, so "disconnect and remove" leaves nothing behind.
     static func reset(_ defaults: UserDefaults = .standard) {
         for key in [enabledKey, "hevy.catalogueSyncedAt", lastSuccessKey,
-                    lastErrorKey, storedWorkoutsKey, skippedKey] {
+                    lastErrorKey, storedWorkoutsKey, skippedKey, autoBlockedKey] {
             defaults.removeObject(forKey: key)
         }
     }

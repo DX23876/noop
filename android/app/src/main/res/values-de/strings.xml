@@ -3749,6 +3749,12 @@
         <item quantity="other">%1$d Trainings gespeichert</item>
     </plurals>
     <string name="forge_hevy_last_sync">Letzte Synchronisierung: %1$s</string>
+    <string name="forge_hevy_auto_title">Automatisch importieren</string>
+    <string name="forge_hevy_auto_off">Aus</string>
+    <string name="forge_hevy_auto_6h">Alle 6 Std.</string>
+    <string name="forge_hevy_auto_12h">Alle 12 Std.</string>
+    <string name="forge_hevy_auto_daily">Täglich</string>
+    <string name="forge_hevy_auto_note">Neue Hevy-Trainings kommen von selbst dazu, solange du Internet hast. Den genauen Zeitpunkt wählt Android.</string>
     <string name="forge_hevy_pages">Seite %1$d von %2$d</string>
     <string name="forge_hevy_skipped_exercises">%1$d Übungen übersprungen</string>
     <string name="forge_hevy_cached">Hevy konnte nicht aktualisiert werden. Angezeigt werden die auf diesem Gerät gespeicherten Routinen.</string>

@@ -369,8 +369,15 @@ internal fun LoggerSetRow(number: Int?, set: CoreTraining.DraftSet, columns: Lis
                          else p.reps?.let { reps = it.toString() }
                          commit()
                      }, contentAlignment = Alignment.Center) {
-                Text(text, style = Forge.type.caption.copy(fontFeatureSettings = "tnum"), color = Forge.colors.textTertiary,
-                     textAlign = TextAlign.Center, maxLines = 1)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(text, style = Forge.type.caption.copy(fontFeatureSettings = "tnum"), color = Forge.colors.textTertiary,
+                         textAlign = TextAlign.Center, maxLines = 1)
+                    // Last time's effort under its numbers, on the scale of the badge beside it (iOS `previousCell`).
+                    previous?.let { previousEffortText(it, effortScale) }?.let { effort ->
+                        Text(effort, style = Forge.type.caption.copy(fontFeatureSettings = "tnum"),
+                             color = Forge.colors.textTertiary, textAlign = TextAlign.Center, maxLines = 1)
+                    }
+                }
             }
         }
         columns.forEach { field ->
@@ -446,6 +453,13 @@ private fun previousText(p: CoreTraining.PreviousSet, columns: List<TrainingSetI
     val reps = if (TrainingSetInput.Left in columns) "${p.leftReps ?: p.reps ?: "—"}/${p.rightReps ?: p.reps ?: "—"}"
                else p.reps?.toString() ?: "—"
     return if (TrainingSetInput.Weight in columns && p.weightKg != null) "${decimal(TrainingSetInput.massForInput(p.weightKg, units))} × $reps" else reps
+}
+
+/** "RIR 0,5" / "RPE 9,5" for the previous cell's second line; null when the column is off or last time had none. */
+private fun previousEffortText(p: CoreTraining.PreviousSet, effortScale: String): String? {
+    val value = p.effortValue ?: return null
+    if (effortScale == "off" || p.effortScale != effortScale) return null
+    return (if (effortScale == "rir") "RIR " else "RPE ") + SetEffort.format(value)
 }
 
 /** Full-width "Add exercise" in the accent's tint, as iOS's bordered button. */

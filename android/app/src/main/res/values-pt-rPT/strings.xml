@@ -3728,6 +3728,12 @@
         <item quantity="other">%1$d treinos guardados</item>
     </plurals>
     <string name="forge_hevy_last_sync">Última sincronização: %1$s</string>
+    <string name="forge_hevy_auto_title">Importar automaticamente</string>
+    <string name="forge_hevy_auto_off">Desligado</string>
+    <string name="forge_hevy_auto_6h">A cada 6 h</string>
+    <string name="forge_hevy_auto_12h">A cada 12 h</string>
+    <string name="forge_hevy_auto_daily">Diariamente</string>
+    <string name="forge_hevy_auto_note">Os novos treinos do Hevy chegam sozinhos enquanto tiver ligação. O Android escolhe o momento exato.</string>
     <string name="forge_hevy_pages">Página %1$d de %2$d</string>
     <string name="forge_hevy_skipped_exercises">%1$d exercícios ignorados</string>
     <string name="forge_hevy_cached">Não foi possível atualizar o Hevy. São apresentadas as rotinas guardadas neste dispositivo.</string>

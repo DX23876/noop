@@ -10,19 +10,44 @@ import WhoopStore
 @MainActor
 enum CoreCoach {
     private static var engine: AICoachEngine?
+    private static var engineData: CoreCoachData?
     private static var engineDeviceId: String?
 
-    /// The engine for this store and strap, made on first use. The data host reads its days and recent nights
-    /// once here, as `Repository` has them loaded on Apple.
-    private static func engine(reader: StoreReader, settings: CoreGoals.Settings) async -> AICoachEngine {
-        if let engine, engineDeviceId == reader.activeDeviceId { return engine }
-        let data = CoreCoachData(reader: reader, settings: settings)
+    /// The operations whose answer reads the wearer's days: every turn the coach starts or is asked for, and the
+    /// reads that weigh a plan or a meal against them. Each of these reads the store again first (`engine`).
+    static let freshDataOps: Set<String> = [
+        "coach.send", "coach.sendPhoto", "coach.brief", "coach.regenerate", "coach.deeper", "coach.card",
+        "coach.morning", "coach.morning.set", "coach.morning.confirmWake", "coach.morning.decide",
+        "coach.plan.compare", "coach.foodEnrich", "coach.foodCart",
+    ]
+
+    /// The engine for this store and strap, made on first use and kept for the process, so the transcript and a
+    /// running reply survive between calls. Its data does not: on Apple `Repository` keeps its days current as
+    /// data lands, and the one stand-in for that here is to read the store again before an operation that
+    /// answers from it (`freshDataOps`), never while a reply is still streaming from the days it began with.
+    private static func engine(reader: StoreReader, settings: CoreGoals.Settings,
+                               fresh: Bool = false, now: Date = Date()) async -> AICoachEngine {
+        if let engine, let engineData, engineDeviceId == reader.activeDeviceId {
+            if fresh, !engine.sending { await engineData.reload(settings: settings, now: now) }
+            return engine
+        }
+        let data = CoreCoachData(reader: reader, settings: settings, now: now)
         await data.load()
         let made = AICoachEngine(repo: data, memory: coachMemoryIndex())
         engine = made
+        engineData = data
         engineDeviceId = reader.activeDeviceId
         return made
     }
+
+    /// Test seam: the engine as an operation would get it, so a test can show it answers from the newest day.
+    static func engineForTesting(reader: StoreReader, settings: CoreGoals.Settings, op: String,
+                                 now: Date) async -> AICoachEngine {
+        await engine(reader: reader, settings: settings, fresh: freshDataOps.contains(op), now: now)
+    }
+
+    /// Test seam: forget the process's engine, as a fresh process would start.
+    static func resetForTesting() { engine = nil; engineData = nil; engineDeviceId = nil }
 
     static func run(_ op: String, args: [String: Any], reader: StoreReader) async -> String {
         await perform(op, args: args, reader: reader)
@@ -31,7 +56,7 @@ enum CoreCoach {
     private static func perform(_ op: String, args: [String: Any], reader: StoreReader) async -> String {
         // The swap sheet's comparison reads the wearer's own history through the engine (`planInputs`).
         if op == "coach.plan.compare" {
-            let coach = await engine(reader: reader, settings: CoreGoalEnergy.settings(args))
+            let coach = await engine(reader: reader, settings: CoreGoalEnergy.settings(args), fresh: true)
             return CoreRead.json(await CorePlan.compare(coach, args: args))
         }
         // The plan book needs no engine: it is the shared store the coach's tools write into.
@@ -39,7 +64,7 @@ enum CoreCoach {
         // The daily check-in needs no engine either: the learned wake time and its words.
         if op == "coach.today" { return CoreRead.json(await TodayCoachCard(reader: reader)) }
         if op == "coach.checkin" { return CoreRead.json(await CheckInState(reader: reader, fixedMinutes: args["fixedMinutes"] as? Int ?? 480)) }
-        let coach = await engine(reader: reader, settings: CoreGoalEnergy.settings(args))
+        let coach = await engine(reader: reader, settings: CoreGoalEnergy.settings(args), fresh: freshDataOps.contains(op))
         if op == "coach.foodEnrich" {
             // Missing vitamins and minerals borrowed from the closest BLS food (`CoachFoodEstimate`).
             let items = ((args["items"] as? [[String: Any]]) ?? []).compactMap { value -> FoodItem? in

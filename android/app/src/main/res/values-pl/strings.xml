@@ -3758,6 +3758,12 @@
         <item quantity="other">Zapisano %1$d treningów</item>
     </plurals>
     <string name="forge_hevy_last_sync">Ostatnia synchronizacja: %1$s</string>
+    <string name="forge_hevy_auto_title">Importuj automatycznie</string>
+    <string name="forge_hevy_auto_off">Wył.</string>
+    <string name="forge_hevy_auto_6h">Co 6 godz.</string>
+    <string name="forge_hevy_auto_12h">Co 12 godz.</string>
+    <string name="forge_hevy_auto_daily">Codziennie</string>
+    <string name="forge_hevy_auto_note">Nowe treningi z Hevy pojawiają się same, gdy masz połączenie. Dokładny moment wybiera Android.</string>
     <string name="forge_hevy_pages">Strona %1$d z %2$d</string>
     <string name="forge_hevy_skipped_exercises">Pominięto %1$d ćwiczeń</string>
     <string name="forge_hevy_cached">Nie można odświeżyć Hevy. Pokazano plany zapisane na tym urządzeniu.</string>

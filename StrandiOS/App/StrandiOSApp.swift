@@ -186,6 +186,12 @@ struct StrandiOSApp: App {
             await model?.checkStrapNotSeen()
         })
         StaleBatteryBackgroundScheduler.schedule()
+        // The automatic Hevy import's wake. Submitted only while the wearer chose an interval and a key is stored.
+        HevyAutoImportBackgroundScheduler.register(perform: { [weak model] in
+            guard let model else { return }
+            await HevyAutoImportRunner.runIfDue(repo: model.repo)
+        })
+        HevyAutoImportBackgroundScheduler.schedule()
         let bridge = HealthKitBridge(
             repo: model.repo,
             appleDeviceId: model.appleDeviceId,
@@ -541,6 +547,12 @@ struct StrandiOSApp: App {
                     if let stored = CoachBriefScheduler.consumeStoredBrief() {
                         model.coach.surfaceScheduledBrief(stored)
                     }
+                }
+                // The automatic Hevy import: background refresh is the system's to grant, so the foreground
+                // catches up on a due run and re-arms the next wake. A no-op while the import is off.
+                Task { @MainActor in
+                    await HevyAutoImportRunner.runIfDue(repo: model.repo)
+                    HevyAutoImportBackgroundScheduler.schedule()
                 }
                 // Only the foreground may start the live heart rate banner: offer it now.
                 liveActivity.appBecameActive()

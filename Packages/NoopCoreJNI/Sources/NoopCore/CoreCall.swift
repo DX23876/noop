@@ -348,6 +348,16 @@ public enum CoreCall {
             do { try await CoreHevyClient(key: string("key")).verify(); return ok(true) }
             catch let error as HevyImportError { return CoreRead.json(["error": error.rawValue]) }
             catch { return #"{"error":"network"}"# }
+        case "hevy.autoImport":
+            // Whether the automatic import is due (`HevyAutoImport`): Kotlin's worker wakes on the chosen period and
+            // asks, so a pull by hand a moment earlier is not repeated. Pure policy, answered without the store.
+            struct AutoImport: Encodable { let interval: String; let seconds: Int?; let due: Bool; let nextDue: Int? }
+            let interval = HevyAutoImport.interval(args["interval"] as? String)
+            let now = int("now", Int(Date().timeIntervalSince1970))
+            let last = ((args["lastRun"] as? NSNumber)?.intValue).flatMap { $0 > 0 ? $0 : nil }
+            return CoreRead.json(AutoImport(interval: interval.rawValue, seconds: interval.seconds,
+                                            due: HevyAutoImport.isDue(lastRun: last, now: now, interval: interval),
+                                            nextDue: HevyAutoImport.nextDue(lastRun: last, now: now, interval: interval)))
         case "hevy.syncStatus": return CoreRead.json(await CoreHevy.shared.read())
         case "hevy.cancelSync": return CoreRead.json(await CoreHevy.shared.cancel(id: string("id")))
         case "hevy.stopSync":
@@ -957,7 +967,8 @@ public enum CoreCall {
                                                                dismissedWorkoutSpans: dismissed))
         case "training.previousSets":
             return CoreRead.json(await CoreTraining.previousSets(store: store, reader: reader,
-                                                                 dismissedWorkoutSpans: args["dismissedWorkouts"] as? [String] ?? []))
+                                                                 dismissedWorkoutSpans: args["dismissedWorkouts"] as? [String] ?? [],
+                                                                 effortScale: args["effortScale"] as? String ?? "off"))
         case "training.draftFigures":
             return CoreRead.json(await CoreTraining.draftFigures(store: store))
         case "training.strapStep":

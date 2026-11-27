@@ -14,9 +14,9 @@ import WhoopStore
 /// Call `load()` before handing it to the coach: `days`, `sleeps` and the readiness context are read once.
 @MainActor
 final class CoreCoachData: CoachDataReading {
-    private let goals: CoreGoals.Host
-    private let settings: CoreGoals.Settings
-    private let now: Date
+    private var goals: CoreGoals.Host
+    private var settings: CoreGoals.Settings
+    private var now: Date
     private var reader: StoreReader { goals.reader }
 
     private(set) var days: [DailyMetric] = []
@@ -33,6 +33,17 @@ final class CoreCoachData: CoachDataReading {
         self.goals = CoreGoals.Host(reader: reader, settings: settings, motivationEnabled: false, now: now)
         self.settings = settings
         self.now = now
+    }
+
+    /// Reads everything again as of `now`, with the settings Kotlin handed in for this call. The engine lives as
+    /// long as the process, which on Android runs for days beside the strap service; without this the coach kept
+    /// the days it read at its first question and answered a brief on Nov 27 from a list ending Nov 23. The goal
+    /// host caches its merged days, so a fresh one is made rather than the old one asked again.
+    func reload(settings: CoreGoals.Settings, now: Date = Date()) async {
+        self.settings = settings
+        self.now = now
+        goals = CoreGoals.Host(reader: reader, settings: settings, motivationEnabled: false, now: now)
+        await load()
     }
 
     /// Reads the merged daily rows and the last fortnight's sleep, which the protocol exposes synchronously.
@@ -83,7 +94,7 @@ final class CoreCoachData: CoachDataReading {
     var strainProfileSex: String { settings.profileSex }
 
     func storeHandle() async -> WhoopStore? { reader.store }
-    func refresh(days nDays: Int) async { await load() }
+    func refresh(days nDays: Int) async { await reload(settings: settings) }
 
     func workoutRows(days: Int, reconcileHrCap: Int?) async -> [WorkoutRow] { await goals.goalWorkoutRows(days: days) }
     func workoutZoneMinutes(from: Int, to: Int, zoneSet: HRZoneSet, source: String) async -> [Double]? {

@@ -152,6 +152,13 @@ public struct TrainingEffortRating: Codable, Equatable, Sendable {
         let rir = scale == .rir ? value : 10 - value
         return min(1, max(0, 1 - rir / 5))
     }
+
+    /// The same effort on the other scale, as the reading the wearer chose shows it: RIR is 10 − RPE, so an RPE
+    /// 9.5 set reads as RIR 0.5 and back. Nil where the other scale has no such value (RPE 10 is RIR 0, but
+    /// RIR 10 would be RPE 0, below RPE's floor of 1).
+    public func converted(to target: TrainingEffortScale) -> TrainingEffortRating? {
+        target == scale ? self : TrainingEffortRating(scale: target, value: 10 - value)
+    }
 }
 
 public enum TrainingContentSource: String, Codable, CaseIterable, Sendable {
