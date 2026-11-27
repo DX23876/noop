@@ -21,6 +21,54 @@ final class WhoopEnergyModelTests: XCTestCase {
         XCTAssertEqual(value.coverageFraction, 0.25, accuracy: 0.001)
     }
 
+    // MARK: - Everyday allowance (v10)
+
+    /// Awake still time costs 1.3 times lying basal, sleep and the usual sleep window stay at basal, a
+    /// heart-rate workout carries none on top of its own price, and a walk's still seconds take it.
+    func testAwakeStillTimeEarnsTheEverydayAllowanceAndNothingElseDoes() throws {
+        let basal = try XCTUnwrap(Calories.bmrKcalPerDay(profile: profile)) / 86_400 * 300
+        let share = (WhoopEnergyModel.awakeStillFactor - 1) * basal
+        let rows = [
+            WhoopEnergyBucket(start: 0, averageHR: 70, hasMovementCoverage: true),
+            WhoopEnergyBucket(start: 300, averageHR: 58, isSleep: true),
+            WhoopEnergyBucket(start: 600, averageHR: 60, hasMovementCoverage: true, inUsualSleepWindow: true),
+            WhoopEnergyBucket(start: 900, averageHR: 140, isWorkout: true),
+            WhoopEnergyBucket(start: 1_200, steps: 120, hasMovementCoverage: true, movementSeconds: 100),
+            WhoopEnergyBucket(start: 1_500, isOffWrist: true),
+            WhoopEnergyBucket(start: 1_800, isOffWrist: true, inUsualSleepWindow: true),
+            WhoopEnergyBucket(start: 2_100),
+        ]
+        let value = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: rows, profile: profile, restingHR: 55, maxHR: 185, peakMET: 14))
+        let everyday = value.buckets.map(\.everydayKcal)
+        XCTAssertEqual(everyday[0], share, accuracy: 1e-9, "awake and still")
+        XCTAssertEqual(everyday[1], 0, "asleep")
+        XCTAssertEqual(everyday[2], 0, "still inside the usual sleep window")
+        XCTAssertEqual(everyday[3], 0, "a heart-rate workout is priced whole")
+        XCTAssertEqual(everyday[4], share * 200 / 300, accuracy: 1e-9, "a walk's still seconds")
+        XCTAssertEqual(everyday[5], share, accuracy: 1e-9, "strap off during the day")
+        XCTAssertEqual(everyday[6], 0, "strap off at night")
+        XCTAssertEqual(everyday[7], share, accuracy: 1e-9, "no data during the day")
+        XCTAssertEqual(value.everydayKcal, everyday.reduce(0, +), accuracy: 1e-9)
+        for bucket in value.buckets {
+            XCTAssertEqual(bucket.kcal, basal + bucket.activeKcal + bucket.everydayKcal, accuracy: 1e-9)
+        }
+    }
+
+    /// The allowance follows the wearer's own basal rate, not their weight: a heavy and a light body earn
+    /// the same share of their own basal.
+    func testTheAllowanceIsTheSameShareOfBasalForEveryBody() throws {
+        let heavy = UserProfile(weightKg: 200, heightCm: 196, age: 35, sex: "male")
+        let light = UserProfile(weightKg: 55, heightCm: 165, age: 60, sex: "female")
+        for body in [heavy, light, profile] {
+            let value = try XCTUnwrap(WhoopEnergyModel.estimate(
+                buckets: [WhoopEnergyBucket(start: 0, averageHR: 70, hasMovementCoverage: true)],
+                profile: body, restingHR: 55, maxHR: 185, peakMET: 10))
+            let basal = try XCTUnwrap(Calories.bmrKcalPerDay(profile: body)) / 86_400 * 300
+            XCTAssertEqual(value.everydayKcal / basal, WhoopEnergyModel.awakeStillFactor - 1, accuracy: 1e-9)
+        }
+    }
+
     func testSleepAndOffWristNeverUseElevatedHR() throws {
         let sleeping = WhoopEnergyBucket(start: 0, averageHR: 180, isSleep: true)
         let ordinary = WhoopEnergyBucket(start: 300, averageHR: 180, isWorkout: true)
@@ -205,8 +253,10 @@ final class WhoopEnergyModelTests: XCTestCase {
         let value = try XCTUnwrap(WhoopEnergyModel.estimate(
             buckets: [resting], profile: profile, restingHR: 55, maxHR: 185, peakMET: 14))
         let basal = try XCTUnwrap(Calories.bmrKcalPerDay(profile: profile)) / 86_400 * 300
-        // At 2% reserve the HR curve gives ~1.05 MET; the 1.5-MET movement floor must not apply.
-        XCTAssertEqual(value.totalKcal - basal, 0, accuracy: 1.0)
+        // At 2% reserve the HR curve gives ~1.05 MET; the 1.5-MET movement floor must not apply. The
+        // bucket is awake and still, so beyond basal it carries the everyday allowance and nothing else.
+        XCTAssertEqual(value.totalKcal - value.everydayKcal - basal, 0, accuracy: 1.0)
+        XCTAssertEqual(value.buckets[0].activeKcal, 0, accuracy: 0.001)
     }
 
     func testElevatedHeartRateWithoutActivityContextAddsNoActiveEnergy() throws {
@@ -237,7 +287,17 @@ final class WhoopEnergyModelTests: XCTestCase {
             * 10 / 24
 
         XCTAssertEqual(value.buckets.reduce(0.0) { $0 + $1.activeKcal }, 0, accuracy: 0.001)
-        XCTAssertEqual(value.totalKcal, expectedBasal, accuracy: 0.001)
+        // Awake and still: the everyday allowance on the wearer's own basal, never a weight-scaled MET.
+        XCTAssertEqual(value.totalKcal, expectedBasal * WhoopEnergyModel.awakeStillFactor, accuracy: 0.001)
+
+        // The same ten hours inside the usual sleep window stay at basal.
+        let atNight = tenHours.map {
+            WhoopEnergyBucket(start: $0.start, averageHR: 120, activityClass: 0, hasMovementCoverage: true,
+                              movementSeconds: 0, inUsualSleepWindow: true)
+        }
+        let night = try XCTUnwrap(WhoopEnergyModel.estimate(
+            buckets: atNight, profile: heavyProfile, restingHR: 55, maxHR: 185, flexHR: 75, peakMET: 14))
+        XCTAssertEqual(night.totalKcal, expectedBasal, accuracy: 0.001)
     }
 
     func testShortMovementDoesNotChargeTheWholeFiveMinuteBucket() throws {
@@ -291,7 +351,7 @@ final class WhoopEnergyModelTests: XCTestCase {
     /// to this exact string, so a silent revert would resurrect pre-movement-corroboration (v1) rows
     /// into a chart that should only ever show one model generation at a time.
     func testModelVersionIsTheContextFirstGeneration() {
-        XCTAssertEqual(WhoopDailyEnergyEstimate.modelVersion, "whoop-bucket-v9")
+        XCTAssertEqual(WhoopDailyEnergyEstimate.modelVersion, "whoop-bucket-v10")
     }
 
     /// MET of one confirmed-workout bucket, read back out of its active energy.

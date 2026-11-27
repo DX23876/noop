@@ -44,6 +44,62 @@ final class WhoopDailyEnergyStoreTests: XCTestCase {
         XCTAssertEqual(reread, [estimated])
     }
 
+    /// v93: the everyday allowance and the sleep window it was resolved against survive a round trip on
+    /// the day and on its buckets, a change to the allowance alone is a change, and an older row reads zero.
+    func testEverydayColumnsRoundTripAndCountAsChanges() async throws {
+        let store = try await WhoopStore.inMemory()
+        let daily = WhoopDailyEnergyRow(
+            day: "2026-11-21", rawTotalKcal: 4_450, modelVersion: "whoop-bucket-v10",
+            observedSeconds: 60_000, inferredSeconds: 10_000, modeledSeconds: 16_400,
+            uncertaintyFraction: 0.2, weightKg: 200.2, weightSource: .history,
+            everydayKcal: 537, sleepWindowStartMinute: 1_410, sleepWindowEndMinute: 420)
+        let bucket = WhoopEnergyBucketRow(
+            day: daily.day, bucketStart: 1_795_300_000, durationSeconds: 300,
+            basalKcal: 10.6, activeKcal: 0, context: "sedentary", evidence: "physiological",
+            uncertaintyFraction: 0.35, everydayKcal: 3.2)
+        try await store.replaceWhoopEnergyWindow(
+            [.init(daily: daily, activeKcalByHour: [:], buckets: [bucket])], deviceId: "w")
+        let storedDaily = try await store.whoopDailyEnergy(deviceId: "w", from: daily.day, to: daily.day)
+        let storedBuckets = try await store.whoopEnergyBuckets(deviceId: "w", day: daily.day)
+        XCTAssertEqual(storedDaily, [daily])
+        XCTAssertEqual(storedBuckets, [bucket])
+
+        let more = WhoopDailyEnergyRow(
+            day: daily.day, rawTotalKcal: daily.rawTotalKcal, modelVersion: daily.modelVersion,
+            observedSeconds: daily.observedSeconds, inferredSeconds: daily.inferredSeconds,
+            modeledSeconds: daily.modeledSeconds, uncertaintyFraction: daily.uncertaintyFraction,
+            weightKg: daily.weightKg, weightSource: daily.weightSource, everydayKcal: 540,
+            sleepWindowStartMinute: 1_410, sleepWindowEndMinute: 420)
+        let changed = try await store.upsertWhoopDailyEnergy([more], deviceId: "w")
+        XCTAssertEqual(changed, 1)
+
+        let older = WhoopDailyEnergyRow(
+            day: "2026-11-01", rawTotalKcal: 3_900, modelVersion: "whoop-bucket-v9",
+            observedSeconds: 1, inferredSeconds: 2, modeledSeconds: 3,
+            uncertaintyFraction: 0.2, weightKg: 208.7, weightSource: .history)
+        _ = try await store.upsertWhoopDailyEnergy([older], deviceId: "w")
+        let olderRows = try await store.whoopDailyEnergy(deviceId: "w", from: older.day, to: older.day)
+        let reread = try XCTUnwrap(olderRows.first)
+        XCTAssertEqual(reread.everydayKcal, 0)
+        XCTAssertNil(reread.sleepWindowStartMinute)
+    }
+
+    /// An allowance larger than the day it is part of, or a window minute outside a day, is refused.
+    func testImplausibleEverydayValuesAreRefused() async throws {
+        let store = try await WhoopStore.inMemory()
+        let tooMuch = WhoopDailyEnergyRow(
+            day: "2026-11-21", rawTotalKcal: 400, modelVersion: "whoop-bucket-v10",
+            observedSeconds: 1, inferredSeconds: 2, modeledSeconds: 3,
+            uncertaintyFraction: 0.2, weightKg: 80, weightSource: .history, everydayKcal: 500)
+        let badMinute = WhoopDailyEnergyRow(
+            day: "2026-11-22", rawTotalKcal: 2_400, modelVersion: "whoop-bucket-v10",
+            observedSeconds: 1, inferredSeconds: 2, modeledSeconds: 3,
+            uncertaintyFraction: 0.2, weightKg: 80, weightSource: .history, everydayKcal: 200,
+            sleepWindowStartMinute: 1_440, sleepWindowEndMinute: 420)
+        let written = try await store.upsertWhoopDailyEnergy([tooMuch, badMinute], deviceId: "w")
+        XCTAssertEqual(written, 0)
+    }
+
     /// A row written before v71 reads back with neutral evidence and no ceiling.
     func testAPreFitnessRowReadsNeutralDefaults() async throws {
         let store = try await WhoopStore.inMemory()

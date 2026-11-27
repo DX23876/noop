@@ -78,6 +78,18 @@ public enum EnergySummaryPreparation {
             // Priced with THIS day's body mass and resting heart rate: both belong to the day rather
             // than to today, the same reason the weight above is resolved causally. The engine reads
             // them only on a day nothing measured, so the decision stays in one place.
+            // Today only: the allowance the awake hours left (outside the usual sleep window the model
+            // resolved for today) are still expected to bring, for the forecast.
+            var everydayRemaining: Double?
+            if day == todayKey, let derived, let start = derived.sleepWindowStartMinute,
+               let end = derived.sleepWindowEndMinute, let bmr = Calories.bmrKcalPerDay(profile: dayProfile),
+               let dayStart = WeightSeries.date(forDay: day),
+               let dayEnd = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: dayStart)) {
+                let awake = UsualSleepWindow(startMinute: start, endMinute: end).awakeSeconds(
+                    from: Int(now.timeIntervalSince1970), to: Int(dayEnd.timeIntervalSince1970), calendar: calendar)
+                everydayRemaining = WhoopEnergyModel.everydayKcal(basalPerSecond: bmr / 86_400,
+                                                                  seconds: Double(awake))
+            }
             let sessions = (sessionsByDay[day] ?? []).compactMap {
                 activityContribution($0, profile: dayProfile, hrMax: hrMax,
                                           restingHR: strap?.restingHr.map(Double.init),
@@ -92,6 +104,8 @@ public enum EnergySummaryPreparation {
                 strapCoverageSeconds: strapEnergy?.seconds,
                 // Only for a current-generation day: its hourly rows and its buckets are one pass.
                 strapActiveKcal: derived.map { _ in strapActiveByDay[day] ?? 0 },
+                strapEverydayKcal: derived?.everydayKcal,
+                strapEverydayRemainingKcal: everydayRemaining,
                 strapCalibrationFactor: calibrationFactor,
                 strapUncertaintyFraction: derived?.uncertaintyFraction,
                 calibrationStatus: source.calibrationStatus,

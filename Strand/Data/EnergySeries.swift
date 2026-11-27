@@ -10,7 +10,9 @@ struct EnergyTimelinePoint: Identifiable, Equatable, Sendable {
     let timestamp: Date
     let basalKcal: Double
     let activeKcal: Double
-    var totalKcal: Double { basalKcal + activeKcal }
+    /// Awake still time above lying basal (`WhoopEnergyModel.awakeStillFactor`), cumulative.
+    var everydayKcal: Double = 0
+    var totalKcal: Double { basalKcal + everydayKcal + activeKcal }
     var id: Date { timestamp }
 }
 
@@ -222,20 +224,30 @@ extension Repository {
         guard !rows.isEmpty else { return [] }
         let calibration = await energyCalibrationState(store: store)
         let activeFactor = calibration.status == .active ? (calibration.factor ?? 1) : 1
+        // The day's everyday share as the headline total carries it: the buckets' own share plus the awake
+        // time no bucket represented. The buckets' running share is scaled up to it, so the curve ends on
+        // the same figure the day's total shows instead of a second, smaller one.
+        let counted = rows.filter { $0.bucketStart < Int(now.timeIntervalSince1970) }
+        let bucketEveryday = counted.reduce(0) { $0 + $1.everydayKcal }
+        let dayEveryday = (try? await store.whoopDailyEnergy(deviceId: deviceId, from: day, to: day))?
+            .first { $0.modelVersion == WhoopDailyEnergyEstimate.modelVersion }?.everydayKcal
+        let everydayScale = bucketEveryday > 0 ? max(1, (dayEveryday ?? bucketEveryday) / bucketEveryday) : 1
         var active = 0.0
+        var everyday = 0.0
         var points = [EnergyTimelinePoint(timestamp: start, basalKcal: 0, activeKcal: 0)]
-        for row in rows where row.bucketStart < Int(now.timeIntervalSince1970) {
+        for row in counted {
             active += row.activeKcal * activeFactor
+            everyday += row.everydayKcal * everydayScale
             let bucketEnd = min(now, Date(timeIntervalSince1970:
                 TimeInterval(row.bucketStart + row.durationSeconds)))
             let elapsed = min(duration, max(0, bucketEnd.timeIntervalSince(start)))
             points.append(.init(timestamp: bucketEnd, basalKcal: bmr * elapsed / duration,
-                                activeKcal: active))
+                                activeKcal: active, everydayKcal: everyday))
         }
         let elapsed = min(duration, max(0, now.timeIntervalSince(start)))
         if points.last?.timestamp != now {
             points.append(.init(timestamp: now, basalKcal: bmr * elapsed / duration,
-                                activeKcal: active))
+                                activeKcal: active, everydayKcal: everyday))
         }
         return points
     }

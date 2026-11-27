@@ -583,6 +583,50 @@ final class EnergyEngineTests: XCTestCase {
         XCTAssertEqual(summary.basalBurnedSoFar ?? 0, bmr, accuracy: 1e-6)
     }
 
+    /// v10: the everyday allowance joins the total as its own share. The Watch factor, fitted on active
+    /// energy, never touches it, and the active figure stays what the buckets priced.
+    func testTheEverydayShareJoinsTheTotalButNeverTheActiveFigureOrTheCalibration() {
+        let inputs = EnergyEngine.DayInputs(day: "2026-11-21", strapTotalKcal: 3_200,
+                                            strapCoverageSeconds: 86_400, strapActiveKcal: 540,
+                                            strapEverydayKcal: 420, strapCalibrationFactor: 1.1,
+                                            calibrationStatus: .active)
+        let summary = EnergyEngine.summarize(inputs, profile: profile, context: context())
+        XCTAssertEqual(summary.everydayBurnedSoFar ?? 0, 420, accuracy: 1e-9)
+        XCTAssertEqual(summary.activeBurnedSoFar ?? 0, 540 * 1.1, accuracy: 1e-9)
+        XCTAssertEqual(summary.totalBurnedSoFar ?? 0, bmr + 420 + 540 * 1.1, accuracy: 1e-6)
+
+        // Without a stored active figure, the everyday share is taken out of the strap total first, so it
+        // is not counted again as activity.
+        let legacy = EnergyEngine.DayInputs(day: "2026-11-21", strapTotalKcal: bmr + 420 + 300,
+                                            strapCoverageSeconds: 86_400, strapEverydayKcal: 420)
+        let fallback = EnergyEngine.summarize(legacy, profile: profile, context: context())
+        XCTAssertEqual(fallback.activeBurnedSoFar ?? 0, 300, accuracy: 1e-6)
+        XCTAssertEqual(fallback.totalBurnedSoFar ?? 0, bmr + 420 + 300, accuracy: 1e-6)
+    }
+
+    /// An Apple day has no everyday share to show: Apple's own model decides its split (Q19).
+    func testAnAppleDayCarriesNoEverydayShare() {
+        let summary = EnergyEngine.summarize(inputs(appleActive: 600, appleBasal: 1_800), profile: profile)
+        XCTAssertNil(summary.everydayBurnedSoFar)
+        XCTAssertEqual(summary.totalBurnedSoFar, 2_400)
+    }
+
+    /// Today's forecast adds the allowance the awake hours left are still expected to bring.
+    func testTodaysForecastAddsTheRemainingEverydayAllowance() throws {
+        let shape = self.shape(peakHours: [8, 12, 18])
+        func projected(remaining: Double?) -> Double? {
+            let inputs = EnergyEngine.DayInputs(day: "2026-11-27", strapTotalKcal: 1_400,
+                                                strapCoverageSeconds: 43_200, strapActiveKcal: 300,
+                                                strapEverydayKcal: 150, strapEverydayRemainingKcal: remaining)
+            return EnergyEngine.summarize(inputs, profile: profile,
+                                          context: context(elapsed: 0.5, today: true), shape: shape)
+                .projectedTotalBurn
+        }
+        let without = try XCTUnwrap(projected(remaining: nil))
+        let with = try XCTUnwrap(projected(remaining: 200))
+        XCTAssertEqual(with - without, 200, accuracy: 1e-6)
+    }
+
     func testMalformedInputsAreRejected() {
         let summary = EnergyEngine.summarize(
             inputs(appleActive: .infinity, appleBasal: -1, strap: .nan,

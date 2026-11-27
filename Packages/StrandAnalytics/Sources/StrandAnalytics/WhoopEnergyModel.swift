@@ -107,6 +107,10 @@ public struct WhoopEnergyBucket: Equatable, Sendable {
     public let workoutTableMET: Double?
     public let isSleep: Bool
     public let isOffWrist: Bool
+    /// The bucket lies in the wearer's usual sleep window (`UsualSleepWindow`). Still time there earns no
+    /// everyday allowance even when no sleep was detected: a night without the strap, or one the stager
+    /// missed, is far more likely sleep than sitting up.
+    public let inUsualSleepWindow: Bool
 
     public init(start: Int, durationSeconds: Int = 300, hrCoverageSeconds: Int? = nil,
                 averageHR: Double? = nil,
@@ -115,7 +119,7 @@ public struct WhoopEnergyBucket: Equatable, Sendable {
                 workoutKind: EnergyWorkoutKind = .other, workoutOnFoot: Bool = false,
                 workoutTableMET: Double? = nil, isSleep: Bool = false,
                 isOffWrist: Bool = false, hasMovementCoverage: Bool = false,
-                movementSeconds: Int? = nil) {
+                movementSeconds: Int? = nil, inUsualSleepWindow: Bool = false) {
         self.start = start
         self.durationSeconds = durationSeconds
         self.hrCoverageSeconds = min(durationSeconds, max(0, hrCoverageSeconds
@@ -134,19 +138,32 @@ public struct WhoopEnergyBucket: Equatable, Sendable {
         self.workoutTableMET = workoutTableMET
         self.isSleep = isSleep
         self.isOffWrist = isOffWrist
+        self.inUsualSleepWindow = inUsualSleepWindow
     }
 }
 
 public struct WhoopEnergyBucketResult: Equatable, Sendable {
     public let start: Int
+    /// Basal, everyday and active energy together.
     public let kcal: Double
     public let activeKcal: Double
+    /// Awake still time above lying basal (`WhoopEnergyModel.awakeStillFactor`). Kept apart from active
+    /// energy: the Apple Watch reference counts sitting as hardly active, so a calibration fitted on
+    /// active energy must never see it.
+    public let everydayKcal: Double
     public let evidence: EnergyEvidence
     public let context: EnergyContext
     public let uncertaintyFraction: Double
 }
 
 public struct WhoopDailyEnergyEstimate: Equatable, Sendable {
+    /// v10 (2026-11-27): awake still time costs `WhoopEnergyModel.awakeStillFactor` (1.35) times lying
+    /// basal instead of basal alone (Mansoubi 2015: sitting 1.33 to 1.45, standing 1.59 times measured
+    /// resting rate), kept as its own everyday share; sleep and still time in the usual sleep window stay at basal.
+    /// The days are also priced at the per-day weight trend (`CausalWeightResolver.dayDecay`). At v9 the
+    /// owner's days came to 1.25 times basal, below the 1.40 to 1.69 that doubly-labelled-water studies
+    /// find for sedentary lives (`backlog/research/energy-awake-time-2026-11-27.md`).
+    ///
     /// v9 (2026-09-30): an Apple Watch VO₂max reading stands for 183 days instead of 30
     /// (`PeakMETResolver.appleFreshnessDays`), so a rarely worn Watch keeps pricing workouts from the
     /// wearer's own measurement instead of Jurca's estimate. Bumped because stored days after a reading
@@ -180,9 +197,12 @@ public struct WhoopDailyEnergyEstimate: Equatable, Sendable {
     /// v5 (2026-08-29): heart rate without independently confirmed movement or a workout contributes
     /// no active energy. Locomotion is charged only for its observed movement seconds rather than the
     /// entire five-minute bucket. Bumped so every v4 physiological allowance is recomputed away.
-    public static let modelVersion = "whoop-bucket-v9"
+    public static let modelVersion = "whoop-bucket-v10"
 
+    /// Basal, everyday and active energy of the represented buckets together.
     public let totalKcal: Double
+    /// The everyday share inside `totalKcal`.
+    public let everydayKcal: Double
     public let observedSeconds: Int
     public let inferredSeconds: Int
     public let modeledSeconds: Int
@@ -216,6 +236,21 @@ public struct WhoopDailyEnergyEstimate: Equatable, Sendable {
 /// reference/calibration stream and cannot silently replace or be added to the strap estimate.
 public enum WhoopEnergyModel {
     public static let defaultBucketSeconds = 300
+
+    /// What awake still time costs, as a multiple of lying basal (owner decisions 2026-11-27, Q6 and the
+    /// persona gate). Sitting measured 1.33 to 1.45 and standing 1.59 times the measured resting rate
+    /// (Mansoubi 2015); the strap cannot tell sitting from standing or lying awake, so one value at the low
+    /// edge of sitting. 1.3 was decided first and left the thin office worker and the 8,000-step day below
+    /// the doubly-labelled-water range in `EnergyPersonaTests`; 1.35 is the smallest value that passes all six
+    /// people without counting a day in bed as sitting up. Relative to the wearer's own basal rate rather than
+    /// to weight: a weight-based MET overstates a heavy body at rest (Byrne 2005), which is how v4's half-MET
+    /// allowance invented hundreds of kcal in bed.
+    public static let awakeStillFactor = 1.35
+
+    /// The everyday allowance for `seconds` of awake still time at `basalPerSecond`.
+    public static func everydayKcal(basalPerSecond: Double, seconds: Double) -> Double {
+        max(0, awakeStillFactor - 1) * basalPerSecond * max(0, seconds)
+    }
 
     /// Continuous span a bout must last to count toward `aerobicSeconds`.
     static let aerobicBoutSeconds = 1_200
@@ -261,10 +296,15 @@ public enum WhoopEnergyModel {
             let movesOnFoot = bucket.isWorkout && bucket.workoutOnFoot && hasMovement(bucket)
             var moderate = 0
             var moving = 0
+            // Awake still seconds earn the everyday allowance; the usual sleep window earns none.
+            let awakeStill: (Int) -> Double = { still in
+                bucket.inUsualSleepWindow ? 0 : everydayKcal(basalPerSecond: basalPerSecond,
+                                                             seconds: Double(still))
+            }
 
             if bucket.isOffWrist {
-                result = bucketResult(bucket, basal: basal, active: 0, evidence: .modeled,
-                                      context: .offWrist, uncertainty: 0.30)
+                result = bucketResult(bucket, basal: basal, active: 0, everyday: awakeStill(seconds),
+                                      evidence: .modeled, context: .offWrist, uncertainty: 0.30)
                 modeled += seconds
             } else if bucket.isSleep {
                 result = bucketResult(bucket, basal: basal, active: 0, evidence: .modeled,
@@ -307,8 +347,10 @@ public enum WhoopEnergyModel {
                 let active = activeKcal(met: met, seconds: movementSeconds,
                                         weightKg: profile.weightKg)
                 // A walk logged as a session stays the session, so its window reads as training;
-                // only the price follows the pace.
+                // only the price follows the pace. The bucket's still seconds are awake time on their feet
+                // or between steps, so they take the everyday allowance like any other awake still time.
                 result = bucketResult(bucket, basal: basal, active: active,
+                                      everyday: awakeStill(seconds - movementSeconds),
                                       evidence: hr == nil ? .inferred : .observed,
                                       context: movesOnFoot ? .confirmedWorkout : .locomotion,
                                       uncertainty: hr == nil ? 0.28 : 0.20)
@@ -330,18 +372,18 @@ public enum WhoopEnergyModel {
                 } else {
                     context = .unknown
                 }
-                result = bucketResult(bucket, basal: basal, active: 0,
+                result = bucketResult(bucket, basal: basal, active: 0, everyday: awakeStill(seconds),
                                       evidence: .physiological, context: context,
                                       uncertainty: context == .unknown ? 0.40 : 0.35)
                 physiological += hrSeconds
                 modeled += seconds - hrSeconds
             } else if bucket.hasMovementCoverage {
-                result = bucketResult(bucket, basal: basal, active: 0, evidence: .modeled,
-                                      context: .sedentary, uncertainty: 0.30)
+                result = bucketResult(bucket, basal: basal, active: 0, everyday: awakeStill(seconds),
+                                      evidence: .modeled, context: .sedentary, uncertainty: 0.30)
                 modeled += seconds
             } else {
-                result = bucketResult(bucket, basal: basal, active: 0, evidence: .modeled,
-                                      context: .unknown, uncertainty: 0.45)
+                result = bucketResult(bucket, basal: basal, active: 0, everyday: awakeStill(seconds),
+                                      evidence: .modeled, context: .unknown, uncertainty: 0.45)
                 modeled += seconds
             }
             contextSeconds[result.context, default: 0] += seconds
@@ -353,12 +395,13 @@ public enum WhoopEnergyModel {
         let light = boutSeconds(valid, counted: movingByBucket, minimumSpan: lightBoutSeconds)
 
         let total = results.reduce(0) { $0 + $1.kcal }
+        let everyday = results.reduce(0) { $0 + $1.everydayKcal }
         let duration = max(1, observed + inferred + physiological + modeled)
         let uncertaintyNumerator = zip(results, valid).reduce(0.0) { partial, pair in
             partial + pair.0.uncertaintyFraction * Double(pair.1.durationSeconds)
         }
         let uncertainty = min(0.60, uncertaintyNumerator / Double(duration))
-        return .init(totalKcal: total, observedSeconds: observed, inferredSeconds: inferred,
+        return .init(totalKcal: total, everydayKcal: everyday, observedSeconds: observed, inferredSeconds: inferred,
                      modeledSeconds: modeled, physiologicalSeconds: physiological,
                      contextSeconds: contextSeconds, uncertaintyFraction: uncertainty, buckets: results,
                      aerobicSeconds: aerobic, hadLightActivity: light > 0)
@@ -391,10 +434,12 @@ public enum WhoopEnergyModel {
     }
 
     private static func bucketResult(_ bucket: WhoopEnergyBucket, basal: Double, active: Double,
-                                     evidence: EnergyEvidence, context: EnergyContext,
+                                     everyday: Double = 0, evidence: EnergyEvidence,
+                                     context: EnergyContext,
                                      uncertainty: Double) -> WhoopEnergyBucketResult {
-        .init(start: bucket.start, kcal: basal + active, activeKcal: active, evidence: evidence,
-              context: context, uncertaintyFraction: uncertainty)
+        .init(start: bucket.start, kcal: basal + active + everyday, activeKcal: active,
+              everydayKcal: everyday, evidence: evidence, context: context,
+              uncertaintyFraction: uncertainty)
     }
 
     private static func finite(_ value: Double?) -> Double? {

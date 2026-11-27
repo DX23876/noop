@@ -2199,6 +2199,21 @@ extension WhoopStore {
                 t.add(column: "packageCount", .integer)
             }
         }
+        // The everyday allowance of the energy model (owner, 2026-11-27, `whoop-bucket-v10`): awake still time
+        // costs more than lying, so each bucket and day keeps that share apart from basal and active energy,
+        // and a day keeps the usual sleep window it was resolved against. Derived and additive: every row
+        // before reads zero and no window until the model's 120-day recompute rewrites it. Analysis migration
+        // required: no (an energy model version, recomputed by its own history pass).
+        migrator.registerMigration("v93-energy-everyday") { db in
+            try db.alter(table: "whoopEnergyBucket") { t in
+                t.add(column: "everydayKcal", .double).notNull().defaults(to: 0)
+            }
+            try db.alter(table: "whoopDailyEnergy") { t in
+                t.add(column: "everydayKcal", .double).notNull().defaults(to: 0)
+                t.add(column: "sleepWindowStartMinute", .integer)
+                t.add(column: "sleepWindowEndMinute", .integer)
+            }
+        }
         return migrator
     }
 }
