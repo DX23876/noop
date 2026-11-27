@@ -7890,6 +7890,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="wt_to_go">Noch %1$s</string>
     <string name="wt_all_stops">Alle Etappen erreicht</string>
     <string name="wt_stops_reached">%1$d von %2$d Etappen erreicht</string>
+    <string name="wt_goal_counted_from">Ab %1$s am %2$s, als das Ziel gesetzt wurde.</string>
     <string name="wt_forecast">Vorhersage</string>
     <string name="wt_rate_current">Aktuell</string>
     <string name="wt_rate_overall">Gesamt</string>

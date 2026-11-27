@@ -7841,6 +7841,7 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="wt_to_go">Mancano %1$s</string>
     <string name="wt_all_stops">Tutte le tappe raggiunte</string>
     <string name="wt_stops_reached">%1$d tappe su %2$d raggiunte</string>
+    <string name="wt_goal_counted_from">Da %1$s il %2$s, quando è stato fissato l’obiettivo.</string>
     <string name="wt_forecast">Previsione</string>
     <string name="wt_rate_current">Attuale</string>
     <string name="wt_rate_overall">Complessivo</string>

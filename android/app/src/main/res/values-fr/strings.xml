@@ -7871,6 +7871,7 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="wt_to_go">Encore %1$s</string>
     <string name="wt_all_stops">Toutes les étapes atteintes</string>
     <string name="wt_stops_reached">%1$d étapes sur %2$d atteintes</string>
+    <string name="wt_goal_counted_from">Depuis %1$s le %2$s, quand l’objectif a été fixé.</string>
     <string name="wt_forecast">Prévision</string>
     <string name="wt_rate_current">Actuel</string>
     <string name="wt_rate_overall">Global</string>

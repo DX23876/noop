@@ -127,6 +127,14 @@ internal fun ForgeWeightPage(onBack: () -> Unit) {
 
     SettingsColumn {
         PageTitle(stringResource(R.string.wt_title), onBack) {
+            // Logging a weigh-in from the top, as iOS's header button does: on the overview the wide button sits
+            // below six cards, out of a thumb's reach.
+            page?.let { pg ->
+                IconButton(onClick = { logging = WeighInDraft(null, pg.snapshot?.latest?.kg, Instant.now(), null) }) {
+                    Icon(Icons.Rounded.AddCircle, contentDescription = stringResource(R.string.wt_log), tint = WEIGHT_TINT.resolve(),
+                         modifier = Modifier.size(28.dp))
+                }
+            }
             if (page != null) IconButton(onClick = { settings = true }) {
                 Icon(Icons.Rounded.Tune, contentDescription = stringResource(R.string.wt_settings), tint = WEIGHT_TINT.resolve())
             }
@@ -264,7 +272,7 @@ private fun deltaColor(delta: Double?, goal: CoreWeight.Goal?): Color {
 private fun Overview(p: CoreWeight.Page, s: CoreWeight.Snapshot, fmt: WeightFormat, onRate: (String) -> Unit,
                      onEvent: (EventDraft) -> Unit, onLog: () -> Unit) {
     val set = p.settings
-    if (set.shows("milestones")) s.milestones?.let { m -> MilestonesCard(m, fmt) }
+    if (set.shows("milestones")) s.milestones?.let { m -> MilestonesCard(m, s.goal, fmt) }
     if (set.shows("forecast")) ForecastCard(s, fmt, onRate)
     if (set.shows("events")) EventsCard(s, fmt, onEvent)
     if (set.shows("changes")) ChangesCard(s, fmt)
@@ -273,7 +281,7 @@ private fun Overview(p: CoreWeight.Page, s: CoreWeight.Snapshot, fmt: WeightForm
 }
 
 @Composable
-private fun MilestonesCard(m: CoreWeight.Milestones, fmt: WeightFormat) {
+private fun MilestonesCard(m: CoreWeight.Milestones, goal: CoreWeight.Goal?, fmt: WeightFormat) {
     val colors = Forge.colors
     val tint = WEIGHT_TINT.resolve()
     ForgeCard(Modifier.fillMaxWidth()) {
@@ -314,6 +322,11 @@ private fun MilestonesCard(m: CoreWeight.Milestones, fmt: WeightFormat) {
         Spacer(Modifier.height(ForgeMetrics.space2))
         Text(stringResource(R.string.wt_stops_reached, m.reachedCount, m.route.size),
              style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold), color = colors.textSecondary)
+        // Where the ring counts from, as iOS: without it "0 % of the way" beside "−3 kg since start" read as a fault.
+        goal?.let { g ->
+            Text(stringResource(R.string.wt_goal_counted_from, fmt.mass(g.baseline), fmt.day(g.createdAt, fmt.dayMonthYear)),
+                 style = Forge.type.caption, color = colors.textTertiary)
+        }
     }
 }
 

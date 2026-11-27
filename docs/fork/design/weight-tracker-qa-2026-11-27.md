@@ -41,11 +41,13 @@ the trend and the week's change, which is the core idea of the page.
 | 14 | Android | "Add" date action had no plus mark. | Plus mark, as iOS. |
 | 15 | Both | Today's small weight tile on iOS showed the weekly rate beside the week's change chip, cut short; Android showed nothing. | The forecast line only on the two-column tile, on both platforms. |
 | 16 | Android | Tapping a weight widget opened Today; iOS opens the weight page. | The tap carries a flag that moves the shell to Today and pushes the weight page, once. |
+| 17 | Both | "0 % of the way" sat beside "−3 kg since start" with nothing saying the ring counts from the goal's start (impeccable critique, 29/40). | A line under the stops: the weight and date the goal was set at. |
+| 18 | Android | The overview's only log action sat below six cards; iOS has it in the header. | Log action in the header, as iOS. |
 
 ## Open, not changed
 
-- Today's weight tile is amber on both platforms while the weight page is pink. The tile colours are the
-  app-wide metric palette; changing one tile is the owner's call.
+- Today's weight tile is amber on both platforms while the weight page is pink: the tile keeps the app-wide
+  metric palette (owner, 2026-11-27: both keep their own colours).
 - Android's Today change chips print a decimal point in German ("−1.2" where iOS says "−1,2"). The text comes
   from the shared core's `CoreTile.delta`, so it is a core localisation issue for every chip, not the weight tile.
 - The iOS simulator never finishes loading a widget's colour editor (spinner; its log stops after loading the

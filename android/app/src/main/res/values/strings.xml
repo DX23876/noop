@@ -7916,6 +7916,7 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="wt_to_go">%1$s to go</string>
     <string name="wt_all_stops">Every stop reached</string>
     <string name="wt_stops_reached">%1$d of %2$d stops reached</string>
+    <string name="wt_goal_counted_from">From %1$s on %2$s, when the goal was set.</string>
     <string name="wt_forecast">Forecast</string>
     <string name="wt_rate_current">Current</string>
     <string name="wt_rate_overall">Overall</string>

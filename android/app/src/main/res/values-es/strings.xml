@@ -7874,6 +7874,7 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="wt_to_go">Faltan %1$s</string>
     <string name="wt_all_stops">Todas las etapas alcanzadas</string>
     <string name="wt_stops_reached">%1$d de %2$d etapas alcanzadas</string>
+    <string name="wt_goal_counted_from">Desde %1$s el %2$s, cuando se fijó el objetivo.</string>
     <string name="wt_forecast">Pronóstico</string>
     <string name="wt_rate_current">Actual</string>
     <string name="wt_rate_overall">Global</string>

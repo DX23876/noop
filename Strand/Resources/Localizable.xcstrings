@@ -691920,6 +691920,70 @@
           }
         }
       }
+    },
+    "From %@ on %@, when the goal was set." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ab %1$@ am %2$@, als das Ziel gesetzt wurde."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "From %1$@ on %2$@, when the goal was set."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desde %1$@ el %2$@, cuando se fijó el objetivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Depuis %1$@ le %2$@, quand l’objectif a été fixé."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Da %1$@ il %2$@, quando è stato fissato l’obiettivo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Od %1$@ w dniu %2$@, gdy wyznaczono cel."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desde %1$@ em %2$@, quando o objetivo foi definido."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "От %1$@, %2$@, когда была поставлена цель."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自 %2$@ 设定目标时的 %1$@ 起算。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "自 %2$@ 設定目標時的 %1$@ 起算。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

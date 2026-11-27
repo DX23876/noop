@@ -7816,6 +7816,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="wt_to_go">还差 %1$s</string>
     <string name="wt_all_stops">所有站点均已达到</string>
     <string name="wt_stops_reached">已达到 %1$d / %2$d 站</string>
+    <string name="wt_goal_counted_from">自 %2$s 设定目标时的 %1$s 起算。</string>
     <string name="wt_forecast">预报</string>
     <string name="wt_rate_current">当前</string>
     <string name="wt_rate_overall">总体</string>

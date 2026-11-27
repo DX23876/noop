@@ -7927,6 +7927,7 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="wt_to_go">Zostało %1$s</string>
     <string name="wt_all_stops">Wszystkie etapy osiągnięte</string>
     <string name="wt_stops_reached">Osiągnięto %1$d z %2$d etapów</string>
+    <string name="wt_goal_counted_from">Od %1$s w dniu %2$s, gdy wyznaczono cel.</string>
     <string name="wt_forecast">Prognoza</string>
     <string name="wt_rate_current">Obecne</string>
     <string name="wt_rate_overall">Ogólne</string>

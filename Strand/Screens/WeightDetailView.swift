@@ -206,6 +206,9 @@ struct WeightDetailView: View {
                 milestoneTrack(m)
                 Text("\(m.reachedCount) of \(m.route.count) stops reached")
                     .font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.textSecondary)
+                // Where the ring counts from: without it "0 % of the way" beside "−3 kg since start" read as a fault.
+                Text("From \(mass(goal.baseline)) on \(goalStart(goal.createdAt)), when the goal was set.")
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
             }
         }
         .accessibilityElement(children: .combine)
@@ -693,6 +696,9 @@ struct WeightDetailView: View {
     }
 
     private func mass(_ kg: Double) -> String { UnitFormatter.massFromKilograms(kg, system: units) }
+    private func goalStart(_ date: Date) -> String {
+        date.formatted(.dateTime.day().month(.abbreviated).year().locale(AppLanguage.activeLocale))
+    }
     private func mass(_ kg: Double, decimals: Int) -> String {
         let value = units == .imperial ? kg * UnitFormatter.poundsPerKilogram : kg
         return value.formatted(.number.precision(.fractionLength(decimals)))

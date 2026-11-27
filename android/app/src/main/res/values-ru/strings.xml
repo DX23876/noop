@@ -7883,6 +7883,7 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="wt_to_go">Осталось %1$s</string>
     <string name="wt_all_stops">Все этапы пройдены</string>
     <string name="wt_stops_reached">Пройдено этапов: %1$d из %2$d</string>
+    <string name="wt_goal_counted_from">От %1$s, %2$s, когда была поставлена цель.</string>
     <string name="wt_forecast">Прогноз</string>
     <string name="wt_rate_current">Текущий</string>
     <string name="wt_rate_overall">Общий</string>

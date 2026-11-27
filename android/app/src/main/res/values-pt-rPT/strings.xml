@@ -7866,6 +7866,7 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="wt_to_go">Faltam %1$s</string>
     <string name="wt_all_stops">Todas as etapas alcançadas</string>
     <string name="wt_stops_reached">%1$d de %2$d etapas alcançadas</string>
+    <string name="wt_goal_counted_from">Desde %1$s em %2$s, quando o objetivo foi definido.</string>
     <string name="wt_forecast">Previsão</string>
     <string name="wt_rate_current">Atual</string>
     <string name="wt_rate_overall">Global</string>
