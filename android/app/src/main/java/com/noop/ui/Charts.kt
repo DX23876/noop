@@ -1390,6 +1390,9 @@ fun TimelineChart(
     // (°F where the wearer chose Fahrenheit, one decimal where the metric carries one). Null = the
     // chart's own near-integer-collapsing default.
     formatValue: ((Double) -> String)? = null,
+    // False on a card inside a scrolling page (the Today day heart card): no pinch or pan, so a vertical drag
+    // over the chart scrolls the page instead of being taken as a pan of a window that cannot move.
+    gesturesEnabled: Boolean = true,
 ) {
     val span = (windowEnd - windowStart).coerceAtLeast(1L)
     val vis = remember(points, windowStart, windowEnd) {
@@ -1440,7 +1443,7 @@ fun TimelineChart(
             .fillMaxWidth()
             .clipToBounds()
             .clearAndSetSemantics { contentDescription = axSummary }
-            .pointerInput(bounds) {
+            .then(if (!gesturesEnabled) Modifier else Modifier.pointerInput(bounds) {
                 detectTransformGestures { centroid, pan, zoom, _ ->
                     val width = size.width.toFloat().coerceAtLeast(1f)
                     var window = currentWindowStart..currentWindowEnd
@@ -1456,7 +1459,7 @@ fun TimelineChart(
                     }
                     onWindowChange(window)
                 }
-            }
+            })
             // The scrub detector sits INSIDE the transform one, so it sees each event first and, once a
             // hold has landed, consumes the drag that would otherwise pan. Before that it consumes
             // nothing: a finger that moves straight away crosses the pan slop and pans, exactly as it

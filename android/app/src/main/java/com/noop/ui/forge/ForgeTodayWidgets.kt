@@ -139,7 +139,9 @@ internal data class TodayWidget(
         Tonight("tonight"), WeekPlan("weekPlan"), Breathe("breathe"), Strap("strap"), NextSession("nextSession"), WhatWorks("whatWorks"),
         Changes("changes"), Water("water"), CoachNote("coachNote"), AgeLess("ageless"), DietGoal("dietGoal"),
         /** The day's eating against its goal, with the macros (owner, 2026-11-18). */
-        Nutrition("nutrition");
+        Nutrition("nutrition"),
+        /** Today's heart rate since midnight, with last night's sleep and the day's workouts (iOS `dayHeart`, #58). */
+        DayHeart("dayHeart");
         companion object { fun of(raw: String?) = entries.firstOrNull { it.raw == raw } }
     }
 
@@ -680,6 +682,7 @@ internal fun ForgeTodayWidgetArea(model: TodayModel?, viewModel: AppViewModel, w
                                 else AgeLessTile(dense = columns > 2, modifier = Modifier.fillMaxSize(), onOpen = onOpenAgeLess, detailed = w.size == TodayWidget.Size.Medium)
                             TodayWidget.Kind.CoachNote -> CoachNoteCard()
                             TodayWidget.Kind.DietGoal -> TodayDietGoalCard(onOpenFood)
+                            TodayWidget.Kind.DayHeart -> DayHeartWideCard(viewModel)
                         }
                     }
                 } }
@@ -1456,6 +1459,7 @@ private fun WidgetGallery(cycleOn: Boolean, onAdd: (TodayWidget) -> Unit, onClos
                 Entry(Icons.Rounded.WaterDrop, stringResource(R.string.forge_g_hydration), stringResource(R.string.forge_g_hydration_sub), w(TodayWidget.Kind.Water)),
                 Entry(Icons.Rounded.Favorite, stringResource(R.string.forge_g_live), stringResource(R.string.forge_g_live_sub), w(TodayWidget.Kind.LiveHeart)),
                 Entry(Icons.Rounded.MonitorHeart, stringResource(R.string.forge_g_live), stringResource(R.string.forge_g_live_wide_sub), w(TodayWidget.Kind.LiveHeart, wide = true)),
+                Entry(Icons.Rounded.Favorite, stringResource(R.string.forge_day_heart_title), stringResource(R.string.forge_g_day_heart_sub), w(TodayWidget.Kind.DayHeart)),
             )
             GalleryHeading(stringResource(R.string.forge_g_cards))
             ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {

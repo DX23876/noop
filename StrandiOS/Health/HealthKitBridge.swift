@@ -2292,9 +2292,13 @@ final class HealthKitBridge: ObservableObject {
                 continue
             }
             let at = Date(timeIntervalSince1970: TimeInterval(session.endTs))
-            let key = HealthWriteback.vitalsExternalKey(
-                noopDeviceId: noopDeviceId,
-                identifier: HKQuantityTypeIdentifier.heartRateVariabilitySDNN.rawValue,
+            // The SAME key the regular write-back gives this day (`writeVitals`), so both writers
+            // resolve to one sync identifier and HealthKit replaces the sample instead of keeping two.
+            // This used to be the device-scoped `noop:<deviceId>:<metric>:<day>` shape the regular
+            // writer left in #1503; the two then carried different sync identifiers, neither pass's
+            // cleanup matched the other's sample, and every rebuilt night held two SDNN values.
+            let key = HealthWriteback.appleHealthVitalKey(
+                metricId: HKQuantityTypeIdentifier.heartRateVariabilitySDNN.rawValue,
                 day: day)
             samples.append(HKQuantitySample(
                 type: type,

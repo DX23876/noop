@@ -108,7 +108,9 @@ NOOP Forge (this fork) takes most of its foundation from [ryanbr/noop](https://g
 its contributors, merged regularly; their credits live in that project's history and release notes.
 The people below are credited here because the fork took their work **directly**: from their own forks,
 or from pull requests to ryanbr/noop before or without ryanbr merging them. Each adopting commit names the
-source and carries a `Co-authored-by` line where the work was taken as code.
+source and carries a `Co-authored-by` line where the work was taken as code. A pull request to this fork
+that lands as submitted is merged with its author's own commits, so it shows as merged; changes the fork
+makes to it follow as separate commits.
 
 ### Pull requests to ryanbr/noop, adopted directly
 
@@ -125,11 +127,13 @@ source and carries a `Co-authored-by` line where the work was taken as code.
 | [@msff](https://github.com/msff) | The Mac menu-bar label redraws only when what it shows changes | ryanbr/noop#2889 |
 | [@andynilson](https://github.com/andynilson) | Charge and Effort translations | ryanbr/noop#2878 |
 
-### Pull requests to this fork, adopted directly
+### Pull requests to this fork
 
 | Who | What NOOP Forge took | Source |
 |---|---|---|
 | [@rome6](https://github.com/rome6) | The on-open Health Connect catch-up and an import asked for by hand became one guarded runner: it cannot overlap itself, it ends the import's progress even when the read fails, and it answers with a named outcome instead of a boolean | DX23876/noop#56 |
+| [@59n](https://github.com/59n) | Rebuilding the HRV history in Apple Health writes each night under the key the regular write-back uses, so a rebuilt night holds one SDNN value instead of two | DX23876/noop#55 |
+| [@sondrealf](https://github.com/sondrealf) | A Today card with the whole day's heart rate, last night's sleep band and the day's workouts, opening the Deep Timeline | DX23876/noop#58 |
 
 ### Testers
 

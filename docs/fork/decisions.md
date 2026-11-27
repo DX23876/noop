@@ -2145,3 +2145,24 @@ points and hard days by about one, and a day sits a median 2.1 above its stronge
 2.7, lower quarter 1.7); the issue's example values for workouts are unchanged.
 
 Analysis migration required: yes, riding on AI-38, which had not shipped.
+
+## 2026-11-27 — Two pull requests to the fork merged: one HRV key, a whole-day heart rate card
+
+The owner took both open pull requests from outside contributors. Each is merged with its author's own
+commits, so GitHub shows it as merged (owner: the DX23876 identity rule covers the owner's own commits; a
+submitted pull request may land under the name of the person who sent it, and only the owner's changes to
+it go in as DX23876). Both are credited in ATTRIBUTION.md and the shared contributor list.
+
+- **#55 by @59n**, as submitted: rebuilding the HRV history in Apple Health writes a night under the key the
+  regular write-back uses, so a rebuilt night holds one SDNN sample instead of two. Samples an earlier
+  rebuild left under the old device-scoped key stay in Apple Health; a delete pass for them waits until it
+  can be tested on a real Health store, since its sync identifiers are assigned by the export ledger.
+- **#58 by @sondrealf**, merged as submitted, then repaired in a follow-up commit and ported to Android
+  (owner: "nochmal reparieren … auf Android auch portieren"). The repair makes it a neighbour of the
+  stress card: the same header in words ("Heart rate through the day", not the bucket size), the whole card
+  opens the Deep Timeline, and the header shows a figure only while a strap streams one, marked as now,
+  because a banked average from hours ago read as the current pulse. It reloads at midnight, and its chart
+  reads as one accessible summary. Android draws it with the Deep Timeline's own chart, sleep pick and
+  workout scoping, held still (`TimelineChart(gesturesEnabled = false)`) so the page scrolls over it.
+
+Analysis migration required: no (an Apple Health export key and a display card).

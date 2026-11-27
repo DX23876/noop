@@ -6267,6 +6267,9 @@
     <string name="forge_g_live">Fréquence cardiaque en direct</string>
     <string name="forge_g_live_sub">Petit · un cœur qui bat à votre rythme</string>
     <string name="forge_g_live_wide_sub">Large · votre pouls en courbe</string>
+    <string name="forge_day_heart_title">Fréquence cardiaque au fil de la journée</string>
+    <string name="forge_g_day_heart_sub">Large · toute la journée, avec sommeil et entraînements</string>
+    <string name="forge_day_heart_empty">Aucune fréquence cardiaque enregistrée pour aujourd’hui</string>
     <string name="forge_g_add">Ajouter un widget</string>
     <string name="forge_g_done">Terminé</string>
     <string name="forge_tile_usually">d\'habitude %1$s</string>

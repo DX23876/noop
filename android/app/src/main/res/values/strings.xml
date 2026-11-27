@@ -6335,6 +6335,9 @@
     <string name="forge_g_live">Live heart rate</string>
     <string name="forge_g_live_sub">Small · a heart beating with your pulse</string>
     <string name="forge_g_live_wide_sub">Wide · your heart rate as a curve</string>
+    <string name="forge_day_heart_title">Heart rate through the day</string>
+    <string name="forge_g_day_heart_sub">Wide · the whole day, with sleep and workouts</string>
+    <string name="forge_day_heart_empty">No heart rate stored for today yet</string>
     <string name="forge_g_add">Add a widget</string>
     <string name="forge_g_done">Done</string>
     <string name="forge_tile_usually">usually %1$s</string>

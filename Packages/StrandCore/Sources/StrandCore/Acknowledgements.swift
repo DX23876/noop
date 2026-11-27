@@ -80,6 +80,8 @@ public enum Acknowledgements {
         Contributor(handle: "@goodgord", work: "No sleep merge across a data gap"),
         Contributor(handle: "@spidervirus", work: "No startup zero heart rate"),
         Contributor(handle: "@rome6", work: "One guarded runner for the Health Connect import, with a named outcome"),
+        Contributor(handle: "@59n", work: "One HRV value per night when the history is rebuilt in Apple Health"),
+        Contributor(handle: "@sondrealf", work: "The whole day's heart rate as a Today card"),
         Contributor(handle: "@fadkeprasad", work: "Power-saving cadence for automatic syncs"),
         Contributor(handle: "@paradix86", work: "Italian WHOOP exports"),
         Contributor(handle: "@msff", work: "Mac menu-bar redraws"),
