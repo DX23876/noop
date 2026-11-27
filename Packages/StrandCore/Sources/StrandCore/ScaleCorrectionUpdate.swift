@@ -23,8 +23,23 @@ public enum ScaleCorrectionUpdate {
         public var holding: Bool
         public var appliesToBasal: Bool
         /// Before a figure can be offered: the early look's scale over strap (`ScaleBurn.Gates.early`), shown as a
-        /// direction only, never proposed or applied. Nil until three weeks hold enough.
+        /// direction only, never proposed or applied. Nil until three weeks hold enough, and nil while the full
+        /// estimate was refused as too uncertain (a looser look must not contradict that refusal).
         public var earlyRatio: Double? = nil
+        /// The early look in the words both platforms show: "same" within `earlyAgreePercent`, else "more" or
+        /// "less" by `earlyPercent` (rounded, never negative).
+        public var earlyDirection: String? = nil
+        public var earlyPercent: Int? = nil
+    }
+
+    /// Within this many percent the early look says scale and strap agree.
+    public static let earlyAgreePercent = 3
+
+    /// The early look's direction and rounded size, from scale over strap.
+    public static func earlyWords(ratio: Double) -> (direction: String, percent: Int) {
+        let percent = Int(((ratio - 1) * 100).rounded())
+        if abs(percent) < earlyAgreePercent { return ("same", abs(percent)) }
+        return (percent > 0 ? "more" : "less", abs(percent))
     }
 
     /// Days a change in eating or training holds the correction still (Q23).
@@ -96,10 +111,14 @@ public enum ScaleCorrectionUpdate {
             snapshot.weighIns = weighs
             snapshot.spanDays = span
             snapshot.tooUncertain = uncertain
-            if case .estimate(let early) = ScaleBurn.estimate(completeIntake: completeIntake, weighIns: weighIns,
-                                                              strapByDay: strapByDay, today: today,
-                                                              kcalPerKg: kcalPerKg, gates: .early) {
-                snapshot.earlyRatio = early.ratio
+            if !uncertain, case .estimate(let early) = ScaleBurn.estimate(completeIntake: completeIntake,
+                                                                          weighIns: weighIns, strapByDay: strapByDay,
+                                                                          today: today, kcalPerKg: kcalPerKg,
+                                                                          gates: .early), let ratio = early.ratio {
+                snapshot.earlyRatio = ratio
+                let words = earlyWords(ratio: ratio)
+                snapshot.earlyDirection = words.direction
+                snapshot.earlyPercent = words.percent
             }
         }
         let next = state.evaluated(target: target, today: today, holding: hold, measured: basalShare != nil)

@@ -84,8 +84,9 @@ object CoreEnergyPlan {
         val status: String, val factor: Double, val targetFactor: Double?, val sinceDay: String?, val scaleKcal: Double?,
         val strapKcal: Double?, val completeDays: Int, val weeks: Int, val weighIns: Int, val spanDays: Int,
         val tooUncertain: Boolean, val holding: Boolean, val appliesToBasal: Boolean,
-        /** The early look's scale over strap, a direction only (`ScaleBurn.Gates.early`). */
-        val earlyRatio: Double? = null,
+        /** The early look's scale over strap, a direction only (`ScaleBurn.Gates.early`), and the core's words for it:
+         *  "same", "more" or "less" by [earlyPercent] (`ScaleCorrectionUpdate.earlyWords`). */
+        val earlyRatio: Double? = null, val earlyDirection: String? = null, val earlyPercent: Int = 0,
     )
 
     /**
@@ -107,7 +108,8 @@ object CoreEnergyPlan {
         val scale = Scale(s.optString("status"), s.optDouble("factor", 1.0), dbl("targetFactor"),
                           s.optString("sinceDay").ifEmpty { null }, dbl("scaleKcal"), dbl("strapKcal"), s.optInt("completeDays"),
                           s.optInt("weeks"), s.optInt("weighIns"), s.optInt("spanDays"), s.optBoolean("tooUncertain"),
-                          s.optBoolean("holding"), s.optBoolean("appliesToBasal", true), dbl("earlyRatio"))
+                          s.optBoolean("holding"), s.optBoolean("appliesToBasal", true), dbl("earlyRatio"),
+                          s.optString("earlyDirection").ifEmpty { null }, s.optInt("earlyPercent"))
         if (scale.status == "proposed" && before != "proposed") {
             com.noop.ui.UpdateStore.from(context).post(com.noop.ui.UpdateItem(
                 kind = com.noop.ui.UpdateKind.READING,

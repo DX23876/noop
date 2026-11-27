@@ -181,13 +181,12 @@ private fun ScaleCard(s: CoreEnergyPlan.Scale, onAction: (String) -> Unit) {
                         else -> stringResource(R.string.energy_scale_missing, s.completeDays, s.weighIns)
                     }
                     Text(line, style = Forge.type.body, color = colors.textSecondary)
-                    val ratio = s.earlyRatio
-                    if (ratio != null && !s.holding) {
-                        val percent = kotlin.math.round((ratio - 1) * 100).toInt()
-                        Text(when {
-                                 kotlin.math.abs(percent) < 3 -> stringResource(R.string.energy_scale_early_same)
-                                 percent > 0 -> stringResource(R.string.energy_scale_early_more, percent)
-                                 else -> stringResource(R.string.energy_scale_early_less, -percent)
+                    val direction = s.earlyDirection
+                    if (direction != null && !s.holding && !s.tooUncertain) {
+                        Text(when (direction) {
+                                 "more" -> stringResource(R.string.energy_scale_early_more, s.earlyPercent)
+                                 "less" -> stringResource(R.string.energy_scale_early_less, s.earlyPercent)
+                                 else -> stringResource(R.string.energy_scale_early_same)
                              }, style = Forge.type.caption, color = colors.textSecondary)
                     }
                 }

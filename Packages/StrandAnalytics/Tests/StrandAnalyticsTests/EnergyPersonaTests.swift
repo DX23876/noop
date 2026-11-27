@@ -106,7 +106,10 @@ final class EnergyPersonaTests: XCTestCase {
         Persona(name: "sick day, almost only in bed",
                 profile: UserProfile(weightKg: 80, heightCm: 180, age: 35, sex: "male"),
                 sleepHours: 10, walkingMinutes: 5, workoutMinutes: 0, workoutHR: 0, workoutKind: .other,
-                workoutOnFoot: false, workoutDaysPerWeek: 0, restingHR: 72, range: 1.15...1.40),
+                // Known limit: awake time in bed is priced as sitting (the strap cannot tell lying from sitting),
+                // so a day in bed reads up to about a tenth above the 1.2 to 1.3 bed rest costs. The band names that
+                // limit rather than hiding it; a long illness is what the scale's correction catches.
+                workoutOnFoot: false, workoutDaysPerWeek: 0, restingHR: 72, range: 1.15...1.35),
     ]
 
     func testEveryPersonaLandsInItsRange() throws {

@@ -744,13 +744,14 @@ struct ForgeScaleCard: View {
         return (p > 0 ? "+" : p < 0 ? "−" : "") + "\(abs(p)) %"
     }
 
-    /// The early look's direction in words (`ScaleCorrectionUpdate.Snapshot.earlyRatio`), never a figure to act on.
-    static func earlyLook(_ ratio: Double) -> String {
-        let percent = Int(((ratio - 1) * 100).rounded())
-        if abs(percent) < 3 { return String(localized: "First look: your scale and the strap agree so far. Sure only after six weeks.") }
-        return percent > 0
-            ? String(localized: "First look: your scale reads about \(percent) % more than the strap. Sure only after six weeks.")
-            : String(localized: "First look: your scale reads about \(-percent) % less than the strap. Sure only after six weeks.")
+    /// The early look's direction in words, as the core decided it (`ScaleCorrectionUpdate.earlyWords`), never a
+    /// figure to act on.
+    static func earlyLook(direction: String, percent: Int) -> String {
+        switch direction {
+        case "more": String(localized: "First look: your scale reads about \(percent) % more than the strap. Sure only after six weeks.")
+        case "less": String(localized: "First look: your scale reads about \(percent) % less than the strap. Sure only after six weeks.")
+        default: String(localized: "First look: your scale and the strap agree so far. Sure only after six weeks.")
+        }
     }
 
     var body: some View {
@@ -792,8 +793,8 @@ struct ForgeScaleCard: View {
                         }
                     }
                     .font(.body).foregroundStyle(ForgeColor.secondary).fixedSize(horizontal: false, vertical: true)
-                    if let ratio = snapshot.earlyRatio, !snapshot.holding {
-                        Text(Self.earlyLook(ratio))
+                    if let direction = snapshot.earlyDirection, !snapshot.holding, !snapshot.tooUncertain {
+                        Text(Self.earlyLook(direction: direction, percent: snapshot.earlyPercent ?? 0))
                             .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }

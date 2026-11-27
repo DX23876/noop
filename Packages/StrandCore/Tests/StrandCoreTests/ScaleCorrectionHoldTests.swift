@@ -35,4 +35,14 @@ final class ScaleCorrectionHoldTests: XCTestCase {
                                                      strengthDays: ["2026-11-28", "2026-12-01", "2026-12-05"],
                                                      creatineStarts: []))
     }
+
+    /// The early look's words come from the core, so both platforms say the same (review 2026-11-27).
+    func testTheEarlyLookSaysAgreeUnderThreePercent() {
+        XCTAssertEqual(ScaleCorrectionUpdate.earlyWords(ratio: 1.024).direction, "same")
+        XCTAssertEqual(ScaleCorrectionUpdate.earlyWords(ratio: 0.976).direction, "same")
+        let more = ScaleCorrectionUpdate.earlyWords(ratio: 1.124)
+        XCTAssertEqual(more.direction, "more"); XCTAssertEqual(more.percent, 12)
+        let less = ScaleCorrectionUpdate.earlyWords(ratio: 0.93)
+        XCTAssertEqual(less.direction, "less"); XCTAssertEqual(less.percent, 7)
+    }
 }

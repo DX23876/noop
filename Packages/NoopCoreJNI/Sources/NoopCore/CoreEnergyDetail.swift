@@ -107,7 +107,8 @@ enum CoreEnergyDetail {
 
     static func summary(_ s: DailyEnergySummary) -> Summary {
         var out = plainSummary(s)
-        let likely = EnergyRange.likely(s, isToday: s.day == StoreReader.localDayKey(Date()))
+        // The engine's own today (a forecast status only today carries), not a second reading of the clock.
+        let likely = EnergyRange.likely(s, isToday: s.forecastStatus != .unavailable)
         out.likelyLow = likely?.low
         out.likelyHigh = likely?.high
         out.likelyByScale = likely?.narrowedByScale ?? false
