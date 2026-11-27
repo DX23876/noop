@@ -5,18 +5,29 @@ import WhoopStore
 
 /// Today's heart rate across the whole day as a Today widget: the strap's banked 5-minute averages from
 /// midnight, last night's sleep band with its duration, a sport glyph at each workout, and Min/Avg/Max.
+/// Adopted from DX23876/noop#58 by @sondrealf.
 ///
 /// The wide Live heart rate card answers "what is my pulse now": while a strap streams it draws the last
 /// ninety seconds, so its curve and Min/Avg/Max describe a minute and a half. This card answers "how has my
 /// day gone", which the classic Today used to draw and the new design had no tile for. It is the Deep
-/// Timeline's chart (`OverviewHRChart`, fed the same sleep and workout layers) at a glance, and the header
-/// opens the Deep Timeline itself.
+/// Timeline's chart (`OverviewHRChart`, fed the same sleep and workout layers) at a glance, and the card
+/// opens the Deep Timeline itself, as the stress card beside it opens Stress.
+///
+/// The header names the card as its neighbour "Stress through the day" does, in words rather than in the
+/// bucket size. It shows a figure only while a strap streams one, marked as now: a banked average from
+/// hours ago, unlabelled, would read as the current pulse.
 struct ForgeDayHeartWidget: View {
     @EnvironmentObject private var repo: Repository
     @EnvironmentObject private var live: LiveState
     @State private var buckets: [HRBucket] = []
     @State private var sleepSpan: OverviewHRChart.SleepSpan?
     @State private var workoutSpans: [OverviewHRChart.WorkoutSpan] = []
+
+    /// What a reload depends on: fresh data, and the day itself, so the card starts over at midnight.
+    private struct ReloadKey: Equatable {
+        let refresh: Int
+        let dayStart: Date
+    }
 
     private var dayBounds: ClosedRange<Date> {
         let start = Calendar.current.startOfDay(for: Date())
@@ -27,72 +38,78 @@ struct ForgeDayHeartWidget: View {
         buckets.map { TrendPoint(date: Date(timeIntervalSince1970: TimeInterval($0.ts)), value: $0.bpm) }
     }
 
-    /// The live pulse while a strap streams one, otherwise the latest banked 5-minute average.
-    private var headlineBpm: Int? {
-        if live.connected, let hr = live.heartRate, hr > 0 { return hr }
-        return buckets.last.map { Int($0.bpm.rounded()) }
+    /// The live pulse while a strap streams one; nothing otherwise.
+    private var liveBpm: Int? {
+        guard live.connected, let hr = live.heartRate, hr > 0 else { return nil }
+        return hr
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            NavigationLink(value: TabRoute.fullDayChart) {
-                header.contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint("Opens the full-day heart rate timeline")
-
-            if points.count >= 2 {
-                OverviewHRChart(points: points, sleep: sleepSpan, workouts: workoutSpans,
-                                valueRange: Self.valueRange(points.map(\.value)), xRange: dayBounds,
-                                height: 170, showsHover: false,
-                                dateFormat: { Self.timeFmt.string(from: $0) })
-                let values = points.map(\.value)
-                HStack {
-                    stat(String(localized: "Min"), values.min())
-                    Spacer()
-                    stat(String(localized: "Avg"), values.reduce(0, +) / Double(values.count))
-                    Spacer()
-                    stat(String(localized: "Max"), values.max())
+        NavigationLink(value: TabRoute.fullDayChart) {
+            VStack(alignment: .leading, spacing: 10) {
+                header
+                if points.count >= 2 {
+                    let values = points.map(\.value)
+                    let avg = values.reduce(0, +) / Double(values.count)
+                    OverviewHRChart(points: points, sleep: sleepSpan, workouts: workoutSpans,
+                                    valueRange: Self.valueRange(values), xRange: dayBounds,
+                                    height: 170, showsHover: false,
+                                    dateFormat: { $0.formatted(.dateTime.hour().minute().locale(AppLanguage.activeLocale)) })
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(Text("Heart rate through the day"))
+                        .accessibilityValue(Text(verbatim: [
+                            "\(String(localized: "Min")) \(Self.whole(values.min()))",
+                            "\(String(localized: "Avg")) \(Self.whole(avg))",
+                            "\(String(localized: "Max")) \(Self.whole(values.max()))",
+                        ].joined(separator: ", ")))
+                    HStack {
+                        stat(String(localized: "Min"), values.min())
+                        Spacer()
+                        stat(String(localized: "Avg"), avg)
+                        Spacer()
+                        stat(String(localized: "Max"), values.max())
+                    }
+                } else {
+                    Text("No heart rate stored for today yet")
+                        .font(ForgeFont.caption)
+                        .foregroundStyle(ForgeColor.tertiary)
+                        .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
                 }
-            } else {
-                Text("No heart rate stored for today yet")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 24)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
         }
-        .forgeCard(radius: ForgeRadius.card, padding: 16)
-        .task(id: repo.refreshSeq) { await reload() }
+        .buttonStyle(LiquidPressStyle())
+        .accessibilityHint(Text("Opens the full-day heart rate timeline"))
+        .task(id: ReloadKey(refresh: repo.refreshSeq, dayStart: dayBounds.lowerBound)) { await reload() }
     }
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Heart Rate").font(StrandFont.overline).tracking(1.6)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                Text("5-minute average · since midnight").font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textTertiary)
+        HStack(spacing: 8) {
+            Image(systemName: "heart.fill").font(.system(.subheadline, weight: .semibold))
+                .foregroundStyle(StrandPalette.metricRose)
+            Text("Heart rate through the day").font(.system(.subheadline, weight: .semibold))
+                .foregroundStyle(ForgeColor.text)
+            Spacer(minLength: 0)
+            if let bpm = liveBpm {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text("Now").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    Text("\(bpm)").font(ForgeFont.figure(17)).foregroundStyle(StrandPalette.metricRose)
+                        .contentTransition(.numericText())
+                    Text("bpm").font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                }
             }
-            Spacer()
-            if let bpm = headlineBpm {
-                (Text("\(bpm)").font(StrandFont.rounded(22)).monospacedDigit()
-                    + Text(" bpm").font(StrandFont.caption))
-                    .foregroundStyle(StrandPalette.metricRose)
-                    .contentTransition(.numericText())
-            }
-            Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
-                .foregroundStyle(StrandPalette.accent)
         }
     }
 
     private func stat(_ label: String, _ v: Double?) -> some View {
         HStack(spacing: 5) {
-            Text(label).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-            Text(v.map { String(Int($0.rounded())) } ?? "–")
-                .font(StrandFont.captionNumber).foregroundStyle(StrandPalette.textSecondary)
+            Text(label).font(ForgeFont.caption).foregroundStyle(ForgeColor.tertiary)
+            Text(Self.whole(v)).font(ForgeFont.figure(15)).foregroundStyle(ForgeColor.secondary)
         }
     }
+
+    private static func whole(_ v: Double?) -> String { v.map { String(Int($0.rounded())) } ?? "–" }
 
     /// Same reads and selection as the Deep Timeline's annotations (`FullDayChartView.reloadAnnotations`):
     /// on-device and imported sleeps, the longest one overlapping today as the night, never a nap; the
@@ -130,11 +147,5 @@ struct ForgeDayHeartWidget: View {
         let h = max(0, seconds) / 3600, m = (max(0, seconds) % 3600) / 60
         return "\(h):\(String(format: "%02d", m))"
     }
-
-    private static let timeFmt: DateFormatter = {
-        let f = DateFormatter()
-        f.setLocalizedDateFormatFromTemplate("HH:mm")
-        return f
-    }()
 }
 #endif

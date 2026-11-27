@@ -1900,7 +1900,7 @@ struct ForgeWidgetGallery: View {
                         subtitle: String(localized: "Small · a heart beating with your pulse")) { store.add(.init(kind: .liveHeart)) }
                     row(symbol: "waveform.path.ecg", title: String(localized: "Live heart rate"),
                         subtitle: String(localized: "Wide · your heart rate as a curve")) { store.add(.init(kind: .liveHeart, wide: true)) }
-                    row(symbol: "heart.text.square.fill", title: String(localized: "Heart Rate"),
+                    row(symbol: "heart.text.square.fill", title: String(localized: "Heart rate through the day"),
                         subtitle: String(localized: "Wide · the whole day, with sleep and workouts")) { store.add(.init(kind: .dayHeart)) }
                 } header: { Text("Cards") }
             }

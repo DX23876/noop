@@ -6282,6 +6282,9 @@
     <string name="forge_g_live">Tętno na żywo</string>
     <string name="forge_g_live_sub">Mały · serce bijące z twoim pulsem</string>
     <string name="forge_g_live_wide_sub">Szeroki · puls jako krzywa</string>
+    <string name="forge_day_heart_title">Tętno w ciągu dnia</string>
+    <string name="forge_g_day_heart_sub">Szeroki · cały dzień ze snem i treningami</string>
+    <string name="forge_day_heart_empty">Na dziś nie zapisano jeszcze tętna</string>
     <string name="forge_g_add">Dodaj widżet</string>
     <string name="forge_g_done">Gotowe</string>
     <string name="forge_tile_usually">zwykle %1$s</string>

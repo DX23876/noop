@@ -648,7 +648,7 @@ private fun dayLabel(dayStartSec: Long, todayStart: Long): String = when (daySta
  * HR chart's HrTimeAxisLabels (TodayScreen.kt), adapted to the Timeline's wall-clock x mapping.
  */
 @Composable
-private fun TimelineTimeAxisLabels(
+internal fun TimelineTimeAxisLabels(
     ticks: List<Pair<Long, String>>,
     windowStart: Long,
     windowEnd: Long,

@@ -6262,6 +6262,9 @@
     <string name="forge_g_live">Frecuencia cardíaca en vivo</string>
     <string name="forge_g_live_sub">Pequeño · un corazón que late con tu pulso</string>
     <string name="forge_g_live_wide_sub">Ancho · tu pulso como curva</string>
+    <string name="forge_day_heart_title">Frecuencia cardíaca a lo largo del día</string>
+    <string name="forge_g_day_heart_sub">Ancho · todo el día, con sueño y entrenamientos</string>
+    <string name="forge_day_heart_empty">Aún no hay frecuencia cardíaca guardada para hoy</string>
     <string name="forge_g_add">Añadir un widget</string>
     <string name="forge_g_done">Listo</string>
     <string name="forge_tile_usually">normalmente %1$s</string>

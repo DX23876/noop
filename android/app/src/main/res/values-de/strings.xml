@@ -6278,6 +6278,9 @@
     <string name="forge_g_live">Live-Herzfrequenz</string>
     <string name="forge_g_live_sub">Klein · ein Herz, das mit deinem Puls schlägt</string>
     <string name="forge_g_live_wide_sub">Breit · dein Puls als Verlauf</string>
+    <string name="forge_day_heart_title">Herzfrequenz im Tagesverlauf</string>
+    <string name="forge_g_day_heart_sub">Breit · der ganze Tag mit Schlaf und Training</string>
+    <string name="forge_day_heart_empty">Für heute sind noch keine Herzfrequenzdaten gespeichert</string>
     <string name="forge_g_add">Widget hinzufügen</string>
     <string name="forge_g_done">Fertig</string>
     <string name="forge_tile_usually">üblich %1$s</string>

@@ -6241,6 +6241,9 @@
     <string name="forge_g_live">Пульс в реальном времени</string>
     <string name="forge_g_live_sub">Маленький · сердце бьётся с вашим пульсом</string>
     <string name="forge_g_live_wide_sub">Широкий · пульс в виде кривой</string>
+    <string name="forge_day_heart_title">Пульс в течение дня</string>
+    <string name="forge_g_day_heart_sub">Широкий · весь день со сном и тренировками</string>
+    <string name="forge_day_heart_empty">За сегодня пульс ещё не сохранён</string>
     <string name="forge_g_add">Добавить виджет</string>
     <string name="forge_g_done">Готово</string>
     <string name="forge_tile_usually">обычно %1$s</string>

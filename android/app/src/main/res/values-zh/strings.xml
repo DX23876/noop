@@ -6222,6 +6222,9 @@
     <string name="forge_g_live">实时心率</string>
     <string name="forge_g_live_sub">小 · 随脉搏跳动的心形</string>
     <string name="forge_g_live_wide_sub">宽 · 以曲线显示心率</string>
+    <string name="forge_day_heart_title">全天心率</string>
+    <string name="forge_g_day_heart_sub">宽 · 全天，含睡眠和锻炼</string>
+    <string name="forge_day_heart_empty">今天尚未保存心率数据</string>
     <string name="forge_g_add">添加小组件</string>
     <string name="forge_g_done">完成</string>
     <string name="forge_tile_usually">通常 %1$s</string>
