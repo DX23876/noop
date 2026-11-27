@@ -5667,7 +5667,7 @@
     <string name="diet_hold_burn_model">Расход теперь оценивается точнее, и цель сдвинулась вместе с ним. Forge посмотрит снова через две недели.</string>
     <string name="diet_hold_break">Это неделя перерыва на поддержании. Потом Forge посмотрит снова.</string>
     <string name="diet_burn_note_title">Расход</string>
-    <string name="diet_burn_note_up">Расход теперь оценивается точнее: сидеть и стоять стоит больше, чем лежать. Цель вырастет примерно на %1$s ккал.</string>
+    <string name="diet_burn_note_up">Расход теперь оценивается точнее: сидение, стояние и пищеварение тоже учитываются. Цель вырастет примерно на %1$s ккал.</string>
     <string name="diet_burn_note_down">Расход теперь оценивается точнее. Цель снизится примерно на %1$s ккал.</string>
     <string name="diet_burn_note_ok">Понятно</string>
     <string name="diet_hold_on_plan">Вес идёт по плану. Ничего менять не нужно.</string>
@@ -6501,7 +6501,7 @@
     <string name="forge_ex_night_title">Как проходит ночь</string>
     <string name="forge_ex_night_text">Сон идёт циклами примерно по 90 минут. Глубокий сон бывает в основном в начале ночи, REM ближе к утру, а короткие пробуждения нормальны. Ваша ночь может выглядеть иначе.</string>
     <string name="forge_ex_energy_title">Потрачено и съедено</string>
-    <string name="forge_ex_energy_text">Сожжено: то, что тело тратит в покое, плюс то, что добавляет активность. Съедено: то, что вы записали. Баланс лучше оценивать за неделю, а не за один день.</string>
+    <string name="forge_ex_energy_text">Расход — это то, что тело тратит в покое, что добавляют сидение, стояние и пищеварение и что добавляет активность. Съедено — то, что вы записали. Баланс лучше оценивать за неделю, а не за один день.</string>
     <string name="forge_ex_burned">Высвобожденная энергия</string>
     <string name="forge_ex_resting">регулярное восстановление</string>
     <string name="forge_ex_active">Активно</string>
@@ -7903,4 +7903,15 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="fsp6_coach_forget_message">Для повторного подключения вам придется вставить его еще раз. Это отличается от Disconnect, который сохраняет ключ.</string>
     <string name="fsp6_lab_blurb">Незавершённые функции. По умолчанию выключены; их можно снова выключить в любой момент.</string>
     <string name="fsp6_ss_motion">Движение</string>
+    <string name="forge_en_everyday_explain">Сидеть, стоять и мелкие дела стоят больше, чем лежать в постели. Время бодрствования без шагов и тренировок считается чуть выше расхода в покое. Сон остаётся на уровне расхода в покое. Пищеварение добавляет примерно десятую часть дня.</string>
+    <string name="forge_en_digest_logged">Пищеварение в этот день: %1$d ккал, по вашим записям.</string>
+    <string name="forge_en_digest_standard">Пищеварение в этот день: около %1$d ккал, десятая часть дня. День, отмеченный как полностью записанный, считает вашу собственную еду.</string>
+    <string name="forge_ex_lying">Лёжа</string>
+    <string name="forge_ex_sitting">Сидя</string>
+    <string name="forge_ex_standing">Стоя</string>
+    <string name="forge_en_likely">Скорее всего от %1$s до %2$s ккал: ни одно носимое устройство не знает отдельное тело точнее</string>
+    <string name="forge_en_likely_scale">Скорее всего от %1$s до %2$s ккал, уточнено по весам</string>
+    <string name="energy_scale_early_same">Первый взгляд: весы и strap пока совпадают. Надёжно только через шесть недель.</string>
+    <string name="energy_scale_early_more">Первый взгляд: весы показывают примерно на %1$d %% больше, чем strap. Надёжно только через шесть недель.</string>
+    <string name="energy_scale_early_less">Первый взгляд: весы показывают примерно на %1$d %% меньше, чем strap. Надёжно только через шесть недель.</string>
 </resources>

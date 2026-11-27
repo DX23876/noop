@@ -22,6 +22,9 @@ public enum ScaleCorrectionUpdate {
         public var tooUncertain: Bool
         public var holding: Bool
         public var appliesToBasal: Bool
+        /// Before a figure can be offered: the early look's scale over strap (`ScaleBurn.Gates.early`), shown as a
+        /// direction only, never proposed or applied. Nil until three weeks hold enough.
+        public var earlyRatio: Double? = nil
     }
 
     /// Days a change in eating or training holds the correction still (Q23).
@@ -93,6 +96,11 @@ public enum ScaleCorrectionUpdate {
             snapshot.weighIns = weighs
             snapshot.spanDays = span
             snapshot.tooUncertain = uncertain
+            if case .estimate(let early) = ScaleBurn.estimate(completeIntake: completeIntake, weighIns: weighIns,
+                                                              strapByDay: strapByDay, today: today,
+                                                              kcalPerKg: kcalPerKg, gates: .early) {
+                snapshot.earlyRatio = early.ratio
+            }
         }
         let next = state.evaluated(target: target, today: today, holding: hold, measured: basalShare != nil)
         snapshot.status = next.status.rawValue

@@ -110,7 +110,7 @@ struct ForgeEnergyView: View {
             ToolbarItem(placement: .primaryAction) {
                 ExplainerInfoButton(
                     title: String(localized: "Burned and eaten"),
-                    text: String(localized: "Burned is what your body uses at rest, what sitting and standing add, and what activity adds. Eaten is what you logged. The balance between them is best read over a week, not a single day.")) {
+                    text: String(localized: "Burned is what your body uses at rest, what sitting, standing and digesting add, and what activity adds. Eaten is what you logged. The balance between them is best read over a week, not a single day.")) {
                         ExplainerEnergyBars()
                     }
             }
@@ -235,6 +235,16 @@ struct ForgeEnergyView: View {
                     .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
+            if let likely = EnergyRange.likely(s, isToday: isToday) {
+                Label {
+                    Text(verbatim: likely.narrowedByScale
+                         ? String(localized: "Likely \(kcal(likely.low)) to \(kcal(likely.high)) kcal, narrowed by your scale")
+                         : String(localized: "Likely \(kcal(likely.low)) to \(kcal(likely.high)) kcal: no wearable knows a single body more closely"))
+                } icon: { Image(systemName: "arrow.left.and.right") }
+                    .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             if let note = card.qualityNote {
                 Label(note, systemImage: "info.circle")
                     .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
@@ -308,7 +318,7 @@ struct ForgeEnergyView: View {
                             title: String(localized: "Everyday"), value: everyday, share: everyday / total,
                             info: AnyView(ExplainerInfoButton(
                                 title: String(localized: "Everyday"),
-                                text: String(localized: "Sitting, standing and small things cost more than lying in bed. Awake time without steps or training counts a little above your resting burn. Sleep stays at your resting burn.")) {
+                                text: String(localized: "Sitting, standing and small things cost more than lying in bed. Awake time without steps or training counts a little above your resting burn. Sleep stays at your resting burn. Digesting food adds about a tenth of the day.") + digestionLine(s)) {
                                     ExplainerEverydayBars()
                                 }))
                     ForgeRowDivider()
@@ -321,6 +331,15 @@ struct ForgeEnergyView: View {
             }
             .forgeCard(radius: ForgeRadius.card, padding: 0)
         }
+    }
+
+    /// What digestion cost on the day, from the food when the day was marked as fully logged (`Digestion`).
+    private func digestionLine(_ s: DailyEnergySummary) -> String {
+        guard let digestion = s.digestionBurnedSoFar, digestion > 0 else { return "" }
+        let kcal = Int(digestion.rounded())
+        return "\n\n" + (s.digestionFromLog
+            ? String(localized: "Digesting this day: \(kcal) kcal, from what you logged.")
+            : String(localized: "Digesting this day: about \(kcal) kcal, a tenth of the day. A day marked as fully logged counts your own food."))
     }
 
     private func partRow(symbol: String, tint: Color, title: String, value: Double?, share: Double?,
@@ -725,6 +744,15 @@ struct ForgeScaleCard: View {
         return (p > 0 ? "+" : p < 0 ? "−" : "") + "\(abs(p)) %"
     }
 
+    /// The early look's direction in words (`ScaleCorrectionUpdate.Snapshot.earlyRatio`), never a figure to act on.
+    static func earlyLook(_ ratio: Double) -> String {
+        let percent = Int(((ratio - 1) * 100).rounded())
+        if abs(percent) < 3 { return String(localized: "First look: your scale and the strap agree so far. Sure only after six weeks.") }
+        return percent > 0
+            ? String(localized: "First look: your scale reads about \(percent) % more than the strap. Sure only after six weeks.")
+            : String(localized: "First look: your scale reads about \(-percent) % less than the strap. Sure only after six weeks.")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             ForgeSectionTitle(title: "Your scale")
@@ -764,6 +792,11 @@ struct ForgeScaleCard: View {
                         }
                     }
                     .font(.body).foregroundStyle(ForgeColor.secondary).fixedSize(horizontal: false, vertical: true)
+                    if let ratio = snapshot.earlyRatio, !snapshot.holding {
+                        Text(Self.earlyLook(ratio))
+                            .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

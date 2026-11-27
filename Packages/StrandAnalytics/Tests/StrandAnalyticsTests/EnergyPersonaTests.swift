@@ -3,12 +3,12 @@ import XCTest
 
 /// The population gate (owner decision 2026-11-27, Q12): invented days for six kinds of people, priced by
 /// the strap model and the day engine, must land in the range doubly-labelled-water studies find for that
-/// way of living, as a multiple of basal and without digestion. A person outside the range blocks a release.
+/// way of living, as a multiple of basal. A person outside the range blocks a release.
 ///
-/// The ranges are the FAO/WHO/UNU bands (sedentary or light 1.40 to 1.69, active 1.70 to 1.99) lowered by
-/// about 0.15 for the digestion those measurements contain and the model leaves out, placed within the band
-/// by how much each person moves: a day of 3,000 steps at its lower edge, 8,000 steps around its middle, ten
-/// hours of training a week in the active band, a day in bed below it.
+/// The ranges are the FAO/WHO/UNU bands (sedentary or light 1.40 to 1.69, active 1.70 to 1.99), digestion
+/// included as those measurements include it (`Digestion`, the standard tenth: nobody here logs food), placed
+/// within the band by how much each person moves: a day of 3,000 steps at its lower edge, 8,000 steps around
+/// its middle, ten hours of training a week in the active band, a day in bed below it.
 final class EnergyPersonaTests: XCTestCase {
     struct Persona {
         let name: String
@@ -86,27 +86,27 @@ final class EnergyPersonaTests: XCTestCase {
         Persona(name: "thin, office, 3000 steps",
                 profile: UserProfile(weightKg: 60, heightCm: 175, age: 30, sex: "male"),
                 sleepHours: 8, walkingMinutes: 30, workoutMinutes: 0, workoutHR: 0, workoutKind: .other,
-                workoutOnFoot: false, workoutDaysPerWeek: 0, restingHR: 62, range: 1.25...1.45),
+                workoutOnFoot: false, workoutDaysPerWeek: 0, restingHR: 62, range: 1.40...1.60),
         Persona(name: "normal weight, 8000 steps",
                 profile: UserProfile(weightKg: 75, heightCm: 178, age: 40, sex: "male"),
                 sleepHours: 7.5, walkingMinutes: 80, workoutMinutes: 0, workoutHR: 0, workoutKind: .other,
-                workoutOnFoot: false, workoutDaysPerWeek: 0, restingHR: 60, range: 1.35...1.6),
+                workoutOnFoot: false, workoutDaysPerWeek: 0, restingHR: 60, range: 1.50...1.78),
         Persona(name: "very heavy, 8000 steps, strength three times a week",
                 profile: UserProfile(weightKg: 200, heightCm: 196, age: 35, sex: "male"),
                 sleepHours: 7.5, walkingMinutes: 80, workoutMinutes: 60, workoutHR: 125, workoutKind: .resistance,
-                workoutOnFoot: false, workoutDaysPerWeek: 3, restingHR: 68, range: 1.35...1.6),
+                workoutOnFoot: false, workoutDaysPerWeek: 3, restingHR: 68, range: 1.50...1.78),
         Persona(name: "endurance athlete, ten hours a week",
                 profile: UserProfile(weightKg: 70, heightCm: 180, age: 30, sex: "male"),
                 sleepHours: 8, walkingMinutes: 60, workoutMinutes: 85, workoutHR: 150, workoutKind: .endurance,
-                workoutOnFoot: true, workoutDaysPerWeek: 7, restingHR: 50, range: 1.6...1.9),
+                workoutOnFoot: true, workoutDaysPerWeek: 7, restingHR: 50, range: 1.75...2.10),
         Persona(name: "older woman, little movement",
                 profile: UserProfile(weightKg: 65, heightCm: 162, age: 70, sex: "female"),
                 sleepHours: 8, walkingMinutes: 40, workoutMinutes: 0, workoutHR: 0, workoutKind: .other,
-                workoutOnFoot: false, workoutDaysPerWeek: 0, restingHR: 66, range: 1.25...1.45),
+                workoutOnFoot: false, workoutDaysPerWeek: 0, restingHR: 66, range: 1.40...1.60),
         Persona(name: "sick day, almost only in bed",
                 profile: UserProfile(weightKg: 80, heightCm: 180, age: 35, sex: "male"),
                 sleepHours: 10, walkingMinutes: 5, workoutMinutes: 0, workoutHR: 0, workoutKind: .other,
-                workoutOnFoot: false, workoutDaysPerWeek: 0, restingHR: 72, range: 1.05...1.25),
+                workoutOnFoot: false, workoutDaysPerWeek: 0, restingHR: 72, range: 1.15...1.40),
     ]
 
     func testEveryPersonaLandsInItsRange() throws {

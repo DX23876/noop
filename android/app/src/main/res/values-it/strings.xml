@@ -5655,7 +5655,7 @@
     <string name="diet_hold_burn_model">Il tuo consumo ora è stimato con più precisione e il tuo obiettivo si è spostato con esso. Forge guarda di nuovo tra due settimane.</string>
     <string name="diet_hold_break">Questa è una settimana di pausa al mantenimento. Forge guarda di nuovo dopo.</string>
     <string name="diet_burn_note_title">Il tuo consumo</string>
-    <string name="diet_burn_note_up">Il tuo consumo ora è stimato con più precisione: stare seduti e in piedi conta più che stare sdraiati. Il tuo obiettivo sale di circa %1$s kcal.</string>
+    <string name="diet_burn_note_up">Il tuo consumo ora è stimato con più precisione: stare seduti, in piedi e digerire contano anche loro. Il tuo obiettivo sale di circa %1$s kcal.</string>
     <string name="diet_burn_note_down">Il tuo consumo ora è stimato con più precisione. Il tuo obiettivo scende di circa %1$s kcal.</string>
     <string name="diet_burn_note_ok">Capito</string>
     <string name="diet_hold_on_plan">Il tuo peso segue il piano. Niente da cambiare.</string>
@@ -6490,7 +6490,7 @@
     <string name="forge_ex_night_title">Come si svolge una notte</string>
     <string name="forge_ex_night_text">Il sonno procede per cicli di circa 90 minuti. Il sonno profondo arriva soprattutto a inizio notte, il REM verso il mattino, e i brevi risvegli sono normali. La tua notte può essere diversa.</string>
     <string name="forge_ex_energy_title">Bruciato e mangiato</string>
-    <string name="forge_ex_energy_text">Bruciato è ciò che il corpo usa a riposo più ciò che aggiunge l\'attività. Mangiato è ciò che hai registrato. Il bilancio si legge meglio su una settimana, non su un solo giorno.</string>
+    <string name="forge_ex_energy_text">Consumato è ciò che il tuo corpo usa a riposo, ciò che aggiungono lo stare seduti e in piedi e la digestione, e ciò che aggiunge l\'attività. Mangiato è ciò che hai registrato. Il bilancio si legge meglio su una settimana, non su un giorno.</string>
     <string name="forge_ex_burned">Bruciato</string>
     <string name="forge_ex_resting">Riposo</string>
     <string name="forge_ex_active">Attivo</string>
@@ -7861,4 +7861,15 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="fsp6_coach_forget_message">Dovrai incollarlo di nuovo per riconnetterti. Questo è diverso da Disconnect, che mantiene la chiave.</string>
     <string name="fsp6_lab_blurb">Funzioni non finite. Disattivate per impostazione predefinita; puoi spegnerle quando vuoi.</string>
     <string name="fsp6_ss_motion">Movimento</string>
+    <string name="forge_en_everyday_explain">Stare seduti, in piedi e le piccole cose costano più che stare sdraiati a letto. Il tempo da svegli senza passi né allenamento conta un po\' sopra il tuo consumo a riposo. Il sonno resta al tuo consumo a riposo. Digerire il cibo aggiunge circa un decimo della giornata.</string>
+    <string name="forge_en_digest_logged">Digestione in questo giorno: %1$d kcal, da ciò che hai registrato.</string>
+    <string name="forge_en_digest_standard">Digestione in questo giorno: circa %1$d kcal, un decimo della giornata. Un giorno segnato come registrato per intero conta il tuo cibo.</string>
+    <string name="forge_ex_lying">Sdraiati</string>
+    <string name="forge_ex_sitting">Seduti</string>
+    <string name="forge_ex_standing">In piedi</string>
+    <string name="forge_en_likely">Probabilmente da %1$s a %2$s kcal: nessun dispositivo indossabile conosce un singolo corpo più da vicino</string>
+    <string name="forge_en_likely_scale">Probabilmente da %1$s a %2$s kcal, ristretto dalla tua bilancia</string>
+    <string name="energy_scale_early_same">Primo sguardo: la tua bilancia e lo strap per ora concordano. Sicuro solo dopo sei settimane.</string>
+    <string name="energy_scale_early_more">Primo sguardo: la tua bilancia segna circa il %1$d %% in più dello strap. Sicuro solo dopo sei settimane.</string>
+    <string name="energy_scale_early_less">Primo sguardo: la tua bilancia segna circa il %1$d %% in meno dello strap. Sicuro solo dopo sei settimane.</string>
 </resources>

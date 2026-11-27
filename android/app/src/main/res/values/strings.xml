@@ -5751,7 +5751,7 @@
     <string name="diet_hold_burn_model">Your burn is estimated more closely now, and your goal moved with it. Forge looks again in two weeks.</string>
     <string name="diet_hold_break">This is a break week at maintenance. Forge looks again after it.</string>
     <string name="diet_burn_note_title">Your burn</string>
-    <string name="diet_burn_note_up">Your burn is estimated more closely now: sitting and standing count above lying. Your goal rises by about %1$s kcal.</string>
+    <string name="diet_burn_note_up">Your burn is estimated more closely now: sitting, standing and digesting count too. Your goal rises by about %1$s kcal.</string>
     <string name="diet_burn_note_down">Your burn is estimated more closely now. Your goal falls by about %1$s kcal.</string>
     <string name="diet_burn_note_ok">Got it</string>
     <string name="diet_hold_on_plan">Your weight follows the plan. Nothing to change.</string>
@@ -6587,7 +6587,7 @@
     <string name="forge_ex_night_title">How a night runs</string>
     <string name="forge_ex_night_text">Sleep moves through cycles of about 90 minutes. Deep sleep comes mostly early in the night, REM mostly towards morning, and short wakings are normal. Your own night can look different.</string>
     <string name="forge_ex_energy_title">Burned and eaten</string>
-    <string name="forge_ex_energy_text">Burned is what your body uses at rest plus what activity adds. Eaten is what you logged. The balance between them is best read over a week, not a single day.</string>
+    <string name="forge_ex_energy_text">Burned is what your body uses at rest, what sitting, standing and digesting add, and what activity adds. Eaten is what you logged. The balance between them is best read over a week, not a single day.</string>
     <string name="forge_ex_burned">Burned</string>
     <string name="forge_ex_resting">Resting</string>
     <string name="forge_ex_active">Active</string>
@@ -7936,4 +7936,15 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="fsp6_coach_forget_message">You\'ll need to paste it again to reconnect. This is different from Disconnect, which keeps the key.</string>
     <string name="fsp6_lab_blurb">Unfinished features. Off by default; turn one off again any time.</string>
     <string name="fsp6_ss_motion">Motion</string>
+    <string name="forge_en_everyday_explain">Sitting, standing and small things cost more than lying in bed. Awake time without steps or training counts a little above your resting burn. Sleep stays at your resting burn. Digesting food adds about a tenth of the day.</string>
+    <string name="forge_en_digest_logged">Digesting this day: %1$d kcal, from what you logged.</string>
+    <string name="forge_en_digest_standard">Digesting this day: about %1$d kcal, a tenth of the day. A day marked as fully logged counts your own food.</string>
+    <string name="forge_ex_lying">Lying</string>
+    <string name="forge_ex_sitting">Sitting</string>
+    <string name="forge_ex_standing">Standing</string>
+    <string name="forge_en_likely">Likely %1$s to %2$s kcal: no wearable knows a single body more closely</string>
+    <string name="forge_en_likely_scale">Likely %1$s to %2$s kcal, narrowed by your scale</string>
+    <string name="energy_scale_early_same">First look: your scale and the strap agree so far. Sure only after six weeks.</string>
+    <string name="energy_scale_early_more">First look: your scale reads about %1$d %% more than the strap. Sure only after six weeks.</string>
+    <string name="energy_scale_early_less">First look: your scale reads about %1$d %% less than the strap. Sure only after six weeks.</string>
 </resources>

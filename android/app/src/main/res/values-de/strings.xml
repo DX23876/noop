@@ -5704,7 +5704,7 @@
     <string name="diet_hold_burn_model">Dein Verbrauch wird jetzt genauer geschätzt und dein Ziel hat sich mit ihm verschoben. Forge schaut in zwei Wochen wieder.</string>
     <string name="diet_hold_break">Das ist eine Pausenwoche auf Erhaltung. Danach schaut Forge wieder.</string>
     <string name="diet_burn_note_title">Dein Verbrauch</string>
-    <string name="diet_burn_note_up">Dein Verbrauch wird jetzt genauer geschätzt: Sitzen und Stehen zählen mehr als Liegen. Dein Ziel steigt um etwa %1$s kcal.</string>
+    <string name="diet_burn_note_up">Dein Verbrauch wird jetzt genauer geschätzt: Sitzen, Stehen und Verdauen zählen mit. Dein Ziel steigt um etwa %1$s kcal.</string>
     <string name="diet_burn_note_down">Dein Verbrauch wird jetzt genauer geschätzt. Dein Ziel sinkt um etwa %1$s kcal.</string>
     <string name="diet_burn_note_ok">Verstanden</string>
     <string name="diet_hold_on_plan">Dein Gewicht folgt dem Plan. Nichts zu ändern.</string>
@@ -6539,7 +6539,7 @@
     <string name="forge_ex_night_title">So verläuft eine Nacht</string>
     <string name="forge_ex_night_text">Schlaf verläuft in Zyklen von etwa 90 Minuten. Tiefschlaf kommt meist früh in der Nacht, REM meist gegen Morgen, und kurzes Aufwachen ist normal. Deine eigene Nacht kann anders aussehen.</string>
     <string name="forge_ex_energy_title">Verbraucht und gegessen</string>
-    <string name="forge_ex_energy_text">Verbraucht ist, was dein Körper in Ruhe braucht, plus das, was Aktivität dazugibt. Gegessen ist, was du eingetragen hast. Die Bilanz liest man am besten über eine Woche, nicht an einem einzelnen Tag.</string>
+    <string name="forge_ex_energy_text">Verbraucht ist, was dein Körper in Ruhe braucht, was Sitzen, Stehen und Verdauen dazugeben und was Bewegung dazugibt. Gegessen ist, was du eingetragen hast. Die Bilanz liest man am besten über eine Woche, nicht an einem Tag.</string>
     <string name="forge_ex_burned">Verbraucht</string>
     <string name="forge_ex_resting">Ruhend</string>
     <string name="forge_ex_active">Aktiv</string>
@@ -7910,4 +7910,15 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsp6_coach_forget_message">Du musst ihn zum erneuten Verbinden wieder einfügen. Das ist etwas anderes als „Trennen“, wobei der Schlüssel erhalten bleibt.</string>
     <string name="fsp6_lab_blurb">Unfertige Funktionen. Standardmäßig aus, jederzeit wieder abschaltbar.</string>
     <string name="fsp6_ss_motion">Bewegung</string>
+    <string name="forge_en_everyday_explain">Sitzen, Stehen und Kleinkram kosten mehr als im Bett liegen. Wache Zeit ohne Schritte oder Training zählt etwas über deinem Ruheverbrauch. Schlaf bleibt bei deinem Ruheverbrauch. Verdauen kostet zusätzlich etwa ein Zehntel des Tages.</string>
+    <string name="forge_en_digest_logged">Verdauen an diesem Tag: %1$d kcal, aus dem, was du eingetragen hast.</string>
+    <string name="forge_en_digest_standard">Verdauen an diesem Tag: etwa %1$d kcal, ein Zehntel des Tages. Ein Tag, den du als komplett eingetragen markierst, zählt dein eigenes Essen.</string>
+    <string name="forge_ex_lying">Liegen</string>
+    <string name="forge_ex_sitting">Sitzen</string>
+    <string name="forge_ex_standing">Stehen</string>
+    <string name="forge_en_likely">Wahrscheinlich %1$s bis %2$s kcal: genauer kennt kein Wearable einen einzelnen Körper</string>
+    <string name="forge_en_likely_scale">Wahrscheinlich %1$s bis %2$s kcal, eingegrenzt durch deine Waage</string>
+    <string name="energy_scale_early_same">Erster Blick: Waage und Strap stimmen bisher überein. Sicher ist das erst nach sechs Wochen.</string>
+    <string name="energy_scale_early_more">Erster Blick: deine Waage liegt etwa %1$d %% über dem Strap. Sicher ist das erst nach sechs Wochen.</string>
+    <string name="energy_scale_early_less">Erster Blick: deine Waage liegt etwa %1$d %% unter dem Strap. Sicher ist das erst nach sechs Wochen.</string>
 </resources>

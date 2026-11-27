@@ -5648,7 +5648,7 @@
     <string name="diet_hold_burn_model">你的消耗现在估算得更准确，你的目标也随之调整。Forge 两周后再看一次。</string>
     <string name="diet_hold_break">这是维持热量的休息周。之后 Forge 会再看一次。</string>
     <string name="diet_burn_note_title">你的消耗</string>
-    <string name="diet_burn_note_up">你的消耗现在估算得更准确：坐着和站着比躺着消耗更多。你的目标提高约 %1$s 千卡。</string>
+    <string name="diet_burn_note_up">你的消耗现在估算得更准确：坐、站和消化也计算在内。你的目标提高约 %1$s 千卡。</string>
     <string name="diet_burn_note_down">你的消耗现在估算得更准确。你的目标降低约 %1$s 千卡。</string>
     <string name="diet_burn_note_ok">知道了</string>
     <string name="diet_hold_on_plan">你的体重符合计划。无需调整。</string>
@@ -6482,7 +6482,7 @@
     <string name="forge_ex_night_title">一夜如何度过</string>
     <string name="forge_ex_night_text">睡眠以约 90 分钟为一个周期。深睡多在前半夜,快速眼动多在清晨前,短暂醒来很正常。你的夜晚可能有所不同。</string>
     <string name="forge_ex_energy_title">消耗与摄入</string>
-    <string name="forge_ex_energy_text">消耗是身体静息所需加上活动增加的部分。摄入是你记录的内容。两者的平衡最好按一周来看,而不是单独一天。</string>
+    <string name="forge_ex_energy_text">消耗是身体静息时的用量，加上坐、站和消化带来的额外消耗，再加上活动带来的消耗。摄入是你记录的内容。两者的平衡最好按一周来看，而不是单独一天。</string>
     <string name="forge_ex_burned">消耗能量</string>
     <string name="forge_ex_resting">休息</string>
     <string name="forge_ex_active">活跃</string>
@@ -7836,4 +7836,15 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fsp6_coach_forget_message">您需要再次粘贴它才能重新连接。这与 Disconnect 不同，Disconnect 保留密钥。</string>
     <string name="fsp6_lab_blurb">尚未完成的功能。默认关闭，随时可以再次关闭。</string>
     <string name="fsp6_ss_motion">运动</string>
+    <string name="forge_en_everyday_explain">坐着、站着和琐事比躺在床上消耗更多。没有步数或训练的清醒时间会比静息消耗略高。睡眠保持在静息消耗。消化食物还会增加大约一天的十分之一。</string>
+    <string name="forge_en_digest_logged">当天消化：%1$d 千卡，来自你记录的饮食。</string>
+    <string name="forge_en_digest_standard">当天消化：约 %1$d 千卡，即一天的十分之一。标记为完整记录的日子会按你自己的饮食计算。</string>
+    <string name="forge_ex_lying">躺着</string>
+    <string name="forge_ex_sitting">坐着</string>
+    <string name="forge_ex_standing">站着</string>
+    <string name="forge_en_likely">大约在 %1$s 到 %2$s 千卡之间：没有任何穿戴设备能更准确地了解单个身体</string>
+    <string name="forge_en_likely_scale">大约在 %1$s 到 %2$s 千卡之间，已由体重秤缩小范围</string>
+    <string name="energy_scale_early_same">初步观察：体重秤和 strap 目前一致。六周后才可靠。</string>
+    <string name="energy_scale_early_more">初步观察：体重秤比 strap 高约 %1$d %%。六周后才可靠。</string>
+    <string name="energy_scale_early_less">初步观察：体重秤比 strap 低约 %1$d %%。六周后才可靠。</string>
 </resources>

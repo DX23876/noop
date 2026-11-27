@@ -44,6 +44,7 @@ import androidx.compose.material.icons.rounded.VerifiedUser
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Hotel
+import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Weekend
 import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.ChevronRight
@@ -180,6 +181,15 @@ private fun ScaleCard(s: CoreEnergyPlan.Scale, onAction: (String) -> Unit) {
                         else -> stringResource(R.string.energy_scale_missing, s.completeDays, s.weighIns)
                     }
                     Text(line, style = Forge.type.body, color = colors.textSecondary)
+                    val ratio = s.earlyRatio
+                    if (ratio != null && !s.holding) {
+                        val percent = kotlin.math.round((ratio - 1) * 100).toInt()
+                        Text(when {
+                                 kotlin.math.abs(percent) < 3 -> stringResource(R.string.energy_scale_early_same)
+                                 percent > 0 -> stringResource(R.string.energy_scale_early_more, percent)
+                                 else -> stringResource(R.string.energy_scale_early_less, -percent)
+                             }, style = Forge.type.caption, color = colors.textSecondary)
+                    }
                 }
             }
         }
@@ -266,6 +276,14 @@ private fun Hero(s: CoreEnergyDetail.Summary, d: CoreEnergyDetail.Detail, eaten:
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Icon(Icons.Rounded.Bedtime, null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
                     Text(stringResource(R.string.forge_en_tonight, kcalText(s.projectedLow), kcalText(s.projectedHigh)),
+                         style = Forge.type.caption, color = colors.textSecondary)
+                }
+            }
+            if (!isToday && s.likelyLow != null && s.likelyHigh != null) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Icon(Icons.Rounded.SwapHoriz, null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
+                    Text(stringResource(if (s.likelyByScale) R.string.forge_en_likely_scale else R.string.forge_en_likely,
+                                        kcalText(s.likelyLow), kcalText(s.likelyHigh)),
                          style = Forge.type.caption, color = colors.textSecondary)
                 }
             }
@@ -404,8 +422,14 @@ private fun Parts(s: CoreEnergyDetail.Summary, d: CoreEnergyDetail.Detail) {
         HubDivider()
         val everyday = s.everyday
         if (everyday != null && everyday > 0) {
+            val digestion = s.digestion?.takeIf { it > 0 }?.let { kcal ->
+                "\n\n" + stringResource(if (s.digestionFromLog) R.string.forge_en_digest_logged else R.string.forge_en_digest_standard,
+                                          kotlin.math.round(kcal).toInt())
+            } ?: ""
             PartRow(Icons.Rounded.Weekend, ForgeTokens.StrandPalette.forgeEnergyEveryday.resolve(),
-                    stringResource(R.string.forge_en_everyday), everyday, everyday / total)
+                    stringResource(R.string.forge_en_everyday), everyday, everyday / total,
+                    info = { ExplainerInfoButton(R.string.forge_en_everyday,
+                                                 stringResource(R.string.forge_en_everyday_explain) + digestion) { ExplainerEverydayBars() } })
             HubDivider()
         }
         PartRow(Icons.AutoMirrored.Rounded.DirectionsWalk, ForgeTokens.StrandPalette.forgeEnergyMovement.resolve(),
@@ -423,7 +447,8 @@ private fun EnergySection(title: String) {
 }
 
 @Composable
-private fun PartRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, title: String, value: Double?, share: Double?) {
+private fun PartRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: Color, title: String, value: Double?, share: Double?,
+                    info: (@Composable () -> Unit)? = null) {
     val colors = Forge.colors
     Row(Modifier.fillMaxWidth().padding(horizontal = ForgeMetrics.space4, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -432,7 +457,9 @@ private fun PartRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tint:
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.Bottom) {
-                Text(title, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text, modifier = Modifier.weight(1f))
+                Text(title, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text,
+                     modifier = if (info == null) Modifier.weight(1f) else Modifier)
+                if (info != null) { info(); Spacer(Modifier.weight(1f)) }
                 Text(value?.let(::kcalText) ?: "–", style = Forge.type.headline, color = colors.text)
                 Text(stringResource(R.string.forge_join_space, "", "kcal"), style = Forge.type.caption, color = colors.textSecondary)
             }

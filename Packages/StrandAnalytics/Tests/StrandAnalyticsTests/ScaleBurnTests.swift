@@ -61,6 +61,33 @@ final class ScaleBurnTests: XCTestCase {
         XCTAssertFalse(uncertain)
     }
 
+    /// Three to four weeks are not enough for a figure, but enough for the early look's direction, which needs
+    /// its own looser gate and is never what a proposal reads.
+    func testFourWeeksGiveAnEarlyLookButNoFigure() throws {
+        let h = history()
+        let intake = h.intake.filter { $0.key >= day(28) }
+        let weighIns = h.weighIns.filter { $0.day >= day(28) }
+        guard case .missing = ScaleBurn.estimate(completeIntake: intake, weighIns: weighIns, strapByDay: h.strap,
+                                                 today: day(57), kcalPerKg: 8_700, calendar: calendar) else {
+            return XCTFail("a figure after four weeks")
+        }
+        guard case .estimate(let early) = ScaleBurn.estimate(completeIntake: intake, weighIns: weighIns,
+                                                             strapByDay: h.strap, today: day(57), kcalPerKg: 8_700,
+                                                             gates: .early, calendar: calendar) else {
+            return XCTFail("no early look after four weeks")
+        }
+        let expected = 3_000 + 0.5 / 7 * 8_700
+        XCTAssertEqual(early.burnKcal, expected, accuracy: expected * 0.06)
+        XCTAssertGreaterThan(try XCTUnwrap(early.ratio), 1, "about 3,620 against a strap at 3,400")
+        // Two weeks hold too little even for a look.
+        guard case .missing = ScaleBurn.estimate(completeIntake: h.intake.filter { $0.key >= day(43) },
+                                                 weighIns: h.weighIns.filter { $0.day >= day(43) }, strapByDay: h.strap,
+                                                 today: day(57), kcalPerKg: 8_700, gates: .early,
+                                                 calendar: calendar) else {
+            return XCTFail("an early look after two weeks")
+        }
+    }
+
     /// Water swings widen the figure's uncertainty; past 10 % of the burn it is not offered at all.
     func testWaterSwingsWidenTheUncertaintyUntilItIsNotOffered() throws {
         func outcome(_ noise: Double) -> ScaleBurn.Outcome {

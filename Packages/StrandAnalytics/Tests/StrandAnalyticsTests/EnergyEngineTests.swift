@@ -32,11 +32,14 @@ final class EnergyEngineTests: XCTestCase {
                         calibrationStatus: EnergyCalibrationStatus = .off,
                         steps: Int? = nil, hoursWithSteps: Int? = nil,
                         stepHours: [Int]? = nil, strideM: Double? = nil,
-                        sessions: [ActivityContribution] = []) -> EnergyEngine.DayInputs {
+                        sessions: [ActivityContribution] = [],
+                        digestion: Double? = 0) -> EnergyEngine.DayInputs {
+        // Digestion defaults to a logged day of nothing, so these tests keep pricing only what they are
+        // about; `testDigestion…` below prices it.
         .init(day: "2026-08-21", appleActiveKcal: appleActive,
               appleBasalKcal: appleBasal, appleCoverageSeconds: appleCoverage,
               strapTotalKcal: strap,
-              strapCoverageSeconds: coverage, strapCalibrationFactor: calibration,
+              strapCoverageSeconds: coverage, loggedDigestionKcal: digestion, strapCalibrationFactor: calibration,
               strapUncertaintyFraction: uncertainty, calibrationStatus: calibrationStatus,
               steps: steps, hoursWithSteps: hoursWithSteps,
               stepHours: stepHours, strideM: strideM, loggedActivity: sessions)
@@ -588,7 +591,7 @@ final class EnergyEngineTests: XCTestCase {
     func testTheEverydayShareJoinsTheTotalButNeverTheActiveFigureOrTheCalibration() {
         let inputs = EnergyEngine.DayInputs(day: "2026-11-21", strapTotalKcal: 3_200,
                                             strapCoverageSeconds: 86_400, strapActiveKcal: 540,
-                                            strapEverydayKcal: 420, strapCalibrationFactor: 1.1,
+                                            strapEverydayKcal: 420, loggedDigestionKcal: 0, strapCalibrationFactor: 1.1,
                                             calibrationStatus: .active)
         let summary = EnergyEngine.summarize(inputs, profile: profile, context: context())
         XCTAssertEqual(summary.everydayBurnedSoFar ?? 0, 420, accuracy: 1e-9)
@@ -598,7 +601,8 @@ final class EnergyEngineTests: XCTestCase {
         // Without a stored active figure, the everyday share is taken out of the strap total first, so it
         // is not counted again as activity.
         let legacy = EnergyEngine.DayInputs(day: "2026-11-21", strapTotalKcal: bmr + 420 + 300,
-                                            strapCoverageSeconds: 86_400, strapEverydayKcal: 420)
+                                            strapCoverageSeconds: 86_400, strapEverydayKcal: 420,
+                                            loggedDigestionKcal: 0)
         let fallback = EnergyEngine.summarize(legacy, profile: profile, context: context())
         XCTAssertEqual(fallback.activeBurnedSoFar ?? 0, 300, accuracy: 1e-6)
         XCTAssertEqual(fallback.totalBurnedSoFar ?? 0, bmr + 420 + 300, accuracy: 1e-6)
@@ -617,7 +621,8 @@ final class EnergyEngineTests: XCTestCase {
         func projected(remaining: Double?) -> Double? {
             let inputs = EnergyEngine.DayInputs(day: "2026-11-27", strapTotalKcal: 1_400,
                                                 strapCoverageSeconds: 43_200, strapActiveKcal: 300,
-                                                strapEverydayKcal: 150, strapEverydayRemainingKcal: remaining)
+                                                strapEverydayKcal: 150, strapEverydayRemainingKcal: remaining,
+                                                loggedDigestionKcal: 0)
             return EnergyEngine.summarize(inputs, profile: profile,
                                           context: context(elapsed: 0.5, today: true), shape: shape)
                 .projectedTotalBurn
@@ -634,7 +639,7 @@ final class EnergyEngineTests: XCTestCase {
             EnergyEngine.summarize(EnergyEngine.DayInputs(day: "2026-12-10", strapTotalKcal: 3_000,
                                                           strapCoverageSeconds: 86_400, strapActiveKcal: 600,
                                                           strapEverydayKcal: 400, scaleCorrectionFactor: 1.1,
-                                                          scaleCorrectionCoversBasal: covers),
+                                                          scaleCorrectionCoversBasal: covers, loggedDigestionKcal: 0),
                                    profile: profile, context: context())
         }
         let whole = summary(covers: true)
@@ -649,6 +654,69 @@ final class EnergyEngineTests: XCTestCase {
                                            profile: profile, context: context())
         XCTAssertEqual(apple.totalBurnedSoFar, 2_200)
         XCTAssertNil(apple.scaleCorrectionFactor)
+    }
+
+    /// Digestion (`Digestion`): a tenth of the whole day without a logged day, the day's own food with one. It
+    /// joins the everyday share, never active energy, and the scale's correction covers it like the rest.
+    func testDigestionIsATenthOfTheDayUnlessTheDayWasLogged() {
+        func day(_ logged: Double?, scale: Double? = nil) -> DailyEnergySummary {
+            EnergyEngine.summarize(EnergyEngine.DayInputs(day: "2026-12-10", strapTotalKcal: 3_000,
+                                                          strapCoverageSeconds: 86_400, strapActiveKcal: 600,
+                                                          strapEverydayKcal: 400, scaleCorrectionFactor: scale,
+                                                          loggedDigestionKcal: logged),
+                                   profile: profile, context: context())
+        }
+        let rest = bmr + 400 + 600
+        let standard = day(nil)
+        XCTAssertEqual(standard.digestionBurnedSoFar ?? 0, rest / 9, accuracy: 1e-6)
+        XCTAssertEqual(standard.totalBurnedSoFar ?? 0, rest * 10 / 9, accuracy: 1e-6, "a tenth of the whole day")
+        XCTAssertEqual(standard.everydayBurnedSoFar ?? 0, 400 + rest / 9, accuracy: 1e-6)
+        XCTAssertEqual(standard.activeBurnedSoFar ?? 0, 600, accuracy: 1e-9)
+        XCTAssertFalse(standard.digestionFromLog)
+
+        let logged = day(240)
+        XCTAssertEqual(logged.digestionBurnedSoFar ?? 0, 240, accuracy: 1e-9)
+        XCTAssertEqual(logged.totalBurnedSoFar ?? 0, rest + 240, accuracy: 1e-6)
+        XCTAssertTrue(logged.digestionFromLog)
+
+        let scaled = day(240, scale: 1.1)
+        XCTAssertEqual(scaled.totalBeforeScaleKcal ?? 0, rest + 240, accuracy: 1e-6, "the scale compares with it")
+        XCTAssertEqual(scaled.totalBurnedSoFar ?? 0, (rest + 240) * 1.1, accuracy: 1e-6)
+
+        let apple = EnergyEngine.summarize(EnergyEngine.DayInputs(day: "2026-12-10", appleActiveKcal: 500,
+                                                                  appleBasalKcal: 1_700),
+                                           profile: profile, context: context())
+        XCTAssertNil(apple.digestionBurnedSoFar, "an Apple day stays as Apple gives it (Q19)")
+        XCTAssertEqual(apple.totalBurnedSoFar, 2_200)
+    }
+
+    /// Today's forecast prices the hours left the way the hours so far were priced: digestion on top.
+    func testTodaysForecastCarriesTheStandardDigestion() throws {
+        let shape = self.shape(peakHours: [8, 12, 18])
+        func projected(_ logged: Double?) throws -> Double {
+            let inputs = EnergyEngine.DayInputs(day: "2026-11-27", strapTotalKcal: 1_400,
+                                                strapCoverageSeconds: 43_200, strapActiveKcal: 300,
+                                                strapEverydayKcal: 150, strapEverydayRemainingKcal: 200,
+                                                loggedDigestionKcal: logged)
+            return try XCTUnwrap(EnergyEngine.summarize(inputs, profile: profile,
+                                                        context: context(elapsed: 0.5, today: true), shape: shape)
+                .projectedTotalBurn)
+        }
+        let none = try projected(0)
+        let standard = try projected(nil)
+        let soFar = bmr * 0.5 + 150 + 300
+        XCTAssertEqual(standard, none * 10 / 9, accuracy: 1e-6)
+        XCTAssertGreaterThan(standard - none, soFar / 9)
+    }
+
+    func testDigestionPricesProteinAboveCarbohydrateAboveFat() throws {
+        // 150 g protein, 300 g carbohydrate, 100 g fat, 2,900 kcal in all (100 kcal of something else).
+        let kcal = try XCTUnwrap(Digestion.kcal(caloriesKcal: 2_900, proteinG: 150, carbsG: 300, fatG: 100))
+        XCTAssertEqual(kcal, 600 * 0.25 + 1_200 * 0.075 + 900 * 0.02 + 200 * 0.10, accuracy: 1e-9)
+        XCTAssertEqual(Digestion.kcal(caloriesKcal: 2_000, proteinG: nil, carbsG: nil, fatG: nil) ?? 0, 200,
+                       accuracy: 1e-9, "without macros a tenth of the energy")
+        XCTAssertEqual(Digestion.kcal(caloriesKcal: 0, proteinG: 0, carbsG: 0, fatG: 0), 0, "water and black coffee")
+        XCTAssertNil(Digestion.kcal(caloriesKcal: nil, proteinG: nil, carbsG: nil, fatG: nil))
     }
 
     func testMalformedInputsAreRejected() {

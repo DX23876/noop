@@ -205,7 +205,7 @@ struct EnergyDetailView: View {
                     Divider().overlay(StrandPalette.hairline)
                     ForgeTileRow(symbol: "chair.lounge.fill", tint: StrandPalette.energyEveryday,
                                  title: String(localized: "Everyday"),
-                                 subtitle: String(localized: "Sitting, standing, small things")) {
+                                 subtitle: String(localized: "Sitting, standing, digesting")) {
                         ForgeRowFigure(value: kcalFigure(everyday), unit: "kcal")
                     }
                 }

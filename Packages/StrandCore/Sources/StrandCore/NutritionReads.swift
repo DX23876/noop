@@ -54,6 +54,21 @@ public enum NutritionReads {
     public static let loggedKey = "nutrition_logged"
     public static let keys = [caloriesKey, proteinKey, carbsKey, fatKey, loggedKey]
 
+    /// What digesting each day the wearer marked as completely logged cost (`Digestion.kcal`), from that day's
+    /// energy and macronutrients. A day not marked is left out: half a log would price half the food.
+    public static func digestionByDay(store: WhoopStore, from: String, to: String) async -> [String: Double] {
+        let complete = (try? await store.foodCompleteDays(from: from, to: to)) ?? []
+        guard !complete.isEmpty else { return [:] }
+        let days = await nutritionByDay(store: store, from: from, to: to)
+        var out: [String: Double] = [:]
+        for day in complete {
+            let n = days[day]
+            out[day] = Digestion.kcal(caloriesKcal: n?.calories, proteinG: n?.proteinG, carbsG: n?.carbsG,
+                                      fatG: n?.fatG) ?? 0
+        }
+        return out
+    }
+
     /// Resolve nutrition per field. A deliberate manual correction wins only the field it contains; its absent
     /// macros continue to use the imported values instead of being erased.
     /// `fields` limits the read to the keys the caller needs, which is all a single-measure read wants:

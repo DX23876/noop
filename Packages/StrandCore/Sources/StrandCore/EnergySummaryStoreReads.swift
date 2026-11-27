@@ -161,6 +161,7 @@ public enum EnergySummaryStoreReads {
             weightObservations: observations, calibrationStatus: status, calibrationFactor: factor,
             shape: shape, adaptivePrior: adaptivePrior, appleCoverageByDay: apple.coverage, stride: apple.stride)
         source.scaleCorrection = scaleCorrection
+        source.digestionByDay = await NutritionReads.digestionByDay(store: store, from: cutoff, to: today)
         return EnergySummaryPreparation.summaries(source, profile: profile, hrMax: hrMax, now: now,
             calendar: calendar, bodyFatOn: { body.asOf("body_fat", day: $0)?.value })
     }

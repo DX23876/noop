@@ -688231,194 +688231,194 @@
         }
       }
     },
-    "Sitting, standing, small things" : {
+    "Sitting, standing, digesting" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sitzen, Stehen, Kleinkram"
+            "value" : "Sitzen, Stehen, Verdauen"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sitting, standing, small things"
+            "value" : "Sitting, standing, digesting"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Estar sentado, de pie, pequeñas cosas"
+            "value" : "Sentado, de pie, digestión"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Assis, debout, petites choses"
+            "value" : "Assis, debout, digestion"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stare seduti, in piedi, piccole cose"
+            "value" : "Seduti, in piedi, digestione"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Siedzenie, stanie, drobiazgi"
+            "value" : "Siedzenie, stanie, trawienie"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sentado, de pé, pequenas coisas"
+            "value" : "Sentado, de pé, digestão"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Сидеть, стоять, мелкие дела"
+            "value" : "Сидение, стояние, пищеварение"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "坐、站和琐事"
+            "value" : "坐、站和消化"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "坐、站和瑣事"
+            "value" : "坐、站和消化"
           }
         }
       }
     },
-    "Sitting, standing and small things cost more than lying in bed. Awake time without steps or training counts a little above your resting burn. Sleep stays at your resting burn." : {
+    "Sitting, standing and small things cost more than lying in bed. Awake time without steps or training counts a little above your resting burn. Sleep stays at your resting burn. Digesting food adds about a tenth of the day." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sitzen, Stehen und Kleinkram kosten mehr als im Bett liegen. Wache Zeit ohne Schritte oder Training zählt etwas über deinem Ruheverbrauch. Schlaf bleibt bei deinem Ruheverbrauch."
+            "value" : "Sitzen, Stehen und Kleinkram kosten mehr als im Bett liegen. Wache Zeit ohne Schritte oder Training zählt etwas über deinem Ruheverbrauch. Schlaf bleibt bei deinem Ruheverbrauch. Verdauen kostet zusätzlich etwa ein Zehntel des Tages."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sitting, standing and small things cost more than lying in bed. Awake time without steps or training counts a little above your resting burn. Sleep stays at your resting burn."
+            "value" : "Sitting, standing and small things cost more than lying in bed. Awake time without steps or training counts a little above your resting burn. Sleep stays at your resting burn. Digesting food adds about a tenth of the day."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Estar sentado, de pie y las pequeñas cosas cuestan más que estar tumbado en la cama. El tiempo despierto sin pasos ni entrenamiento cuenta algo por encima de tu gasto en reposo. El sueño se queda en tu gasto en reposo."
+            "value" : "Estar sentado, de pie y las pequeñas cosas cuestan más que estar tumbado en la cama. El tiempo despierto sin pasos ni entrenamiento cuenta algo por encima de tu gasto en reposo. El sueño se queda en tu gasto en reposo. Digerir la comida añade cerca de una décima parte del día."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Être assis, debout et les petites choses coûtent plus qu'être allongé au lit. Le temps éveillé sans pas ni entraînement compte un peu au-dessus de ta dépense au repos. Le sommeil reste à ta dépense au repos."
+            "value" : "Être assis, debout et les petites choses coûtent plus qu'être allongé au lit. Le temps éveillé sans pas ni entraînement compte un peu au-dessus de ta dépense au repos. Le sommeil reste à ta dépense au repos. Digérer ajoute environ un dixième de la journée."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stare seduti, in piedi e le piccole cose costano più che stare sdraiati a letto. Il tempo da svegli senza passi né allenamento conta un po' sopra il tuo consumo a riposo. Il sonno resta al tuo consumo a riposo."
+            "value" : "Stare seduti, in piedi e le piccole cose costano più che stare sdraiati a letto. Il tempo da svegli senza passi né allenamento conta un po' sopra il tuo consumo a riposo. Il sonno resta al tuo consumo a riposo. Digerire il cibo aggiunge circa un decimo della giornata."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Siedzenie, stanie i drobiazgi kosztują więcej niż leżenie w łóżku. Czas czuwania bez kroków i treningu liczy się nieco powyżej spalania w spoczynku. Sen zostaje na poziomie spalania w spoczynku."
+            "value" : "Siedzenie, stanie i drobiazgi kosztują więcej niż leżenie w łóżku. Czas czuwania bez kroków i treningu liczy się nieco powyżej spalania w spoczynku. Sen zostaje na poziomie spalania w spoczynku. Trawienie dodaje około jednej dziesiątej dnia."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Estar sentado, de pé e as pequenas coisas custam mais do que estar deitado na cama. O tempo acordado sem passos nem treino conta um pouco acima do teu gasto em repouso. O sono fica no teu gasto em repouso."
+            "value" : "Estar sentado, de pé e as pequenas coisas custam mais do que estar deitado na cama. O tempo acordado sem passos nem treino conta um pouco acima do teu gasto em repouso. O sono fica no teu gasto em repouso. Digerir a comida acrescenta cerca de um décimo do dia."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Сидеть, стоять и мелкие дела стоят больше, чем лежать в постели. Время бодрствования без шагов и тренировок считается чуть выше расхода в покое. Сон остаётся на уровне расхода в покое."
+            "value" : "Сидеть, стоять и мелкие дела стоят больше, чем лежать в постели. Время бодрствования без шагов и тренировок считается чуть выше расхода в покое. Сон остаётся на уровне расхода в покое. Пищеварение добавляет примерно десятую часть дня."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "坐着、站着和琐事比躺在床上消耗更多。没有步数或训练的清醒时间会比静息消耗略高。睡眠保持在静息消耗。"
+            "value" : "坐着、站着和琐事比躺在床上消耗更多。没有步数或训练的清醒时间会比静息消耗略高。睡眠保持在静息消耗。消化食物还会增加大约一天的十分之一。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "坐著、站著和瑣事比躺在床上消耗更多。沒有步數或訓練的清醒時間會比靜息消耗略高。睡眠保持在靜息消耗。"
+            "value" : "坐著、站著和瑣事比躺在床上消耗更多。沒有步數或訓練的清醒時間會比靜息消耗略高。睡眠保持在靜息消耗。消化食物還會增加大約一天的十分之一。"
           }
         }
       }
     },
-    "Burned is what your body uses at rest, what sitting and standing add, and what activity adds. Eaten is what you logged. The balance between them is best read over a week, not a single day." : {
+    "Burned is what your body uses at rest, what sitting, standing and digesting add, and what activity adds. Eaten is what you logged. The balance between them is best read over a week, not a single day." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Verbraucht ist, was dein Körper in Ruhe braucht, was Sitzen und Stehen dazugeben und was Bewegung dazugibt. Gegessen ist, was du eingetragen hast. Die Bilanz liest man am besten über eine Woche, nicht an einem Tag."
+            "value" : "Verbraucht ist, was dein Körper in Ruhe braucht, was Sitzen, Stehen und Verdauen dazugeben und was Bewegung dazugibt. Gegessen ist, was du eingetragen hast. Die Bilanz liest man am besten über eine Woche, nicht an einem Tag."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Burned is what your body uses at rest, what sitting and standing add, and what activity adds. Eaten is what you logged. The balance between them is best read over a week, not a single day."
+            "value" : "Burned is what your body uses at rest, what sitting, standing and digesting add, and what activity adds. Eaten is what you logged. The balance between them is best read over a week, not a single day."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gastado es lo que tu cuerpo usa en reposo, lo que añaden estar sentado y de pie, y lo que añade la actividad. Comido es lo que registraste. El balance se lee mejor en una semana, no en un solo día."
+            "value" : "Gastado es lo que tu cuerpo usa en reposo, lo que añaden estar sentado, de pie y la digestión, y lo que añade la actividad. Comido es lo que registraste. El balance se lee mejor en una semana, no en un solo día."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dépensé, c'est ce que ton corps utilise au repos, ce qu'ajoutent la position assise et debout, et ce qu'ajoute l'activité. Mangé, c'est ce que tu as saisi. Le bilan se lit mieux sur une semaine que sur un seul jour."
+            "value" : "Dépensé, c'est ce que ton corps utilise au repos, ce qu'ajoutent la position assise et debout et la digestion, et ce qu'ajoute l'activité. Mangé, c'est ce que tu as saisi. Le bilan se lit mieux sur une semaine que sur un seul jour."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Consumato è ciò che il tuo corpo usa a riposo, ciò che aggiungono lo stare seduti e in piedi, e ciò che aggiunge l'attività. Mangiato è ciò che hai registrato. Il bilancio si legge meglio su una settimana, non su un giorno."
+            "value" : "Consumato è ciò che il tuo corpo usa a riposo, ciò che aggiungono lo stare seduti e in piedi e la digestione, e ciò che aggiunge l'attività. Mangiato è ciò che hai registrato. Il bilancio si legge meglio su una settimana, non su un giorno."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Spalone to to, czego ciało potrzebuje w spoczynku, co dodaje siedzenie i stanie oraz co dodaje aktywność. Zjedzone to to, co zapisałeś. Bilans najlepiej czytać w skali tygodnia, nie jednego dnia."
+            "value" : "Spalone to to, czego ciało potrzebuje w spoczynku, co dodaje siedzenie, stanie i trawienie oraz co dodaje aktywność. Zjedzone to to, co zapisałeś. Bilans najlepiej czytać w skali tygodnia, nie jednego dnia."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gasto é o que o teu corpo usa em repouso, o que estar sentado e de pé acrescenta e o que a atividade acrescenta. Comido é o que registaste. O balanço lê-se melhor ao longo de uma semana, não num só dia."
+            "value" : "Gasto é o que o teu corpo usa em repouso, o que estar sentado, de pé e a digestão acrescentam e o que a atividade acrescenta. Comido é o que registaste. O balanço lê-se melhor ao longo de uma semana, não num só dia."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Расход — это то, что тело тратит в покое, что добавляют сидение и стояние и что добавляет активность. Съедено — то, что вы записали. Баланс лучше оценивать за неделю, а не за один день."
+            "value" : "Расход — это то, что тело тратит в покое, что добавляют сидение, стояние и пищеварение и что добавляет активность. Съедено — то, что вы записали. Баланс лучше оценивать за неделю, а не за один день."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "消耗是身体静息时的用量，加上坐和站带来的额外消耗，再加上活动带来的消耗。摄入是你记录的内容。两者的平衡最好按一周来看，而不是单独一天。"
+            "value" : "消耗是身体静息时的用量，加上坐、站和消化带来的额外消耗，再加上活动带来的消耗。摄入是你记录的内容。两者的平衡最好按一周来看，而不是单独一天。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "消耗是身體靜息時的用量，加上坐和站帶來的額外消耗，再加上活動帶來的消耗。攝入是你記錄的內容。兩者的平衡最好按一週來看，而不是單獨一天。"
+            "value" : "消耗是身體靜息時的用量，加上坐、站和消化帶來的額外消耗，再加上活動帶來的消耗。攝入是你記錄的內容。兩者的平衡最好按一週來看，而不是單獨一天。"
           }
         }
       }
@@ -688615,66 +688615,66 @@
         }
       }
     },
-    "Your burn is estimated more closely now: sitting and standing count above lying. Your goal rises by about %@ kcal." : {
+    "Your burn is estimated more closely now: sitting, standing and digesting count too. Your goal rises by about %@ kcal." : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Dein Verbrauch wird jetzt genauer geschätzt: Sitzen und Stehen zählen mehr als Liegen. Dein Ziel steigt um etwa %@ kcal."
+            "value" : "Dein Verbrauch wird jetzt genauer geschätzt: Sitzen, Stehen und Verdauen zählen mit. Dein Ziel steigt um etwa %@ kcal."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your burn is estimated more closely now: sitting and standing count above lying. Your goal rises by about %@ kcal."
+            "value" : "Your burn is estimated more closely now: sitting, standing and digesting count too. Your goal rises by about %@ kcal."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tu gasto se estima ahora con más precisión: estar sentado y de pie cuenta más que estar tumbado. Tu objetivo sube unas %@ kcal."
+            "value" : "Tu gasto se estima ahora con más precisión: estar sentado, de pie y la digestión también cuentan. Tu objetivo sube unas %@ kcal."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ta dépense est désormais estimée plus précisément : être assis et debout compte plus qu'être allongé. Ton objectif augmente d'environ %@ kcal."
+            "value" : "Ta dépense est désormais estimée plus précisément : être assis, debout et digérer comptent aussi. Ton objectif augmente d'environ %@ kcal."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Il tuo consumo ora è stimato con più precisione: stare seduti e in piedi conta più che stare sdraiati. Il tuo obiettivo sale di circa %@ kcal."
+            "value" : "Il tuo consumo ora è stimato con più precisione: stare seduti, in piedi e digerire contano anche loro. Il tuo obiettivo sale di circa %@ kcal."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Spalanie jest teraz szacowane dokładniej: siedzenie i stanie liczą się bardziej niż leżenie. Cel rośnie o około %@ kcal."
+            "value" : "Spalanie jest teraz szacowane dokładniej: siedzenie, stanie i trawienie też się liczą. Cel rośnie o około %@ kcal."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "O teu gasto é agora estimado com mais precisão: estar sentado e de pé conta mais do que estar deitado. O teu objetivo sobe cerca de %@ kcal."
+            "value" : "O teu gasto é agora estimado com mais precisão: estar sentado, de pé e digerir também contam. O teu objetivo sobe cerca de %@ kcal."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Расход теперь оценивается точнее: сидеть и стоять стоит больше, чем лежать. Цель вырастет примерно на %@ ккал."
+            "value" : "Расход теперь оценивается точнее: сидение, стояние и пищеварение тоже учитываются. Цель вырастет примерно на %@ ккал."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你的消耗现在估算得更准确：坐着和站着比躺着消耗更多。你的目标提高约 %@ 千卡。"
+            "value" : "你的消耗现在估算得更准确：坐、站和消化也计算在内。你的目标提高约 %@ 千卡。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你的消耗現在估算得更準確：坐著和站著比躺著消耗更多。你的目標提高約 %@ 千卡。"
+            "value" : "你的消耗現在估算得更準確：坐、站和消化也計算在內。你的目標提高約 %@ 千卡。"
           }
         }
       }
@@ -690275,6 +690275,454 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "打開能量頁，比較體重秤和 strap。"
+          }
+        }
+      }
+    },
+    "Digesting this day: %lld kcal, from what you logged." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verdauen an diesem Tag: %lld kcal, aus dem, was du eingetragen hast."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digesting this day: %lld kcal, from what you logged."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digestión este día: %lld kcal, según lo que registraste."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digestion ce jour-là : %lld kcal, d'après ce que tu as saisi."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digestione in questo giorno: %lld kcal, da ciò che hai registrato."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trawienie tego dnia: %lld kcal, z tego, co zapisałeś."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digestão neste dia: %lld kcal, a partir do que registaste."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пищеварение в этот день: %lld ккал, по вашим записям."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当天消化：%lld 千卡，来自你记录的饮食。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "當天消化：%lld 千卡，來自你記錄的飲食。"
+          }
+        }
+      }
+    },
+    "Digesting this day: about %lld kcal, a tenth of the day. A day marked as fully logged counts your own food." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verdauen an diesem Tag: etwa %lld kcal, ein Zehntel des Tages. Ein Tag, den du als komplett eingetragen markierst, zählt dein eigenes Essen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digesting this day: about %lld kcal, a tenth of the day. A day marked as fully logged counts your own food."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digestión este día: unas %lld kcal, una décima parte del día. Un día marcado como registrado por completo cuenta tu propia comida."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digestion ce jour-là : environ %lld kcal, un dixième de la journée. Un jour marqué comme entièrement saisi compte ta propre nourriture."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digestione in questo giorno: circa %lld kcal, un decimo della giornata. Un giorno segnato come registrato per intero conta il tuo cibo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trawienie tego dnia: około %lld kcal, jedna dziesiąta dnia. Dzień oznaczony jako w pełni zapisany liczy twoje własne jedzenie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Digestão neste dia: cerca de %lld kcal, um décimo do dia. Um dia marcado como registado por completo conta a tua própria comida."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пищеварение в этот день: около %lld ккал, десятая часть дня. День, отмеченный как полностью записанный, считает вашу собственную еду."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当天消化：约 %lld 千卡，即一天的十分之一。标记为完整记录的日子会按你自己的饮食计算。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "當天消化：約 %lld 千卡，即一天的十分之一。標記為完整記錄的日子會按你自己的飲食計算。"
+          }
+        }
+      }
+    },
+    "Likely %@ to %@ kcal: no wearable knows a single body more closely" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wahrscheinlich %@ bis %@ kcal: genauer kennt kein Wearable einen einzelnen Körper"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Likely %@ to %@ kcal: no wearable knows a single body more closely"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Probablemente entre %@ y %@ kcal: ningún wearable conoce un cuerpo concreto con más precisión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Probablement %@ à %@ kcal : aucun appareil porté ne connaît un corps précis de plus près"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Probabilmente da %@ a %@ kcal: nessun dispositivo indossabile conosce un singolo corpo più da vicino"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prawdopodobnie od %@ do %@ kcal: żadne urządzenie noszone nie zna pojedynczego ciała dokładniej"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Provavelmente %@ a %@ kcal: nenhum dispositivo de pulso conhece um corpo concreto com mais precisão"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скорее всего от %@ до %@ ккал: ни одно носимое устройство не знает отдельное тело точнее"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大约在 %@ 到 %@ 千卡之间：没有任何穿戴设备能更准确地了解单个身体"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大約在 %@ 到 %@ 千卡之間：沒有任何穿戴裝置能更準確地了解單一身體"
+          }
+        }
+      }
+    },
+    "Likely %@ to %@ kcal, narrowed by your scale" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wahrscheinlich %@ bis %@ kcal, eingegrenzt durch deine Waage"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Likely %@ to %@ kcal, narrowed by your scale"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Probablemente entre %@ y %@ kcal, acotado por tu báscula"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Probablement %@ à %@ kcal, resserré par ta balance"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Probabilmente da %@ a %@ kcal, ristretto dalla tua bilancia"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prawdopodobnie od %@ do %@ kcal, zawężone przez twoją wagę"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Provavelmente %@ a %@ kcal, estreitado pela tua balança"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Скорее всего от %@ до %@ ккал, уточнено по весам"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大约在 %@ 到 %@ 千卡之间，已由体重秤缩小范围"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大約在 %@ 到 %@ 千卡之間，已由體重秤縮小範圍"
+          }
+        }
+      }
+    },
+    "First look: your scale and the strap agree so far. Sure only after six weeks." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erster Blick: Waage und Strap stimmen bisher überein. Sicher ist das erst nach sechs Wochen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "First look: your scale and the strap agree so far. Sure only after six weeks."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primer vistazo: tu báscula y el strap coinciden por ahora. Seguro solo tras seis semanas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premier aperçu : ta balance et le strap concordent pour l'instant. Sûr seulement après six semaines."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primo sguardo: la tua bilancia e lo strap per ora concordano. Sicuro solo dopo sei settimane."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pierwsze spojrzenie: waga i strap na razie się zgadzają. Pewne dopiero po sześciu tygodniach."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primeiro olhar: a tua balança e o strap coincidem por agora. Certo só após seis semanas."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Первый взгляд: весы и strap пока совпадают. Надёжно только через шесть недель."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "初步观察：体重秤和 strap 目前一致。六周后才可靠。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "初步觀察：體重秤和 strap 目前一致。六週後才可靠。"
+          }
+        }
+      }
+    },
+    "First look: your scale reads about %lld %% more than the strap. Sure only after six weeks." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erster Blick: deine Waage liegt etwa %lld %% über dem Strap. Sicher ist das erst nach sechs Wochen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "First look: your scale reads about %lld %% more than the strap. Sure only after six weeks."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primer vistazo: tu báscula marca cerca de un %lld %% más que el strap. Seguro solo tras seis semanas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premier aperçu : ta balance indique environ %lld %% de plus que le strap. Sûr seulement après six semaines."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primo sguardo: la tua bilancia segna circa il %lld %% in più dello strap. Sicuro solo dopo sei settimane."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pierwsze spojrzenie: waga pokazuje około %lld %% więcej niż strap. Pewne dopiero po sześciu tygodniach."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primeiro olhar: a tua balança indica cerca de %lld %% mais do que o strap. Certo só após seis semanas."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Первый взгляд: весы показывают примерно на %lld %% больше, чем strap. Надёжно только через шесть недель."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "初步观察：体重秤比 strap 高约 %lld %%。六周后才可靠。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "初步觀察：體重秤比 strap 高約 %lld %%。六週後才可靠。"
+          }
+        }
+      }
+    },
+    "First look: your scale reads about %lld %% less than the strap. Sure only after six weeks." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erster Blick: deine Waage liegt etwa %lld %% unter dem Strap. Sicher ist das erst nach sechs Wochen."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "First look: your scale reads about %lld %% less than the strap. Sure only after six weeks."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primer vistazo: tu báscula marca cerca de un %lld %% menos que el strap. Seguro solo tras seis semanas."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Premier aperçu : ta balance indique environ %lld %% de moins que le strap. Sûr seulement après six semaines."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primo sguardo: la tua bilancia segna circa il %lld %% in meno dello strap. Sicuro solo dopo sei settimane."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pierwsze spojrzenie: waga pokazuje około %lld %% mniej niż strap. Pewne dopiero po sześciu tygodniach."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Primeiro olhar: a tua balança indica cerca de %lld %% menos do que o strap. Certo só após seis semanas."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Первый взгляд: весы показывают примерно на %lld %% меньше, чем strap. Надёжно только через шесть недель."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "初步观察：体重秤比 strap 低约 %lld %%。六周后才可靠。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "初步觀察：體重秤比 strap 低約 %lld %%。六週後才可靠。"
           }
         }
       }

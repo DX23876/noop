@@ -20,6 +20,15 @@ public enum ScaleBurn {
     public static let minimumWeighIns = 10
     public static let maximumRelativeError = 0.10
 
+    /// What a figure needs before it is offered (`full`), or before an early look at its direction is shown
+    /// (`early`, owner 2026-11-27: after three weeks). An early look is never proposed and never applied.
+    public struct Gates: Equatable, Sendable {
+        public var spanDays: Int, completeDays: Int, weeks: Int, weighIns: Int, relativeError: Double
+        public static let full = Gates(spanDays: minimumSpanDays, completeDays: minimumCompleteDays, weeks: minimumWeeks,
+                                       weighIns: minimumWeighIns, relativeError: maximumRelativeError)
+        public static let early = Gates(spanDays: 21, completeDays: 12, weeks: 3, weighIns: 6, relativeError: 0.20)
+    }
+
     public struct Estimate: Equatable, Sendable {
         public var burnKcal: Double
         /// One standard error of `burnKcal`.
@@ -44,7 +53,7 @@ public enum ScaleBurn {
     /// `strapByDay` the strap's burn per day before any scale correction. Today and later are left out.
     public static func estimate(completeIntake: [String: Double], weighIns: [(day: String, kg: Double)],
                                 strapByDay: [String: Double], today: String, kcalPerKg: Double,
-                                calendar: Calendar = .current) -> Outcome {
+                                gates: Gates = .full, calendar: Calendar = .current) -> Outcome {
         func date(_ day: String) -> Date? {
             let parts = day.split(separator: "-").compactMap { Int($0) }
             guard parts.count == 3 else { return nil }
@@ -77,8 +86,8 @@ public enum ScaleBurn {
             ? (calendar.dateComponents([.day], from: firstDates.max()!, to: lastDates.min()!).day ?? 0) + 1 : 0
         let missing = Outcome.missing(completeDays: intake.count, weeks: weekKeys.count, weighIns: weights.count,
                                       spanDays: max(0, span), tooUncertain: false)
-        guard intake.count >= minimumCompleteDays, weekKeys.count >= minimumWeeks, weights.count >= minimumWeighIns,
-              span >= minimumSpanDays else { return missing }
+        guard intake.count >= gates.completeDays, weekKeys.count >= gates.weeks, weights.count >= gates.weighIns,
+              span >= gates.spanDays else { return missing }
 
         // A weigh-in far from the smoothed trend (more than 4 % or 3 kg) is left out before the slope.
         var smoothed: Double?
@@ -110,7 +119,7 @@ public enum ScaleBurn {
         let strap = strapDays.isEmpty ? nil : strapDays.reduce(0, +) / Double(strapDays.count)
         let estimate = Estimate(burnKcal: burn, errorKcal: error, strapKcal: strap, completeDays: intake.count,
                                 weighIns: weights.count, trendKgPerWeek: slope * 7)
-        guard burn.isFinite, burn > 800, estimate.relativeError <= maximumRelativeError else {
+        guard burn.isFinite, burn > 800, estimate.relativeError <= gates.relativeError else {
             return .missing(completeDays: intake.count, weeks: weekKeys.count, weighIns: weights.count,
                             spanDays: span, tooUncertain: true)
         }

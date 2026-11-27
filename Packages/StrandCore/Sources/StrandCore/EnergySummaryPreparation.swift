@@ -21,6 +21,9 @@ public enum EnergySummaryPreparation {
         public var stride: StepLengthTimeline
         /// The scale's correction of the strap's burn (`BurnCorrection`), applied from the day it was agreed.
         public var scaleCorrection: BurnCorrection = BurnCorrection()
+        /// What digesting each completely logged day cost (`NutritionReads.digestionByDay`); every other day
+        /// takes the standard tenth.
+        public var digestionByDay: [String: Double] = [:]
 
         public init(appleByDay: [String: AppleDaily], strapByDay: [String: DailyMetric],
                     derivedByDay: [String: WhoopDailyEnergyRow], strapActiveByDay: [String: Double],
@@ -116,6 +119,7 @@ public enum EnergySummaryPreparation {
                 strapEverydayRemainingKcal: everydayRemaining,
                 scaleCorrectionFactor: source.scaleCorrection.factor(on: day),
                 scaleCorrectionCoversBasal: source.scaleCorrection.appliesToBasal,
+                loggedDigestionKcal: source.digestionByDay[day],
                 strapCalibrationFactor: calibrationFactor,
                 strapUncertaintyFraction: derived?.uncertaintyFraction,
                 calibrationStatus: source.calibrationStatus,

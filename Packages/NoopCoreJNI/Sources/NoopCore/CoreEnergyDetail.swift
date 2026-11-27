@@ -38,6 +38,12 @@ enum CoreEnergyDetail {
         var source: String, sourceLabel: String
         var confidence: String, confidenceLabel: String
         var compactLine: String?
+        /// The part of `everyday` digestion cost (`Digestion`), and whether it came from a fully logged day's food.
+        var digestion: Double?
+        var digestionFromLog: Bool = false
+        /// A finished day's likely range (`EnergyRange.likely`), narrowed once the scale corrects the strap.
+        var likelyLow: Double?, likelyHigh: Double?
+        var likelyByScale: Bool = false
     }
     struct Point: Encodable { var start: Double, duration: Double, kcalPerMinute: Double }
     struct Band: Encodable { var start: Double, end: Double, sport: String }
@@ -100,10 +106,20 @@ enum CoreEnergyDetail {
     }
 
     static func summary(_ s: DailyEnergySummary) -> Summary {
+        var out = plainSummary(s)
+        let likely = EnergyRange.likely(s, isToday: s.day == StoreReader.localDayKey(Date()))
+        out.likelyLow = likely?.low
+        out.likelyHigh = likely?.high
+        out.likelyByScale = likely?.narrowedByScale ?? false
+        return out
+    }
+
+    private static func plainSummary(_ s: DailyEnergySummary) -> Summary {
         Summary(day: s.day, total: s.totalBurnedSoFar, active: s.activeBurnedSoFar, basal: s.basalBurnedSoFar,
                 bmr24h: s.estimatedBMR24h, everyday: s.everydayBurnedSoFar, projectedLow: s.projectedRangeKcal?.lowerBound,
                 projectedHigh: s.projectedRangeKcal?.upperBound, projected: s.projectedTotalBurn, source: s.source.rawValue, sourceLabel: sourceLabel(s.source),
-                confidence: "\(s.confidence)", confidenceLabel: confidenceLabel(s.confidence), compactLine: compactLine(s))
+                confidence: "\(s.confidence)", confidenceLabel: confidenceLabel(s.confidence), compactLine: compactLine(s),
+                digestion: s.digestionBurnedSoFar, digestionFromLog: s.digestionFromLog)
     }
 
     /// `EnergyProvenance.sourceLabel`.

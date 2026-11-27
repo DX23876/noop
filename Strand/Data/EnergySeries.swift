@@ -200,6 +200,10 @@ extension Repository {
             stride: appleReference.stride)
         // The scale's correction (`BurnCorrection`), from the day the wearer agreed to it.
         inputs.scaleCorrection = EnergyPlanStore.scaleCorrection
+        // What digesting each completely logged day cost; the rest take the standard tenth (`Digestion`).
+        if let store {
+            inputs.digestionByDay = await NutritionReads.digestionByDay(store: store, from: cutoff, to: todayKey)
+        }
         return EnergySummaryPreparation.summaries(inputs, profile: profile, hrMax: strainProfile?.hrMax,
             now: now, calendar: calendar, bodyFatOn: bodyFatOn)
     }

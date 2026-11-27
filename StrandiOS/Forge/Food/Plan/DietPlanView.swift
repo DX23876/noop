@@ -260,7 +260,7 @@ struct DietBurnModelNote: View {
                 Label("Your burn", systemImage: "flame").font(.subheadline.weight(.semibold))
                     .foregroundStyle(ForgeColor.secondary)
                 Text(note > 0
-                     ? String(localized: "Your burn is estimated more closely now: sitting and standing count above lying. Your goal rises by about \(FoodText.kcal(note)) kcal.")
+                     ? String(localized: "Your burn is estimated more closely now: sitting, standing and digesting count too. Your goal rises by about \(FoodText.kcal(note)) kcal.")
                      : String(localized: "Your burn is estimated more closely now. Your goal falls by about \(FoodText.kcal(-note)) kcal."))
                     .font(.body)
                     .fixedSize(horizontal: false, vertical: true)

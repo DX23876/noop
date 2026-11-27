@@ -5684,7 +5684,7 @@
     <string name="diet_hold_burn_model">Ta dépense est désormais estimée plus précisément et ton objectif a bougé avec elle. Forge regarde à nouveau dans deux semaines.</string>
     <string name="diet_hold_break">C\'est une semaine de pause au maintien. Forge regarde à nouveau ensuite.</string>
     <string name="diet_burn_note_title">Ta dépense</string>
-    <string name="diet_burn_note_up">Ta dépense est désormais estimée plus précisément : être assis et debout compte plus qu\'être allongé. Ton objectif augmente d\'environ %1$s kcal.</string>
+    <string name="diet_burn_note_up">Ta dépense est désormais estimée plus précisément : être assis, debout et digérer comptent aussi. Ton objectif augmente d\'environ %1$s kcal.</string>
     <string name="diet_burn_note_down">Ta dépense est désormais estimée plus précisément. Ton objectif baisse d\'environ %1$s kcal.</string>
     <string name="diet_burn_note_ok">Compris</string>
     <string name="diet_hold_on_plan">Ton poids suit le plan. Rien à changer.</string>
@@ -6519,7 +6519,7 @@
     <string name="forge_ex_night_title">Le déroulement d\'une nuit</string>
     <string name="forge_ex_night_text">Le sommeil suit des cycles d\'environ 90 minutes. Le sommeil profond vient surtout en début de nuit, le paradoxal plutôt vers le matin, et les brefs réveils sont normaux. Votre nuit peut être différente.</string>
     <string name="forge_ex_energy_title">Dépensé et mangé</string>
-    <string name="forge_ex_energy_text">Dépensé correspond à ce que le corps utilise au repos plus ce qu\'ajoute l\'activité. Mangé est ce que vous avez saisi. Le bilan se lit mieux sur une semaine que sur un seul jour.</string>
+    <string name="forge_ex_energy_text">Dépensé, c\'est ce que ton corps utilise au repos, ce qu\'ajoutent la position assise et debout et la digestion, et ce qu\'ajoute l\'activité. Mangé, c\'est ce que tu as saisi. Le bilan se lit mieux sur une semaine que sur un seul jour.</string>
     <string name="forge_ex_burned">Combustion</string>
     <string name="forge_ex_resting">Repos.</string>
     <string name="forge_ex_active">Actif</string>
@@ -7891,4 +7891,15 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="fsp6_coach_forget_message">Vous devrez la coller à nouveau pour vous reconnecter. C\'est différent de Déconnecter, qui conserve la clé.</string>
     <string name="fsp6_lab_blurb">Fonctions inachevées. Désactivées par défaut ; désactivez-les à tout moment.</string>
     <string name="fsp6_ss_motion">Mouvement</string>
+    <string name="forge_en_everyday_explain">Être assis, debout et les petites choses coûtent plus qu\'être allongé au lit. Le temps éveillé sans pas ni entraînement compte un peu au-dessus de ta dépense au repos. Le sommeil reste à ta dépense au repos. Digérer ajoute environ un dixième de la journée.</string>
+    <string name="forge_en_digest_logged">Digestion ce jour-là : %1$d kcal, d\'après ce que tu as saisi.</string>
+    <string name="forge_en_digest_standard">Digestion ce jour-là : environ %1$d kcal, un dixième de la journée. Un jour marqué comme entièrement saisi compte ta propre nourriture.</string>
+    <string name="forge_ex_lying">Allongé</string>
+    <string name="forge_ex_sitting">Assis</string>
+    <string name="forge_ex_standing">Debout</string>
+    <string name="forge_en_likely">Probablement %1$s à %2$s kcal : aucun appareil porté ne connaît un corps précis de plus près</string>
+    <string name="forge_en_likely_scale">Probablement %1$s à %2$s kcal, resserré par ta balance</string>
+    <string name="energy_scale_early_same">Premier aperçu : ta balance et le strap concordent pour l\'instant. Sûr seulement après six semaines.</string>
+    <string name="energy_scale_early_more">Premier aperçu : ta balance indique environ %1$d %% de plus que le strap. Sûr seulement après six semaines.</string>
+    <string name="energy_scale_early_less">Premier aperçu : ta balance indique environ %1$d %% de moins que le strap. Sûr seulement après six semaines.</string>
 </resources>

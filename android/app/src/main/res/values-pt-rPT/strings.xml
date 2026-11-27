@@ -5680,7 +5680,7 @@
     <string name="diet_hold_burn_model">O teu gasto é agora estimado com mais precisão e o teu objetivo mudou com ele. O Forge volta a ver daqui a duas semanas.</string>
     <string name="diet_hold_break">Esta é uma semana de pausa em manutenção. O Forge volta a ver depois.</string>
     <string name="diet_burn_note_title">O teu gasto</string>
-    <string name="diet_burn_note_up">O teu gasto é agora estimado com mais precisão: estar sentado e de pé conta mais do que estar deitado. O teu objetivo sobe cerca de %1$s kcal.</string>
+    <string name="diet_burn_note_up">O teu gasto é agora estimado com mais precisão: estar sentado, de pé e digerir também contam. O teu objetivo sobe cerca de %1$s kcal.</string>
     <string name="diet_burn_note_down">O teu gasto é agora estimado com mais precisão. O teu objetivo desce cerca de %1$s kcal.</string>
     <string name="diet_burn_note_ok">Percebi</string>
     <string name="diet_hold_on_plan">O teu peso segue o plano. Nada a mudar.</string>
@@ -6515,7 +6515,7 @@
     <string name="forge_ex_night_title">Como decorre uma noite</string>
     <string name="forge_ex_night_text">O sono decorre em ciclos de cerca de 90 minutos. O sono profundo surge sobretudo no início da noite, o REM mais perto da manhã, e os despertares breves são normais. A sua noite pode ser diferente.</string>
     <string name="forge_ex_energy_title">Gasto e ingerido</string>
-    <string name="forge_ex_energy_text">Queimado é o que o corpo usa em repouso mais o que a atividade acrescenta. Comido é o que registou. O balanço lê-se melhor ao longo de uma semana, não num só dia.</string>
+    <string name="forge_ex_energy_text">Gasto é o que o teu corpo usa em repouso, o que estar sentado, de pé e a digestão acrescentam e o que a atividade acrescenta. Comido é o que registaste. O balanço lê-se melhor ao longo de uma semana, não num só dia.</string>
     <string name="forge_ex_burned">Queima</string>
     <string name="forge_ex_resting">Descanso.</string>
     <string name="forge_ex_active">Ativo</string>
@@ -7886,4 +7886,15 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="fsp6_coach_forget_message">Você precisará colá-lo novamente para reconectar. Isso é diferente de Disconnect, que mantém a chave.</string>
     <string name="fsp6_lab_blurb">Funcionalidades inacabadas. Desligadas por predefinição; pode desligá-las a qualquer momento.</string>
     <string name="fsp6_ss_motion">Movimento</string>
+    <string name="forge_en_everyday_explain">Estar sentado, de pé e as pequenas coisas custam mais do que estar deitado na cama. O tempo acordado sem passos nem treino conta um pouco acima do teu gasto em repouso. O sono fica no teu gasto em repouso. Digerir a comida acrescenta cerca de um décimo do dia.</string>
+    <string name="forge_en_digest_logged">Digestão neste dia: %1$d kcal, a partir do que registaste.</string>
+    <string name="forge_en_digest_standard">Digestão neste dia: cerca de %1$d kcal, um décimo do dia. Um dia marcado como registado por completo conta a tua própria comida.</string>
+    <string name="forge_ex_lying">Deitado</string>
+    <string name="forge_ex_sitting">Sentado</string>
+    <string name="forge_ex_standing">De pé</string>
+    <string name="forge_en_likely">Provavelmente %1$s a %2$s kcal: nenhum dispositivo de pulso conhece um corpo concreto com mais precisão</string>
+    <string name="forge_en_likely_scale">Provavelmente %1$s a %2$s kcal, estreitado pela tua balança</string>
+    <string name="energy_scale_early_same">Primeiro olhar: a tua balança e o strap coincidem por agora. Certo só após seis semanas.</string>
+    <string name="energy_scale_early_more">Primeiro olhar: a tua balança indica cerca de %1$d %% mais do que o strap. Certo só após seis semanas.</string>
+    <string name="energy_scale_early_less">Primeiro olhar: a tua balança indica cerca de %1$d %% menos do que o strap. Certo só após seis semanas.</string>
 </resources>

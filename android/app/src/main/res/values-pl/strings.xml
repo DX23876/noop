@@ -5708,7 +5708,7 @@
     <string name="diet_hold_burn_model">Spalanie jest teraz szacowane dokładniej, a cel przesunął się razem z nim. Forge sprawdzi ponownie za dwa tygodnie.</string>
     <string name="diet_hold_break">To tydzień przerwy na podtrzymaniu. Forge sprawdzi potem ponownie.</string>
     <string name="diet_burn_note_title">Twoje spalanie</string>
-    <string name="diet_burn_note_up">Spalanie jest teraz szacowane dokładniej: siedzenie i stanie liczą się bardziej niż leżenie. Cel rośnie o około %1$s kcal.</string>
+    <string name="diet_burn_note_up">Spalanie jest teraz szacowane dokładniej: siedzenie, stanie i trawienie też się liczą. Cel rośnie o około %1$s kcal.</string>
     <string name="diet_burn_note_down">Spalanie jest teraz szacowane dokładniej. Cel spada o około %1$s kcal.</string>
     <string name="diet_burn_note_ok">Rozumiem</string>
     <string name="diet_hold_on_plan">Twoja waga idzie zgodnie z planem. Nic do zmiany.</string>
@@ -6542,7 +6542,7 @@
     <string name="forge_ex_night_title">Jak przebiega noc</string>
     <string name="forge_ex_night_text">Sen przebiega w cyklach trwających około 90 minut. Sen głęboki pojawia się głównie na początku nocy, REM głównie nad ranem, a krótkie wybudzenia są normalne. Twoja noc może wyglądać inaczej.</string>
     <string name="forge_ex_energy_title">Spalone i zjedzone</string>
-    <string name="forge_ex_energy_text">Spalone to to, co ciało zużywa w spoczynku, plus to, co dodaje aktywność. Zjedzone to to, co zapisano. Bilans najlepiej czytać w skali tygodnia, nie jednego dnia.</string>
+    <string name="forge_ex_energy_text">Spalone to to, czego ciało potrzebuje w spoczynku, co dodaje siedzenie, stanie i trawienie oraz co dodaje aktywność. Zjedzone to to, co zapisałeś. Bilans najlepiej czytać w skali tygodnia, nie jednego dnia.</string>
     <string name="forge_ex_burned">Spalone.</string>
     <string name="forge_ex_resting">Odpoczynek.</string>
     <string name="forge_ex_active">Aktywny</string>
@@ -7947,4 +7947,15 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="fsp6_coach_forget_message">Aby połączyć się ponownie, trzeba będzie wkleić go jeszcze raz. To co innego niż Rozłącz, które zachowuje klucz.</string>
     <string name="fsp6_lab_blurb">Niedokończone funkcje. Domyślnie wyłączone; możesz je wyłączyć w każdej chwili.</string>
     <string name="fsp6_ss_motion">Ruch</string>
+    <string name="forge_en_everyday_explain">Siedzenie, stanie i drobiazgi kosztują więcej niż leżenie w łóżku. Czas czuwania bez kroków i treningu liczy się nieco powyżej spalania w spoczynku. Sen zostaje na poziomie spalania w spoczynku. Trawienie dodaje około jednej dziesiątej dnia.</string>
+    <string name="forge_en_digest_logged">Trawienie tego dnia: %1$d kcal, z tego, co zapisałeś.</string>
+    <string name="forge_en_digest_standard">Trawienie tego dnia: około %1$d kcal, jedna dziesiąta dnia. Dzień oznaczony jako w pełni zapisany liczy twoje własne jedzenie.</string>
+    <string name="forge_ex_lying">Leżenie</string>
+    <string name="forge_ex_sitting">Siedzenie</string>
+    <string name="forge_ex_standing">Stanie</string>
+    <string name="forge_en_likely">Prawdopodobnie od %1$s do %2$s kcal: żadne urządzenie noszone nie zna pojedynczego ciała dokładniej</string>
+    <string name="forge_en_likely_scale">Prawdopodobnie od %1$s do %2$s kcal, zawężone przez twoją wagę</string>
+    <string name="energy_scale_early_same">Pierwsze spojrzenie: waga i strap na razie się zgadzają. Pewne dopiero po sześciu tygodniach.</string>
+    <string name="energy_scale_early_more">Pierwsze spojrzenie: waga pokazuje około %1$d %% więcej niż strap. Pewne dopiero po sześciu tygodniach.</string>
+    <string name="energy_scale_early_less">Pierwsze spojrzenie: waga pokazuje około %1$d %% mniej niż strap. Pewne dopiero po sześciu tygodniach.</string>
 </resources>
