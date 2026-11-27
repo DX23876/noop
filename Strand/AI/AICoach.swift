@@ -2280,6 +2280,10 @@ final class AICoachEngine: ObservableObject {
         }
         lines.append("ACTIVE_SO_FAR: \(kcal(summary.activeBurnedSoFar))")
         lines.append("TOTAL_SO_FAR: \(kcal(summary.totalBurnedSoFar))")
+        if let factor = summary.scaleCorrectionFactor {
+            // The same corrected figure the Energy page shows (owner decision 2026-11-27, Q18).
+            lines.append("SCALE_CORRECTION: x\(String(format: "%.2f", factor)) (the user agreed to adjust the strap to their scale; TOTAL_SO_FAR includes it; before it: \(kcal(summary.totalBeforeScaleKcal)))")
+        }
         if let raw = summary.rawWhoopTotalKcal {
             lines.append("RAW_WHOOP_MODEL: \(kcal(raw)) before calibration and missing-basal top-up")
         }
