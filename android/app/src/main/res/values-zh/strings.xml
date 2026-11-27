@@ -3912,7 +3912,7 @@
     <string name="forge_goals_s_achieved">已达成</string>
     <string name="forge_goals_s_ahead">前进</string>
     <string name="forge_goals_s_on_track">步入正轨</string>
-    <string name="forge_goals_s_close">关闭</string>
+    <string name="forge_goals_s_close">接近进度</string>
     <string name="forge_goals_s_behind">后面</string>
     <string name="forge_goals_s_out_of_reach">已无法达成</string>
     <string name="forge_goals_s_protected">受保护</string>
@@ -4866,6 +4866,9 @@
     <string name="forge_lg_discard_q">放弃这次训练？</string>
     <string name="forge_lg_discard_msg">本次训练记录的所有组都会被删除，历史记录中不会保留任何内容。此操作无法撤销。</string>
     <string name="forge_lg_keep">继续记录</string>
+    <string name="forge_lg_incomplete_q">未完成的组</string>
+    <string name="forge_lg_incomplete_msg">有些组尚未完成。只会保存已完成的组。</string>
+    <string name="forge_lg_save_completed">保存已完成的组</string>
     <string name="forge_lg_mark_done">将该组标记为已完成</string>
     <string name="forge_lg_mark_open">将该组标记为未完成</string>
     <string name="forge_lg_minimize">返回</string>

@@ -4793,5 +4793,6 @@
   "Back Up Data": "Copia de seguridad",
   "Backed up your NOOP data.": "Se ha hecho una copia de seguridad de tus datos de NOOP.",
   "Make a complete backup of your NOOP data as a .noopbak file, the same file Settings exports. Save it anywhere with the next step.": "Crea una copia completa de tus datos de NOOP como archivo .noopbak, el mismo que exporta Ajustes. Guárdalo donde quieras con el siguiente paso.",
-  "NOOP could not open its data in time. Open NOOP once and run the shortcut again.": "NOOP no pudo abrir sus datos a tiempo. Abre NOOP una vez y vuelve a ejecutar el atajo."
+  "NOOP could not open its data in time. Open NOOP once and run the shortcut again.": "NOOP no pudo abrir sus datos a tiempo. Abre NOOP una vez y vuelve a ejecutar el atajo.",
+  "Nearly on track": "Casi en ritmo"
 }

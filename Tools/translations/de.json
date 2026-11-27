@@ -4794,5 +4794,6 @@
   "Back Up Data": "Daten sichern",
   "Backed up your NOOP data.": "Deine NOOP-Daten sind gesichert.",
   "Make a complete backup of your NOOP data as a .noopbak file, the same file Settings exports. Save it anywhere with the next step.": "Erstellt eine vollständige Sicherung deiner NOOP-Daten als .noopbak-Datei, dieselbe Datei wie der Export in den Einstellungen. Speichere sie mit dem nächsten Schritt, wo du willst.",
-  "NOOP could not open its data in time. Open NOOP once and run the shortcut again.": "NOOP konnte seine Daten nicht rechtzeitig öffnen. Öffne NOOP einmal und starte den Kurzbefehl erneut."
+  "NOOP could not open its data in time. Open NOOP once and run the shortcut again.": "NOOP konnte seine Daten nicht rechtzeitig öffnen. Öffne NOOP einmal und starte den Kurzbefehl erneut.",
+  "Nearly on track": "Knapp dran"
 }

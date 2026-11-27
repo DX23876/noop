@@ -4894,5 +4894,6 @@
   "Back Up Data": "备份数据",
   "Backed up your NOOP data.": "已备份你的 NOOP 数据。",
   "Make a complete backup of your NOOP data as a .noopbak file, the same file Settings exports. Save it anywhere with the next step.": "将你的 NOOP 数据完整备份为 .noopbak 文件，与“设置”导出的文件相同。用下一步把它保存到任意位置。",
-  "NOOP could not open its data in time. Open NOOP once and run the shortcut again.": "NOOP 未能及时打开数据。请先打开一次 NOOP，然后重新运行快捷指令。"
+  "NOOP could not open its data in time. Open NOOP once and run the shortcut again.": "NOOP 未能及时打开数据。请先打开一次 NOOP，然后重新运行快捷指令。",
+  "Nearly on track": "接近进度"
 }

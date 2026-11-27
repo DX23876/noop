@@ -4887,5 +4887,6 @@
   "Back Up Data": "Backup",
   "Backed up your NOOP data.": "I tuoi dati NOOP sono stati salvati.",
   "Make a complete backup of your NOOP data as a .noopbak file, the same file Settings exports. Save it anywhere with the next step.": "Crea un backup completo dei tuoi dati NOOP come file .noopbak, lo stesso esportato dalle Impostazioni. Salvalo dove vuoi con il passaggio successivo.",
-  "NOOP could not open its data in time. Open NOOP once and run the shortcut again.": "NOOP non è riuscito ad aprire i dati in tempo. Apri NOOP una volta ed esegui di nuovo il comando rapido."
+  "NOOP could not open its data in time. Open NOOP once and run the shortcut again.": "NOOP non è riuscito ad aprire i dati in tempo. Apri NOOP una volta ed esegui di nuovo il comando rapido.",
+  "Nearly on track": "Quasi in linea"
 }

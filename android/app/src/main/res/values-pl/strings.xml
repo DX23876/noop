@@ -3967,7 +3967,7 @@
     <string name="forge_goals_s_achieved">Osiągnięto</string>
     <string name="forge_goals_s_ahead">Przed planem</string>
     <string name="forge_goals_s_on_track">Zgodnie z planem</string>
-    <string name="forge_goals_s_close">Zamknij</string>
+    <string name="forge_goals_s_close">Prawie zgodnie z planem</string>
     <string name="forge_goals_s_behind">Za planem</string>
     <string name="forge_goals_s_out_of_reach">Poza zasięgiem</string>
     <string name="forge_goals_s_protected">Chronione</string>
@@ -4921,6 +4921,9 @@
     <string name="forge_lg_discard_q">Odrzucić ten trening?</string>
     <string name="forge_lg_discard_msg">Wszystkie serie zapisane w tej sesji zostaną usunięte, a do historii nic nie trafi. Tej operacji nie można cofnąć.</string>
     <string name="forge_lg_keep">Kontynuuj rejestrowanie</string>
+    <string name="forge_lg_incomplete_q">Niekompletne serie</string>
+    <string name="forge_lg_incomplete_msg">Niektóre serie są niekompletne. Zapisane zostaną tylko ukończone serie.</string>
+    <string name="forge_lg_save_completed">Zapisz ukończone serie</string>
     <string name="forge_lg_mark_done">Oznacz serię jako ukończoną</string>
     <string name="forge_lg_mark_open">Oznacz serię jako nieukończoną</string>
     <string name="forge_lg_minimize">Wstecz</string>

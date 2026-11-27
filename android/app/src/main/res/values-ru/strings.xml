@@ -3852,7 +3852,7 @@
     <string name="forge_goals_s_achieved">Достигнуто</string>
     <string name="forge_goals_s_ahead">Впереди</string>
     <string name="forge_goals_s_on_track">На ходу</string>
-    <string name="forge_goals_s_close">Закрыть</string>
+    <string name="forge_goals_s_close">Почти по плану</string>
     <string name="forge_goals_s_behind">позади</string>
     <string name="forge_goals_s_out_of_reach">Недостижимо</string>
     <string name="forge_goals_s_protected">Защищено</string>
@@ -4806,6 +4806,9 @@
     <string name="forge_lg_discard_q">Удалить эту тренировку?</string>
     <string name="forge_lg_discard_msg">Все подходы, записанные в этой сессии, будут удалены, и в историю ничего не попадёт. Отменить это действие нельзя.</string>
     <string name="forge_lg_keep">Продолжить запись</string>
+    <string name="forge_lg_incomplete_q">Незавершённые подходы</string>
+    <string name="forge_lg_incomplete_msg">Некоторые подходы не завершены. Сохранятся только выполненные подходы.</string>
+    <string name="forge_lg_save_completed">Сохранить выполненные подходы</string>
     <string name="forge_lg_mark_done">Отметить подход как выполненный</string>
     <string name="forge_lg_mark_open">Отметить подход как невыполненный</string>
     <string name="forge_lg_minimize">Назад</string>

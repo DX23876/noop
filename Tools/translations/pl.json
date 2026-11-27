@@ -6000,5 +6000,6 @@
   "Back Up Data": "Kopia zapasowa",
   "Backed up your NOOP data.": "Twoje dane NOOP zostały zapisane w kopii zapasowej.",
   "Make a complete backup of your NOOP data as a .noopbak file, the same file Settings exports. Save it anywhere with the next step.": "Tworzy pełną kopię danych NOOP jako plik .noopbak, ten sam, który eksportują Ustawienia. Zapisz go w dowolnym miejscu w następnym kroku.",
-  "NOOP could not open its data in time. Open NOOP once and run the shortcut again.": "NOOP nie zdążył otworzyć danych. Otwórz raz NOOP i uruchom skrót ponownie."
+  "NOOP could not open its data in time. Open NOOP once and run the shortcut again.": "NOOP nie zdążył otworzyć danych. Otwórz raz NOOP i uruchom skrót ponownie.",
+  "Nearly on track": "Prawie zgodnie z planem"
 }

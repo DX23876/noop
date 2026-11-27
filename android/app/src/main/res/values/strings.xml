@@ -3989,7 +3989,7 @@
     <string name="forge_goals_s_achieved">Achieved</string>
     <string name="forge_goals_s_ahead">Ahead</string>
     <string name="forge_goals_s_on_track">On track</string>
-    <string name="forge_goals_s_close">Close</string>
+    <string name="forge_goals_s_close">Nearly on track</string>
     <string name="forge_goals_s_behind">Behind</string>
     <string name="forge_goals_s_out_of_reach">Out of reach</string>
     <string name="forge_goals_s_protected">Protected</string>
@@ -4962,6 +4962,9 @@
     <string name="forge_lg_discard_q">Discard this workout?</string>
     <string name="forge_lg_discard_msg">Every set logged in this session is deleted and nothing is added to your history. This cannot be undone.</string>
     <string name="forge_lg_keep">Keep logging</string>
+    <string name="forge_lg_incomplete_q">Incomplete sets</string>
+    <string name="forge_lg_incomplete_msg">Some sets are incomplete. Only completed sets will be saved.</string>
+    <string name="forge_lg_save_completed">Save completed sets</string>
     <string name="forge_lg_mark_done">Mark set complete</string>
     <string name="forge_lg_mark_open">Mark set incomplete</string>
     <string name="forge_lg_minimize">Back</string>

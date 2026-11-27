@@ -4770,5 +4770,6 @@
   "Back Up Data": "Резервная копия",
   "Backed up your NOOP data.": "Данные NOOP сохранены в резервной копии.",
   "Make a complete backup of your NOOP data as a .noopbak file, the same file Settings exports. Save it anywhere with the next step.": "Создаёт полную резервную копию данных NOOP в файле .noopbak — том же, что экспортируют Настройки. Сохраните его где угодно следующим шагом.",
-  "NOOP could not open its data in time. Open NOOP once and run the shortcut again.": "NOOP не успел открыть данные. Откройте NOOP один раз и запустите команду снова."
+  "NOOP could not open its data in time. Open NOOP once and run the shortcut again.": "NOOP не успел открыть данные. Откройте NOOP один раз и запустите команду снова.",
+  "Nearly on track": "Почти по плану"
 }

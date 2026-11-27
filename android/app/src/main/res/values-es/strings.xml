@@ -3951,7 +3951,7 @@
     <string name="forge_goals_s_achieved">Logrado</string>
     <string name="forge_goals_s_ahead">Adelante</string>
     <string name="forge_goals_s_on_track">En camino</string>
-    <string name="forge_goals_s_close">Cerrar</string>
+    <string name="forge_goals_s_close">Casi en ritmo</string>
     <string name="forge_goals_s_behind">detrás</string>
     <string name="forge_goals_s_out_of_reach">Fuera de alcance</string>
     <string name="forge_goals_s_protected">Protegido</string>
@@ -4905,6 +4905,9 @@
     <string name="forge_lg_discard_q">¿Descartar este entrenamiento?</string>
     <string name="forge_lg_discard_msg">Todas las series registradas en esta sesión se eliminan y no se añade nada a tu historial. Esto no se puede deshacer.</string>
     <string name="forge_lg_keep">Seguir registrando</string>
+    <string name="forge_lg_incomplete_q">Series incompletas</string>
+    <string name="forge_lg_incomplete_msg">Algunas series están incompletas. Solo se guardarán las series completadas.</string>
+    <string name="forge_lg_save_completed">Guardar las series completadas</string>
     <string name="forge_lg_mark_done">Marcar serie como completada</string>
     <string name="forge_lg_mark_open">Marcar serie como incompleta</string>
     <string name="forge_lg_minimize">Atrás</string>

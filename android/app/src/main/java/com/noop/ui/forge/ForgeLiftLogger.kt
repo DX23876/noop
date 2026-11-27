@@ -50,6 +50,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -304,6 +307,7 @@ internal fun LoggerSetRow(number: Int?, set: CoreTraining.DraftSet, columns: Lis
                           onCopyDown: (() -> Unit)? = null,
                           onChange: (CoreTraining.DraftSet) -> Unit) {
     val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
     val initialWeight = remember(set.id, set.weightKg, massUnits) { set.weightKg?.let { decimal(TrainingSetInput.massForInput(it, massUnits)) } ?: "" }
     val initialDistance = remember(set.id, set.distanceM, distanceUnits) { set.distanceM?.let { decimal(TrainingSetInput.distanceForInput(it, distanceUnits)) } ?: "" }
     var weight by remember(set.id, set.weightKg, massUnits) { mutableStateOf(initialWeight) }
@@ -404,7 +408,8 @@ internal fun LoggerSetRow(number: Int?, set: CoreTraining.DraftSet, columns: Lis
                         Modifier.size(LoggerColumns.effort, 32.dp).clickable(onClick = onEffort)
                             .semantics { contentDescription = described })
         }
-        Box(Modifier.size(LoggerColumns.check).clickable { commit(!set.done) }
+        // Ticking a set closes the number pad: the set is done, and the pad would cover the rest timer.
+        Box(Modifier.size(LoggerColumns.check).clickable { focusManager.clearFocus(); commit(!set.done) }
                 .semantics { contentDescription = context.getString(if (set.done) R.string.forge_lg_mark_open else R.string.forge_lg_mark_done) },
             contentAlignment = Alignment.Center) {
             when {
@@ -424,18 +429,42 @@ internal fun LoggerSetRow(number: Int?, set: CoreTraining.DraftSet, columns: Lis
 @Composable
 private fun ValuePill(value: String, decimal: Boolean, modifier: Modifier, onChange: (String) -> Unit, onDone: () -> Unit) {
     var focused by remember { mutableStateOf(false) }
+    // The text and its selection, so a tap on a set's number selects it and the next digits replace it. With a
+    // plain String the cursor landed where the finger did: "5" then "4" gave 45 repetitions (emulator 2026-11-27).
+    var field by remember { mutableStateOf(TextFieldValue(value)) }
+    // The tap that focuses the field places the cursor in the next change; that one is turned into "select all".
+    var selectOnNextTap by remember { mutableStateOf(false) }
+    if (field.text != value) field = TextFieldValue(value, TextRange(value.length))
+    val focusManager = LocalFocusManager.current
     val shape = RoundedCornerShape(ForgeMetrics.groupedRadius)
-    BasicTextField(value, onChange, singleLine = true,
+    BasicTextField(field, { next ->
+            if (selectOnNextTap && next.text == field.text) {
+                selectOnNextTap = false
+                field = next.copy(selection = TextRange(0, next.text.length))
+                return@BasicTextField
+            }
+            selectOnNextTap = false
+            field = next
+            if (next.text != value) onChange(next.text)
+        }, singleLine = true,
         textStyle = Forge.type.subhead.copy(color = Forge.colors.text, textAlign = TextAlign.Center, fontFeatureSettings = "tnum"),
         cursorBrush = SolidColor(Forge.colors.accent),
         keyboardOptions = KeyboardOptions(keyboardType = if (decimal) KeyboardType.Decimal else KeyboardType.Number, imeAction = ImeAction.Done),
-        keyboardActions = KeyboardActions(onDone = { onDone() }),
+        // Done closes the pad; losing focus commits the value below.
+        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
         modifier = modifier.height(40.dp).background(Forge.colors.inset, shape)
             .border(1.5.dp, if (focused) Forge.colors.accent else Color.Transparent, shape)
-            .onFocusEdge { now -> if (focused && !now) onDone(); focused = now },
+            .onFocusEdge { now ->
+                if (now && !focused) {
+                    field = field.copy(selection = TextRange(0, field.text.length))
+                    selectOnNextTap = true
+                }
+                if (focused && !now) onDone()
+                focused = now
+            },
         decorationBox = { inner ->
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                if (value.isEmpty()) Text("—", style = Forge.type.subhead, color = Forge.colors.textTertiary)
+                if (field.text.isEmpty()) Text("—", style = Forge.type.subhead, color = Forge.colors.textTertiary)
                 inner()
             }
         })

@@ -465,6 +465,8 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
             page = if (returnToPlan && open != TrainingPage.PlanLibrary) TrainingPage.PlanLibrary else null
             if (page == null) returnToPlan = false
             reload()
+            // The week's head counts the app's workout list, which a session saved on a page here changes.
+            viewModel.loadWorkouts()
         }
         ForgeOverlayPage(onDismiss = close) {
             ForgeSceneBackdrop(ForgeBackdrop.Canvas) {
@@ -1130,6 +1132,7 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
     var restRequest by remember { mutableStateOf<CoreTraining.DraftExercise?>(null) }
     var noteRequest by remember { mutableStateOf<CoreTraining.DraftExercise?>(null) }
     var confirmingDiscard by remember { mutableStateOf(false) }
+    var confirmingPartial by remember { mutableStateOf(false) }
     /**
      * What the draft held when a finish was attempted, which is all this screen can attribute about one.
      * It names the sets rather than the outcome, so a log line carrying it says why a refusal was right
@@ -1159,6 +1162,9 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
         val ble = (context.applicationContext as NoopApplication).ble
         if (outcome == CoreTraining.Finish.SAVED) {
             ble.externalLog("Training: workout saved — $shape")
+            // Every reader of the store reads again, the goal cards included: without it the tab kept "no workouts
+            // this week" and the goal at 0/4 after a saved session (emulator walk-through 2026-11-27).
+            com.noop.core.CoreShadow.noteDataChanged()
             onClose()
             return
         }
@@ -1183,7 +1189,9 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
      */
     fun requestFinish() {
         if (draft?.exercises?.any { e -> e.sets.any { it.done } } == true) {
-            finishing = true
+            // As iOS: open sets are said before the rating, since only ticked ones are saved.
+            if (draft?.exercises?.any { e -> e.sets.any { !it.done } } == true) confirmingPartial = true
+            else finishing = true
             return
         }
         finishProblem = CoreTraining.Finish.NO_COMPLETED_WORK
@@ -1349,6 +1357,14 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
         NoteDialog(definitions[exercise.exerciseId]?.title.orEmpty(), exercise.note.orEmpty(),
                    onSave = { text -> change { CoreTraining.exerciseNote(exercise.id, text) } },
                    onDismiss = { noteRequest = null })
+    }
+    if (confirmingPartial) {
+        AlertDialog(onDismissRequest = { confirmingPartial = false },
+            title = { Text(stringResource(R.string.forge_lg_incomplete_q)) },
+            text = { Text(stringResource(R.string.forge_lg_incomplete_msg)) },
+            confirmButton = { TextButton(onClick = { confirmingPartial = false; finishing = true }) {
+                Text(stringResource(R.string.forge_lg_save_completed)) } },
+            dismissButton = { TextButton(onClick = { confirmingPartial = false }) { Text(stringResource(R.string.forge_lg_keep)) } })
     }
     if (confirmingDiscard && d != null) {
         AlertDialog(onDismissRequest = { confirmingDiscard = false },

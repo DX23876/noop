@@ -21,7 +21,8 @@ struct GoalStatusWord {
                                        symbol: "arrow.up.right", tone: .positive)
         case .onTrack:    return .init(key: "On track", text: String(localized: "On track"),
                                        symbol: "circle.fill", tone: .positive)
-        case .close:      return .init(key: "Close", text: String(localized: "Close"),
+        // Its own text: the bare word "Close" is also the close button's, and read as "Schließen" in German.
+        case .close:      return .init(key: "Close", text: String(localized: "Nearly on track"),
                                        symbol: "exclamationmark", tone: .warning)
         case .behind:     return .init(key: "Behind", text: String(localized: "Behind"),
                                        symbol: "arrow.down.right", tone: .critical)

@@ -52,6 +52,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -1023,7 +1024,9 @@ fun ForgeGoalsContextCard(contextName: String) {
     var output by remember { mutableStateOf<CoreGoals.Output?>(null) }
     var revision by remember { mutableIntStateOf(0) }
     var open by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(revision) {
+    // Also when the store changes, so a workout saved in the logger moves the goal at once.
+    val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    LaunchedEffect(revision, coreRevision) {
         output = withContext(Dispatchers.IO) {
             CoreRead.open(context)
             CoreGoals.snapshot(context, dismissedTrainingWorkouts(context))

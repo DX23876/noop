@@ -3964,7 +3964,7 @@
     <string name="forge_goals_s_achieved">Erreicht</string>
     <string name="forge_goals_s_ahead">Voraus</string>
     <string name="forge_goals_s_on_track">Auf Kurs</string>
-    <string name="forge_goals_s_close">Schließen</string>
+    <string name="forge_goals_s_close">Knapp dran</string>
     <string name="forge_goals_s_behind">Dahinter</string>
     <string name="forge_goals_s_out_of_reach">Nicht mehr drin</string>
     <string name="forge_goals_s_protected">Geschützt</string>
@@ -4900,7 +4900,7 @@
     <string name="forge_lg_col_rir">RIR</string>
     <string name="forge_lg_col_dist">DIST</string>
     <string name="forge_lg_col_time">ZEIT</string>
-    <string name="forge_lg_rest">Rest</string>
+    <string name="forge_lg_rest">Pause</string>
     <string name="forge_lg_skip">Überspringen</string>
     <string name="forge_lg_minus15">15 Sekunden abziehen</string>
     <string name="forge_lg_plus15">15 Sekunden hinzufügen</string>
@@ -4918,6 +4918,9 @@
     <string name="forge_lg_discard_q">Dieses Workout verwerfen?</string>
     <string name="forge_lg_discard_msg">Alle in dieser Einheit erfassten Sätze werden gelöscht und nichts wird deinem Verlauf hinzugefügt. Das lässt sich nicht rückgängig machen.</string>
     <string name="forge_lg_keep">Weiter trainieren</string>
+    <string name="forge_lg_incomplete_q">Unvollständige Sätze</string>
+    <string name="forge_lg_incomplete_msg">Einige Sätze sind unvollständig. Es werden nur abgeschlossene Sätze gespeichert.</string>
+    <string name="forge_lg_save_completed">Erledigte Sätze speichern</string>
     <string name="forge_lg_mark_done">Satz als erledigt markieren</string>
     <string name="forge_lg_mark_open">Satz als offen markieren</string>
     <string name="forge_lg_minimize">Zurück</string>
@@ -7372,11 +7375,11 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_sl_add_blocked">Du hast schon einen Schlaf von %1$s bis %2$s. Zwei Schläfe über denselben Stunden würden diese Stunden doppelt zählen.</string>
     <string name="forge_sl_add_edit_that">Diesen Schlaf bearbeiten</string>
     <string name="forge_sl_add_row">Schlaf nachtragen</string>
-    <string name="forge_fin_title">Einheit beenden</string>
-    <string name="forge_fin_sub">Eine Zahl für die ganze Einheit, damit sich ein Beintag mit einem Lauf vergleichen lässt.</string>
-    <string name="forge_fin_question">Wie hart war die ganze Einheit? (1 bis 10)</string>
-    <string name="forge_fin_note">Das ist der Einheits-RPE. Mit der Dauer multipliziert ergibt er die Einheitslast, die eine Zahl, die ganz verschiedene Trainings vergleichbar macht.</string>
-    <string name="forge_fin_save">Einheit sichern</string>
+    <string name="forge_fin_title">Training beenden</string>
+    <string name="forge_fin_sub">Eine Zahl für das ganze Training, damit sich ein Beintag mit einem Lauf vergleichen lässt.</string>
+    <string name="forge_fin_question">Wie anstrengend war das ganze Training? (1 bis 10)</string>
+    <string name="forge_fin_note">Mal der Dauer ergibt diese Zahl die Last des Trainings. So lassen sich ganz verschiedene Trainings miteinander vergleichen.</string>
+    <string name="forge_fin_save">Training speichern</string>
     <string name="forge_fin_easy">Leicht</string>
     <string name="forge_fin_allout">Volle Kraft</string>
     <string name="forge_sl_add_day">Tag des Einschlafens</string>
