@@ -1,7 +1,7 @@
 {
   "counts": {
     "fixed": 5,
-    "reported": 0,
+    "reported": 1,
     "working": 0
   },
   "decided": [],
@@ -37,8 +37,15 @@
       "title": "Native training sessions show no HR / Effort in workout lists (grey on Today)"
     }
   ],
-  "generated": "2026-11-26T18:21:43Z",
-  "issues": [],
+  "generated": "2026-11-27T09:37:10Z",
+  "issues": [
+    {
+      "n": 60,
+      "opened": "2026-11-27",
+      "status": "reported",
+      "title": "Automatic sleep detection records evening couch sitting as a nap after 20:00"
+    }
+  ],
   "schema": 1,
   "service": "https://noop-relay.noop-relay.workers.dev",
   "suggestions": []
