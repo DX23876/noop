@@ -1,507 +1,728 @@
 import SwiftUI
+import Charts
 import StrandAnalytics
 import StrandDesign
 import StrandCore
 
-// MARK: - Weight (v43) — the history behind the Today tile
+// MARK: - Weight — overview, history and reports (owner decisions 2026-11-26)
 //
-// The Today tile answers "what do I weigh?" in one number. This screen answers the question that
-// number cannot: which way is it going, and is that a real move or last night's dinner.
+// The Today tile answers "what do I weigh?" in one number. This screen answers what that number cannot: which way
+// it is going, where it leads, how it went month by month. Every figure comes from ONE derivation,
+// `WeightTracker` (StrandAnalytics), fed by `WeightTrackerPreparation` (shared with the Android core). No maths
+// happens in this file: a second smoothing in a view is how a screen starts disagreeing with the goal card, the
+// widgets and the coach about the same body.
 //
-// Everything shown here is derived ONCE, in `WeightTrendSummary` (StrandAnalytics, pure and unit-
-// tested), from the canonical `Repository.weightSeries()` — the union of weigh-ins logged in NOOP
-// over Apple Health. No maths happens in this file: a second smoothing in a view is how a screen
-// starts disagreeing with the goal card about the same body.
-//
-// The raw reading and the trend are shown as two DIFFERENT things, deliberately. The scale is not
-// wrong when it reads 1.4 kg higher than yesterday — it is measuring water. Presenting the trend as
-// "your weight" while hiding what was actually measured, or the reverse, would each be a lie of a
-// different kind.
+// What the scale said and the trend stay two different things, deliberately: the scale is not wrong when it reads
+// 1.4 kg above yesterday, it is measuring water. A forecast is arithmetic on one rate, and says so; when the rate
+// points away from the goal or would need years, the page says that instead of printing a date.
+
+@MainActor
+final class WeightTrackerModel: ObservableObject {
+    @Published private(set) var snapshot: WeightTracker.Snapshot?
+    @Published private(set) var stored = WeightTracker.Stored()
+    /// "goal" or "dietPlan": where the goal on the page came from; nil without one.
+    @Published private(set) var goalFromPlan = false
+    @Published private(set) var loaded = false
+
+    func reload(repo: Repository) async {
+        let prefs = GoalPreferences.standard
+        stored = WeightTrackerPreparation.stored(prefs)
+        let plan = DietPlan.decode(UserDefaults.standard.string(forKey: DietPlan.storageKey))
+        let goals = CoachGoalStore.shared
+        goalFromPlan = !goals.activeGoals.contains { $0.kind == .weight && $0.target != nil }
+            && WeightTrackerPreparation.goal(goals: goals, plan: plan) != nil
+        if let store = await repo.storeHandle() {
+            snapshot = await WeightTrackerPreparation.snapshot(store: store, reader: repo.storeReader(store), goals: goals,
+                                                               prefs: prefs, plan: plan)
+            #if os(iOS)
+            WeightWidgetPublisher.publish(snapshot)
+            #endif
+        }
+        loaded = true
+    }
+
+    func save(_ next: WeightTracker.Stored, repo: Repository) async {
+        WeightTrackerPreparation.save(next, to: GoalPreferences.standard)
+        await reload(repo: repo)
+    }
+}
 
 struct WeightDetailView: View {
     @EnvironmentObject var repo: Repository
     @EnvironmentObject var profile: ProfileStore
-
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
-    private var unitSystem: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
+    private var units: UnitSystem { UnitSystem(rawValue: unitSystemRaw) ?? .metric }
 
-    @State private var entries: [WeightEntry] = []
-    @State private var summary: WeightTrendSummary?
-    @State private var chartPoints: [TrendPoint] = []
-    /// The smoothed trend drawn over the weigh-ins — same fold as the headline number, so the line and
-    /// the figure beside it can never disagree.
-    @State private var trendPoints: [TrendPoint] = []
-    @State private var loaded = false
-    /// Drives the goal ring's draw-in; `BevelGauge` takes the animated value from its host.
-    @State private var drawnProgress: Double = 0
-
-    /// The goal store, observed so the ring appears the moment a weight goal is created elsewhere.
+    @StateObject private var model = WeightTrackerModel()
     @ObservedObject private var goalStore = CoachGoalStore.shared
-
-    /// The entry being edited, or a fresh one when logging. Nil = no sheet.
+    @State private var section: WeightSection = .overview
     @State private var editing: WeightLogDraft?
+    @State private var editingEvent: WeightEventDraft?
+    @State private var showingSettings = false
+    @State private var historyRange: HistoryRange = .quarter
+    @State private var reportPeriod: WeightTracker.Period = .month
+    @State private var showArchive = false
 
-    /// How far back the screen reads. Matches `GoalMeasure.weightWindowDays`' spirit for the summary
-    /// while still showing a year of history in the list — a year of weigh-ins is a few hundred rows.
-    private let historyDays = 365
+    enum WeightSection: Hashable { case overview, history, reports }
+    enum HistoryRange: Int, CaseIterable, Identifiable {
+        case month = 30, quarter = 90, year = 365, all = 0
+        var id: Int { rawValue }
+        var label: LocalizedStringKey {
+            switch self { case .month: "30 days"; case .quarter: "90 days"; case .year: "1 year"; case .all: "All" }
+        }
+    }
 
     var body: some View {
         Group {
             if NoopVisualStyle.skin == .forge {
-                ScreenScaffold(title: "Weight") {
-                    forgeHero
-                    if !chartPoints.isEmpty { chart }
-                    if let s = summary { forgeChanges(s) }
-                    logButton
-                    forgeHistory
-                }
-        .pagePicture("scalemass.fill", accent: "leaf.fill", tint: Self.weightTint)
+                ScreenScaffold(title: "Weight") { settingsButton } content: { content }
+                    .pagePicture("scalemass.fill", accent: "leaf.fill", tint: Self.weightTint)
             } else {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
-                        headline
-                        if !chartPoints.isEmpty { chart }
-                        history
-                    }
-                    .padding(NoopMetrics.screenPadding)
+                    VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) { content }
+                        .padding(NoopMetrics.screenPadding)
                 }
                 .background(StrandPalette.surfaceBase.ignoresSafeArea())
                 .navigationTitle(Text("Weight"))
+                .toolbar { ToolbarItem(placement: .primaryAction) { settingsButton } }
             }
         }
-        .task { await loadIfNeeded() }
+        .task { await model.reload(repo: repo) }
+        .onReceive(goalStore.$goals.dropFirst()) { _ in Task { await model.reload(repo: repo) } }
         .sheet(item: $editing) { draft in
-            WeightLogSheet(draft: draft, unitSystem: unitSystem,
+            WeightLogSheet(draft: draft, unitSystem: units,
                            onSave: { kg, at, note in await save(draft: draft, kg: kg, at: at, note: note) },
                            onDelete: draft.isExisting ? { await delete(id: draft.id) } : nil)
         }
-    }
-
-    // MARK: - Headline
-
-    private var headline: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("Weight", overline: "Body")
-            NoopCard {
-                VStack(alignment: .leading, spacing: 14) {
-                    if let s = summary {
-                        heroRow(s)
-                        Divider().overlay(StrandPalette.hairline)
-                        changeRow(s)
-                        if !s.isTrendReliable { settlingNote }
-                    } else {
-                        emptyState
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            logButton
+        .sheet(item: $editingEvent) { draft in
+            WeightEventSheet(draft: draft,
+                             onSave: { saved in await saveEvent(saved) },
+                             onDelete: draft.isExisting ? { await deleteEvent(id: draft.id) } : nil)
         }
-    }
-
-    /// With an active weight goal the hero is a goal-progress ring; without one it stays the plain
-    /// number pair. Body weight has no natural 0–100 domain, so a ring without a target would be
-    /// decoration that implies a scale nobody set.
-    @ViewBuilder
-    private func heroRow(_ s: WeightTrendSummary) -> some View {
-        if let goal = weightGoal, let baseline = goal.baseline, let target = goal.target {
-            HStack(alignment: .center, spacing: 18) {
-                goalGauge(s, baseline: baseline, target: target)
-                VStack(alignment: .leading, spacing: 6) {
-                    numberPair(s)
-                }
-                Spacer(minLength: 0)
-            }
-        } else {
-            HStack(alignment: .firstTextBaseline, spacing: 18) {
-                numberPair(s)
-                Spacer()
+        .sheet(isPresented: $showingSettings) {
+            WeightSettingsSheet(stored: model.stored, rates: model.snapshot?.rates, units: units) { next in
+                await model.save(next, repo: repo)
             }
         }
-    }
-
-    /// The measured reading and the smoothed trend, always both and always labelled apart — the scale
-    /// is not wrong when it disagrees with the trend, it is measuring water.
-    private func numberPair(_ s: WeightTrendSummary) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(UnitFormatter.massFromKilograms(s.latestKg, system: unitSystem))
-                    .font(StrandFont.title2)
-                    .foregroundStyle(StrandPalette.textPrimary)
-                Text("Last weigh-in \(relative(latestWeighInAt ?? s.latestAt))")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textSecondary)
-            }
-            if weightGoal == nil {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(UnitFormatter.massFromKilograms(s.trendKg, system: unitSystem))
-                        .font(StrandFont.title2)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                    Text("trend").font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                }
-            }
-        }
-    }
-
-    /// Progress from the goal's baseline to its target, read off the TREND — the same number goal
-    /// tracking judges the goal on, so this ring and the Goals card cannot disagree.
-    private func goalGauge(_ s: WeightTrendSummary, baseline: Double, target: Double) -> some View {
-        let span = target - baseline
-        let travelled = span == 0 ? 1 : (s.trendKg - baseline) / span
-        return BevelGauge(
-            fraction: min(1, max(0, travelled)),
-            stops: StrandPalette.strainStops,
-            tipColor: StrandPalette.metricAmber,
-            numberText: UnitFormatter.massFromKilograms(s.trendKg, system: unitSystem),
-            captionText: String(localized: "to \(UnitFormatter.massFromKilograms(target, system: unitSystem))"),
-            stateText: s.isTrendReliable ? String(localized: "TREND") : String(localized: "SETTLING"),
-            diameter: 132,
-            lineWidth: 11,
-            animatedFraction: drawnProgress,
-            // Not yet a trustworthy trend ⇒ a dashed frame, the same signal the Energy card uses for
-            // a modelled number.
-            trackDash: s.isTrendReliable ? nil : [3, 5])
-    }
-
-    private func changeRow(_ s: WeightTrendSummary) -> some View {
-        HStack(spacing: 8) {
-            changePill(label: String(localized: "7 d"), delta: s.change7dKg)
-            changePill(label: String(localized: "30 d"), delta: s.change30dKg)
-            changePill(label: String(localized: "per week"), delta: s.ratePerWeekKg)
-            Spacer(minLength: 0)
-        }
-    }
-
-    /// One change figure as a pill. A missing one reads "—", never "0.0": a history too short to
-    /// compare has no answer, and zero would claim a stability nobody measured.
-    private func changePill(label: String, delta: Double?) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            StatePill(LocalizedStringKey(delta.map { signedMass($0) } ?? "—"),
-                      tone: tone(for: delta), showsDot: false)
-            Text(label).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-        }
-    }
-
-    /// Which way is "good"?
-    ///
-    /// **Only a goal can answer that.** Tinting weight loss green without knowing what the person is
-    /// working toward is a value judgement the app has no business making — someone building mass
-    /// would see their progress rendered as a warning. Without a goal every pill stays neutral, the
-    /// same restraint `GoalSafetyGate` shows when it declines to judge a rate it cannot contextualise.
-    private func tone(for delta: Double?) -> StrandTone {
-        guard let delta, abs(delta) > 0.05,
-              let goal = weightGoal, let target = goal.target, let baseline = goal.baseline,
-              target != baseline else { return .neutral }
-        let towardTarget = (target - baseline) > 0 ? delta > 0 : delta < 0
-        return towardTarget ? .positive : .warning
-    }
-
-    /// The active weight goal, if there is one.
-    private var weightGoal: CoachGoal? {
-        goalStore.activeGoals.first { $0.kind == .weight }
-    }
-
-    private var settlingNote: some View {
-        Text("The trend is still settling — a few more weigh-ins and it will follow real changes without chasing daily swings.")
-            .font(StrandFont.caption)
-            .foregroundStyle(StrandPalette.textSecondary)
-    }
-
-    private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("No weigh-ins yet").font(StrandFont.headline)
-                .foregroundStyle(StrandPalette.textPrimary)
-            Text("Log one and NOOP will track the trend behind the daily ups and downs. Weigh-ins from Apple Health show up here too.")
-                .font(StrandFont.caption)
-                .foregroundStyle(StrandPalette.textSecondary)
-        }
-    }
-
-    private var logButton: some View {
-        Button {
-            editing = WeightLogDraft(seedKg: summary?.latestKg ?? profile.weightKg)
-        } label: {
-            Label("Log weight", systemImage: "plus.circle.fill")
-                .font(StrandFont.headline)
-                .frame(maxWidth: .infinity)
-        }
-        .buttonStyle(.noopProminent)
-        .tint(Self.weightTint)
     }
 
     /// The weight page's one colour: the pink of its picture in the new design, the accent in the shipped one.
     static var weightTint: Color { NoopVisualStyle.skin == .forge ? Color.pink : StrandPalette.accent }
 
-    // MARK: - Chart
+    private var settingsButton: some View {
+        Button { showingSettings = true } label: { Image(systemName: "slider.horizontal.3") }
+            .accessibilityLabel(Text("Weight settings"))
+            .tint(Self.weightTint)
+    }
 
-    private var chart: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("Weigh-ins", trailing: String(localized: "last 90 days"))
-            NoopCard {
-                VStack(alignment: .leading, spacing: 8) {
-                    TrendChart(points: chartPoints,
-                               // The weight colour of the page's picture in the new design.
-                               gradient: Gradient(colors: [Self.weightTint.opacity(0.35), Self.weightTint]),
-                               valueRange: chartRange,
-                               height: 200,
-                               valueFormat: { UnitFormatter.massFromKilograms($0, system: unitSystem) },
-                               dateFormat: { $0.formatted(date: .abbreviated, time: .omitted) },
-                               accessibilityLabel: String(localized: "Weight trend"),
-                               overlayPoints: trendPoints,
-                               overlayColor: StrandPalette.textSecondary)
-                    // The dashed line has no legend anywhere else on the screen, and an unexplained
-                    // second line invites the reading "two metrics" rather than "one, smoothed".
-                    if !trendPoints.isEmpty {
-                        Text("Solid: what the scale said. Dashed: the trend.")
-                            .font(StrandFont.caption)
-                            .foregroundStyle(StrandPalette.textSecondary)
-                    }
-                }
+    @ViewBuilder private var content: some View {
+        if let s = model.snapshot {
+            hero(s)
+            Picker("Section", selection: $section) {
+                Text("Overview").tag(WeightSection.overview)
+                Text("History").tag(WeightSection.history)
+                Text("Reports").tag(WeightSection.reports)
             }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            switch section {
+            case .overview: overview(s)
+            case .history: history(s)
+            case .reports: reports(s)
+            }
+        } else if model.loaded {
+            NoopCard { emptyState }
+            logButton
+        } else {
+            ProgressView().frame(maxWidth: .infinity)
         }
     }
 
-    /// Fitted to the data with a little headroom, not a fixed 50…100: a person's weigh-ins span a few
-    /// kilos, and a fixed axis would flatten every real move into a straight line.
-    private var chartRange: ClosedRange<Double> {
-        let values = chartPoints.map(\.value)
-        guard let lo = values.min(), let hi = values.max() else { return 50...100 }
-        let pad = max(1.0, (hi - lo) * 0.2)
-        return (lo - pad)...(hi + pad)
-    }
+    private func shows(_ card: WeightTracker.Card) -> Bool { !model.stored.settings.hiddenCards.contains(card.rawValue) }
 
-    // MARK: - History
+    // MARK: Hero
 
-    private var history: some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("History", trailing: entries.isEmpty ? nil : "\(entries.count)")
-            if entries.isEmpty {
-                Text("Nothing logged yet.")
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textSecondary)
-            } else {
-                VStack(spacing: 8) {
-                    ForEach(entries) { entry in historyRow(entry) }
-                }
-            }
-        }
-    }
-
-    private func historyRow(_ entry: WeightEntry) -> some View {
-        NoopCard(padding: 12) {
-            HStack(spacing: 12) {
+    /// The newest weigh-in as the one big number, the trend beside it, and the goal in words.
+    private func hero(_ s: WeightTracker.Snapshot) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 16) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(UnitFormatter.massFromKilograms(entry.value, system: unitSystem))
-                        .font(StrandFont.bodyNumber)
-                        .foregroundStyle(StrandPalette.textPrimary)
-                    HStack(spacing: 6) {
-                        Text(entry.takenAt?.formatted(date: .abbreviated, time: .shortened)
-                             ?? WeightSeries.date(forDay: entry.day)?.formatted(date: .abbreviated, time: .omitted)
-                             ?? entry.day)
-                        Text("·")
-                        Text(sourceLabel(entry.source))
-                    }
-                    .font(StrandFont.caption)
-                    .foregroundStyle(StrandPalette.textSecondary)
-                    if let note = entry.note, !note.isEmpty {
-                        Text(note).font(StrandFont.caption)
-                            .foregroundStyle(StrandPalette.textSecondary)
-                    }
-                }
-                Spacer()
-                if entry.isEditable {
-                    Button { editing = WeightLogDraft(entry: entry) } label: {
-                        Image(systemName: "pencil").foregroundStyle(StrandPalette.textSecondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(Text("Edit weigh-in"))
-                }
-            }
-        }
-        // Apple-imported days carry no edit affordance at all: the measurement lives in Health, and a
-        // delete button that deletes nothing is worse than no button.
-        .contentShape(Rectangle())
-        .onTapGesture { if entry.isEditable { editing = WeightLogDraft(entry: entry) } }
-    }
-
-    // MARK: - New design (prototype board "WeightFull")
-
-    /// The newest weigh-in as the one big number, the trend and the goal beside it in words.
-    @ViewBuilder private var forgeHero: some View {
-        if let s = summary {
-            HStack(alignment: .center, spacing: 16) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(UnitFormatter.massFromKilograms(s.latestKg, system: unitSystem))
-                        .font(StrandFont.rounded(44, weight: .bold))
-                        .foregroundStyle(StrandPalette.textPrimary)
+                    Text(mass(s.latest.kg))
+                        .font(StrandFont.rounded(44, weight: .bold)).foregroundStyle(StrandPalette.textPrimary)
                         .lineLimit(1).minimumScaleFactor(0.7)
-                    Text("Last weigh-in \(relative(latestWeighInAt ?? s.latestAt))")
+                    Text("Last weigh-in \(relative(s.latest.date))")
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                 }
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 2) {
-                    Text(UnitFormatter.massFromKilograms(s.trendKg, system: unitSystem))
-                        .font(StrandFont.rounded(20, weight: .semibold))
-                        .foregroundStyle(StrandPalette.textPrimary)
-                    Text(s.isTrendReliable ? String(localized: "trend") : String(localized: "trend, still settling"))
+                    Text(mass(s.trendKg))
+                        .font(StrandFont.rounded(20, weight: .semibold)).foregroundStyle(StrandPalette.textPrimary)
+                    Text(s.trendSettled ? String(localized: "trend") : String(localized: "trend, still settling"))
                         .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
                 }
             }
             .accessibilityElement(children: .combine)
-            if let goal = weightGoal, let target = goal.target {
-                Text("Goal \(UnitFormatter.massFromKilograms(target, system: unitSystem))")
-                    .font(StrandFont.subhead.weight(.semibold))
-                    .foregroundStyle(StrandPalette.textSecondary)
+            if let goal = s.goal {
+                Text(goal.isMaintain
+                     ? String(localized: "Goal: stay near \(mass(goal.target))")
+                     : String(localized: "Goal \(mass(goal.target))"))
+                    .font(StrandFont.subhead.weight(.semibold)).foregroundStyle(StrandPalette.textSecondary)
+                if model.goalFromPlan {
+                    Text("From your diet plan").font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+                }
             }
-        } else if loaded {
-            NoopCard { emptyState }
         }
     }
 
-    /// The three changes as plain figures in one card. Tinted only against a goal, as in the classic pills.
-    private func forgeChanges(_ s: WeightTrendSummary) -> some View {
+    // MARK: Overview
+
+    @ViewBuilder private func overview(_ s: WeightTracker.Snapshot) -> some View {
+        if shows(.milestones), let m = s.milestones, let goal = s.goal { milestonesCard(m, goal: goal, trend: s.trendKg) }
+        if shows(.forecast) { forecastCard(s) }
+        if shows(.events) { eventsCard(s) }
+        if shows(.changes) { changesCard(s) }
+        if shows(.week), let w = s.week { weekCard(w) }
+        logButton
+    }
+
+    private func milestonesCard(_ m: WeightTracker.Milestones, goal: WeightTracker.Goal, trend: Double) -> some View {
         NoopCard {
-            HStack(alignment: .top, spacing: 12) {
-                forgeChange(String(localized: "7 days"), s.change7dKg)
-                forgeChange(String(localized: "30 days"), s.change30dKg)
-                forgeChange(String(localized: "per week"), s.ratePerWeekKg)
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .center, spacing: 16) {
+                    progressRing(m.progress)
+                    VStack(alignment: .leading, spacing: 4) {
+                        if let next = m.next {
+                            Text("Next stop").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                            Text(mass(next)).font(StrandFont.rounded(28, weight: .bold)).foregroundStyle(StrandPalette.textPrimary)
+                            if let toGo = m.toNextKg {
+                                Text("\(mass(toGo)) to go").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                            }
+                        } else {
+                            Text("Every stop reached").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+                milestoneTrack(m)
+                Text("\(m.reachedCount) of \(m.route.count) stops reached")
+                    .font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.textSecondary)
+                // Where the ring counts from: without it "0 % of the way" beside "−3 kg since start" read as a fault.
+                Text("From \(mass(goal.baseline)) on \(goalStart(goal.createdAt)), when the goal was set.")
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// The share of the way from start to goal on the trend, as a three-quarter ring in the page's colour.
+    private func progressRing(_ fraction: Double) -> some View {
+        ZStack {
+            Circle().trim(from: 0, to: 0.75).stroke(StrandPalette.hairline, style: StrokeStyle(lineWidth: 9, lineCap: .round))
+                .rotationEffect(.degrees(135))
+            Circle().trim(from: 0, to: 0.75 * min(1, max(0, fraction)))
+                .stroke(Self.weightTint, style: StrokeStyle(lineWidth: 9, lineCap: .round))
+                .rotationEffect(.degrees(135))
+            VStack(spacing: 0) {
+                Text("\(Int((fraction * 100).rounded())) %").font(StrandFont.rounded(22, weight: .bold))
+                    .foregroundStyle(StrandPalette.textPrimary)
+                Text("of the way").font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+            }
+        }
+        .frame(width: 96, height: 96)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// Every stop as a dot on one line: reached ones filled, the rest open.
+    private func milestoneTrack(_ m: WeightTracker.Milestones) -> some View {
+        HStack(spacing: 0) {
+            ForEach(Array(m.route.enumerated()), id: \.offset) { i, stop in
+                if i > 0 {
+                    Rectangle().fill(stop.reachedDay != nil ? Self.weightTint : StrandPalette.hairline).frame(height: 3)
+                }
+                Circle()
+                    .fill(stop.reachedDay != nil ? Self.weightTint : StrandPalette.surfaceBase)
+                    .overlay(Circle().stroke(stop.reachedDay != nil ? Self.weightTint : StrandPalette.textTertiary, lineWidth: 2))
+                    .frame(width: 14, height: 14)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func forecastCard(_ s: WeightTracker.Snapshot) -> some View {
+        let f = s.forecast
+        return VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            sectionTitle("Forecast")
+            NoopCard {
+                VStack(alignment: .leading, spacing: 12) {
+                    Picker("Rate", selection: Binding(get: { f.rateMode }, set: { mode in
+                        var next = model.stored
+                        next.settings.rateMode = mode
+                        Task { await model.save(next, repo: repo) }
+                    })) {
+                        Text("Current").tag(WeightTracker.RateMode.current)
+                        Text("Overall").tag(WeightTracker.RateMode.overall)
+                        Text("Plan").tag(WeightTracker.RateMode.wish)
+                    }
+                    .pickerStyle(.segmented).labelsHidden()
+                    Text(forecastSentence(s)).font(StrandFont.body).foregroundStyle(StrandPalette.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(basisLine(f)).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                    if f.rateMode == .wish {
+                        Text(wishSourceLine(s.rates)).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        if s.rates.wishIsSteep {
+                            Label("More than about 1 % of your weight a week is a lot to sustain.", systemImage: "exclamationmark.triangle")
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.statusWarning)
+                        }
+                    }
+                }
             }
         }
     }
 
-    private func forgeChange(_ label: String, _ delta: Double?) -> some View {
-        let color: Color = {
-            switch tone(for: delta) {
-            case .positive: return StrandPalette.statusPositive
-            case .warning: return StrandPalette.statusWarning
-            default: return StrandPalette.textPrimary
+    private func forecastSentence(_ s: WeightTracker.Snapshot) -> String {
+        let f = s.forecast
+        let rate = f.rateKgPerWeek.map { perWeek($0) }
+        switch f.state {
+        case .arriving:
+            let date = f.targetDate.map { $0.formatted(.dateTime.day().month(.wide).year().locale(AppLanguage.activeLocale)) } ?? ""
+            if f.rateMode == .wish {
+                return String(localized: "Following the plan of \(rate ?? "—"), you would reach \(mass(s.goal?.target ?? 0)) around \(date).")
             }
-        }()
-        return VStack(alignment: .leading, spacing: 2) {
-            Text(delta.map { signedMass($0) } ?? "—")
-                .font(StrandFont.rounded(20, weight: .bold)).foregroundStyle(color)
-                .lineLimit(1).minimumScaleFactor(0.7)
-            Text(label).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+            return String(localized: "At \(rate ?? "—"), you reach \(mass(s.goal?.target ?? 0)) around \(date).")
+        case .reached: return String(localized: "The trend has reached your goal.")
+        case .movingAway: return String(localized: "At \(rate ?? "—") the trend moves away from your goal, so there is no date to give.")
+        case .tooSlow: return String(localized: "At \(rate ?? "—") your goal is more than three years away.")
+        case .notEnoughData:
+            return f.rateMode == .wish
+                ? String(localized: "There is no plan rate yet. Set a goal date, a diet plan or your own rate in the settings.")
+                : String(localized: "Too few weigh-ins for a rate yet: it needs two weeks and eight weigh-ins.")
+        case .withinBand: return String(localized: "The trend is inside your band.")
+        case .outsideBand: return String(localized: "The trend is outside your band.")
+        case .noGoal:
+            guard let rate else { return String(localized: "Too few weigh-ins for a rate yet: it needs two weeks and eight weigh-ins.") }
+            return String(localized: "The trend changes by \(rate). Set a weight goal to see when you reach it.")
+        }
+    }
+
+    private func basisLine(_ f: WeightTracker.Forecast) -> String {
+        switch f.basis {
+        case .trend: String(localized: "Starts from the trend, \(mass(f.startKg)).")
+        case .tenDayLow: String(localized: "Starts from the lowest weigh-in of the last ten days, \(mass(f.startKg)) on \(f.startDate.formatted(.dateTime.day().month(.abbreviated).locale(AppLanguage.activeLocale))).")
+        }
+    }
+
+    private func wishSourceLine(_ r: WeightTracker.Rates) -> String {
+        switch r.wishSource {
+        case .dietPlan: String(localized: "The plan rate comes from your diet plan. It is a plan, not a prediction.")
+        case .goal: String(localized: "The plan rate comes from your goal's date. It is a plan, not a prediction.")
+        case .manual: String(localized: "The plan rate is the one you set. It is a plan, not a prediction.")
+        case nil: String(localized: "It is a plan, not a prediction.")
+        }
+    }
+
+    private func eventsCard(_ s: WeightTracker.Snapshot) -> some View {
+        let current = s.events.filter { $0.phase != .archived }
+        let archived = s.events.filter { $0.phase == .archived }
+        return VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            HStack {
+                sectionTitle("Your dates")
+                Spacer()
+                Button { editingEvent = WeightEventDraft() } label: { Label("Add", systemImage: "plus") }
+                    .font(StrandFont.subhead.weight(.semibold)).tint(Self.weightTint)
+            }
+            NoopCard(padding: 0) {
+                VStack(spacing: 0) {
+                    if current.isEmpty {
+                        Text("Add a date, like a holiday or a wedding, to see what you are likely to weigh then.")
+                            .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading).padding(16)
+                    }
+                    ForEach(Array(current.enumerated()), id: \.element.id) { i, e in
+                        if i > 0 { Divider().overlay(StrandPalette.hairline).padding(.leading, 16) }
+                        eventRow(e)
+                    }
+                    if !archived.isEmpty {
+                        Divider().overlay(StrandPalette.hairline)
+                        DisclosureGroup(isExpanded: $showArchive) {
+                            ForEach(archived) { eventRow($0) }
+                        } label: {
+                            Text("Past dates (\(archived.count))").font(StrandFont.footnote.weight(.semibold))
+                                .foregroundStyle(StrandPalette.textSecondary)
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 10)
+                    }
+                }
+            }
+        }
+    }
+
+    private func eventRow(_ e: WeightTracker.EventForecast) -> some View {
+        let date = WeightSeries.date(forDay: e.event.day)?.formatted(.dateTime.day().month(.abbreviated).year().locale(AppLanguage.activeLocale)) ?? e.event.day
+        return Button { editingEvent = WeightEventDraft(event: e.event) } label: {
+            HStack(alignment: .center, spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(e.event.name).font(StrandFont.body.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
+                    Text(e.phase == .upcoming
+                         ? (e.daysAway == 0 ? String(localized: "\(date), today")
+                                            : date + ", " + String(localized: "in \(e.daysAway) days"))
+                         : date)
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                }
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 2) {
+                    switch e.phase {
+                    case .upcoming:
+                        Text(e.predictedKg.map(mass) ?? "—").font(StrandFont.rounded(17, weight: .semibold))
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text("expected").font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    case .passed, .archived:
+                        Text(e.measuredKg.map(mass) ?? "—").font(StrandFont.rounded(17, weight: .semibold))
+                            .foregroundStyle(StrandPalette.textPrimary)
+                        Text(e.predictedBeforeKg.map { String(localized: "measured, forecast \(mass($0))") }
+                             ?? String(localized: "measured"))
+                            .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    }
+                }
+            }
+            .padding(.horizontal, 16).padding(.vertical, 12)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func changesCard(_ s: WeightTracker.Snapshot) -> some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            sectionTitle("Change on the trend")
+            NoopCard {
+                HStack(alignment: .top, spacing: 10) {
+                    ForEach([7, 30, 90, nil] as [Int?], id: \.self) { days in
+                        let value = s.changes.first { $0.days == days }?.kg
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(value.map(signedMass) ?? "—")
+                                .font(StrandFont.rounded(18, weight: .bold)).foregroundStyle(color(for: value, goal: s.goal))
+                                .lineLimit(1).minimumScaleFactor(0.6)
+                            Text(days.map { String(localized: "\($0) days") } ?? String(localized: "since start"))
+                                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityElement(children: .combine)
+                    }
+                }
+            }
+        }
+    }
+
+    private func weekCard(_ w: WeightTracker.Week) -> some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            sectionTitle("This week")
+            NoopCard {
+                HStack(alignment: .center, spacing: 14) {
+                    // A line needs two points; a week with one weigh-in shows its figures alone.
+                    if w.readings.count > 1 || w.trend.count > 1 {
+                    Chart {
+                        ForEach(Array(w.readings.enumerated()), id: \.offset) { _, p in
+                            LineMark(x: .value("Day", p.date), y: .value("Weight", p.kg), series: .value("Line", "scale"))
+                                .foregroundStyle(StrandPalette.textTertiary)
+                        }
+                        ForEach(Array(w.trend.enumerated()), id: \.offset) { _, p in
+                            LineMark(x: .value("Day", p.date), y: .value("Weight", p.kg), series: .value("Line", "trend"))
+                                .foregroundStyle(Self.weightTint).lineStyle(StrokeStyle(lineWidth: 2.5))
+                        }
+                    }
+                    .chartXAxis(.hidden).chartYAxis(.hidden)
+                    // The trend lags the scale, so it can sit outside the week's readings: the scale covers both.
+                    .chartYScale(domain: weekDomain(w))
+                    .frame(height: 110)
+                    .clipped()
+                    .accessibilityHidden(true)
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        weekFigure("High", w.high.kg, StrandPalette.statusWarning)
+                        weekFigure("Last", w.latest.kg, StrandPalette.textPrimary)
+                        weekFigure("Trend", w.trendKg, Self.weightTint)
+                        weekFigure("Low", w.low.kg, StrandPalette.statusPositive)
+                    }
+                    .frame(maxWidth: w.readings.count > 1 || w.trend.count > 1 ? 132 : .infinity, alignment: .leading)
+                }
+            }
+        }
+    }
+
+    private func weekDomain(_ w: WeightTracker.Week) -> ClosedRange<Double> {
+        let values = w.readings.map(\.kg) + w.trend.map(\.kg) + [w.trendKg]
+        return ((values.min() ?? 0) - 0.4)...((values.max() ?? 1) + 0.4)
+    }
+
+    private func weekFigure(_ label: LocalizedStringKey, _ kg: Double, _ tint: Color) -> some View {
+        HStack(spacing: 6) {
+            Text(label).font(StrandFont.caption.weight(.semibold)).foregroundStyle(tint).lineLimit(1).minimumScaleFactor(0.8)
+            Spacer(minLength: 4)
+            Text(mass(kg)).font(StrandFont.footnote.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: History
+
+    @ViewBuilder private func history(_ s: WeightTracker.Snapshot) -> some View {
+        if shows(.chart) { historyChart(s) }
+        logButton
+        logbook(s)
+    }
+
+    private func historyChart(_ s: WeightTracker.Snapshot) -> some View {
+        let cutoff = historyRange == .all ? Date.distantPast : Date().addingTimeInterval(-Double(historyRange.rawValue) * 86_400)
+        let raw = s.readings.filter { $0.date >= cutoff }
+        let trend = s.trend.filter { $0.date >= cutoff }
+        let values = raw.map(\.kg) + (s.goal.map { [$0.target] } ?? [])
+        let lo = (values.min() ?? 50) - 1, hi = (values.max() ?? 100) + 1
+        return NoopCard {
+            VStack(alignment: .leading, spacing: 10) {
+                Picker("Range", selection: $historyRange) {
+                    ForEach(HistoryRange.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented).labelsHidden()
+                Chart {
+                    ForEach(Array(raw.enumerated()), id: \.offset) { _, p in
+                        PointMark(x: .value("Day", p.date), y: .value("Weight", p.kg))
+                            .foregroundStyle(StrandPalette.textTertiary).symbolSize(14)
+                    }
+                    ForEach(Array(trend.enumerated()), id: \.offset) { _, p in
+                        LineMark(x: .value("Day", p.date), y: .value("Weight", p.kg))
+                            .foregroundStyle(Self.weightTint).lineStyle(StrokeStyle(lineWidth: 2.5)).interpolationMethod(.monotone)
+                    }
+                    if let goal = s.goal {
+                        if let band = goal.band {
+                            RectangleMark(yStart: .value("Low", goal.target - band), yEnd: .value("High", goal.target + band))
+                                .foregroundStyle(StrandPalette.statusPositive.opacity(0.12))
+                        }
+                        RuleMark(y: .value("Goal", goal.target))
+                            .foregroundStyle(StrandPalette.statusPositive).lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 4]))
+                            .annotation(position: .top, alignment: .leading) {
+                                Text("Goal").font(StrandFont.caption.weight(.semibold)).foregroundStyle(StrandPalette.statusPositive)
+                            }
+                    }
+                }
+                .chartYScale(domain: lo...hi)
+                .chartYAxis { AxisMarks(position: .leading) { v in
+                    AxisGridLine()
+                    AxisValueLabel { if let kg = v.as(Double.self) { Text(mass(kg, decimals: 0)) } }
+                } }
+                .frame(height: 220)
+                .accessibilityLabel(Text("Weight history"))
+                Text("Dots: what the scale said. Line: the trend.")
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+            }
+        }
+    }
+
+    private func logbook(_ s: WeightTracker.Snapshot) -> some View {
+        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+            sectionTitle("Logbook")
+            NoopCard(padding: 0) {
+                // Lazy: a few hundred weigh-ins a year, drawn as they scroll in.
+                LazyVStack(spacing: 0) {
+                    HStack {
+                        Text("Day").frame(maxWidth: .infinity, alignment: .leading)
+                        Text("Scale").frame(width: 72, alignment: .trailing)
+                        Text("Trend").frame(width: 64, alignment: .trailing)
+                        Text("Week").frame(width: 60, alignment: .trailing)
+                    }
+                    .font(StrandFont.caption.weight(.semibold)).foregroundStyle(StrandPalette.textSecondary)
+                    .padding(.horizontal, 16).padding(.vertical, 10)
+                    ForEach(s.log.prefix(400)) { row in
+                        Divider().overlay(StrandPalette.hairline).padding(.leading, 16)
+                        logRow(row, goal: s.goal)
+                    }
+                }
+            }
+            Text("Tap a weigh-in you logged here to edit or delete it.")
+                .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
+        }
+    }
+
+    private func logRow(_ row: WeightTracker.LogRow, goal: WeightTracker.Goal?) -> some View {
+        let editable = row.reading.id != nil
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(row.reading.date.formatted(.dateTime.day().month(.abbreviated).locale(AppLanguage.activeLocale)))
+                        .font(StrandFont.subhead.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
+                    // Only an imported reading names its source: on every row of one's own it was noise.
+                    if row.reading.source != "noop" {
+                        Text("Apple Health").font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Text(mass(row.reading.kg)).font(StrandFont.subhead.weight(.semibold)).monospacedDigit()
+                    .foregroundStyle(StrandPalette.textPrimary).frame(width: 72, alignment: .trailing)
+                Text(mass(row.trendKg)).font(StrandFont.subhead).monospacedDigit()
+                    .foregroundStyle(StrandPalette.textSecondary).frame(width: 64, alignment: .trailing)
+                Text(row.weeklyRateKg.map { signedNumber($0) } ?? "—").font(StrandFont.subhead.weight(.semibold)).monospacedDigit()
+                    .foregroundStyle(color(for: row.weeklyRateKg, goal: goal)).frame(width: 60, alignment: .trailing)
+            }
+            if let note = row.reading.note, !note.isEmpty {
+                Text(note).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+            }
+            if let m = row.milestoneKg {
+                Label(String(localized: "Reached \(mass(m))"), systemImage: "flag.fill")
+                    .font(StrandFont.caption.weight(.semibold)).foregroundStyle(Self.weightTint)
+            }
+        }
+        .padding(.horizontal, 16).padding(.vertical, 10)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard editable, let id = row.reading.id else { return }
+            editing = WeightLogDraft(id: id, kg: row.reading.kg, at: row.reading.date, note: row.reading.note)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(editable ? .isButton : [])
+    }
+
+    // MARK: Reports
+
+    @ViewBuilder private func reports(_ s: WeightTracker.Snapshot) -> some View {
+        Picker("Period", selection: $reportPeriod) {
+            Text("Months").tag(WeightTracker.Period.month)
+            Text("Years").tag(WeightTracker.Period.year)
+        }
+        .pickerStyle(.segmented).labelsHidden()
+        let list = reportPeriod == .month ? s.months : s.years
+        if list.isEmpty {
+            NoopCard { Text("No weigh-ins yet.").font(StrandFont.body).foregroundStyle(StrandPalette.textSecondary) }
+        }
+        ForEach(list.prefix(36)) { reportCard($0, goal: s.goal) }
+    }
+
+    private func reportCard(_ r: WeightTracker.Report, goal: WeightTracker.Goal?) -> some View {
+        let title = r.period == .month
+            ? r.start.formatted(.dateTime.month(.wide).year().locale(AppLanguage.activeLocale))
+            : r.start.formatted(.dateTime.year().locale(AppLanguage.activeLocale))
+        return NoopCard {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text(title).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                    Spacer()
+                    Text("\(r.count) weigh-ins").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                }
+                if !r.enough {
+                    Text("Too few weigh-ins for a report: it needs four.")
+                        .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                } else {
+                    Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 10) {
+                        GridRow {
+                            reportFigure(String(localized: "Lowest"), r.low.map { mass($0.kg) } ?? "—",
+                                         r.low.map { $0.date.formatted(.dateTime.day().month(.abbreviated).locale(AppLanguage.activeLocale)) })
+                            reportFigure(String(localized: "Average"), r.averageKg.map { mass($0) } ?? "—",
+                                         r.vsPreviousKg.map { String(localized: "\(signedMass($0)) vs before") })
+                        }
+                        GridRow {
+                            reportFigure(String(localized: "Trend change"), r.trendChangeKg.map(signedMass) ?? "—", nil)
+                            reportFigure(String(localized: "Per week"), r.ratePerWeekKg.map(signedMass) ?? "—", nil)
+                        }
+                    }
+                    Chart {
+                        ForEach(Array(r.trend.enumerated()), id: \.offset) { _, p in
+                            LineMark(x: .value("Day", p.date), y: .value("Weight", p.kg))
+                                .foregroundStyle(Self.weightTint).lineStyle(StrokeStyle(lineWidth: 2.5))
+                        }
+                        if let goal, goalFits(goal, r) { RuleMark(y: .value("Goal", goal.target))
+                            .foregroundStyle(StrandPalette.statusPositive).lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4])) }
+                    }
+                    .chartYScale(domain: reportDomain(r, goal: goal))
+                    .chartXAxis { AxisMarks(values: .automatic(desiredCount: 4)) { _ in AxisValueLabel() } }
+                    .chartYAxis(.hidden)
+                    .frame(height: 90)
+                    .accessibilityHidden(true)
+                }
+            }
+        }
+    }
+
+    /// The goal line is drawn only when it lies near the period's values: far below, it would flatten the period's
+    /// own movement into a straight line.
+    private func goalFits(_ goal: WeightTracker.Goal, _ r: WeightTracker.Report) -> Bool {
+        let v = r.trend.map(\.kg)
+        guard let lo = v.min(), let hi = v.max() else { return false }
+        return goal.target >= lo - 2 && goal.target <= hi + 2
+    }
+
+    private func reportDomain(_ r: WeightTracker.Report, goal: WeightTracker.Goal?) -> ClosedRange<Double> {
+        let v = r.trend.map(\.kg) + (goal.flatMap { goalFits($0, r) ? [$0.target] : nil } ?? [])
+        return ((v.min() ?? 50) - 0.5)...((v.max() ?? 100) + 0.5)
+    }
+
+    private func reportFigure(_ label: String, _ value: String, _ sub: String?) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(label).font(StrandFont.caption.weight(.semibold)).foregroundStyle(StrandPalette.textSecondary)
+            Text(value).font(StrandFont.rounded(18, weight: .bold)).foregroundStyle(StrandPalette.textPrimary)
+            if let sub { Text(sub).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 
-    /// Every weigh-in in one list; a tap opens the editor for the ones logged here.
-    @ViewBuilder private var forgeHistory: some View {
-        if !entries.isEmpty {
-            VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                Text("History").font(Font.title3.weight(.bold)).foregroundStyle(StrandPalette.textPrimary)
-                    .accessibilityAddTraits(.isHeader)
-                NoopCard(padding: 0) {
-                    LazyVStack(spacing: 0) {
-                        ForEach(Array(entries.enumerated()), id: \.element.id) { i, entry in
-                            if i > 0 { Divider().overlay(StrandPalette.hairline).padding(.leading, 16) }
-                            forgeHistoryRow(entry)
-                        }
-                    }
-                }
-                Text("Tap a weigh-in you logged here to edit or delete it.")
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textTertiary)
-            }
+    // MARK: Shared pieces
+
+    private func sectionTitle(_ key: LocalizedStringKey) -> some View {
+        Text(key).font(Font.title3.weight(.bold)).foregroundStyle(StrandPalette.textPrimary).accessibilityAddTraits(.isHeader)
+    }
+
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("No weigh-ins yet").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+            Text("Log one and NOOP will track the trend behind the daily ups and downs. Weigh-ins from Apple Health show up here too.")
+                .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
         }
     }
 
-    private func forgeHistoryRow(_ entry: WeightEntry) -> some View {
-        HStack(spacing: 10) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(entry.takenAt.map { $0.formatted(.dateTime.day().month(.abbreviated).hour().minute().locale(AppLanguage.activeLocale)) }
-                     ?? entry.day)
-                    .font(StrandFont.body.weight(.semibold)).foregroundStyle(StrandPalette.textPrimary)
-                Text([sourceLabel(entry.source), entry.note].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · "))
-                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary).lineLimit(2)
-            }
-            Spacer(minLength: 8)
-            Text(UnitFormatter.massFromKilograms(entry.value, system: unitSystem))
-                .font(StrandFont.rounded(17, weight: .semibold)).foregroundStyle(StrandPalette.textPrimary)
-            if entry.isEditable {
-                Image(systemName: "chevron.right").font(StrandFont.footnote.weight(.semibold))
-                    .foregroundStyle(StrandPalette.textTertiary)
-            }
+    private var logButton: some View {
+        Button {
+            editing = WeightLogDraft(seedKg: model.snapshot?.latest.kg ?? profile.weightKg)
+        } label: {
+            Label("Log weight", systemImage: "plus.circle.fill").font(StrandFont.headline).frame(maxWidth: .infinity)
         }
-        .padding(.horizontal, 16).padding(.vertical, 12)
-        .contentShape(Rectangle())
-        .onTapGesture { if entry.isEditable { editing = WeightLogDraft(entry: entry) } }
-        .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(entry.isEditable ? .isButton : [])
+        .buttonStyle(.noopProminent)
+        .tint(Self.weightTint)
     }
 
-    private func sourceLabel(_ source: WeightSource) -> String {
-        switch source {
-        case .manual:      return String(localized: "Logged in NOOP")
-        case .appleHealth: return String(localized: "Apple Health")
-        }
+    /// Tinted only against a goal: without one, losing is not "good" and gaining is not "bad". A maintain goal
+    /// tints nothing either.
+    private func color(for delta: Double?, goal: WeightTracker.Goal?) -> Color {
+        guard let delta, abs(delta) > 0.05, let goal, !goal.isMaintain else { return StrandPalette.textPrimary }
+        let toward = (goal.target - goal.baseline) > 0 ? delta > 0 : delta < 0
+        return toward ? StrandPalette.statusPositive : StrandPalette.statusWarning
     }
 
-    // MARK: - Formatting
+    private func mass(_ kg: Double) -> String { UnitFormatter.massFromKilograms(kg, system: units) }
+    private func goalStart(_ date: Date) -> String {
+        date.formatted(.dateTime.day().month(.abbreviated).year().locale(AppLanguage.activeLocale))
+    }
+    private func mass(_ kg: Double, decimals: Int) -> String {
+        let value = units == .imperial ? kg * UnitFormatter.poundsPerKilogram : kg
+        return value.formatted(.number.precision(.fractionLength(decimals)))
+    }
 
     /// A change, always signed, so "−0.3 kg" and "+0.3 kg" are never mistaken for one another.
     private func signedMass(_ kg: Double) -> String {
-        let formatted = UnitFormatter.massFromKilograms(abs(kg), system: unitSystem)
+        let formatted = UnitFormatter.massFromKilograms(abs(kg), system: units)
         if kg > 0.05 { return "+" + formatted }
         if kg < -0.05 { return "−" + formatted }
         return formatted
     }
 
-    /// When the newest weigh-in was taken, for the caption under the hero.
-    ///
-    /// NOT `summary.latestAt`: the summary is derived from the DAILY series, whose day keys are
-    /// anchored at noon (so a timezone shift cannot move a reading onto the neighbouring day). For the
-    /// trend maths that anchor is right and invisible; as a caption it is a bug — a weigh-in logged at
-    /// 00:51 read "in 11 hours", a measurement in the future. The history list carries the real
-    /// instant, so prefer it, and clamp what's left to the past for the same reason.
-    private var latestWeighInAt: Date? {
-        guard let summary else { return nil }
-        return entries.first?.takenAt ?? min(summary.latestAt, Date())
+    private func signedNumber(_ kg: Double) -> String {
+        let value = abs(units == .imperial ? kg * UnitFormatter.poundsPerKilogram : kg)
+        let text = value.formatted(.number.precision(.fractionLength(1)))
+        return kg > 0.05 ? "+" + text : kg < -0.05 ? "−" + text : text
     }
 
-    private func relative(_ date: Date) -> String {
-        min(date, Date()).formatted(.relative(presentation: .named))
-    }
+    private func perWeek(_ kg: Double) -> String { String(localized: "\(signedMass(kg)) a week") }
 
-    // MARK: - Load & mutate
+    private func relative(_ date: Date) -> String { min(date, Date()).formatted(.relative(presentation: .named)) }
 
-    private func loadIfNeeded() async {
-        guard !loaded else { return }
-        loaded = true
-        await reload()
-    }
-
-    /// Animate the goal ring in once the summary has landed.
-    private func animateGoalRing(_ s: WeightTrendSummary?) {
-        guard let s, let goal = weightGoal,
-              let baseline = goal.baseline, let target = goal.target, target != baseline else {
-            drawnProgress = 0
-            return
-        }
-        let travelled = min(1, max(0, (s.trendKg - baseline) / (target - baseline)))
-        withAnimation(.easeOut(duration: 0.6)) { drawnProgress = travelled }
-    }
-
-    private func reload() async {
-        let series = await repo.weightSeries(days: historyDays)
-        let dated = series.compactMap { point -> (date: Date, value: Double)? in
-            WeightSeries.date(forDay: point.day).map { ($0, point.value) }
-        }
-        summary = WeightTrendSummary.summarize(dated)
-        // The chart shows the last 90 days of what the scale actually said; the trend figure above it
-        // is the smoothed read of the same series.
-        let cutoff = Date().addingTimeInterval(-90 * 86_400)
-        chartPoints = dated.filter { $0.date >= cutoff }.map { TrendPoint(date: $0.date, value: $0.value) }
-        // Smoothed over the FULL window, then windowed for display: folding only the last 90 days
-        // would restart the EWMA at the window edge and draw a trend that climbs out of nowhere.
-        trendPoints = WeightTrendSummary.smoothedSeries(dated)
-            .filter { $0.date >= cutoff }
-            .map { TrendPoint(date: $0.date, value: $0.value) }
-        entries = await repo.weightEntries(days: historyDays)
-        animateGoalRing(summary)
-    }
+    // MARK: Mutations
 
     private func save(draft: WeightLogDraft, kg: Double, at: Date, note: String?) async {
         if draft.isExisting {
@@ -509,28 +730,32 @@ struct WeightDetailView: View {
         } else {
             _ = await repo.logWeight(kg: kg, at: at, note: note)
         }
-        // The Apple Health mirror is NOT called here: the repository posts `.noopWeightLogged` and
-        // `StrandiOSApp` writes the sample under the weigh-in's own day. One observer for every write
-        // path keeps future writers from having to repeat this call site.
-        await syncProfileWeight()
-        await reload()
+        // The Apple Health mirror and the reminder follow `.noopWeightLogged` in `StrandiOSApp`.
+        await repo.reconcileProfileWeight(profile)
+        await model.reload(repo: repo)
     }
 
     private func delete(id: String) async {
         _ = await repo.deleteWeight(id: id)
-        await syncProfileWeight()
-        await reload()
+        await repo.reconcileProfileWeight(profile)
+        await model.reload(repo: repo)
     }
 
-    /// Keep `ProfileStore.weightKg` — which HR zones and the calorie model read — on the newest
-    /// measurement.
-    ///
-    /// The rule itself moved to `Repository.reconcileProfileWeight`, because running it only here
-    /// meant the profile caught up only when someone opened this screen. This call stays so a
-    /// weigh-in made on this screen is reflected before the reload below, without waiting for the
-    /// app-level observers.
-    private func syncProfileWeight() async {
-        await repo.reconcileProfileWeight(profile)
+    private func saveEvent(_ draft: WeightEventDraft) async {
+        var next = model.stored
+        if let i = next.events.firstIndex(where: { $0.id == draft.id }) {
+            next.events[i].name = draft.name
+            next.events[i].day = WeightTrackerPreparation.dayKey(draft.date)
+        } else {
+            next.events.append(.init(id: draft.id, name: draft.name, day: WeightTrackerPreparation.dayKey(draft.date)))
+        }
+        await model.save(next, repo: repo)
+    }
+
+    private func deleteEvent(id: String) async {
+        var next = model.stored
+        next.events.removeAll { $0.id == id }
+        await model.save(next, repo: repo)
     }
 }
 
@@ -554,6 +779,15 @@ struct WeightLogDraft: Identifiable {
         self.at = Date()
         self.note = nil
         self.isExisting = false
+    }
+
+    /// An existing weigh-in from the page's log.
+    init(id: String, kg: Double, at: Date, note: String?) {
+        self.id = id
+        self.kg = kg
+        self.at = at
+        self.note = note
+        self.isExisting = true
     }
 
     init(entry: WeightEntry) {

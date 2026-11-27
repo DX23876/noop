@@ -123,7 +123,7 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
     // follow the chosen steps source there too.
     var vitalKey by rememberSaveable { mutableStateOf<String?>(null) }
     fun openMeasure(key: String) = when (key) {
-        "ageless" -> open(MoreDest.AgeLess); "weight" -> open(MoreDest.Body); "stress" -> open(MoreDest.Stress)
+        "ageless" -> open(MoreDest.AgeLess); "weight" -> open(MoreDest.Weight); "stress" -> open(MoreDest.Stress)
         in VITAL_PAGES -> vitalKey = VITAL_PAGES.getValue(key)
         else -> {
             com.noop.ui.ExploreLaunch.pendingKey = when (key) {

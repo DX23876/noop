@@ -129,6 +129,7 @@
     <uses-permission android:name="android.permission.health.WRITE_DISTANCE" />
     <uses-permission android:name="android.permission.health.READ_VO2_MAX" />
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
+    <uses-permission android:name="android.permission.health.WRITE_WEIGHT" />
     <uses-permission android:name="android.permission.health.READ_BODY_FAT" />
     <uses-permission android:name="android.permission.health.READ_LEAN_BODY_MASS" />
     <uses-permission android:name="android.permission.health.READ_EXERCISE" />
@@ -371,6 +372,60 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/coach_brief_widget_info" />
         </receiver>
+
+        <!-- Owner decisions 2026-11-26: the four weight widgets (iOS WeightTrackerWidgets) and their colour choice. -->
+        <receiver
+            android:name="com.noop.widget.WeightTrendWidgetReceiver"
+            android:exported="true"
+            android:label="@string/wt_widget_name_trend">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/weight_trend_widget_info" />
+        </receiver>
+        <receiver
+            android:name="com.noop.widget.WeightMonthWidgetReceiver"
+            android:exported="true"
+            android:label="@string/wt_widget_name_month">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/weight_month_widget_info" />
+        </receiver>
+        <receiver
+            android:name="com.noop.widget.WeightFiguresWidgetReceiver"
+            android:exported="true"
+            android:label="@string/wt_widget_name_figures">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/weight_figures_widget_info" />
+        </receiver>
+        <receiver
+            android:name="com.noop.widget.WeightEventWidgetReceiver"
+            android:exported="true"
+            android:label="@string/wt_widget_name_event">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/weight_event_widget_info" />
+        </receiver>
+        <activity
+            android:name="com.noop.widget.WeightWidgetConfigureActivity"
+            android:exported="true"
+            android:theme="@style/Theme.NOOP">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
 
         <!-- Parity plan 2.3: the goals widget (iOS NOOPGoalWidget), drawn from what the app stored. -->
         <receiver

@@ -127,6 +127,10 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
     var summary by remember { mutableStateOf<CoreFood.Day?>(null) }
     // The diet plan (decision 2026-11-09) outranks the base goals; its figures come from the core.
     var dietPlan by remember { mutableStateOf(CoreDietPlan.load(context)) }
+    // The plan as the weight goal names its goal weight, read off the main thread (one goal weight, 2026-11-26).
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { CoreDietPlan.loadLinked(context) }?.let { dietPlan = it }
+    }
     var planResolved by remember { mutableStateOf<CoreDietPlan.Resolved?>(null) }
     var planWeek by remember { mutableStateOf<CoreDietPlan.Outcome?>(null) }
     var planWeekApplied by remember { mutableStateOf(false) }
