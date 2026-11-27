@@ -700,10 +700,13 @@ object StrainScorer {
         // days. Callers hand this in for the day worth explaining, not for all of them.
         diag: ((String) -> Unit)? = null,
         day: String = "",
+        // True when [hr] is one workout: its time below 50 % HRR counts, as the core's `.counted` scores it.
+        // False (the default) scores a day, where it does not (#2438, `StrainScorer.LowIntensity.day`).
+        workout: Boolean = false,
     ): Double? {
         // Android without Room: the shared core scores Effort with the fork's curve, as iOS does. This copy
         // remains for a build without the core and the JVM tests.
-        if (diag == null) com.noop.core.CoreMath.strain(hr, maxHR, restingHR)?.let { return it.value }
+        if (diag == null) com.noop.core.CoreMath.strain(hr, maxHR, restingHR, workout)?.let { return it.value }
         val resolvedDenominator = denominator ?: logMapDenominator(method, sex)
         val effMax = maxHR ?: defaultMaxHR().toDouble()
         // Enough data to trust the score: a dense stream (≥ minReadings) OR a sparse-but-sustained

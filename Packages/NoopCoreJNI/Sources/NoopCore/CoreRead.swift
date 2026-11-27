@@ -273,10 +273,10 @@ public enum CoreRead {
     /// Efforts depending only on which Today they had open, and the lower one lagged by hours (#41). The
     /// rules are `LiveEffortScore`'s, so neither platform can drift from the other.
     ///
-    /// [restingHr] is the shown day's own resting rate and [storedEffort] its stored Effort; both come
-    /// from the day the caller is showing, so this never reads a different day than the screen does.
+    /// [storedEffort] is the shown day's stored Effort. The resting heart rate is Effort's own for the day in
+    /// progress (`StoreReader.effortRestingHR`), read here as `LiveEffort.today` reads it on iOS.
     public static func liveEffort(reader: StoreReader, hrMaxOverride: Int, age: Int,
-                                  restingHr: Int?, storedEffort: Double?, mode: DayCycleMode,
+                                  storedEffort: Double?, mode: DayCycleMode,
                                   now: Date = Date()) async -> Double? {
         // The day in progress is the cycle the pass scores, not the calendar day (`CycleDayWindow`).
         let nowTs = Int(now.timeIntervalSince1970)
@@ -293,7 +293,8 @@ public enum CoreRead {
         let maxHR = await CoreAnalysis.passHRmax(overrideBpm: hrMaxOverride, age: age).bpm
         let hr = await reader.hrSamples(from: from, to: to, limit: LiveEffortScore.hrLimit)
         let rows = await reader.rawWorkoutRows(from: workout.from, to: workout.to, dismissedDetectedSpans: [])
-        let live = LiveEffortScore.score(hr: hr, workoutRows: rows, maxHR: maxHR, restingHr: restingHr)
+        let restingHR = await reader.effortRestingHR(day: LiveEffortScore.day(now: now, mode: mode, cycle: cycle))
+        let live = LiveEffortScore.score(hr: hr, workoutRows: rows, maxHR: maxHR, restingHR: restingHR)
         return StrainScorer.effectiveEffort(live: live, stored: storedEffort)
     }
 

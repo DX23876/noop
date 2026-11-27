@@ -955,6 +955,16 @@ public final class DailyAnalysis {
         case .workoutHeartRate:
             _ = try await repo.fillAppleWorkoutHeartRate(from: 0, to: endTs)
             _ = try await repo.fillRecordedWorkoutHeartRate(from: 0, to: endTs)
+            // The Effort stored on recorded and confirmed sessions when they were saved, scored again on the
+            // current rules (2026-11-25), after the daily step has stored each day's Effort resting rate.
+            let registry = DeviceRegistryStore(dbQueue: store.registryWriter)
+            let reader = StoreReader(store: store, activeDeviceId: (try? registry.activeDeviceId()) ?? deviceId,
+                                     registeredWhoopIds: ((try? registry.all()) ?? []).compactMap {
+                                         $0.brand.caseInsensitiveCompare("WHOOP") == .orderedSame ? $0.id : nil
+                                     })
+            _ = try await WorkoutHeartRateFills.rescoreRecordedEffort(
+                reader: reader, from: 0, to: endTs,
+                maxHR: maxHeartRateToday.bpm ?? Double(StrainScorer.defaultMaxHR()))
         case .cardioLoad:
             await repo.recomputeCardioLoadHistory()
         case .energyHistory:
@@ -1106,6 +1116,8 @@ public final class DailyAnalysis {
 
         let maxHR = maxHeartRateToday.bpm
         let restingHR = existing?.restingHr
+        let effortRestingHR = await EffortRestingHR.stored(days: [day], store: store, ids: [computedId])[day]
+            ?? StrainScorer.defaultRestingHR
         let ticksPerStep = profile.stepTicksPerStep
         let analyticsProfile = profile.analyticsProfile()
         // Today's workouts through the one resolver, and the bouts the daily pass would detect in the same
@@ -1122,7 +1134,8 @@ public final class DailyAnalysis {
             : 0
 
         let activity = await Task.detached(priority: .userInitiated) {
-            let strain = Self.dayEffort(hr: hr, gravity: gravity, restingHR: restingHR, maxHR: maxHR,
+            let strain = Self.dayEffort(hr: hr, gravity: gravity, restingHR: restingHR,
+                                        effortRestingHR: effortRestingHR, maxHR: maxHR,
                                         profile: analyticsProfile, workoutSpans: spans,
                                         dismissedBouts: dismissedBouts, strengthLoad: strengthLoad)
             let steps: Int? = {
@@ -1200,6 +1213,9 @@ public final class DailyAnalysis {
         let batchStarts = batch.compactMap { Self.midnightForDayKey($0.day, offsetSec: offset) }
         let spans = await Self.effortWorkoutSpans(services: repo, from: (batchStarts.min() ?? 0) - 86_400,
                                                   to: (batchStarts.max() ?? 0) + 2 * 86_400)
+        // Each day's Effort resting heart rate as the pass stored it (`EffortRestingHR`), read once.
+        let effortRestingHRByDay = await EffortRestingHR.stored(days: batch.map(\.day), store: store,
+                                                                ids: [computedId])
         let updates: [(day: String, strain: Double?)] = await runUnescalated(priority: .background) {
             var result: [(day: String, strain: Double?)] = []
             result.reserveCapacity(batch.count)
@@ -1218,7 +1234,9 @@ public final class DailyAnalysis {
                 let gravity = (try? await store.gravitySamples(deviceId: owner, from: dayStart,
                                                                to: dayStart + 86_400 - 1,
                                                                limit: Int.max)) ?? []
-                let strain = Self.dayEffort(hr: hr, gravity: gravity, restingHR: row.restingHr, maxHR: maxHR,
+                let strain = Self.dayEffort(hr: hr, gravity: gravity, restingHR: row.restingHr,
+                                            effortRestingHR: effortRestingHRByDay[row.day]
+                                                ?? StrainScorer.defaultRestingHR, maxHR: maxHR,
                                             profile: analyticsProfile, workoutSpans: spans,
                                             dismissedBouts: dismissedBouts, strengthLoad: 0)
                 result.append((row.day, strain))
@@ -1431,8 +1449,8 @@ public final class DailyAnalysis {
         MaxHeartRate.resolve(overrideBpm: profile.hrMaxOverride, age: Double(profile.age), measured: measuredMaxHeartRate)
     }
 
-    /// Recorded and imported workouts `[start, end)` in `[from, to]`: inside them heart rate below 50 % HRR
-    /// counts toward the day's Effort (#2438). Every row the Workouts list shows, read through the one union
+    /// Recorded and imported workouts `[start, end)` in `[from, to]`: a day's Effort never falls below any of
+    /// them (#2438). Every row the Workouts list shows, read through the one union
     /// (`AnalysisDataServices.rawWorkoutRows`: every registered and retired strap, NOOP's own sessions, Apple
     /// Health, lifting and activity files, Oura; dismissed detected rows left out).
     ///
@@ -1467,16 +1485,19 @@ public final class DailyAnalysis {
     }
 
     /// A calendar day's Effort from its own streams, as `AnalyticsEngine.analyzeDay` scores it: the bouts the
-    /// day detects (`AnalyticsEngine.detectDayBouts`, same arguments) join the workout time, a dismissed bout
-    /// does not (`AnalyticsEngine.effortSpans`), and `restingHR` nil falls back as the pass does. For the paths
-    /// that score Effort without the full pass, so the value they store is the one the pass would store.
-    nonisolated static func dayEffort(hr: [HRSample], gravity: [GravitySample], restingHR: Int?, maxHR: Double?,
+    /// day detects (`AnalyticsEngine.detectDayBouts`, same arguments: found on the day's `restingHR`, scored on
+    /// `effortRestingHR`) lift the day as workouts do, a dismissed bout does not (`AnalyticsEngine.effortSpans`),
+    /// and the day is scored against `effortRestingHR` (`EffortRestingHR.stored`). For the paths that score
+    /// Effort without the full pass, so the value they store is the one the pass would store.
+    nonisolated static func dayEffort(hr: [HRSample], gravity: [GravitySample], restingHR: Int?,
+                                      effortRestingHR: Double, maxHR: Double?,
                                       profile: UserProfile, workoutSpans: [Range<Int>],
                                       dismissedBouts: [Range<Int>], strengthLoad: Double) -> Double? {
         let bouts = AnalyticsEngine.detectDayBouts(hr: hr, gravity: gravity, restingHR: restingHR.map(Double.init),
+                                                   effortRestingHR: effortRestingHR,
                                                    maxHR: maxHR, profile: profile)
-        return StrainScorer.strain(hr, maxHR: maxHR, restingHR: restingHR.map(Double.init) ?? StrainScorer.defaultRestingHR,
-                                   lowIntensity: .countedIn(AnalyticsEngine.effortSpans(
+        return StrainScorer.strain(hr, maxHR: maxHR, restingHR: effortRestingHR,
+                                   lowIntensity: .day(workouts: AnalyticsEngine.effortSpans(
                                     workouts: workoutSpans, detected: bouts, dismissed: dismissedBouts)),
                                    strengthLoad: strengthLoad)
     }
@@ -1997,8 +2018,19 @@ public final class DailyAnalysis {
         }
         // Today's level for the readers outside the pass (profile, zones, live Effort, coach, Settings).
         host.store(measuredByDay[newestScanDay]?.stored, forKey: MaxHeartRate.measuredLevelKey)
-        // #2438 step 1: the recorded and imported workouts of the window, read once. Each day's Effort
-        // counts heart rate below 50 % HRR only inside them and inside the bouts that day detects.
+        // Effort's resting heart rate on a day without a night of its own: the nights stored before it, each
+        // halfway between its lowest bin and its mean (`EffortRestingHR`), read once for the window and its
+        // lookback.
+        let effortLookback = EffortRestingHR.lookbackStart(for: scanDayKeys.min() ?? newestScanDay)
+        let effortNightMeans = ((try? await store.metricSeries(
+            deviceId: computedId, key: EffortRestingHR.nightMeanSeriesKey, from: effortLookback,
+            to: newestScanDay)) ?? [])
+            .reduce(into: [String: Double]()) { $0[$1.day] = $1.value }
+        let effortNightLowest = ((try? await store.dailyMetrics(deviceId: computedId, from: effortLookback,
+                                                                to: newestScanDay)) ?? [])
+            .reduce(into: [String: Double]()) { out, row in out[row.day] = row.restingHr.map(Double.init) }
+        // #2438: the recorded and imported workouts of the window, read once. Each day's Effort never falls
+        // below any of them or of the bouts that day detects.
         let effortWorkoutSpans = await Self.effortWorkoutSpans(
             services: repo, from: nowLocalMidnight - (maxDays + 2) * 86_400, to: nowLocalMidnight + 2 * 86_400)
         // Detected bouts the wearer dismissed are not workout time (`AnalyticsEngine.effortSpans`).
@@ -2539,6 +2571,8 @@ public final class DailyAnalysis {
                                                      },
                                                      dismissedBouts: dismissedBouts,
                                                      strengthLoad: strengthLoadByDay[day] ?? 0,
+                                                     recentNightRHR: EffortRestingHR.nightsBefore(
+                                                        day, means: effortNightMeans, lowest: effortNightLowest),
                                                      workoutPeakMET: EnergyModelRefresh.peakMET(
                                                         on: day, in: workoutPeakByDay),
                                                      method: settings.sleepStagerMethod,
@@ -2872,6 +2906,8 @@ public final class DailyAnalysis {
         var primarySessionRHRByDay: [String: Double] = [:]
         // #1169: its coverage inputs (valid-sample count + primary-session duration), same lifetime as the mean.
         var primarySessionRHRCoverageByDay: [String: PrimarySessionRestingHR.Coverage] = [:]
+        // The resting heart rate each scored day's Effort was scored against (`EffortRestingHR`).
+        var effortRestingHRByDay: [String: Double] = [:]
 
         // Back on the main actor: fold the off-actor results into the pass-2 state in the SAME order the
         // loop produced them. Pure assignment / appends , no further store reads , so this is cheap and the
@@ -2900,6 +2936,7 @@ public final class DailyAnalysis {
             if let cov = scan.primarySessionRHRCoverage {
                 primarySessionRHRCoverageByDay[res.daily.day] = cov
             }
+            effortRestingHRByDay[res.daily.day] = res.effortRestingHR
             if let line = scan.rhrLine { host.diagnostic(line, domain: nil) }
             if let line = scan.rhrBinLine { host.diagnostic(line, domain: nil) }
             if let line = scan.respLine { host.diagnostic(line, domain: nil) }
@@ -2941,6 +2978,10 @@ public final class DailyAnalysis {
         // treats those as "what this pass produced", and a reused day produced nothing — its sleep rows and
         // detected workouts are already stored and must be left exactly where they are. That is also why
         // the reconciliation below is scoped to `scannedDays` rather than the whole window.
+        // A reused day keeps the Effort resting heart rate it was scored against, as stored.
+        for (day, value) in await EffortRestingHR.stored(days: Array(reusedDays), store: store, ids: [computedId]) {
+            effortRestingHRByDay[day] = value
+        }
         for day in reusedDays {
             guard let row = persistedRowsByDay[day] else { continue }   // preloaded above; belt-and-braces
             let fp = storedFingerprints[day]
@@ -3228,7 +3269,8 @@ public final class DailyAnalysis {
                     sleeps: night.cachedSleep,
                     workouts: night.workouts,
                     owner: resolvedScoreOwnerByDay[night.daily.day] ?? regActiveId,
-                    reused: reusedDaySet.contains(night.daily.day))
+                    reused: reusedDaySet.contains(night.daily.day),
+                    effortRestingHR: effortRestingHRByDay[night.daily.day])
             },
             editedRows: editedRows,
             store: store,
@@ -3475,6 +3517,11 @@ public final class DailyAnalysis {
             if let cov = primarySessionRHRCoverageByDay[daily.day] {
                 restPoints.append(MetricPoint(day: daily.day, key: "rhr_primary_session_valid_samples", value: Double(cov.validSamples)))
                 restPoints.append(MetricPoint(day: daily.day, key: "rhr_primary_session_duration_s", value: cov.durationSec))
+            }
+            // The resting heart rate the day's Effort was scored against, so the live score, the activity
+            // refresh, the wake-day cycle and Android read the same value (`EffortRestingHR`).
+            if let v = effortRestingHRByDay[daily.day] {
+                restPoints.append(MetricPoint(day: daily.day, key: EffortRestingHR.seriesKey, value: v))
             }
             cachedSleep.append(contentsOf: night.cachedSleep)
             // Keep the analytics detector as an enrichment input for real imported/manual workouts, but do
@@ -4459,6 +4506,10 @@ public final class DailyAnalysis {
             toDay: StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(now))))
         var updated: [WorkoutRow] = []
         var rescoredEnergyKeys: [WorkoutKey] = []
+        // Each session's Effort is scored against its day's Effort resting heart rate (`EffortRestingHR`).
+        func dayKey(_ ts: Int) -> String { StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(ts))) }
+        let effortRestingHRByDay = await EffortRestingHR.stored(days: Array(Set(rows.map { dayKey($0.startTs) })),
+                                                                store: store, ids: [deviceId + "-noop"])
         // A manual row is eligible when it looks under-scored (negligible kcal, #137) OR it's missing
         // strain (the merged-workout case, where kcal is the SUM of inputs so it never looks under-scored
         // yet Effort stays blank forever). `improves` then accepts a strain-only gain for the latter.
@@ -4468,6 +4519,7 @@ public final class DailyAnalysis {
                                                            to: row.endTs, limit: 20_000),
                   let s = ManualWorkoutRescore.scored(windowSamples: samples, profile: up, hrMax: hrMax,
                                                       restingHR: restingHR,
+                                                      effortRestingHR: effortRestingHRByDay[dayKey(row.startTs)],
                                                       sport: row.sport,
                                                       distanceM: row.distanceM,
                                                       peakMET: EnergyModelRefresh.peakMET(

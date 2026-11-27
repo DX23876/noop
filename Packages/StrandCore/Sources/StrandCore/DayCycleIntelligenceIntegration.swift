@@ -18,11 +18,15 @@ public actor DayCycleIntelligenceIntegration {
         /// The analysis fingerprint proved this day unchanged, so its already-persisted activity values
         /// can be reused when neither of the window's two sleep-onset boundaries moved.
         public var reused = false
+        /// The resting heart rate the pass scored this day's Effort against (`EffortRestingHR`), so a cycle
+        /// filed under the day is scored against the same one. nil falls back to the scorer's default.
+        public let effortRestingHR: Double?
 
         public init(daily: DailyMetric, sleeps: [CachedSleepSession], workouts: [ExerciseSession], owner: String,
-                    reused: Bool = false) {
+                    reused: Bool = false, effortRestingHR: Double? = nil) {
             self.daily = daily; self.sleeps = sleeps; self.workouts = workouts; self.owner = owner
             self.reused = reused
+            self.effortRestingHR = effortRestingHR
         }
     }
     public struct SourcedMarker: Sendable {
@@ -268,7 +272,8 @@ public actor DayCycleIntelligenceIntegration {
             // reproduce, so keep it instead of re-reading up to 200k HR rows for every historical day.
             let nextDay = windows.indices.contains(windowIndex + 1)
                 ? wakeDayById[windows[windowIndex + 1].sleepId] : nil
-            let persisted = nights.first(where: { $0.daily.day == day })?.daily
+            let night = nights.first(where: { $0.daily.day == day })
+            let persisted = night?.daily
             let activityNeedsRecompute = persisted == nil || recomputedDays.contains(day)
                 || nextDay.map { recomputedDays.contains($0) } == true
             if !activityNeedsRecompute, let persisted {
@@ -282,7 +287,9 @@ public actor DayCycleIntelligenceIntegration {
                 let owners = ([fallback] + physiologyOwners).reduce(into: [String]()) {
                     if !$0.contains($1) { $0.append($1) }
                 }
-                let restingHR = persisted?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
+                // Effort reads its own resting heart rate (`EffortRestingHR`); energy keeps the day's shown one.
+                let restingHR = night?.effortRestingHR ?? StrainScorer.defaultRestingHR
+                let energyRestingHR = persisted?.restingHr.map(Double.init) ?? StrainScorer.defaultRestingHR
                 let effectiveMaxHR = MaxHeartRate.resolve(override: maxHROverride, age: profile.age).bpm
                 // A day the fingerprint reuse above cannot skip may still hold a cycle whose heart rate did
                 // not move since the last pass (#2293): its onset or the next day changed, not its beats.
@@ -296,7 +303,7 @@ public actor DayCycleIntelligenceIntegration {
                         hrWitness.append("\(owner)=\(fp.map { "\($0.count):\($0.maxTs)" } ?? "unread")")
                     }
                 }
-                // Below 50 % HRR only workout time counts toward Effort (#2438): the stored workouts (the
+                // The cycle's Effort never falls below its workouts (#2438): the stored workouts (the
                 // pass's own `effortWorkoutSpans` when given, so the cycle reads the calendar day's funnel) and
                 // the bouts detected for these nights less the dismissed ones, clipped to the cycle.
                 let effortSpans = AnalyticsEngine.effortSpans(
@@ -307,7 +314,7 @@ public actor DayCycleIntelligenceIntegration {
                 // Rated strength sessions starting in the cycle (Lab, #2438).
                 let strengthLoad = StrengthEffort.load(strengthSessions, startingIn: window.onset ..< window.endExclusive)
                 let loadKey = "\(window.onset)-\(window.endExclusive)|\(hrWitness.joined(separator: ","))"
-                    + "|rhr=\(restingHR)|max=\(effectiveMaxHR.map { "\($0)" } ?? "nil")|curve2438|\(spanKey)"
+                    + "|rhr=\(restingHR)/\(energyRestingHR)|max=\(effectiveMaxHR.map { "\($0)" } ?? "nil")|curve2438|\(spanKey)"
                     + "|\(profile.cacheKey)"
                     + (strengthLoad > 0 ? "|strength=\(strengthLoad.bitPattern)" : "")
                 let load: CachedLoad
@@ -328,9 +335,9 @@ public actor DayCycleIntelligenceIntegration {
                     load = CachedLoad(
                         key: loadKey,
                         strain: StrainScorer.strain(cycleHR, maxHR: effectiveMaxHR, restingHR: restingHR,
-                                                    lowIntensity: .countedIn(effortSpans), strengthLoad: strengthLoad),
+                                                    lowIntensity: .day(workouts: effortSpans), strengthLoad: strengthLoad),
                         calories: cycleHR.isEmpty ? nil : Calories.estimateDayCalories(
-                            cycleHR, profile: profile, hrmax: effectiveMaxHR, restingHR: restingHR))
+                            cycleHR, profile: profile, hrmax: effectiveMaxHR, restingHR: energyRestingHR))
                     cache.loads[window.sleepId] = load
                 }
                 if let strain = load.strain { strains[day] = strain }

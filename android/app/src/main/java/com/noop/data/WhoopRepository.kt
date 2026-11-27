@@ -1551,8 +1551,14 @@ class WhoopRepository(
             // let StrainScorer return null on a still-too-thin window (never a fabricated number).
             val filledStrain = if (needsStrainFill && strainMaxHR != null) {
                 val samples = dao.hrSamples(hrIds[0], row.startTs, row.endTs, 8000)
+                // Scored against its day's Effort resting heart rate (core `EffortRestingHR`), as the day is.
+                val day = java.time.Instant.ofEpochSecond(row.startTs)
+                    .atZone(java.time.ZoneId.systemDefault()).toLocalDate().toString()
                 com.noop.analytics.StrainScorer.strain(
-                    samples, maxHR = strainMaxHR, method = effortMethod, sex = strainSex)
+                    samples, maxHR = strainMaxHR,
+                    restingHR = com.noop.core.CoreLiveEffort.effortRestingHR(day)
+                        ?: com.noop.analytics.StrainScorer.defaultRestingHR,
+                    method = effortMethod, sex = strainSex, workout = true)
             } else null
             if (strapNative) {
                 // True mean / peak of the very samples the graph + zones + effort use; FILL a null Effort

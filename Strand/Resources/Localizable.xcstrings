@@ -11318,6 +11318,7 @@
       }
     },
     "A cardiovascular load: each minute of heart rate weighs more the closer it sits to your maximum heart rate, summed over the day and placed on a 0-100 curve fitted on 3,760 workouts. Outside workouts, only heart rate above half your heart-rate reserve counts." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -12072,6 +12073,7 @@
       }
     },
     "Your cardiovascular load. Every minute of heart rate counts for more the closer it sits to your maximum, measured on your heart-rate reserve (Karvonen) with the maximum NOOP learns from your workouts (or the one you enter). The day's load lands on a 0-100 curve fitted on 3,760 workouts, with a soft cap near the top, so easy days sit low and 100 stays out of reach. Outside workouts, heart rate below half your reserve does not count, so hours of standing and walking around do not add up to a hard day." : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
@@ -687117,6 +687119,122 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "教練的新訊息"
+          }
+        }
+      }
+    },
+    "A cardiovascular load: each minute of heart rate weighs more the closer it sits to your maximum heart rate, summed over the day and placed on a 0-100 curve fitted on 3,760 workouts. The day counts heart rate above half your heart-rate reserve and never reads less than its strongest workout." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Eine Herz-Kreislauf-Belastung: Jede Minute Herzfrequenz wiegt umso mehr, je näher sie an deiner maximalen Herzfrequenz liegt, aufsummiert über den Tag und auf eine 0-100-Kurve gelegt, die an 3.760 Workouts angepasst ist. Der Tag zählt Herzfrequenz über der Hälfte deiner Herzfrequenzreserve und liegt nie unter seinem stärksten Workout."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Una carga cardiovascular: cada minuto de frecuencia cardíaca pesa más cuanto más cerca está de tu frecuencia cardíaca máxima, se suma a lo largo del día y se sitúa en una curva de 0-100 ajustada con 3.760 entrenamientos. El día cuenta la frecuencia cardíaca por encima de la mitad de tu reserva y nunca queda por debajo de su entrenamiento más intenso."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Une charge cardiovasculaire : chaque minute de fréquence cardiaque pèse d'autant plus qu'elle est proche de votre fréquence cardiaque maximale, additionnée sur la journée et placée sur une courbe de 0-100 ajustée sur 3 760 entraînements. La journée compte la fréquence cardiaque au-dessus de la moitié de votre réserve et ne descend jamais sous son entraînement le plus intense."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un carico cardiovascolare: ogni minuto di frequenza cardiaca pesa di più quanto più è vicino alla tua frequenza cardiaca massima, sommato sulla giornata e posto su una curva 0-100 adattata su 3.760 allenamenti. La giornata conta la frequenza cardiaca sopra metà della tua riserva e non scende mai sotto il suo allenamento più intenso."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obciążenie sercowo-naczyniowe: każda minuta tętna waży tym więcej, im bliżej jest Twojego tętna maksymalnego, sumowana przez cały dzień i umieszczana na krzywej 0-100 dopasowanej do 3760 treningów. Dzień liczy tętno powyżej połowy rezerwy tętna i nigdy nie spada poniżej swojego najmocniejszego treningu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uma carga cardiovascular: cada minuto de frequência cardíaca pesa mais quanto mais perto estiver da tua frequência cardíaca máxima, somado ao longo do dia e colocado numa curva de 0-100 ajustada a 3760 treinos. O dia conta a frequência cardíaca acima de metade da tua reserva e nunca fica abaixo do seu treino mais intenso."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сердечно-сосудистая нагрузка: каждая минута пульса весит тем больше, чем ближе она к вашему максимальному пульсу; всё суммируется за день и ложится на кривую 0-100, подобранную по 3760 тренировкам. День учитывает пульс выше половины резерва пульса и никогда не опускается ниже своей самой тяжёлой тренировки."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一种心血管负荷：每一分钟的心率越接近你的最大心率，权重越大，全天累加后放到一条根据 3,760 次训练拟合的 0-100 曲线上。一天只计入高于心率储备一半的心率，且绝不低于当天最强的一次训练。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "一種心血管負荷：每一分鐘的心率越接近你的最大心率，權重越大，全天累加後放到一條根據 3,760 次訓練擬合的 0-100 曲線上。一天只計入高於心率儲備一半的心率，且絕不低於當天最強的一次訓練。"
+          }
+        }
+      }
+    },
+    "Your cardiovascular load. Every minute of heart rate counts for more the closer it sits to your maximum, measured on your heart-rate reserve (Karvonen) between your resting heart rate at night and the maximum NOOP learns from your workouts (or the one you enter). The day's load lands on a 0-100 curve fitted on 3,760 workouts, with a soft cap near the top, so easy days sit low and 100 stays out of reach. Heart rate below half your reserve does not count toward the day, so hours of standing and walking around do not add up to a hard day. A workout still counts its lighter minutes; the day never reads less than its strongest workout." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine Herz-Kreislauf-Belastung. Jede Minute Herzfrequenz zählt umso mehr, je näher sie an deinem Maximum liegt, gemessen an deiner Herzfrequenzreserve (Karvonen) zwischen deinem Ruhepuls in der Nacht und dem Maximum, das NOOP aus deinen Workouts lernt (oder dem, das du einträgst). Die Last des Tages landet auf einer 0-100-Kurve mit weicher Obergrenze, angepasst an 3.760 Workouts, sodass leichte Tage niedrig bleiben und 100 unerreichbar bleibt. Herzfrequenz unter der Hälfte deiner Reserve zählt nicht für den Tag, damit stundenlanges Stehen und Herumlaufen keinen harten Tag ergibt. Ein Workout zählt seine leichteren Minuten weiterhin; der Tag liegt nie unter seinem stärksten Workout."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu carga cardiovascular. Cada minuto de frecuencia cardíaca cuenta más cuanto más cerca está de tu máximo, medido sobre tu reserva de frecuencia cardíaca (Karvonen) entre tu frecuencia cardíaca en reposo durante la noche y el máximo que NOOP aprende de tus entrenamientos (o el que introduzcas). La carga del día se sitúa en una curva de 0-100 ajustada con 3.760 entrenamientos y con un techo suave, así que los días fáciles quedan bajos y el 100 sigue fuera de alcance. La frecuencia cardíaca por debajo de la mitad de tu reserva no cuenta para el día, para que horas de estar de pie y caminar no sumen un día duro. Un entrenamiento sigue contando sus minutos más suaves; el día nunca queda por debajo de su entrenamiento más intenso."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre charge cardiovasculaire. Chaque minute de fréquence cardiaque compte d'autant plus qu'elle est proche de votre maximum, mesurée sur votre réserve de fréquence cardiaque (Karvonen) entre votre fréquence cardiaque de repos la nuit et le maximum que NOOP apprend de vos entraînements (ou celui que vous saisissez). La charge de la journée est placée sur une courbe de 0-100 ajustée sur 3 760 entraînements, avec un plafond doux, de sorte que les journées faciles restent basses et que 100 reste hors d'atteinte. La fréquence cardiaque sous la moitié de votre réserve ne compte pas pour la journée : des heures debout ou à marcher ne font pas une journée difficile. Un entraînement compte toujours ses minutes plus légères ; la journée ne descend jamais sous son entraînement le plus intense."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il tuo carico cardiovascolare. Ogni minuto di frequenza cardiaca conta di più quanto più è vicino al tuo massimo, misurato sulla tua riserva di frequenza cardiaca (Karvonen) tra la tua frequenza cardiaca a riposo notturna e il massimo che NOOP impara dai tuoi allenamenti (o quello che inserisci tu). Il carico della giornata finisce su una curva 0-100 adattata su 3.760 allenamenti, con un tetto morbido, così i giorni facili restano bassi e 100 resta irraggiungibile. La frequenza cardiaca sotto metà della tua riserva non conta per la giornata, quindi ore in piedi o a camminare non diventano una giornata dura. Un allenamento conta comunque i suoi minuti più leggeri; la giornata non scende mai sotto il suo allenamento più intenso."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Twoje obciążenie sercowo-naczyniowe. Każda minuta tętna liczy się tym bardziej, im bliżej jest Twojego maksimum, mierzona na Twojej rezerwie tętna (Karvonen) między Twoim tętnem spoczynkowym w nocy a maksimum, którego NOOP uczy się z Twoich treningów (albo tym, które wpiszesz). Obciążenie dnia trafia na krzywą 0-100 dopasowaną do 3760 treningów, z miękkim limitem u góry, więc lekkie dni zostają nisko, a 100 pozostaje poza zasięgiem. Tętno poniżej połowy rezerwy nie liczy się do dnia, więc godziny stania i chodzenia nie składają się na ciężki dzień. Trening nadal liczy swoje lżejsze minuty; dzień nigdy nie spada poniżej swojego najmocniejszego treningu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A tua carga cardiovascular. Cada minuto de frequência cardíaca conta mais quanto mais perto estiver do teu máximo, medido na tua reserva de frequência cardíaca (Karvonen) entre a tua frequência cardíaca em repouso durante a noite e o máximo que o NOOP aprende com os teus treinos (ou o que introduzires). A carga do dia é colocada numa curva de 0-100 ajustada a 3760 treinos, com um teto suave, por isso os dias fáceis ficam baixos e o 100 continua fora de alcance. A frequência cardíaca abaixo de metade da tua reserva não conta para o dia, para que horas de pé e a andar não somem um dia duro. Um treino continua a contar os seus minutos mais leves; o dia nunca fica abaixo do seu treino mais intenso."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваша сердечно-сосудистая нагрузка. Каждая минута пульса весит тем больше, чем ближе она к вашему максимуму: считается по резерву пульса (Карвонен) между вашим ночным пульсом покоя и максимумом, который NOOP узнаёт из ваших тренировок (или тем, что вы укажете). Нагрузка дня ложится на кривую 0-100, подобранную по 3760 тренировкам, с мягким потолком, поэтому лёгкие дни остаются низкими, а 100 недостижимо. Пульс ниже половины резерва не учитывается в дне, так что часы стояния и ходьбы не складываются в тяжёлый день. Тренировка по-прежнему учитывает свои более лёгкие минуты; день никогда не опускается ниже своей самой тяжёлой тренировки."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的心血管负荷。每一分钟的心率越接近你的最大心率，计入就越多：按你的心率储备（Karvonen）计算，介于你夜间的静息心率和 NOOP 从你的训练中学到的最大心率（或你自己输入的值）之间。一天的负荷落在一条根据 3,760 次训练拟合、顶部有柔性上限的 0-100 曲线上，因此轻松的日子分数较低，100 始终无法达到。低于心率储备一半的心率不计入当天，所以长时间站立和走动不会累积成艰苦的一天。训练本身仍计入较轻松的分钟；一天的值绝不低于当天最强的一次训练。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的心血管負荷。每一分鐘的心率越接近你的最大心率，計入就越多：按你的心率儲備（Karvonen）計算，介於你夜間的靜息心率和 NOOP 從你的訓練中學到的最大心率（或你自己輸入的值）之間。一天的負荷落在一條根據 3,760 次訓練擬合、頂部有柔性上限的 0-100 曲線上，因此輕鬆的日子分數較低，100 始終無法達到。低於心率儲備一半的心率不計入當天，所以長時間站立和走動不會累積成艱苦的一天。訓練本身仍計入較輕鬆的分鐘；一天的值絕不低於當天最強的一次訓練。"
           }
         }
       }

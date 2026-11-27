@@ -269,6 +269,13 @@ public enum AnalysisRecipe {
     // is rewritten, and a tombstone stays where it was. The same unshipped recipe carries the wearer's sleep
     // marks bounding the night they fall in (`SleepMarkBounds`, 2026-11-25): only taps stored with their time
     // from now on bound anything, so the rebuild changes no night from before.
+    // AI-38 also carries Effort's day rule and resting heart rate (2026-11-25, #2438): a day counts nothing
+    // below 50 % HRR, inside a workout or not, and never scores below its strongest workout
+    // (`StrainScorer.LowIntensity.day`); Effort, its bouts and the filled workouts are scored against a resting
+    // heart rate halfway between the night's lowest five minutes and its mean (`EffortRestingHR`), stored per
+    // day as `rhr_effort`. The full rebuild scores every day and fills every workout again, and scores the
+    // Effort stored on recorded and confirmed sessions again from the band (`rescoreRecordedEffort`); nothing
+    // the wearer entered is rewritten.
     public static let currentVersion = 38
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy

@@ -1927,7 +1927,7 @@ struct ForgeTodayView: View {
         // refinement can only raise the ring, never pull it back. A read that changed nothing redraws nothing.
         guard !Task.isCancelled else { return }
         if next != snapshot { snapshot = next }
-        let live = await LiveEffort.today(repo: repo, profile: profile, restingHr: displayDay?.restingHr)
+        let live = await LiveEffort.today(repo: repo, profile: profile)
         let effort = StrainScorer.effectiveEffort(live: live, stored: displayDay?.day == todayKey ? displayDay?.strain : nil)
         guard !Task.isCancelled else { return }
         if effort != snapshot.effortStored { snapshot.effortStored = effort }

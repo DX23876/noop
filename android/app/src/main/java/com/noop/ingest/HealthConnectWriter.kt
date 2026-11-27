@@ -39,7 +39,14 @@ enum class WritebackFailure { PERMISSION_DENIED, REMOTE_ERROR }
  * categories. Lets callers/UI distinguish "wrote 0 because nothing to share" from "wrote 0 because
  * the write FAILED" — the silent-zero the previous `Int` return couldn't express.
  */
-data class WritebackResult(val written: Int, val failures: List<WritebackFailure>) {
+data class WritebackResult(
+    val written: Int,
+    val failures: List<WritebackFailure>,
+    /** Every record was written again, by request or by the daily repair ([HealthExportLedger.fullWriteDue]). */
+    val fullWrite: Boolean = false,
+    /** The core gave no plan for at least one concern, so that concern wrote every record (the writer's fallback). */
+    val planMissed: Boolean = false,
+) {
     val ok: Boolean get() = failures.isEmpty()
 
     /** PII-safe status code persisted for the UI — a permission failure outranks a generic one, since it
@@ -73,8 +80,10 @@ private fun Throwable.writebackCategory(): WritebackFailure {
  *    (or loop our own import). What NOOP computed from the strap is genuinely ours to contribute.
  *  - **Idempotent by clientRecordId** (`noop-<metric>-<day>`): Health Connect does NOT auto-dedupe
  *    on re-insert the way HealthKit does — without a client id every 15-min recompute would stack
- *    duplicates. With it, HC upserts: same id + higher [Metadata.clientRecordVersion] replaces, so
- *    we stamp the version with the write time and the latest computation always wins.
+ *    duplicates. With it, HC upserts: same id + higher [Metadata.clientRecordVersion] replaces.
+ *  - **Only what changed** ([HealthExportLedger], since 2026-11-26): the shared core's ledger leaves a record
+ *    alone whose content Health Connect already holds and hands a changed one a revision above every earlier
+ *    one, as Apple's `HealthSampleWriter` does for Apple Health.
  */
 object HealthConnectWriter {
 
@@ -114,10 +123,20 @@ object HealthConnectWriter {
      * rows under `whoop-<address>`, so a hardcoded legacy "my-whoop" id reads empty tables and
      * exports nothing.
      */
-    suspend fun write(context: Context, repo: WhoopRepository, deviceId: String): WritebackResult =
-        exportMutex.withLock { writeLocked(context, repo, deviceId) }
+    suspend fun write(context: Context, repo: WhoopRepository, deviceId: String, everything: Boolean = false): WritebackResult =
+        exportMutex.withLock { writeLocked(context, repo, deviceId, everything) }
 
-    private suspend fun writeLocked(context: Context, repo: WhoopRepository, deviceId: String): WritebackResult {
+    /** One export's choices and what came of them, shared by the concerns that consult the ledger. */
+    private class ExportRun(val everything: Boolean) {
+        var planMissed = false
+    }
+
+    private suspend fun writeLocked(
+        context: Context,
+        repo: WhoopRepository,
+        deviceId: String,
+        requestedEverything: Boolean,
+    ): WritebackResult {
         if (HealthConnectClient.getSdkStatus(context) != HealthConnectClient.SDK_AVAILABLE) return WritebackResult.UNAVAILABLE
 
         // Guard the pre-insert work (client acquisition + the day read) the same way the concern inserts
@@ -134,9 +153,16 @@ object HealthConnectWriter {
         }
 
         val zone = ZoneId.systemDefault()
-        // Stamp every record in this batch with one version so a later recompute (higher stamp)
-        // replaces the whole day consistently.
+        // Only the heart-rate series still carries this batch stamp (it writes new samples only). The daily
+        // records, the nights and VO2 max take their version from the core's ledger, which leaves an unchanged
+        // record alone; this stamp, in seconds like the ledger's revisions, is their fallback when the core
+        // cannot answer. Once a day (or on request) every record is written again, which repairs a Health Connect
+        // that lost what the ledger believes it holds.
         val version = System.currentTimeMillis() / 1000
+        val nowMs = System.currentTimeMillis()
+        val run = ExportRun(
+            requestedEverything || HealthExportLedger.fullWriteDue(NoopPrefs.hcFullWriteAtMs(context), nowMs),
+        )
 
         // The nightly vitals are stamped inside the night they describe: the midpoint of that day's longest bridged
         // night, from the same plan the sleep write exports. A day without a night keeps local noon. A failed read
@@ -151,7 +177,8 @@ object HealthConnectWriter {
             }
         }.getOrDefault(emptyMap())
 
-        val records = ArrayList<Record>()
+        val entries = ArrayList<HealthExportLedger.Entry>()
+        fun add(build: (Long) -> Record) { HealthExportLedger.entry(build)?.let(entries::add) }
         for (d in days) {
             // Noon local on the metric's day when it has no night: an unambiguous, stable instant for a daily
             // summary (midnight would straddle the previous night across DST shifts).
@@ -161,28 +188,36 @@ object HealthConnectWriter {
             val offset = zone.rules.getOffset(instant)
 
             d.restingHr?.let {
-                records.add(RestingHeartRateRecord(
-                    time = instant, zoneOffset = offset, beatsPerMinute = it.toLong(),
-                    metadata = meta("rhr", d.day, version),
-                ))
+                add { v ->
+                    RestingHeartRateRecord(
+                        time = instant, zoneOffset = offset, beatsPerMinute = it.toLong(),
+                        metadata = meta("rhr", d.day, v),
+                    )
+                }
             }
             d.avgHrv?.let {
-                records.add(HeartRateVariabilityRmssdRecord(
-                    time = instant, zoneOffset = offset, heartRateVariabilityMillis = it,
-                    metadata = meta("hrv", d.day, version),
-                ))
+                add { v ->
+                    HeartRateVariabilityRmssdRecord(
+                        time = instant, zoneOffset = offset, heartRateVariabilityMillis = it,
+                        metadata = meta("hrv", d.day, v),
+                    )
+                }
             }
             d.spo2Pct?.let {
-                records.add(OxygenSaturationRecord(
-                    time = instant, zoneOffset = offset, percentage = Percentage(it),
-                    metadata = meta("spo2", d.day, version),
-                ))
+                add { v ->
+                    OxygenSaturationRecord(
+                        time = instant, zoneOffset = offset, percentage = Percentage(it),
+                        metadata = meta("spo2", d.day, v),
+                    )
+                }
             }
             d.respRateBpm?.let {
-                records.add(RespiratoryRateRecord(
-                    time = instant, zoneOffset = offset, rate = it,
-                    metadata = meta("resp", d.day, version),
-                ))
+                add { v ->
+                    RespiratoryRateRecord(
+                        time = instant, zoneOffset = offset, rate = it,
+                        metadata = meta("resp", d.day, v),
+                    )
+                }
             }
         }
 
@@ -197,20 +232,22 @@ object HealthConnectWriter {
         // and folded into the result instead of collapsing to a silent 0, so the UI can surface them (#660).
         var total = 0
         val failures = mutableListOf<WritebackFailure>()
-        if (records.isNotEmpty()) {
-            runCatching { client.insertRecords(records); records.size }
+        if (entries.isNotEmpty()) {
+            runCatching { insertChanged(client, entries, version, run) }
                 .fold({ total += it }, { failures += it.writebackCategory() })
         }
         runCatching { writeHeartRate(client, context, repo, deviceId, version) }
             .fold({ total += it }, { failures += it.writebackCategory() })
-        runCatching { writeSleep(client, context, repo, deviceId) }
+        runCatching { writeSleep(client, context, repo, deviceId, version, run) }
             .fold({ total += it }, { failures += it.writebackCategory() })
         // #1525: separate attempt on purpose. The daily records above go in ONE insertRecords call, so a
         // missing permission there loses resting HR, HRV, SpO2 and respiratory rate together. On its own,
         // an ungranted VO2 max permission costs only VO2 max and is categorized like any other failure.
-        runCatching { writeVo2Max(client, repo, deviceId, version) }
+        runCatching { writeVo2Max(client, repo, deviceId, version, run) }
             .fold({ total += it }, { failures += it.writebackCategory() })
-        val result = WritebackResult(total, failures.distinct())
+        val result = WritebackResult(total, failures.distinct(), fullWrite = run.everything, planMissed = run.planMissed)
+        // The daily repair counts as done only when every concern landed; a failed one tries again next pass.
+        if (run.everything && result.ok) NoopPrefs.setHcFullWriteAtMs(context, nowMs)
         recordStatus(context, result)
         return result
     }
@@ -224,6 +261,26 @@ object HealthConnectWriter {
         clientRecordId = "noop-$metric-$day",
         clientRecordVersion = version,
     )
+
+    /**
+     * Inserts only the [entries] whose content changed since the last export Health Connect accepted
+     * ([HealthExportLedger]), at the revision the core hands out, and records them as written once they landed.
+     * Apple's `HealthSampleWriter.save` does the same for Apple Health.
+     */
+    private suspend fun insertChanged(
+        client: HealthConnectClient,
+        entries: List<HealthExportLedger.Entry>,
+        fallbackVersion: Long,
+        run: ExportRun,
+    ): Int {
+        val plan = HealthExportLedger.plan(entries)
+        if (plan == null) run.planMissed = true
+        val (records, versions) = HealthExportLedger.changed(entries, fallbackVersion, plan, run.everything)
+        if (records.isEmpty()) return 0
+        val n = insertChunked(client, records)
+        HealthExportLedger.commit(versions)
+        return n
+    }
 
     /** Health Connect caps records per insert call; insert in batches to stay well under it. */
     private suspend fun insertChunked(client: HealthConnectClient, records: List<Record>, batch: Int = 1000): Int {
@@ -295,6 +352,8 @@ object HealthConnectWriter {
         context: Context,
         repo: WhoopRepository,
         deviceId: String,
+        fallbackVersion: Long,
+        run: ExportRun,
     ): Int {
         val now = System.currentTimeMillis() / 1000
         val floor = now - WINDOW_DAYS * 86_400
@@ -308,7 +367,7 @@ object HealthConnectWriter {
         if (plans.isEmpty()) return 0
 
         val zone = ZoneId.systemDefault()
-        val records = plans.map { p ->
+        val entries = plans.mapNotNull { p -> HealthExportLedger.entry { version ->
             val start = Instant.ofEpochSecond(p.startSec)
             val end = Instant.ofEpochSecond(p.endSec)
             SleepSessionRecord(
@@ -328,9 +387,9 @@ object HealthConnectWriter {
                         },
                     )
                 },
-                metadata = Metadata(clientRecordId = p.clientId, clientRecordVersion = p.endSec),
+                metadata = Metadata(clientRecordId = p.clientId, clientRecordVersion = version),
             )
-        }
+        } }
         // Clear absorbed fragments' old records BEFORE the merged upsert, so a night previously
         // exported as two entries never lingers as one merged + one stale fragment. (#364)
         val absorbed = plans.flatMap { it.absorbedClientIds }
@@ -370,7 +429,12 @@ object HealthConnectWriter {
                 }
             }
         }
-        val written = insertChunked(client, records)
+        // An unchanged night is not written again. Its version used to be its end time, so a night whose stages
+        // were recomputed with the same end never replaced the old record; the ledger's revision does.
+        // A retracted id leaves the core's ledger too, or the same night coming back unchanged would never be
+        // written again.
+        HealthExportLedger.invalidate(retract.filterNot { it in unretracted })
+        val written = insertChanged(client, entries, fallbackVersion, run)
         // Recorded only AFTER the write lands. Remembering ids we failed to write would make the NEXT
         // export retract records that never existed - harmless in itself, but it would also drop the ids
         // that do need retracting from the ledger, quietly restoring the bug this fixes.
@@ -402,19 +466,23 @@ object HealthConnectWriter {
         repo: WhoopRepository,
         deviceId: String,
         version: Long,
+        run: ExportRun,
     ): Int {
         val zone = ZoneId.systemDefault()
         val cutoff = LocalDate.now().minusDays(WINDOW_DAYS).toString()
         val today = LocalDate.now().toString()
         val rows = repo.metricSeriesComputedUnion(deviceId, "vo2max_est", cutoff, today)
-        val records = buildVo2MaxRecords(rows, version, zone)
-        if (records.isEmpty()) return 0
+        val entries = rows.mapNotNull { row ->
+            if (buildVo2MaxRecords(listOf(row), 0, zone).isEmpty()) null
+            else HealthExportLedger.entry { v -> buildVo2MaxRecords(listOf(row), v, zone).first() }
+        }
+        if (entries.isEmpty()) return 0
         // #1525: VO2 max is asked for once and may be declined. A declined grant is the wearer's answer, not a
         // failure: without this check every export threw SecurityException here and the status read "Sharing
         // paused, permission revoked" while resting HR, HRV, sleep and workouts were being written.
         val granted = client.permissionController.getGrantedPermissions()
         if (!granted.containsAll(VO2MAX_PERMISSIONS)) return 0
-        return insertChunked(client, records)
+        return insertChanged(client, entries, version, run)
     }
 
     /**

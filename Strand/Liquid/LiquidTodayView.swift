@@ -891,8 +891,7 @@ struct LiquidTodayView: View {
                 let now = Date()
                 let day = Repository.logicalDayKey(now)
                 guard day == selectedDayKey else { return }
-                let value = await LiveEffort.today(repo: repo, profile: profile,
-                                                 restingHr: resolveDisplayDay()?.restingHr, now: now)
+                let value = await LiveEffort.today(repo: repo, profile: profile, now: now)
                 guard !Task.isCancelled, key == loadKey, day == selectedDayKey else { return }
                 effortPresentationNow = now
                 liveEffortReadout = DashboardEffortReadout(day: day, value: value)

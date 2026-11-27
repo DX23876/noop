@@ -545,6 +545,9 @@ public enum CoreCall {
             guard let kg = (args["kg"] as? NSNumber)?.doubleValue else { return #"{"error":"invalid"}"# }
             let epoch = (args["takenAt"] as? NSNumber)?.doubleValue ?? Date().timeIntervalSince1970
             return ok(await CoreBody.logWeight(store: store, kg: kg, at: Date(timeIntervalSince1970: epoch), note: args["note"] as? String))
+        case "health.planExports": return await CoreHealthExport.plan(store: store, args: args)
+        case "health.commitExports": return await CoreHealthExport.commit(store: store, args: args)
+        case "health.invalidateExports": return await CoreHealthExport.invalidate(store: store, args: args)
         case "body.deleteWeight":
             return ok(await CoreBody.deleteWeight(store: store, id: string("id")))
         case "energy.plan":
@@ -579,9 +582,12 @@ public enum CoreCall {
             return CoreRead.json(["value": await CoreRead.liveEffort(
                 reader: reader, hrMaxOverride: (args["hrMaxOverride"] as? NSNumber)?.intValue ?? 0,
                 age: (args["age"] as? NSNumber)?.intValue ?? 0,
-                restingHr: (args["restingHr"] as? NSNumber)?.intValue,
                 storedEffort: (args["storedEffort"] as? NSNumber)?.doubleValue,
                 mode: DayCycleMode.persisted(args["dayCycleMode"] as? String))])
+        case "read.effortRestingHR":
+            // The resting heart rate Effort is scored against on a day (`StoreReader.effortRestingHR`), for a
+            // workout Android scores itself (a saved session, a strap-filled row).
+            return CoreRead.json(["value": await reader.effortRestingHR(day: string("day"))])
         case "read.hasAnyDay":
             // The first-run question, as one boolean: "is there any day at all" (`CoreRead.hasAnyDay`).
             return CoreRead.json(["any": await CoreRead.hasAnyDay(reader: reader)])

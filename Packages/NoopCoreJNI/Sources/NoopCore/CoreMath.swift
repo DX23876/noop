@@ -19,7 +19,9 @@ enum CoreMath {
             let value = StrainScorer.strain(
                 hr, maxHR: (args["maxHR"] as? NSNumber)?.doubleValue,
                 restingHR: (args["restingHR"] as? NSNumber)?.doubleValue ?? StrainScorer.defaultRestingHR,
-                lowIntensity: .countedIn(spans),
+                // `workout` true: the series is one workout and counts its time below 50 % HRR, as iOS
+                // scores a workout. Otherwise a day, lifted to the workouts in `workoutSpans`.
+                lowIntensity: (args["workout"] as? Bool) == true ? .counted : .day(workouts: spans),
                 strengthLoad: (args["strengthLoad"] as? NSNumber)?.doubleValue ?? 0)
             return CoreRead.json(["value": value])
         case "math.boutCalories":

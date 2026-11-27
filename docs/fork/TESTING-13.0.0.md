@@ -34,6 +34,7 @@ Please tell us roughly how long it took and how many months of history you have.
 | What to do | What should happen |
 |---|---|
 | Look at a quiet day without a workout | Effort is clearly lower than before. Standing and walking around no longer add up to a moderate day |
+| Look at a day with only a walk or two | Effort is at least the stronger walk's, not the two walks added together |
 | Look at a hard training day | Effort is higher than before. A brisk 30-minute walk lands around 32, an hour of hard cardio around 80 |
 | **Settings → Profile → Max heart rate** | It says where the value comes from (formula, measured in workouts, or your own). An entered value always wins |
 | Mark a detected workout as "not a workout" | That day's Effort does not count those minutes any more |

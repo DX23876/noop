@@ -28,8 +28,8 @@ enum LiveEffort {
     /// row rather than to a fabricated value). Only meaningful for the current logical day — a navigated
     /// past day has no in-progress figure and callers must pass nil to `effectiveEffort` for it.
     ///
-    /// `restingHr` is the displayed day's own resting HR (the daily pass's input); nil falls back to
-    /// `StrainScorer.defaultRestingHR`, exactly as the pass does.
+    /// The resting heart rate is Effort's own for the day in progress (`StoreReader.effortRestingHR`), the
+    /// one the daily pass scores it against, not the lower one the day shows.
     ///
     /// COST: one indexed HR read over the whole elapsed day — up to ~18 k rows on a worn day, bounded by
     /// the explicit 200_000 cap at the call site (NOT `hrSamples`' 8000-row default, which used to
@@ -38,7 +38,7 @@ enum LiveEffort {
     /// Liquid Today reads it independently and retries while active, so the rest of its dashboard load
     /// cannot delay Effort. Because `effectiveEffort` takes the MAX with the same day's stored row,
     /// refinement cannot lower that stored floor. `now` supplies one clock sample for both window ends.
-    static func today(repo: Repository, profile: ProfileStore, restingHr: Int?, now: Date = Date()) async -> Double? {
+    static func today(repo: Repository, profile: ProfileStore, now: Date = Date()) async -> Double? {
         // The window, the row limit, the resting fallback and which workout time counts are
         // `LiveEffortScore`'s, so the Android Today reads today's Effort by exactly the same rules
         // (issue #41). This does the two reads and supplies the profile's own HRmax.
@@ -47,10 +47,13 @@ enum LiveEffort {
         // midnight start counts the hours before bed into the wrong day (`CycleDayWindow`).
         let mode = DayCycleMode.persisted(UserDefaults.standard.string(forKey: DayCycleMode.storageKey))
         var cycle: CycleDayWindow.Cycle?
+        var restingHR = StrainScorer.defaultRestingHR
         if let store = await repo.storeHandle() {
-            cycle = await CycleDayWindow.current(reader: repo.storeReader(store),
+            let reader = repo.storeReader(store)
+            cycle = await CycleDayWindow.current(reader: reader,
                                                  now: Int(now.timeIntervalSince1970),
                                                  offsetSec: TimeZone.current.secondsFromGMT(for: now))
+            restingHR = await reader.effortRestingHR(day: LiveEffortScore.day(now: now, mode: mode, cycle: cycle))
         }
         let (from, to) = LiveEffortScore.window(now: now, mode: mode, cycle: cycle)
         let workout = LiveEffortScore.workoutWindow(forWindow: (from, to))
@@ -62,7 +65,7 @@ enum LiveEffort {
         let rows = await repo.rawWorkoutRows(from: workout.from, to: workout.to)
         guard !Task.isCancelled else { return nil }
         return await runUnescalated {
-            LiveEffortScore.score(hr: hr, workoutRows: rows, maxHR: maxHR, restingHr: restingHr)
+            LiveEffortScore.score(hr: hr, workoutRows: rows, maxHR: maxHR, restingHR: restingHR)
         }
     }
 }

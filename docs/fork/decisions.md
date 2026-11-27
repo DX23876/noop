@@ -2098,6 +2098,54 @@ from a build that carries this.
 
 Analysis migration required: no
 
+## 2026-11-25 — Effort's day and its resting heart rate, after a wearer who wears both apps
+
+@pilleuspulcher-blip wears a WHOOP with WHOOP's own app beside a WHOOP 4.0 with NOOP Forge. On
+2026-11-22, a day with two half-hour walks and no workout, WHOOP's Day Strain read 2.0 and NOOP's Effort
+9.8 on the 0-21 scale; on other days NOOP ran two and a half to three points higher whatever he did. The
+#2438 calibration fitted the curve on WHOOP's workout Strain and nothing checked the day. Two causes,
+both decided with the owner in one round (grilling, 2026-11-25):
+
+**The day summed what WHOOP keeps apart.** Since AI-32 time below 50 % HRR counted toward the day inside
+any workout or detected bout. In his WHOOP export walks logged as workouts score about 4 whatever their
+length (13 to 47 minutes), a walking day without one scored 2.0, and his day sits a median 0.8 above its
+strongest workout; across his and the owner's exports a day falls below its strongest workout on 1 of 368
+days. So a day now counts nothing below 50 % HRR, inside a workout or not, and is lifted to its strongest
+workout, each scored from its own readings with its light minutes (`StrainScorer.LowIntensity.day`). A
+workout's own Effort is unchanged. Step 2 of #2438 (a small day weight below zone 1) stays open; it is
+taken up only if the day reads too low afterwards.
+
+**The resting heart rate was on another yardstick.** The fit converted WHOOP's zones with WHOOP's resting
+heart rate, an average weighted towards the last deep sleep; NOOP scored with the night's lowest five
+minutes. On the paired wearer WHOOP's value ran 4 to 6 bpm above NOOP's lowest bin; on the owner's nights
+since 2026-10-20 the main night's mean ran a median 10 above it (10 to 14) and the last deep block's mean 11.
+The first build took the main night's mean, as decided in the round. On the owner's November days that
+lowered hard days by about 1.8 points where about 1 was expected, which fits the mean sitting above
+WHOOP's value. The owner then chose a value halfway between the lowest bin and the mean
+(`EffortRestingHR.nightValue`): it meets the paired wearer, adapts to how much each wearer's night moves,
+which a fixed offset would not, and the aim is comparable ranges, not WHOOP's number. The factor of one half
+is chosen, not measured, and rests on one paired wearer. Without a night the median of the last seven
+nights' values stands in, else a device's value, else 60; each day's value is stored as `rhr_effort` so
+every reader takes the same one. Collecting more paired nights was considered and dropped by the owner.
+
+**Stored workouts follow.** A recorded session or a confirmed suggestion stores its Effort when it is saved,
+so it kept the old yardstick and could stand above its own day. The rebuild's workout heart-rate step now
+scores those rows again from the band under the fills' coverage rule
+(`WorkoutHeartRateFills.rescoreRecordedEffort`); a row the band does not cover, or on a day the pass stored
+no Effort resting rate for, keeps its value (it is never scored against a default), imports keep their
+source's, and the wearer never types an Effort. Every fill takes its resting rate from one place
+(`StoreReader.fillRestingHRByDay`): the day's Effort rate where the pass stored one, else the day's own.
+
+Detection keeps the day's shown resting heart rate, so the walk rule under test does not move; only the
+scoring of a found bout uses Effort's. The shown resting heart rate, energy, training load, AgeLess and
+VO2max keep theirs (the 2026-10-12 decisions stand).
+
+On the owner's November days, the day rule and the halfway rate together lower light days by 1.7 to 2.3
+points and hard days by about one, and a day sits a median 2.1 above its strongest workout (WHOOP 2026:
+2.7, lower quarter 1.7); the issue's example values for workouts are unchanged.
+
+Analysis migration required: yes, riding on AI-38, which had not shipped.
+
 ## 2026-11-26 — A trained sleep-stage model as a Lab choice, judged against sleep-lab truth
 
 Refs #59. A tester (@andreyeurope) reported that lying awake and restless before getting up is scored as REM,

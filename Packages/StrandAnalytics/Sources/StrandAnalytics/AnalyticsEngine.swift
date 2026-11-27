@@ -123,6 +123,9 @@ public enum AnalyticsEngine {
         /// refused-main-night HRV rule use; empty when the day has no main night. Exposed so the `hrv diag`
         /// line can describe the night the #1118 gate actually judged instead of re-deriving it (#2425).
         public let mainNightBlocks: [SleepStageTotals.NightBlock]
+        /// The resting heart rate the day's Effort, its bouts and their zones were scored against
+        /// (`EffortRestingHR`). The pass stores it so every later reader of the day takes the same value.
+        public let effortRestingHR: Double
 
         public init(daily: DailyMetric, sleepSessions: [SleepSession],
                     cachedSleep: [CachedSleepSession], workouts: [ExerciseSession],
@@ -136,8 +139,10 @@ public enum AnalyticsEngine {
                     chargeDrivers: [ChargeDriver] = [],
                     skinTempRelative: SkinTempRelative? = nil,
                     detectionFunnel: WorkoutDetector.DetectionFunnel? = nil,
-                    mainNightBlocks: [SleepStageTotals.NightBlock] = []) {
+                    mainNightBlocks: [SleepStageTotals.NightBlock] = [],
+                    effortRestingHR: Double = StrainScorer.defaultRestingHR) {
             self.daily = daily; self.sleepSessions = sleepSessions
+            self.effortRestingHR = effortRestingHR
             self.mainNightBlocks = mainNightBlocks
             self.cachedSleep = cachedSleep; self.workouts = workouts
             self.detectionFunnel = detectionFunnel
@@ -524,14 +529,18 @@ public enum AnalyticsEngine {
                                   // (UnitPrefs.hrvWindowKey). Default false = byte-identical whole-night value.
                                   deepHrvWindow: Bool = false,
                                   // The day's recorded and imported workouts (`[start, end)`, unix
-                                  // seconds). Inside them and inside the bouts detected here, heart rate
-                                  // below 50 % HRR counts toward the day's Effort (#2438); elsewhere not.
+                                  // seconds). The day's Effort never falls below any of them or of the
+                                  // bouts detected here (#2438, `StrainScorer.LowIntensity.day`).
                                   workoutSpans: [Range<Int>] = [],
                                   // Detected bouts the wearer dismissed (`[start, end)`). A bout overlapping
                                   // one is not workout time for Effort (`effortSpans`).
                                   dismissedBouts: [Range<Int>] = [],
                                   // Load the day's rated strength sessions add before the curve (#2438).
                                   strengthLoad: Double = 0,
+                                  // The values of the nights before this day, oldest first
+                                  // (`EffortRestingHR.nightsBefore`): Effort's resting heart rate when this
+                                  // day has no night of its own.
+                                  recentNightRHR: [Double] = [],
                                   // The day's aerobic ceiling (stored by the energy model), so a detected
                                   // bout's calories are priced on the same curve as the day's workouts.
                                   // Nil prices bouts from the table MET of an unnamed session.
@@ -973,7 +982,13 @@ public enum AnalyticsEngine {
         // night `hr` for pure-function callers/tests.
         let resolvedMaxHR = maxHR ?? MaxHeartRate.resolve(override: maxHROverride, age: profile.age)
         let effMaxHR: Double? = resolvedMaxHR.bpm
-        let restForStrain = restingHRDaily.map(Double.init) ?? StrainScorer.defaultRestingHR
+        // Effort reads halfway between the lowest five minutes the day shows and the main night's mean
+        // (`EffortRestingHR`): the curve was fitted against WHOOP's resting heart rate, which sits between the
+        // two. The mean is the `rhr_primary_session` shadow metric's own definition and inputs (`matched`, the
+        // night window).
+        let nightMeanRHR = Self.primarySessionRestingHR(sessions: matched, hr: hr)
+        let restForStrain = EffortRestingHR.resolve(nightMean: nightMeanRHR, nightLowest: restingHRDaily.map(Double.init),
+                                                    recentNights: recentNightRHR, deviceProvided: providedPrimaryRHR)
         // ── Workouts ──────────────────────────────────────────────────────────
         // Detect over the full CALENDAR day (dayHr/dayGravity) when the caller supplies it, so a
         // current-day afternoon/evening workout is caught on its own day rather than lagging until
@@ -984,6 +999,8 @@ public enum AnalyticsEngine {
         let workouts = detectDayBouts(
             hr: dayHr ?? hr, gravity: dayGravity ?? gravity,
             restingHR: restingHRDaily.map(Double.init),
+            // Found on the day's baseline, scored on Effort's.
+            effortRestingHR: restForStrain,
             // #1545: the DAY's effective HRmax, not just the override. Passing `maxHROverride` meant an
             // install with no override left the detector to fall back to `StrainScorer.estimateHRmax`,
             // which returns max(observed p99.5, Tanaka) -- so every bout was measured against a HRmax at
@@ -1005,10 +1022,10 @@ public enum AnalyticsEngine {
         // The Effort ring's own funnel. A nil sink builds nothing at all, so a caller that does not want
         // diagnostics pays nothing; IntelligenceEngine passes its per-day recorder, the same one the
         // `workout detect` and `sleep-detect` lines beside it already use.
-        // Scored after the workouts are known: below 50 % HRR only their time counts (#2438).
+        // Scored after the workouts are known: the day is never below the strongest of them (#2438).
         let effortSpans = Self.effortSpans(workouts: workoutSpans, detected: workouts, dismissed: dismissedBouts)
         let strain = StrainScorer.strain(dayHr ?? hr, maxHR: effMaxHR, restingHR: restForStrain,
-                                         lowIntensity: .countedIn(effortSpans), strengthLoad: strengthLoad,
+                                         lowIntensity: .day(workouts: effortSpans), strengthLoad: strengthLoad,
                                          diag: strainDiag, day: day)
         // #2438 step 0 asks two things of a contributed log: whether the day was scored against the
         // user's own setting or against the age formula, and how far the day's own heart rate ran above
@@ -1191,22 +1208,25 @@ public enum AnalyticsEngine {
                          chargeDrivers: chargeDrivers,
                          skinTempRelative: skinTempRelative,
                          detectionFunnel: detectionFunnel,
-                         mainNightBlocks: mainGroup.map { SleepStageTotals.NightBlock(start: $0.start, end: $0.end) })
+                         mainNightBlocks: mainGroup.map { SleepStageTotals.NightBlock(start: $0.start, end: $0.end) },
+                         effortRestingHR: restForStrain)
     }
 
     /// The day's workout detection (`WorkoutDetector.detect`) with the arguments `analyzeDay` gives it. The
     /// current-day activity refresh detects through here too, so its bouts are the ones the daily pass finds
     /// from the same streams.
     public static func detectDayBouts(hr: [HRSample], gravity: [GravitySample], restingHR: Double?,
+                                      effortRestingHR: Double? = nil,
                                       maxHR: Double?, profile: UserProfile, peakMET: Double? = nil,
                                       funnel: ((WorkoutDetector.DetectionFunnel) -> Void)? = nil) -> [ExerciseSession] {
-        WorkoutDetector.detect(hr: hr, gravity: gravity, restingHR: restingHR, maxHR: maxHR,
+        WorkoutDetector.detect(hr: hr, gravity: gravity, restingHR: restingHR, effortRestingHR: effortRestingHR,
+                               maxHR: maxHR,
                                age: profile.age > 0 ? profile.age : nil, profile: profile,
                                peakMET: peakMET, funnel: funnel)
     }
 
-    /// The time in which heart rate below 50 % HRR counts toward Effort (#2438): the recorded and imported
-    /// workouts, and the detected bouts except one the wearer dismissed (half-open overlap, the rule the
+    /// The workouts a day's Effort never falls below (#2438, `StrainScorer.LowIntensity.day`): the recorded and
+    /// imported workouts, and the detected bouts except one the wearer dismissed (half-open overlap, the rule the
     /// Workouts list hides a dismissed row by). The daily pass, the activity refresh and the wake-day cycle
     /// all take it from here, so a dismissed bout leaves every one of them.
     public static func effortSpans(workouts: [Range<Int>], detected: [ExerciseSession],
