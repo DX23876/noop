@@ -26,6 +26,12 @@ refuses any other author or committer and `.githooks/commit-msg` any AI trailer.
 these settings from its environment's own setup script, kept with the owner's account and not in this
 public repository.
 
+The rule covers commits made here. A pull request to this fork that lands as submitted is merged with its
+author's own commits (decided 2026-11-27), so GitHub shows it as merged: the identity rule is for the
+owner's work, not for work someone sent. The merge commit and every change the fork makes on top are
+DX23876's, as separate commits after the merge. Where a local push guard checks identities, that one push
+uses its override, after checking that the only other identities in it are the pull request's own commits.
+
 ## Android is a shell around the shared core
 
 `AGENTS.md` describes Android as an independent Kotlin, Compose and Room reimplementation. That is not
@@ -84,6 +90,9 @@ ryanbr has not merged), the adopting commit says `Adopted from <source> by @hand
 `Co-authored-by` line. The same change adds them to `ATTRIBUTION.md` ("NOOP Forge: work adopted from
 other people") and to `Acknowledgements.contributors` (StrandCore, read by `AcknowledgementsView` and the Android screen), and the release notes thank them by handle.
 Work that arrives through an ordinary upstream merge is credited upstream and needs none of this.
+A pull request to this fork that lands as submitted is merged instead (see Commit identity) and needs no
+`Adopted from` or `Co-authored-by` line, since its commits carry the author; it is still added to
+`ATTRIBUTION.md`, the contributor list and the release notes.
 
 ## Before pushing app or package code
 
