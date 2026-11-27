@@ -34,9 +34,71 @@ public enum BasalFormula: String, Codable, Equatable, Sendable, CaseIterable {
     /// Katch-McArdle. Works from LEAN mass, so it needs a body-fat figure and is sex-independent —
     /// the same lean kilogram costs the same regardless of whose body it is on.
     case katchMcArdle
+    /// A resting rate the wearer had measured (indirect calorimetry), owner decision 2026-11-27 (Q9, Q16).
+    /// Carried as its ratio to Mifflin–St Jeor on the measurement day (`MeasuredRestingRate`), so it follows
+    /// the body's weight afterwards; for the whole history, as every formula choice is (owner, 2026-11-27).
+    /// Prediction equations miss a single body with a BMI over 50 by up to about 700 kcal either way.
+    case measured
 
     /// Whether this formula needs a body-fat percentage. Only Katch-McArdle does.
     public var needsBodyFat: Bool { self == .katchMcArdle }
+    /// Whether this formula needs a measured value. Only `measured` does.
+    public var needsMeasurement: Bool { self == .measured }
+}
+
+/// A measured resting rate, kept as its ratio to Mifflin–St Jeor for the body on the measurement day.
+///
+/// The ratio, not the value: a measurement at 205 kg says little about the rate at 185 kg, while the gap
+/// between this body and the equation stays. A value more than 40 % from the equation is asked about once
+/// (`isPlausible`), and a measurement older than a year is named as old (`isOld`) but still used.
+public struct MeasuredRestingRate: Equatable, Codable, Sendable {
+    public let kcalPerDay: Double
+    /// Local day (`yyyy-MM-dd`) of the measurement.
+    public let day: String
+    /// Measured value over Mifflin–St Jeor for the body on that day.
+    public let factor: Double
+
+    public static let plausibleFactor: ClosedRange<Double> = 0.6...1.4
+    public static let oldAfterDays = 365
+
+    public init(kcalPerDay: Double, day: String, factor: Double) {
+        self.kcalPerDay = kcalPerDay
+        self.day = day
+        self.factor = factor
+    }
+
+    /// The measurement for a body on its day; nil without usable inputs.
+    public static func make(kcalPerDay: Double, day: String, weightKg: Double, heightCm: Double, age: Double,
+                            sex: String) -> MeasuredRestingRate? {
+        guard kcalPerDay.isFinite, kcalPerDay >= 500, kcalPerDay <= 8_000,
+              let equation = BasalRate.kcalPerDay(.mifflinStJeor, weightKg: weightKg, heightCm: heightCm,
+                                                  age: age, sex: sex), equation > 0 else { return nil }
+        return MeasuredRestingRate(kcalPerDay: kcalPerDay, day: day, factor: kcalPerDay / equation)
+    }
+
+    /// Within 40 % of the equation; anything further is asked about once before it is used.
+    public var isPlausible: Bool { Self.plausibleFactor.contains(factor) }
+
+    /// More than a year old on `today`.
+    public func isOld(today: Date, calendar: Calendar = .current) -> Bool {
+        let parts = day.split(separator: "-").compactMap { Int($0) }
+        guard parts.count == 3,
+              let measured = calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2])),
+              let days = calendar.dateComponents([.day], from: measured, to: today).day else { return false }
+        return days > Self.oldAfterDays
+    }
+
+    public func encodedJSON() -> String {
+        guard let data = try? JSONEncoder().encode(self), let text = String(data: data, encoding: .utf8) else { return "" }
+        return text
+    }
+
+    public static func decode(_ json: String?) -> MeasuredRestingRate? {
+        guard let data = json?.data(using: .utf8),
+              let rate = try? JSONDecoder().decode(MeasuredRestingRate.self, from: data),
+              rate.factor.isFinite, rate.factor > 0 else { return nil }
+        return rate
+    }
 }
 
 /// One entry in the formula log: the day a formula took effect.
@@ -153,7 +215,8 @@ public enum BasalRate {
     /// handle deliberately — silently substituting another formula would put an unexplained step in the
     /// curve, which is precisely what the epoch log exists to prevent.
     public static func kcalPerDay(_ formula: BasalFormula, weightKg: Double, heightCm: Double,
-                                  age: Double, sex: String, bodyFatPercent: Double? = nil) -> Double? {
+                                  age: Double, sex: String, bodyFatPercent: Double? = nil,
+                                  measuredFactor: Double? = nil) -> Double? {
         guard weightKg > 0, heightCm > 0, age > 0,
               weightKg.isFinite, heightCm.isFinite, age.isFinite else { return nil }
 
@@ -170,6 +233,9 @@ public enum BasalRate {
             let leanKg = weightKg * (1 - bodyFatPercent / 100)
             guard leanKg > 0 else { return nil }
             value = 370 + 21.6 * leanKg
+        case .measured:
+            guard let measuredFactor, measuredFactor.isFinite, measuredFactor > 0 else { return nil }
+            value = measuredFactor * (10 * weightKg + 6.25 * heightCm - 5 * age + mifflinConstant(sex))
         }
         return value > 0 ? value : nil
     }
@@ -190,11 +256,12 @@ public enum BasalRate {
     /// explanation beside it reads as a bug, and the wearer is right to read it that way.
     public static func switchDelta(from: BasalFormula, to: BasalFormula, weightKg: Double,
                                    heightCm: Double, age: Double, sex: String,
-                                   bodyFatPercent: Double? = nil) -> Double? {
+                                   bodyFatPercent: Double? = nil, measuredFactor: Double? = nil) -> Double? {
         guard let before = kcalPerDay(from, weightKg: weightKg, heightCm: heightCm, age: age,
-                                      sex: sex, bodyFatPercent: bodyFatPercent),
+                                      sex: sex, bodyFatPercent: bodyFatPercent, measuredFactor: measuredFactor),
               let after = kcalPerDay(to, weightKg: weightKg, heightCm: heightCm, age: age,
-                                     sex: sex, bodyFatPercent: bodyFatPercent) else { return nil }
+                                     sex: sex, bodyFatPercent: bodyFatPercent,
+                                     measuredFactor: measuredFactor) else { return nil }
         return after - before
     }
 }

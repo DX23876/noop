@@ -24,6 +24,9 @@ internal fun JSONObject.withGoalHostSettings(context: Context): JSONObject =
     put("hydrationEnabled", NoopPrefs.hydrationTracking(context))
         // The Energy Plan's basal formula, so goals, Momentum and the plan price energy with one formula.
         .put("formulaLog", CoreEnergyPlan.formulaLog(context))
+        .put("measuredBasal", CoreEnergyPlan.measuredBasal(context))
+        // The scale's correction of the strap's burn (`BurnCorrection`), so every energy read applies it alike.
+        .put("scaleCorrection", CoreEnergyPlan.scaleCorrection(context))
         .put("journalCatalog", journalCatalogWire(loadJournalCatalogItems(context)).toString())
 
 /** The catalog in Swift's own `JournalCatalogItem` coding, so the core folds the same aliases Apple does. */

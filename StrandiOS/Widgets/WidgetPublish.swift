@@ -96,7 +96,8 @@ extension WidgetSnapshot {
                 calibrationFactorPermille: summary.appliedCalibrationFactor.map {
                     Int(($0 * 1_000).rounded())
                 },
-                asOf: now)
+                asOf: now,
+                everydayKcal: summary.everydayBurnedSoFar.map { Int($0.rounded()) })
         }
         // #2040: today's stress curve. Self-gating on a cheap heart-rate fingerprint, so a publish that
         // changed nothing costs one indexed COUNT and no rows. Only the FULL path scores it; the live

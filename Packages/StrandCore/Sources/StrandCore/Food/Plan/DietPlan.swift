@@ -72,6 +72,12 @@ public struct DietPlan: Codable, Equatable, Sendable {
     public var experience: Experience?
     /// A diet break the wearer took on Forge's suggestion: a week at maintenance from this day.
     public var breakFromDay: String?
+    /// The strap energy model the plan's burn last came from (`WhoopDailyEnergyEstimate.modelVersion`), the
+    /// day the plan moved to another one, and the change in the goal that move brought, kept until the wearer
+    /// has read it (`DietBurnModelChange`). Nil on plans made before the burn model was recorded.
+    public var burnModelVersion: String?
+    public var burnModelChangedDay: String?
+    public var burnModelNoteKcal: Double?
 
     /// The share of the calories that moves to training days, as the plan has it: recomposition 10 % unless set.
     public var effectiveDayShift: Double {

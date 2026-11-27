@@ -32,6 +32,8 @@ enum CoreEnergyDetail {
     struct Summary: Encodable {
         var day: String
         var total: Double?, active: Double?, basal: Double?, bmr24h: Double?
+        /// Everyday burn (awake still time above lying basal), a strap day only; inside `total`, not `active`.
+        var everyday: Double?
         var projectedLow: Double?, projectedHigh: Double?, projected: Double?
         var source: String, sourceLabel: String
         var confidence: String, confidenceLabel: String
@@ -99,7 +101,7 @@ enum CoreEnergyDetail {
 
     static func summary(_ s: DailyEnergySummary) -> Summary {
         Summary(day: s.day, total: s.totalBurnedSoFar, active: s.activeBurnedSoFar, basal: s.basalBurnedSoFar,
-                bmr24h: s.estimatedBMR24h, projectedLow: s.projectedRangeKcal?.lowerBound,
+                bmr24h: s.estimatedBMR24h, everyday: s.everydayBurnedSoFar, projectedLow: s.projectedRangeKcal?.lowerBound,
                 projectedHigh: s.projectedRangeKcal?.upperBound, projected: s.projectedTotalBurn, source: s.source.rawValue, sourceLabel: sourceLabel(s.source),
                 confidence: "\(s.confidence)", confidenceLabel: confidenceLabel(s.confidence), compactLine: compactLine(s))
     }

@@ -66,12 +66,16 @@ public struct BurnDay: Equatable, Sendable {
     /// counting them in the composition, which read as "0 of 30 days were measured" beside a list
     /// saying all 30 came from Apple.
     public let coverage: Double?
+    /// The everyday share inside `totalKcal` (`DailyEnergySummary.everydayBurnedSoFar`), when the day has one.
+    public let everydayKcal: Double?
 
-    public init(day: String, totalKcal: Double, source: EnergySource, coverage: Double?) {
+    public init(day: String, totalKcal: Double, source: EnergySource, coverage: Double?,
+                everydayKcal: Double? = nil) {
         self.day = day
         self.totalKcal = totalKcal
         self.source = source
         self.coverage = coverage
+        self.everydayKcal = everydayKcal
     }
 
     /// Whether this day's burn rests on a measurement rather than on a model. `mixed` is deliberately
@@ -91,6 +95,9 @@ public struct MeasuredBurn: Equatable, Sendable {
     public let totalDays: Int
     public let composition: [EnergySource: Int]
     public let quality: MeasuredBurnQuality
+    /// The everyday share's mean over the days `measuredMeanKcal` (else `allDaysMeanKcal`) is the mean of, a day
+    /// without one counting as zero. Nil when neither mean exists.
+    public var everydayMeanKcal: Double? = nil
 }
 
 /// Three answers to one question, and how far apart they are.
@@ -188,9 +195,12 @@ public enum EnergyPlanning {
             quality = .mixed
         }
 
+        let everydayBasis = measured.isEmpty ? usable : measured
+        let everydayMean = everydayBasis.isEmpty
+            ? nil : everydayBasis.reduce(0) { $0 + max(0, $1.everydayKcal ?? 0) } / Double(everydayBasis.count)
         return MeasuredBurn(measuredMeanKcal: measuredMean, allDaysMeanKcal: allMean,
                             measuredDays: measured.count, totalDays: usable.count,
-                            composition: composition, quality: quality)
+                            composition: composition, quality: quality, everydayMeanKcal: everydayMean)
     }
 
     /// The daily deficit or surplus implied by a target rate of weight change, under the Wishnofsky

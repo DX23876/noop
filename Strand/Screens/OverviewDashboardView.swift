@@ -1100,6 +1100,10 @@ struct OverviewDashboardView: View {
                 NoopCard(padding: Self.cardPadding) {
                     HStack {
                         energyStat(label: "Basal", kcal: e.basalBurnedSoFar)
+                        if let everyday = e.everydayBurnedSoFar, everyday > 0 {
+                            Divider().overlay(StrandPalette.hairline).frame(height: 28)
+                            energyStat(label: "Everyday", kcal: everyday)
+                        }
                         Divider().overlay(StrandPalette.hairline).frame(height: 28)
                         energyStat(label: "Active", kcal: e.activeBurnedSoFar)
                         Divider().overlay(StrandPalette.hairline).frame(height: 28)

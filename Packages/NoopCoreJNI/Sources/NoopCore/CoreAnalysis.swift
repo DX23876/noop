@@ -65,6 +65,8 @@ public enum CoreAnalysis {
         public var energyCalibration: Bool
         /// The Energy Plan's current formula, matching Apple's default before a plan is configured.
         public var basalFormula = BmrFormulaLog.decode("").current
+        /// A measured resting rate's ratio to Mifflin–St Jeor (`MeasuredRestingRate`), for the `measured` formula.
+        public var measuredBasalFactor: Double?
         /// Manual baseline recalibration anchors, in Unix seconds; zero means no recalibration.
         public var hrvBaselineEpoch: Double = 0, recoveryBaselineEpoch: Double = 0
         /// Lab: the strap's SpO₂ estimate is kept for the Blood Oxygen tile (Apple `noopSpo2CandidateDisplay`).
@@ -129,6 +131,7 @@ public enum CoreAnalysis {
             settings.sleepStagerMethod = method
         }
         if let raw = o["formulaLog"] as? String { settings.basalFormula = BmrFormulaLog.decode(raw).current }
+        settings.measuredBasalFactor = MeasuredRestingRate.decode(o["measuredBasal"] as? String)?.factor
         func double(_ k: String) -> Double? { (o[k] as? NSNumber)?.doubleValue }
         func int(_ k: String) -> Int? { (o[k] as? NSNumber)?.intValue }
         func bool(_ k: String) -> Bool? { (o[k] as? NSNumber)?.boolValue }
@@ -174,6 +177,7 @@ public enum CoreAnalysis {
         let host = Host(settings)
         let source = ProfileSource(profile)
         source.basalFormula = settings.basalFormula
+        source.measuredBasalFactor = settings.measuredBasalFactor
         source.manual = settings.manualEntry.map { ($0.day, $0.vo2max) }
         let services = StoreServices(reader: reader, settings: settings, host: host,
                                      profile: { [source] in source.analyticsProfile() })
@@ -381,6 +385,7 @@ public enum CoreAnalysis {
     private final class ProfileSource: AnalysisProfileSource {
         let p: Profile
         var basalFormula = BmrFormulaLog.decode("").current
+        var measuredBasalFactor: Double?
         init(_ p: Profile) {
             self.p = p
             stepsCalibrationCoefficient = p.stepsCalibrationCoefficient
@@ -409,7 +414,7 @@ public enum CoreAnalysis {
             // Same formula selection as Repository.analyticsProfile; the generic UserProfile default
             // is retained for other callers and must not substitute for the Energy Plan's selection.
             UserProfile(weightKg: p.weightKg, heightCm: p.heightCm, age: Double(p.age), sex: p.sex,
-                        maxHR: Double(hrMax), basalFormula: basalFormula)
+                        maxHR: Double(hrMax), basalFormula: basalFormula, measuredBasalFactor: measuredBasalFactor)
         }
         func enteredVO2max() -> (day: String, value: Double)? { manual }
         var manual: (day: String, value: Double)?

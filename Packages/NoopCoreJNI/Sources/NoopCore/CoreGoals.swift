@@ -16,6 +16,8 @@ public enum CoreGoals {
         public var dismissedWorkoutSpans: [String]
         public var energyProfile: UserProfile?
         public var energyCalibrationEnabled = false
+        /// The measured resting rate the wearer entered (`MeasuredRestingRate`), for the energy plan page.
+        public var measuredBasal: MeasuredRestingRate?
         public var energyManualVO2: PeakMETResolver.ManualEntry?
         public var energyActivityLevel: JurcaFitness.ActivityLevel?
         public var hydrationEnabled = false

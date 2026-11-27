@@ -201,6 +201,14 @@ struct EnergyDetailView: View {
                         ForgeRowFigure(value: kcalFigure(resting), unit: "kcal")
                     }
                 }
+                if let everyday = s.everydayBurnedSoFar, everyday > 0 {
+                    Divider().overlay(StrandPalette.hairline)
+                    ForgeTileRow(symbol: "chair.lounge.fill", tint: StrandPalette.energyEveryday,
+                                 title: String(localized: "Everyday"),
+                                 subtitle: String(localized: "Sitting, standing, small things")) {
+                        ForgeRowFigure(value: kcalFigure(everyday), unit: "kcal")
+                    }
+                }
                 if let active = s.activeBurnedSoFar {
                     Divider().overlay(StrandPalette.hairline)
                     ForgeTileRow(symbol: "figure.run", tint: StrandPalette.energyActive,

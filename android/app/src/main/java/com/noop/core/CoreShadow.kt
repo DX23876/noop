@@ -269,6 +269,7 @@ object CoreShadow {
             put("manualVO2maxWeightKg", profile.vo2maxManualWeightKg)
             put("activityLevelOverride", profile.activityLevelOverride)
             put("formulaLog", CoreEnergyPlan.formulaLog(context))
+            put("measuredBasal", CoreEnergyPlan.measuredBasal(context))
             put("stepTicksPerStep", profile.stepTicksPerStep)
             put("stepsManualCoefficient", profile.stepsManualCoefficient)
             put("stepsCalibrationCoefficient", profile.stepsCalibrationCoefficient)

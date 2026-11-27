@@ -2275,6 +2275,9 @@ final class AICoachEngine: ObservableObject {
         var lines = ["ENERGY (today, \(summary.day)):"]
         lines.append("BMR_ESTIMATE_24H: \(kcal(summary.estimatedBMR24h)) (modelled from profile, whole day)")
         lines.append("BASAL_SO_FAR: \(kcal(summary.basalBurnedSoFar))")
+        if let everyday = summary.everydayBurnedSoFar {
+            lines.append("EVERYDAY_SO_FAR: \(kcal(everyday)) (awake still time above lying basal: sitting, standing, small things; part of the total, not activity)")
+        }
         lines.append("ACTIVE_SO_FAR: \(kcal(summary.activeBurnedSoFar))")
         lines.append("TOTAL_SO_FAR: \(kcal(summary.totalBurnedSoFar))")
         if let raw = summary.rawWhoopTotalKcal {

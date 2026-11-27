@@ -79,6 +79,7 @@ struct ForgeFoodView: View {
                 // The day's own row: arrows, the date with its calendar and a way back to today.
                 FoodDayPicker(model: model)
                 DietPlanLine(model: model, open: openPlan)
+                DietBurnModelNote(model: model)
                 hero
                 if let other = model.otherIntake {
                     FoodOtherIntakeNote(kcal: other.kcal, source: other.source)

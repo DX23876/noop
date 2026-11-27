@@ -201,8 +201,9 @@ public struct WhoopDailyEnergyEstimate: Equatable, Sendable {
 
     /// Basal, everyday and active energy of the represented buckets together.
     public let totalKcal: Double
-    /// The everyday share inside `totalKcal`.
+    /// The everyday share inside `totalKcal`, and the awake still seconds it was priced on.
     public let everydayKcal: Double
+    public let everydaySeconds: Int
     public let observedSeconds: Int
     public let inferredSeconds: Int
     public let modeledSeconds: Int
@@ -283,6 +284,7 @@ public enum WhoopEnergyModel {
         // Per bucket: seconds that count as moderate, and seconds of any movement or workout.
         var moderateByBucket: [Int] = []
         var movingByBucket: [Int] = []
+        var everydaySeconds = 0
 
         for bucket in valid {
             let seconds = bucket.durationSeconds
@@ -297,9 +299,10 @@ public enum WhoopEnergyModel {
             var moderate = 0
             var moving = 0
             // Awake still seconds earn the everyday allowance; the usual sleep window earns none.
-            let awakeStill: (Int) -> Double = { still in
-                bucket.inUsualSleepWindow ? 0 : everydayKcal(basalPerSecond: basalPerSecond,
-                                                             seconds: Double(still))
+            func awakeStill(_ still: Int) -> Double {
+                guard !bucket.inUsualSleepWindow, still > 0 else { return 0 }
+                everydaySeconds += still
+                return everydayKcal(basalPerSecond: basalPerSecond, seconds: Double(still))
             }
 
             if bucket.isOffWrist {
@@ -401,7 +404,8 @@ public enum WhoopEnergyModel {
             partial + pair.0.uncertaintyFraction * Double(pair.1.durationSeconds)
         }
         let uncertainty = min(0.60, uncertaintyNumerator / Double(duration))
-        return .init(totalKcal: total, everydayKcal: everyday, observedSeconds: observed, inferredSeconds: inferred,
+        return .init(totalKcal: total, everydayKcal: everyday, everydaySeconds: everydaySeconds,
+                     observedSeconds: observed, inferredSeconds: inferred,
                      modeledSeconds: modeled, physiologicalSeconds: physiological,
                      contextSeconds: contextSeconds, uncertaintyFraction: uncertainty, buckets: results,
                      aerobicSeconds: aerobic, hadLightActivity: light > 0)

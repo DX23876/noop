@@ -103,8 +103,9 @@ struct EnergyHeroCard: View {
 
     @ViewBuilder private var forgeBars: some View {
         let resting = summary.basalBurnedSoFar ?? 0
+        let everyday = summary.everydayBurnedSoFar ?? 0
         let active = summary.activeBurnedSoFar ?? 0
-        let total = summary.totalBurnedSoFar ?? (resting + active)
+        let total = summary.totalBurnedSoFar ?? (resting + everyday + active)
         let top = max(1, total, eatenKcal ?? 0)
         if total > 0 {
             VStack(alignment: .leading, spacing: 4) {
@@ -116,6 +117,10 @@ struct EnergyHeroCard: View {
                         if resting + active > 0 {
                             Rectangle().fill(StrandPalette.energyResting)
                                 .frame(width: proxy.size.width * resting / top)
+                            if everyday > 0 {
+                                Rectangle().fill(StrandPalette.energyEveryday)
+                                    .frame(width: proxy.size.width * everyday / top)
+                            }
                             Rectangle().fill(StrandPalette.energyActive)
                                 .frame(width: proxy.size.width * active / top)
                         } else {
@@ -198,6 +203,7 @@ struct EnergyHeroCard: View {
 
     private var mark: some View {
         EnergyCompositionMark(restingKcal: summary.basalBurnedSoFar,
+                              everydayKcal: summary.everydayBurnedSoFar,
                               activeKcal: summary.activeBurnedSoFar,
                               hasTotal: summary.totalBurnedSoFar != nil)
             .frame(width: 112, height: 112)
@@ -299,6 +305,13 @@ struct EnergyHeroCard: View {
                   symbol: "bed.double.fill", color: StrandPalette.energyResting,
                   approximate: summary.basalBurnedSoFar == nil,
                   share: share(summary.basalBurnedSoFar)),
+        ]
+        if let everyday = summary.everydayBurnedSoFar, everyday > 0 {
+            items.append(.init(label: "Everyday", spoken: String(localized: "Everyday"),
+                               kcal: everyday, symbol: "chair.lounge.fill", color: StrandPalette.energyEveryday,
+                               approximate: false, share: share(everyday)))
+        }
+        items += [
             .init(label: "Active", spoken: String(localized: "Active"),
                   kcal: summary.activeBurnedSoFar, symbol: "figure.run",
                   color: StrandPalette.energyActive, approximate: false,
@@ -317,8 +330,8 @@ struct EnergyHeroCard: View {
         return items
     }
 
-    /// Every share is of the day's TOTAL — one denominator for all four, so basal and active come to
-    /// 100 % and the two halves of active come to whatever active is. A share of anything else is
+    /// Every share is of the day's TOTAL — one denominator for all of them, so basal, everyday and active
+    /// come to 100 % and the two halves of active come to whatever active is. A share of anything else is
     /// the kind of percentage that survives review and confuses everyone afterwards.
     private func share(_ value: Double?) -> Double? {
         guard let value, value.isFinite, value >= 0,

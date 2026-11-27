@@ -209,6 +209,28 @@ final class ForgeFoodModel {
                                     dietBreakEveryWeeks: DietProgram.dietBreakEveryWeeks(plan))
     }
 
+    /// The plan moves to the strap's current energy model once its history has been recomputed under it
+    /// (`DietBurnModelChange`): Forge's old adjustments start from zero and the Food page says once what changed.
+    /// Before the recompute the burn mean still mixes model generations, so the plan waits.
+    private func adoptBurnModel() {
+        let current = WhoopDailyEnergyEstimate.modelVersion
+        guard let existing = plan,
+              UserDefaults.standard.string(forKey: Repository.energyHistoryModelKey) == current,
+              let adopted = DietBurnModelChange.adopt(existing, current: current,
+                                                      everydayMeanKcal: energy.burn.everydayMeanKcal,
+                                                      today: Repository.localDayKey(.now)),
+              let raw = adopted.encoded() else { return }
+        UserDefaults.standard.set(raw, forKey: DietPlan.storageKey)
+        plan = adopted
+    }
+
+    /// The note about the burn model is read.
+    func dismissBurnModelNote() {
+        guard var current = plan, current.burnModelNoteKcal != nil else { return }
+        current.burnModelNoteKcal = nil
+        savePlan(current)
+    }
+
     /// Saves a plan from the planner or the plan page and recomputes every goal from it.
     func savePlan(_ next: DietPlan?) {
         if let next, let raw = next.encoded() {
@@ -296,6 +318,7 @@ final class ForgeFoodModel {
                             age: profile.age > 0 ? Int(profile.age) : nil,
                             male: profile.sex.lowercased() == "male" ? true : profile.sex.lowercased() == "female" ? false : nil)
         strapBurnKcal = energy.burn.measuredMeanKcal ?? energy.burn.allDaysMeanKcal ?? energy.formulaTdee(profile: profile)
+        adoptBurnModel()
         kcalPerKg = energy.observedKcalPerKg
         burnedByDay = energy.burnedByDay
         await loadBody(repo: repo)

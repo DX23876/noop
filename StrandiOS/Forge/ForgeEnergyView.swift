@@ -104,7 +104,7 @@ struct ForgeEnergyView: View {
             ToolbarItem(placement: .primaryAction) {
                 ExplainerInfoButton(
                     title: String(localized: "Burned and eaten"),
-                    text: String(localized: "Burned is what your body uses at rest plus what activity adds. Eaten is what you logged. The balance between them is best read over a week, not a single day.")) {
+                    text: String(localized: "Burned is what your body uses at rest, what sitting and standing add, and what activity adds. Eaten is what you logged. The balance between them is best read over a week, not a single day.")) {
                         ExplainerEnergyBars()
                     }
             }
@@ -202,7 +202,8 @@ struct ForgeEnergyView: View {
     private func hero(_ s: DailyEnergySummary) -> some View {
         let card = EnergyHeroCard(summary: s, breakdown: breakdown, eatenKcal: eaten)
         return VStack(spacing: 16) {
-            ForgeEnergyRing(resting: s.basalBurnedSoFar, active: s.activeBurnedSoFar, total: s.totalBurnedSoFar,
+            ForgeEnergyRing(resting: s.basalBurnedSoFar, everyday: s.everydayBurnedSoFar,
+                            active: s.activeBurnedSoFar, total: s.totalBurnedSoFar,
                             usual: usualTotal, totalText: Self.plainTotal(s), selectedDay: selectedDay)
                 .frame(width: 200, height: 200)
                 .padding(.top, 4)
@@ -260,6 +261,10 @@ struct ForgeEnergyView: View {
     private func figures(_ s: DailyEnergySummary) -> some View {
         HStack(alignment: .top, spacing: 8) {
             figure(StrandPalette.forgeEnergyResting, String(localized: "Resting"), s.basalBurnedSoFar)
+            // A strap day's everyday share; an Apple day has none to show (its own model splits the day).
+            if let everyday = s.everydayBurnedSoFar, everyday > 0 {
+                figure(StrandPalette.forgeEnergyEveryday, String(localized: "Everyday"), everyday)
+            }
             figure(StrandPalette.forgeEnergyActive, String(localized: "Active"), s.activeBurnedSoFar)
             // Eaten only on a day with logged meals: a dash every day reads as a missing figure.
             if let eaten { figure(ForgeColor.charge, String(localized: "Eaten"), eaten) }
@@ -292,6 +297,16 @@ struct ForgeEnergyView: View {
                 partRow(symbol: "bed.double.fill", tint: StrandPalette.forgeEnergyResting, title: String(localized: "Basal burn"),
                         value: s.basalBurnedSoFar ?? s.estimatedBMR24h, share: s.basalBurnedSoFar.map { $0 / total })
                 ForgeRowDivider()
+                if let everyday = s.everydayBurnedSoFar, everyday > 0 {
+                    partRow(symbol: "chair.lounge.fill", tint: StrandPalette.forgeEnergyEveryday,
+                            title: String(localized: "Everyday"), value: everyday, share: everyday / total,
+                            info: AnyView(ExplainerInfoButton(
+                                title: String(localized: "Everyday"),
+                                text: String(localized: "Sitting, standing and small things cost more than lying in bed. Awake time without steps or training counts a little above your resting burn. Sleep stays at your resting burn.")) {
+                                    ExplainerEverydayBars()
+                                }))
+                    ForgeRowDivider()
+                }
                 partRow(symbol: "figure.walk", tint: StrandPalette.forgeEnergyMovement, title: String(localized: "Daily movement"),
                         value: breakdown.movementKcal, share: breakdown.movementKcal / total)
                 ForgeRowDivider()
@@ -302,13 +317,15 @@ struct ForgeEnergyView: View {
         }
     }
 
-    private func partRow(symbol: String, tint: Color, title: String, value: Double?, share: Double?) -> some View {
+    private func partRow(symbol: String, tint: Color, title: String, value: Double?, share: Double?,
+                         info: AnyView? = nil) -> some View {
         HStack(spacing: 12) {
             Image(systemName: symbol).font(.system(.footnote, weight: .semibold)).foregroundStyle(tint)
                 .frame(width: 32, height: 32).background(Circle().fill(tint.opacity(ForgeOpacity.wash)))
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(title).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    if let info { info.frame(width: 28, height: 20) }
                     Spacer(minLength: 8)
                     Text(value.map(kcal) ?? "–").font(ForgeFont.figure(17)).foregroundStyle(ForgeColor.text)
                         .monospacedDigit()
@@ -378,6 +395,10 @@ struct ForgeEnergyView: View {
                 guard let total = s.totalBurnedSoFar, total > 0 else { continue }
                 if let rest = s.basalBurnedSoFar, let active = s.activeBurnedSoFar, rest + active > 0 {
                     out.append(.init(id: s.day + "r", date: date, part: "resting", value: rest, color: StrandPalette.forgeEnergyResting))
+                    if let everyday = s.everydayBurnedSoFar, everyday > 0 {
+                        out.append(.init(id: s.day + "e", date: date, part: "everyday", value: everyday,
+                                         color: StrandPalette.forgeEnergyEveryday))
+                    }
                     out.append(.init(id: s.day + "a", date: date, part: "active", value: active, color: StrandPalette.forgeEnergyActive))
                 } else {
                     // A summary without the split is one block rather than an invented share.
@@ -582,6 +603,8 @@ struct ForgeEnergyView: View {
 /// usual fills the ring; the page says the gap in words under it. Draws in when it comes into view and again per day.
 struct ForgeEnergyRing: View {
     let resting: Double?
+    /// Everyday burn between resting and active; nil or zero draws the two-part ring as before.
+    var everyday: Double? = nil
     let active: Double?
     let total: Double?
     let usual: Double?
@@ -602,6 +625,10 @@ struct ForgeEnergyRing: View {
         if let resting, let active, resting + active > 0 { return resting / scale }
         return total / scale
     }
+    private var everydayFraction: Double {
+        guard let resting, let active, resting + active > 0, let everyday, everyday > 0 else { return 0 }
+        return everyday / scale
+    }
     private var activeFraction: Double {
         guard let resting, let active, resting + active > 0 else { return 0 }
         return active / scale
@@ -613,13 +640,17 @@ struct ForgeEnergyRing: View {
             // A soft glow under the arcs, as the score rings carry one.
             Group {
                 arc(from: 0, to: restFraction, color: StrandPalette.forgeEnergyResting)
-                arc(from: restFraction, to: restFraction + activeFraction, color: StrandPalette.forgeEnergyActive)
+                arc(from: restFraction, to: restFraction + everydayFraction, color: StrandPalette.forgeEnergyEveryday)
+                arc(from: restFraction + everydayFraction, to: restFraction + everydayFraction + activeFraction,
+                    color: StrandPalette.forgeEnergyActive)
             }
             .blur(radius: compact ? 5 : 9)
             .opacity(colorScheme == .dark ? 0.6 : 0.35)
             .accessibilityHidden(true)
             arc(from: 0, to: restFraction, color: StrandPalette.forgeEnergyResting)
-            arc(from: restFraction, to: restFraction + activeFraction, color: StrandPalette.forgeEnergyActive)
+            arc(from: restFraction, to: restFraction + everydayFraction, color: StrandPalette.forgeEnergyEveryday)
+            arc(from: restFraction + everydayFraction, to: restFraction + everydayFraction + activeFraction,
+                color: StrandPalette.forgeEnergyActive)
             if total == nil, compact {
                 // The tile says it in a sentence beside the ring; the ring holds only the flame.
                 Image(systemName: "flame.fill").font(.system(size: 26))

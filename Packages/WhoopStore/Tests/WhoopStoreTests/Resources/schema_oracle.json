@@ -967,8 +967,8 @@
      "default": null
     },
     {
-     "name": "everydayKcal",
-     "affinity": "REAL",
+     "name": "everydaySeconds",
+     "affinity": "INTEGER",
      "notNull": true,
      "default": "0"
     },

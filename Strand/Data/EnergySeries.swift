@@ -230,7 +230,8 @@ extension Repository {
         let counted = rows.filter { $0.bucketStart < Int(now.timeIntervalSince1970) }
         let bucketEveryday = counted.reduce(0) { $0 + $1.everydayKcal }
         let dayEveryday = (try? await store.whoopDailyEnergy(deviceId: deviceId, from: day, to: day))?
-            .first { $0.modelVersion == WhoopDailyEnergyEstimate.modelVersion }?.everydayKcal
+            .first { $0.modelVersion == WhoopDailyEnergyEstimate.modelVersion }
+            .map { WhoopEnergyModel.everydayKcal(basalPerSecond: bmr / 86_400, seconds: Double($0.everydaySeconds)) }
         let everydayScale = bucketEveryday > 0 ? max(1, (dayEveryday ?? bucketEveryday) / bucketEveryday) : 1
         var active = 0.0
         var everyday = 0.0

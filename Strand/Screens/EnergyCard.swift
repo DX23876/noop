@@ -73,6 +73,7 @@ struct EnergyCard: View {
                     if compact {
                         headline
                         EnergyCompositionBar(restingKcal: summary.basalBurnedSoFar,
+                                             everydayKcal: summary.everydayBurnedSoFar,
                                              activeKcal: summary.activeBurnedSoFar)
                             .accessibilityHidden(true)
                     } else if dynamicTypeSize.isAccessibilitySize {
@@ -103,6 +104,7 @@ struct EnergyCard: View {
 
     private var energyMark: some View {
         EnergyCompositionMark(restingKcal: summary.basalBurnedSoFar,
+                              everydayKcal: summary.everydayBurnedSoFar,
                               activeKcal: summary.activeBurnedSoFar,
                               hasTotal: summary.totalBurnedSoFar != nil)
             .frame(width: 104, height: 104)
@@ -144,6 +146,10 @@ struct EnergyCard: View {
         EnergyStat(label: restingLabel, value: kcal(summary.basalBurnedSoFar ?? summary.estimatedBMR24h),
                    symbol: "bed.double.fill", color: StrandPalette.energyResting,
                    approximate: summary.basalBurnedSoFar == nil)
+        if let everyday = summary.everydayBurnedSoFar, everyday > 0 {
+            EnergyStat(label: "Everyday", value: kcal(everyday),
+                       symbol: "chair.lounge.fill", color: StrandPalette.energyEveryday)
+        }
         EnergyStat(label: "Active", value: kcal(summary.activeBurnedSoFar),
                    symbol: "figure.run", color: StrandPalette.energyActive)
         EnergyStat(label: "Projected", value: kcal(summary.projectedTotalBurn),
@@ -256,6 +262,9 @@ struct EnergyCard: View {
         if let resting = kcal(summary.basalBurnedSoFar ?? summary.estimatedBMR24h) {
             parts.append("\(String(localized: "Resting")): \(resting)")
         }
+        if let everyday = summary.everydayBurnedSoFar, everyday > 0, let text = kcal(everyday) {
+            parts.append("\(String(localized: "Everyday")): \(text)")
+        }
         // The pill and the projection were visible but never spoken.
         if let projected = kcal(summary.projectedTotalBurn) {
             parts.append("\(String(localized: "Projected")): ~\(projected)")
@@ -280,19 +289,28 @@ enum EnergyDisplay {
 
 struct EnergyCompositionMark: View {
     let restingKcal: Double?
+    /// Everyday burn between resting and active; nil or zero leaves the two-part mark as it was.
+    var everydayKcal: Double? = nil
     let activeKcal: Double?
     let hasTotal: Bool
 
-    static func fractions(resting: Double?, active: Double?) -> (resting: Double, active: Double)? {
-        let resting = max(0, resting ?? 0)
-        let active = max(0, active ?? 0)
-        let total = resting + active
-        guard total > 0 else { return nil }
-        return (resting / total, active / total)
+    struct Fractions: Equatable {
+        let resting: Double
+        let everyday: Double
+        let active: Double
     }
 
-    private var fractions: (resting: Double, active: Double)? {
-        Self.fractions(resting: restingKcal, active: activeKcal)
+    static func fractions(resting: Double?, everyday: Double? = nil, active: Double?) -> Fractions? {
+        let resting = max(0, resting ?? 0)
+        let everyday = max(0, everyday ?? 0)
+        let active = max(0, active ?? 0)
+        let total = resting + everyday + active
+        guard total > 0 else { return nil }
+        return Fractions(resting: resting / total, everyday: everyday / total, active: active / total)
+    }
+
+    private var fractions: Fractions? {
+        Self.fractions(resting: restingKcal, everyday: everydayKcal, active: activeKcal)
     }
 
     /// Static, but in the hero rings' light: gradient arcs with a soft glow beneath them and a warm
@@ -320,14 +338,19 @@ struct EnergyCompositionMark: View {
     }
 
     @ViewBuilder
-    private func arcs(_ fractions: (resting: Double, active: Double)) -> some View {
+    private func arcs(_ fractions: Fractions) -> some View {
         ZStack {
             Circle()
                 .trim(from: 0, to: fractions.resting)
                 .stroke(StrandPalette.energyResting, style: .init(lineWidth: 11, lineCap: .butt))
+            if fractions.everyday > 0 {
+                Circle()
+                    .trim(from: fractions.resting, to: fractions.resting + fractions.everyday)
+                    .stroke(StrandPalette.energyEveryday, style: .init(lineWidth: 11, lineCap: .butt))
+            }
             if fractions.active > 0 {
                 Circle()
-                    .trim(from: fractions.resting, to: 1)
+                    .trim(from: fractions.resting + fractions.everyday, to: 1)
                     .stroke(StrandPalette.energyActive, style: .init(lineWidth: 11, lineCap: .round))
             }
         }
@@ -338,15 +361,21 @@ struct EnergyCompositionMark: View {
 /// The resting/active split as one thin bar, for the compact card.
 struct EnergyCompositionBar: View {
     let restingKcal: Double?
+    var everydayKcal: Double? = nil
     let activeKcal: Double?
 
     var body: some View {
         GeometryReader { proxy in
-            let fractions = EnergyCompositionMark.fractions(resting: restingKcal, active: activeKcal)
+            let fractions = EnergyCompositionMark.fractions(resting: restingKcal, everyday: everydayKcal,
+                                                            active: activeKcal)
             HStack(spacing: fractions.map { $0.active > 0 && $0.resting > 0 } == true ? 2 : 0) {
                 if let fractions {
                     Capsule().fill(StrandPalette.energyResting)
                         .frame(width: max(0, proxy.size.width * fractions.resting - 1))
+                    if fractions.everyday > 0 {
+                        Capsule().fill(StrandPalette.energyEveryday)
+                            .frame(width: max(0, proxy.size.width * fractions.everyday - 1))
+                    }
                     Capsule().fill(StrandPalette.energyActive)
                 } else {
                     Capsule().fill(StrandPalette.energyTrack)

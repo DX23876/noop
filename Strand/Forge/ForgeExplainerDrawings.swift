@@ -485,6 +485,7 @@ private struct ExplainerWave: Shape {
 /// The day's energy: what was burned, split in two, beside what was eaten.
 struct ExplainerEnergyBars: View {
     private var resting: Color { StrandPalette.energyResting }
+    private var everyday: Color { StrandPalette.energyEveryday }
     private var activity: Color { StrandPalette.energyActive }
     private var eaten: Color { StrandPalette.textPrimary }
 
@@ -494,7 +495,8 @@ struct ExplainerEnergyBars: View {
                 row(String(localized: "Burned")) {
                     GeometryReader { geo in
                         HStack(spacing: 2) {
-                            segment(String(localized: "Resting"), resting).frame(width: geo.size.width * 0.66)
+                            segment(String(localized: "Resting"), resting).frame(width: geo.size.width * 0.52)
+                            segment(String(localized: "Everyday"), everyday).frame(width: geo.size.width * 0.2)
                             segment(String(localized: "Active"), activity)
                         }
                     }
@@ -524,6 +526,38 @@ struct ExplainerEnergyBars: View {
                     .lineLimit(1).minimumScaleFactor(0.6)
                     .padding(.horizontal, 6)
             }
+    }
+}
+
+/// Everyday burn: lying, sitting and standing still each cost a little more than the one before
+/// (Mansoubi 2015: sitting about 1.3 to 1.45, standing about 1.6 times resting). Bars on one baseline, the
+/// part above resting in the everyday colour, so the picture says what the number adds.
+struct ExplainerEverydayBars: View {
+    private let rows: [(LocalizedStringKey, Double)] = [("Lying", 1.0), ("Sitting", 1.35), ("Standing", 1.6)]
+
+    var body: some View {
+        ExplainerPanel(tint: StrandPalette.energyEveryday, height: 160) {
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(rows.indices, id: \.self) { index in
+                    let row = rows[index]
+                    HStack(spacing: 10) {
+                        Text(row.0).font(StrandFont.caption.weight(.semibold))
+                            .foregroundStyle(StrandPalette.textPrimary)
+                            .frame(width: 76, alignment: .leading)
+                        GeometryReader { geo in
+                            let unit = geo.size.width / 1.7
+                            HStack(spacing: 2) {
+                                Capsule().fill(StrandPalette.energyResting).frame(width: unit)
+                                if row.1 > 1 {
+                                    Capsule().fill(StrandPalette.energyEveryday).frame(width: unit * (row.1 - 1))
+                                }
+                            }
+                        }
+                        .frame(height: 22)
+                    }
+                }
+            }
+        }
     }
 }
 

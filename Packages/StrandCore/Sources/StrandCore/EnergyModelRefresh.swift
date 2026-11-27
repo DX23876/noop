@@ -317,11 +317,6 @@ public enum EnergyModelRefresh {
                     .hour, from: Date(timeIntervalSince1970: TimeInterval(bucket.start)))
                 activeByHour[hour, default: 0] += active
             }
-            // The awake time no bucket represented takes the allowance on the same basal the buckets used.
-            let unrepresentedEveryday = Calories.bmrKcalPerDay(profile: dayProfile).map {
-                WhoopEnergyModel.everydayKcal(basalPerSecond: $0 / 86_400,
-                                              seconds: Double(entry.unrepresentedAwakeSeconds))
-            } ?? 0
             let row = WhoopDailyEnergyRow(
                 day: day, rawTotalKcal: estimate.totalKcal,
                 modelVersion: WhoopDailyEnergyEstimate.modelVersion,
@@ -337,7 +332,8 @@ public enum EnergyModelRefresh {
                 peakMET: ceiling?.peakMET, peakMETSource: ceiling?.source.rawValue,
                 peakMETSourceDay: ceiling?.sourceDay, measuredVO2max: ceiling?.measuredVO2max,
                 measuredWeightKg: ceiling?.measuredWeightKg, activityLevel: ceiling?.activityLevel?.rawValue,
-                everydayKcal: estimate.everydayKcal + unrepresentedEveryday,
+                // Seconds, priced when the day is shown, at the basal rate it is shown with.
+                everydaySeconds: estimate.everydaySeconds + entry.unrepresentedAwakeSeconds,
                 sleepWindowStartMinute: entry.sleepWindow.startMinute,
                 sleepWindowEndMinute: entry.sleepWindow.endMinute)
             let storedBuckets = estimate.buckets.compactMap { bucket -> WhoopEnergyBucketRow? in

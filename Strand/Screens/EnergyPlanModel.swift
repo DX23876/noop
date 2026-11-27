@@ -67,7 +67,7 @@ final class EnergyPlanModel: ObservableObject {
         let days = summaries.filter { $0.day < today }.compactMap { summary -> BurnDay? in
             guard let total = summary.totalBurnedSoFar else { return nil }
             return BurnDay(day: summary.day, totalKcal: total, source: summary.source,
-                           coverage: summary.coverage.energy)
+                           coverage: summary.coverage.energy, everydayKcal: summary.everydayBurnedSoFar)
         }
         burn = EnergyPlanning.measuredBurn(days: days)
         burnedByDay = Dictionary(summaries.compactMap { s in s.totalBurnedSoFar.map { (s.day, $0) } },
@@ -151,7 +151,8 @@ final class EnergyPlanModel: ObservableObject {
                              weightKg: metrics.value("weight", on: today) ?? profile.weightKg,
                              heightCm: metrics.value("height", on: today) ?? profile.heightCm,
                              age: profile.age, sex: profile.sex,
-                             bodyFatPercent: bodyFatToday?.value)
+                             bodyFatPercent: bodyFatToday?.value,
+                             measuredFactor: EnergyPlanStore.measuredRate?.factor)
     }
 
     /// What the formula page predicts: basal rate times the stated activity convention.
@@ -167,7 +168,16 @@ final class EnergyPlanModel: ObservableObject {
                               weightKg: metrics.value("weight", on: today) ?? profile.weightKg,
                               heightCm: metrics.value("height", on: today) ?? profile.heightCm,
                               age: profile.age, sex: profile.sex,
-                              bodyFatPercent: bodyFatToday?.value)
+                              bodyFatPercent: bodyFatToday?.value,
+                              measuredFactor: EnergyPlanStore.measuredRate?.factor)
+    }
+
+    /// A measured resting rate for the body on `day`, from the weight and height in force then.
+    func measuredRate(kcalPerDay: Double, on day: String, profile: UserProfile) -> MeasuredRestingRate? {
+        MeasuredRestingRate.make(kcalPerDay: kcalPerDay, day: day,
+                                 weightKg: metrics.value("weight", on: day) ?? profile.weightKg,
+                                 heightCm: metrics.value("height", on: day) ?? profile.heightCm,
+                                 age: profile.age, sex: profile.sex)
     }
 
     /// Whether a formula can be selected at all today. Katch-McArdle needs a body-fat reading.

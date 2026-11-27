@@ -186,6 +186,8 @@ private fun holdText(hold: String): String = stringResource(when (hold) {
     "notAWeekYet" -> R.string.diet_hold_week
     "fewLoggedDays" -> R.string.diet_hold_logs
     "fewWeighIns" -> R.string.diet_hold_weighins
+    "dietBreak" -> R.string.diet_hold_break
+    "burnModelChanged" -> R.string.diet_hold_burn_model
     else -> R.string.diet_hold_on_plan
 })
 
@@ -568,6 +570,24 @@ private fun Dial(label: String, value: Double, range: ClosedFloatingPointRange<F
 }
 
 /** The plan in one line at the top of Nutrition. */
+/** iOS `DietBurnModelNote`: once, after the strap's energy model changed under the plan, what it did to the goal. */
+@Composable
+internal fun DietBurnModelNote(plan: CoreDietPlan.Plan, onDismiss: () -> Unit) {
+    val note = plan.burnModelNoteKcal ?: return
+    if (plan.hideNumbers) return
+    val colors = Forge.colors
+    val amount = NumberFormat.getIntegerInstance(Locale.getDefault()).format(kotlin.math.abs(note).roundToInt())
+    ForgeCard(Modifier.fillMaxWidth(), contentPadding = ForgeMetrics.space4) {
+        Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+            Text(stringResource(R.string.diet_burn_note_title), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                 color = colors.textSecondary)
+            Text(stringResource(if (note > 0) R.string.diet_burn_note_up else R.string.diet_burn_note_down, amount),
+                 style = Forge.type.body, color = colors.text)
+            OutlinedButton(onClick = onDismiss) { Text(stringResource(R.string.diet_burn_note_ok)) }
+        }
+    }
+}
+
 @Composable
 internal fun DietPlanLine(plan: CoreDietPlan.Plan?, resolved: CoreDietPlan.Resolved?, onClick: () -> Unit) {
     val context = LocalContext.current

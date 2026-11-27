@@ -14,6 +14,12 @@ enum CoreEnergyPlan {
         var available: Bool
         var measuredMeanKcal: Double?
         var allDaysMeanKcal: Double?
+        /// The everyday share's mean over the same days, for the plan's burn-model note (`DietBurnModelChange`).
+        var everydayMeanKcal: Double?
+        /// The measured resting rate, when one is entered: its value, its day and whether it is over a year old.
+        var measuredBasalKcal: Double?
+        var measuredBasalDay: String?
+        var measuredBasalOld: Bool = false
         var measuredDays: Int
         var totalDays: Int
         var burnQuality: String?
@@ -62,7 +68,8 @@ enum CoreEnergyPlan {
                                         adaptivePrior: balance?.estimatedDailyKcal)
         // Today is excluded: a day still in progress has a partial total.
         let burn = EnergyPlanning.measuredBurn(days: summaries.filter { $0.day < today }.compactMap { s in
-            s.totalBurnedSoFar.map { BurnDay(day: s.day, totalKcal: $0, source: s.source, coverage: s.coverage.energy) }
+            s.totalBurnedSoFar.map { BurnDay(day: s.day, totalKcal: $0, source: s.source, coverage: s.coverage.energy,
+                                             everydayKcal: s.everydayBurnedSoFar) }
         })
         let nutrition = await NutritionReads.nutritionByDay(store: reader.store,
             from: StoreReader.localDayKey(now.addingTimeInterval(-Double(windowDays) * 86_400)), to: today)
@@ -79,13 +86,15 @@ enum CoreEnergyPlan {
                                                       carbsG: todayNutrition?.carbsG, fatG: todayNutrition?.fatG),
             projectedBurnKcal: todaySummary?.projectedTotalBurn, projectedBurnRange: todaySummary?.projectedRangeKcal)
 
+        let measuredBasal = settings.measuredBasal
         // The formula page and the corridor, as `EnergyPlanModel` derives them from today's body data.
         let current = profile.basalFormula
         let weight = metrics.value("weight", on: today) ?? profile.weightKg
         let height = metrics.value("height", on: today) ?? profile.heightCm
         let bodyFat = metrics.asOf("body_fat", day: today)?.value
         func basal(_ f: BasalFormula) -> Double? {
-            BasalRate.kcalPerDay(f, weightKg: weight, heightCm: height, age: profile.age, sex: profile.sex, bodyFatPercent: bodyFat)
+            BasalRate.kcalPerDay(f, weightKg: weight, heightCm: height, age: profile.age, sex: profile.sex, bodyFatPercent: bodyFat,
+                                 measuredFactor: profile.measuredBasalFactor)
         }
         let formulaTdee = basal(current).flatMap { EnergyPlanning.formulaTdee(basalKcal: $0, activity: activity) }
         let corridor = EnergyCorridor(formulaKcal: formulaTdee, measuredKcal: burn.measuredMeanKcal ?? burn.allDaysMeanKcal,
@@ -99,6 +108,9 @@ enum CoreEnergyPlan {
         return Output(
             today: today, available: true,
             measuredMeanKcal: burn.measuredMeanKcal, allDaysMeanKcal: burn.allDaysMeanKcal,
+            everydayMeanKcal: burn.everydayMeanKcal,
+            measuredBasalKcal: measuredBasal?.kcalPerDay, measuredBasalDay: measuredBasal?.day,
+            measuredBasalOld: measuredBasal?.isOld(today: now) ?? false,
             measuredDays: burn.measuredDays, totalDays: burn.totalDays, burnQuality: burn.quality.rawValue,
             balanceIntakeDays: balance?.intakeDays,
             balanceKcal: balance?.estimatedDailyKcal, balanceLowKcal: balance?.lowerBoundKcal, balanceHighKcal: balance?.upperBoundKcal,
@@ -116,7 +128,8 @@ enum CoreEnergyPlan {
             formulas: BasalFormula.allCases.map { f in
                 Formula(formula: f.rawValue, basalKcal: basal(f), available: !f.needsBodyFat || bodyFat != nil,
                         switchDeltaKcal: BasalRate.switchDelta(from: current, to: f, weightKg: weight, heightCm: height,
-                                                               age: profile.age, sex: profile.sex, bodyFatPercent: bodyFat))
+                                                               age: profile.age, sex: profile.sex, bodyFatPercent: bodyFat,
+                                                               measuredFactor: profile.measuredBasalFactor))
             },
             corridorKcal: corridor.present, corridorSpreadKcal: corridor.spreadKcal,
             burnedByDay: Dictionary(summaries.compactMap { s in s.totalBurnedSoFar.map { (s.day, $0) } },

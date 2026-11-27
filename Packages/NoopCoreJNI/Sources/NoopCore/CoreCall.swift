@@ -702,6 +702,17 @@ public enum CoreCall {
         case "energy.detail":
             return CoreRead.json(await CoreEnergyDetail.read(reader: reader, settings: CoreGoalEnergy.settings(args),
                                                              day: string("day"), comparison: string("comparison")))
+        case "energy.measuredBasal":
+            // iOS `EnergyPlanModel.measuredRate`: a measured resting rate for the body on its day, kept as its ratio
+            // to Mifflin–St Jeor (`MeasuredRestingRate`), with whether it is within 40 % of the equation.
+            guard let kcal = (args["kcalPerDay"] as? NSNumber)?.doubleValue,
+                  let weight = (args["weightKg"] as? NSNumber)?.doubleValue,
+                  let height = (args["heightCm"] as? NSNumber)?.doubleValue,
+                  let age = (args["age"] as? NSNumber)?.doubleValue,
+                  let rate = MeasuredRestingRate.make(kcalPerDay: kcal, day: string("day"), weightKg: weight,
+                                                      heightCm: height, age: age, sex: string("sex"))
+            else { return #"{"error":"invalid"}"# }
+            return CoreRead.json(["rate": rate.encodedJSON(), "plausible": rate.isPlausible ? "true" : "false"])
         case "energy.switchFormula":
             // Append-only, as `EnergyPlanStore.switchFormula` does on Apple: the switch applies from today.
             guard let formula = BasalFormula(rawValue: string("formula")) else { return #"{"error":"invalid"}"# }

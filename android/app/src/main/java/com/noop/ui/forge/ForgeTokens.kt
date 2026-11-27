@@ -203,6 +203,8 @@ object ForgeTokens {
         val forgeEnergyMovement = ForgeColor(light = 0xFFE0A800, dark = 0xFFFFD84A)
         val forgeEnergyResting = ForgeColor(light = 0xFFE5533D, dark = 0xFFFF6B4A)
         val forgeEnergyTraining = ForgeColor(light = 0xFFEB6A00, dark = 0xFFFF9433)
+        /** iOS `forgeEnergyEveryday`: sitting, standing and small things above resting. */
+        val forgeEnergyEveryday = ForgeColor(light = 0xFFF0846A, dark = 0xFFFFA48C)
         val gold = ForgeColor(light = 0xFF3A78C8, dark = 0xFF60A0E0)
         val goldDeep = ForgeColor(light = 0xFF2A5C9E, dark = 0xFF3A78C8)
         val goldDeepText = ForgeColor(light = 0xFFFFFFFF, dark = 0xFFFFFFFF)

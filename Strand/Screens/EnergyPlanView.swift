@@ -303,7 +303,8 @@ struct EnergyPlanView: View {
             }
             ForEach(BasalFormula.allCases, id: \.self) { formula in
                 Button {
-                    if formula != model.currentFormula, model.isAvailable(formula) {
+                    // A measured rate can be entered again while it is the formula in use.
+                    if (formula != model.currentFormula || formula.needsMeasurement), model.isAvailable(formula) {
                         switching = formula
                     }
                 } label: {
@@ -317,7 +318,12 @@ struct EnergyPlanView: View {
                                 .foregroundStyle(model.isAvailable(formula)
                                                  ? StrandPalette.textPrimary
                                                  : StrandPalette.textTertiary)
-                            if formula.needsBodyFat, model.bodyFatToday == nil {
+                            if formula.needsMeasurement {
+                                Text(measuredLine)
+                                    .font(StrandFont.caption)
+                                    .foregroundStyle(StrandPalette.textTertiary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            } else if formula.needsBodyFat, model.bodyFatToday == nil {
                                 Text("Needs a body-fat reading")
                                     .font(StrandFont.caption)
                                     .foregroundStyle(StrandPalette.textTertiary)
@@ -914,11 +920,23 @@ struct EnergyPlanView: View {
     /// files it as a string awaiting translation that can never receive one, and the i18n gate counts
     /// it forever as an untranslated echo — its own baseline file says to ratchet that number DOWN,
     /// never up. `verbatim` keeps it out of the catalog, which is where a surname belongs.
+    /// Under "Measured resting rate": when it was measured, and whether it is old enough to measure again.
+    private var measuredLine: String {
+        guard let rate = EnergyPlanStore.measuredRate else {
+            return String(localized: "From a resting-rate measurement, for example at a sports doctor")
+        }
+        let day = WeightSeries.date(forDay: rate.day)?.formatted(date: .abbreviated, time: .omitted) ?? rate.day
+        return rate.isOld(today: Date())
+            ? String(localized: "Measured on \(day). More than a year ago, so a new measurement helps.")
+            : String(localized: "Measured on \(day)")
+    }
+
     private func formulaName(_ formula: BasalFormula) -> String {
         switch formula {
         case .revisedHarrisBenedict: return String(localized: "Revised Harris–Benedict")
         case .mifflinStJeor:         return "Mifflin-St Jeor"
         case .katchMcArdle:          return String(localized: "Katch-McArdle (lean mass)")
+        case .measured:              return String(localized: "Measured resting rate")
         }
     }
 

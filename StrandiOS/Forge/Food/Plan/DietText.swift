@@ -168,6 +168,7 @@ enum DietText {
         case .fewWeighIns: String(localized: "Too few weigh-ins this week to see a trend. Forge keeps your goal.")
         case .onPlan: String(localized: "Your weight follows the plan. Nothing to change.")
         case .dietBreak: String(localized: "This is a break week at maintenance. Forge looks again after it.")
+        case .burnModelChanged: String(localized: "Your burn is estimated more closely now, and your goal moved with it. Forge looks again in two weeks.")
         }
     }
 

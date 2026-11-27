@@ -20,6 +20,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import com.noop.core.CoreEnergyPlan
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -41,6 +44,7 @@ import androidx.compose.material.icons.rounded.VerifiedUser
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Hotel
+import androidx.compose.material.icons.rounded.Weekend
 import androidx.compose.material.icons.rounded.FitnessCenter
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.CalendarMonth
@@ -87,11 +91,20 @@ internal fun ForgeEnergyDetailPage(onBack: () -> Unit) {
     var loaded by remember { mutableStateOf(false) }
     var series by remember { mutableStateOf("burned") }
     var quality by remember { mutableStateOf(false) }
-    LaunchedEffect(day, comparison) {
+    var scale by remember { mutableStateOf<CoreEnergyPlan.Scale?>(null) }
+    var scaleRevision by remember { mutableStateOf(0) }
+    LaunchedEffect(day, comparison, scaleRevision) {
         detail = withContext(Dispatchers.IO) {
             CoreRead.open(context); CoreEnergyDetail.read(context, day, comparison, dismissedTrainingWorkouts(context))
         }
         loaded = true
+    }
+    LaunchedEffect(scaleRevision) {
+        scale = withContext(Dispatchers.IO) { CoreEnergyPlan.scale(context, dismissedTrainingWorkouts(context)) }
+    }
+    val scope = rememberCoroutineScope()
+    fun scaleAction(action: String) {
+        scope.launch { withContext(Dispatchers.IO) { CoreEnergyPlan.scaleAction(context, action) }; scaleRevision++ }
     }
     if (quality) {
         androidx.activity.compose.BackHandler { quality = false }
@@ -115,6 +128,7 @@ internal fun ForgeEnergyDetailPage(onBack: () -> Unit) {
         if (s != null && (s.total != null || eaten != null)) {
             Hero(s, d, eaten, isToday)
             Parts(s, d)
+            scale?.let { ScaleCard(it, ::scaleAction) }
             RateCard(d, isToday, comparison) { comparison = it }
         } else {
             EmptyCard(isToday)
@@ -125,6 +139,52 @@ internal fun ForgeEnergyDetailPage(onBack: () -> Unit) {
 }
 
 private fun kcalText(v: Double): String = NumberFormat.getIntegerInstance(Locale.getDefault()).format(v.roundToInt())
+
+/** iOS `ForgeScaleCard`: the scale against the strap, its proposal, the correction in use, or what is still missing. */
+@Composable
+private fun ScaleCard(s: CoreEnergyPlan.Scale, onAction: (String) -> Unit) {
+    val colors = Forge.colors
+    fun pct(f: Double): String {
+        val p = ((f - 1) * 100).roundToInt()
+        return (if (p > 0) "+" else if (p < 0) "−" else "") + kotlin.math.abs(p) + " %"
+    }
+    EnergySection(stringResource(R.string.energy_scale_title))
+    ForgeCard(Modifier.fillMaxWidth(), contentPadding = ForgeMetrics.space4) {
+        Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+            when (s.status) {
+                "proposed" -> {
+                    val scaleKcal = s.scaleKcal; val strapKcal = s.strapKcal
+                    if (scaleKcal != null && strapKcal != null) {
+                        Text(stringResource(R.string.energy_scale_proposal, kcalText(scaleKcal), kcalText(strapKcal)),
+                             style = Forge.type.body, color = colors.text)
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+                        androidx.compose.material3.Button(onClick = { onAction("accept") }) { Text(stringResource(R.string.energy_scale_accept)) }
+                        androidx.compose.material3.OutlinedButton(onClick = { onAction("decline") }) { Text(stringResource(R.string.energy_scale_decline)) }
+                    }
+                }
+                "active" -> {
+                    val since = s.sinceDay?.let { d -> runCatching { java.time.LocalDate.parse(d).format(java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM)) }.getOrDefault(d) } ?: ""
+                    Text(stringResource(R.string.energy_scale_active, since, pct(s.factor)), style = Forge.type.body, color = colors.text)
+                    if (s.holding) Text(stringResource(R.string.energy_scale_holding), style = Forge.type.caption, color = colors.textSecondary)
+                    androidx.compose.material3.OutlinedButton(onClick = { onAction("off") }) { Text(stringResource(R.string.energy_scale_off)) }
+                }
+                "off" -> {
+                    Text(stringResource(R.string.energy_scale_offstate), style = Forge.type.body, color = colors.text)
+                    androidx.compose.material3.OutlinedButton(onClick = { onAction("on") }) { Text(stringResource(R.string.energy_scale_on)) }
+                }
+                else -> {
+                    val line = when {
+                        s.holding -> stringResource(R.string.energy_scale_holding)
+                        s.tooUncertain -> stringResource(R.string.energy_scale_uncertain)
+                        else -> stringResource(R.string.energy_scale_missing, s.completeDays, s.weighIns)
+                    }
+                    Text(line, style = Forge.type.body, color = colors.textSecondary)
+                }
+            }
+        }
+    }
+}
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
@@ -183,7 +243,7 @@ private fun Hero(s: CoreEnergyDetail.Summary, d: CoreEnergyDetail.Detail, eaten:
     val colors = Forge.colors
     ForgeCard(Modifier.fillMaxWidth(), contentPadding = ForgeMetrics.space4) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space4)) {
-            EnergyRing(s.basal, s.active, s.total, d.usualTotal, Modifier.padding(top = 4.dp).size(200.dp))
+            EnergyRing(s.basal, s.everyday, s.active, s.total, d.usualTotal, Modifier.padding(top = 4.dp).size(200.dp))
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (s.total != null) Text(stringResource(if (isToday) R.string.forge_en_burned_so_far else R.string.forge_en_burned),
                                           style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
@@ -194,6 +254,9 @@ private fun Hero(s: CoreEnergyDetail.Summary, d: CoreEnergyDetail.Detail, eaten:
             if (s.total != null || eaten != null) {
                 Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
                     Figure(ForgeTokens.StrandPalette.forgeEnergyResting.resolve(), stringResource(R.string.forge_en_resting), s.basal, Modifier.weight(1f))
+                    if ((s.everyday ?: 0.0) > 0) {
+                        Figure(ForgeTokens.StrandPalette.forgeEnergyEveryday.resolve(), stringResource(R.string.forge_en_everyday), s.everyday, Modifier.weight(1f))
+                    }
                     Figure(ForgeTokens.StrandPalette.forgeEnergyActive.resolve(), stringResource(R.string.forge_en_active), s.active, Modifier.weight(1f))
                     if (eaten != null) Figure(colors.charge, stringResource(R.string.forge_en_eaten), eaten, Modifier.weight(1f))
                 }
@@ -254,16 +317,18 @@ private fun Figure(color: Color, title: String, value: Double?, modifier: Modifi
     }
 }
 
-/** iOS's `ForgeEnergyRing`: resting then active on a circle a usual day fills, the total in the middle. */
+/** iOS's `ForgeEnergyRing`: resting, everyday, then active on a circle a usual day fills, the total in the middle. */
 @Composable
-private fun EnergyRing(resting: Double?, active: Double?, total: Double?, usual: Double?, modifier: Modifier) {
+private fun EnergyRing(resting: Double?, everyday: Double?, active: Double?, total: Double?, usual: Double?, modifier: Modifier) {
     val colors = Forge.colors
     val rest = ForgeTokens.StrandPalette.forgeEnergyResting.resolve()
+    val daily = ForgeTokens.StrandPalette.forgeEnergyEveryday.resolve()
     val act = ForgeTokens.StrandPalette.forgeEnergyActive.resolve()
     val track = act.copy(alpha = 0.16f)
     val scale = maxOf(usual ?: 0.0, total ?: 0.0, 1.0)
     val split = resting != null && active != null && resting + active > 0
     val restFraction = if (total == null || total <= 0) 0.0 else if (split) resting!! / scale else total / scale
+    val everydayFraction = if (split && (everyday ?: 0.0) > 0) everyday!! / scale else 0.0
     val activeFraction = if (split) active!! / scale else 0.0
     val drawn = remember { androidx.compose.animation.core.Animatable(0f) }
     LaunchedEffect(restFraction, activeFraction) { drawn.snapTo(0f); drawn.animateTo(1f, androidx.compose.animation.core.tween(900)) }
@@ -279,7 +344,8 @@ private fun EnergyRing(resting: Double?, active: Double?, total: Double?, usual:
                 if (t > f) drawArc(c, -90f + 360f * f, 360f * (t - f), false, Offset(inset, inset), arcSize, style = Stroke(w, cap = StrokeCap.Round))
             }
             arc(0.0, restFraction, rest)
-            arc(restFraction, restFraction + activeFraction, act)
+            arc(restFraction, restFraction + everydayFraction, daily)
+            arc(restFraction + everydayFraction, restFraction + everydayFraction + activeFraction, act)
         }
         if (total == null) {
             Text(noData, style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.textSecondary,
@@ -336,6 +402,12 @@ private fun Parts(s: CoreEnergyDetail.Summary, d: CoreEnergyDetail.Detail) {
         PartRow(Icons.Rounded.Hotel, ForgeTokens.StrandPalette.forgeEnergyResting.resolve(), stringResource(R.string.forge_en_basal),
                 s.basal ?: s.bmr24h, s.basal?.let { it / total })
         HubDivider()
+        val everyday = s.everyday
+        if (everyday != null && everyday > 0) {
+            PartRow(Icons.Rounded.Weekend, ForgeTokens.StrandPalette.forgeEnergyEveryday.resolve(),
+                    stringResource(R.string.forge_en_everyday), everyday, everyday / total)
+            HubDivider()
+        }
         PartRow(Icons.AutoMirrored.Rounded.DirectionsWalk, ForgeTokens.StrandPalette.forgeEnergyMovement.resolve(),
                 stringResource(R.string.forge_en_movement), movement, movement / total)
         HubDivider()
@@ -403,6 +475,7 @@ private fun EmptyCard(isToday: Boolean) {
 private fun History(d: CoreEnergyDetail.Detail, series: String, onSeries: (String) -> Unit, onDay: (String) -> Unit) {
     val colors = Forge.colors
     val rest = ForgeTokens.StrandPalette.forgeEnergyResting.resolve()
+    val daily = ForgeTokens.StrandPalette.forgeEnergyEveryday.resolve()
     val act = ForgeTokens.StrandPalette.forgeEnergyActive.resolve()
     val days = d.summaries.filter { it.day != d.today }.sortedBy { it.day }
     data class Bar(val day: String, val parts: List<Pair<Double, Color>>)
@@ -413,7 +486,8 @@ private fun History(d: CoreEnergyDetail.Detail, series: String, onSeries: (Strin
                 if (e == null || t == null) null else (e - t).let { b -> Bar(s.day, listOf(b to if (b > 0) colors.effort else colors.charge)) } }
             else -> { val t = s.total
                 if (t == null || t <= 0) null
-                else if (s.basal != null && s.active != null && s.basal + s.active > 0) Bar(s.day, listOf(s.basal to rest, s.active to act))
+                else if (s.basal != null && s.active != null && s.basal + s.active > 0)
+                    Bar(s.day, listOfNotNull(s.basal to rest, s.everyday?.takeIf { it > 0 }?.let { it to daily }, s.active to act))
                 else Bar(s.day, listOf(t to rest)) }
         }
     }

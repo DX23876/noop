@@ -1728,13 +1728,16 @@ struct ForgeEnergyWidget: View {
         }
     }
 
-    /// "Resting 1.620 · Active 480", from the same summary the full card draws its ring from.
+    /// "Resting 1.620 · Everyday 480 · Active 480", from the same summary the full card draws its ring from.
     static func partsLine(_ summary: DailyEnergySummary?) -> String? {
         guard let summary, let resting = summary.basalBurnedSoFar, let active = summary.activeBurnedSoFar
         else { return nil }
-        let r = String(localized: "Resting") + " " + String(Int(resting.rounded()))
-        let a = String(localized: "Active") + " " + String(Int(active.rounded()))
-        return r + " · " + a
+        var parts = [String(localized: "Resting") + " " + String(Int(resting.rounded()))]
+        if let everyday = summary.everydayBurnedSoFar, everyday > 0 {
+            parts.append(String(localized: "Everyday") + " " + String(Int(everyday.rounded())))
+        }
+        parts.append(String(localized: "Active") + " " + String(Int(active.rounded())))
+        return parts.joined(separator: " · ")
     }
 
     @ViewBuilder private var full: some View {
@@ -1758,7 +1761,8 @@ struct ForgeEnergyWidget: View {
                     }
                 } else if let summary {
                     HStack(spacing: 16) {
-                        ForgeEnergyRing(resting: summary.basalBurnedSoFar, active: summary.activeBurnedSoFar,
+                        ForgeEnergyRing(resting: summary.basalBurnedSoFar, everyday: summary.everydayBurnedSoFar,
+                                        active: summary.activeBurnedSoFar,
                                         total: summary.totalBurnedSoFar, usual: usual,
                                         totalText: ForgeEnergyView.plainTotal(summary), selectedDay: summary.day, compact: true)
                             .frame(width: 104, height: 104)
@@ -1770,6 +1774,9 @@ struct ForgeEnergyWidget: View {
                                     .fixedSize(horizontal: false, vertical: true)
                             } else {
                                 figure(StrandPalette.forgeEnergyResting, String(localized: "Resting"), summary.basalBurnedSoFar)
+                                if let everyday = summary.everydayBurnedSoFar, everyday > 0 {
+                                    figure(StrandPalette.forgeEnergyEveryday, String(localized: "Everyday"), everyday)
+                                }
                                 figure(StrandPalette.forgeEnergyActive, String(localized: "Active"), summary.activeBurnedSoFar)
                             }
                             if let eaten { figure(ForgeColor.charge, String(localized: "Eaten"), eaten) }

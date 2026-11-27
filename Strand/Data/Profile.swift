@@ -256,7 +256,8 @@ final class ProfileStore: ObservableObject {
                            age: Double(age),
                            sex: d.string(forKey: K.sex) ?? "male",
                            maxHR: Double(hrMax),
-                           basalFormula: EnergyPlanStore.formulaLog.current)
+                           basalFormula: EnergyPlanStore.formulaLog.current,
+                           measuredBasalFactor: EnergyPlanStore.measuredRate?.factor)
     }
 
     /// The trimmed name, or nil when none is set — what greeting surfaces read so they never have to

@@ -189,6 +189,13 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
             energyPlan = plan
             burnedByDay = plan?.burnedByDay ?: emptyMap()
             planInputs = planInputs(plan)
+            // The plan moves to the strap's current energy model once its history is recomputed (iOS
+            // `adoptBurnModel`): Forge's old adjustments start from zero and the page says once what changed.
+            CoreDietPlan.load(context)?.let { current ->
+                CoreDietPlan.adoptBurnModel(context, current, plan?.everydayMeanKcal)?.let { adopted ->
+                    CoreDietPlan.save(context, adopted); dietPlan = adopted
+                }
+            }
             // Once a day: the weekly look at the plan. Simple mode with Forge steering applies the change (with undo).
             CoreDietPlan.load(context)?.let { current ->
                 val today = LocalDate.now().toString()
@@ -456,6 +463,12 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
             }
             FoodDayJump(day) { day = it }
             DietPlanLine(dietPlan, planResolved) { if (dietPlan == null) planning = true else showPlan = true }
+            dietPlan?.let { p ->
+                DietBurnModelNote(p) {
+                    val next = p.copy(burnModelNoteKcal = null)
+                    CoreDietPlan.save(context, next); dietPlan = next
+                }
+            }
             FoodHero(day, summary?.totals ?: emptyMap(), goals, burnedByDay[day.toString()], onDay = { day = it })
             planDay?.let { FoodPlanDayLines(it) }
             if (sentence.isNotEmpty()) FoodSentence(sentence)

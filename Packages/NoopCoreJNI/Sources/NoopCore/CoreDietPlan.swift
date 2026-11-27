@@ -282,6 +282,15 @@ enum CoreDietPlan {
             let s = DietSuggest.top(entries: entries, keep: keep, likesRules: args["likesRules"] as? Bool ?? false,
                                     strength: args["strength"] as? Bool ?? false, mode: mode)
             return CoreRead.json(["suggestions": s])
+        case "food.planAdoptBurnModel":
+            // iOS's `ForgeFoodModel.adoptBurnModel`: once the energy history is recomputed under the strap's
+            // current model, the plan moves to it (`DietBurnModelChange`). The plan to save, or null.
+            guard let plan = DietPlan.decode(args["plan"] as? String),
+                  args["historyModelVersion"] as? String == WhoopDailyEnergyEstimate.modelVersion,
+                  let adopted = DietBurnModelChange.adopt(plan, current: WhoopDailyEnergyEstimate.modelVersion,
+                                                          everydayMeanKcal: double("everydayMeanKcal"), today: today),
+                  let raw = adopted.encoded() else { return "null" }
+            return CoreRead.json(["plan": raw])
         case "food.planWeekly":
             guard let plan = DietPlan.decode(args["plan"] as? String) else { return "null" }
             let result = DietTargets.resolve(plan, person: person, burnKcal: burn, kcalPerKg: kcalPerKg)

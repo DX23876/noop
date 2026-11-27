@@ -35,10 +35,14 @@ public struct UserProfile: Equatable, Sendable {
     public var basalFormula: BasalFormula
     /// Body fat in force on the day this profile describes, for Katch–McArdle. Nil = no reading.
     public var bodyFatPercent: Double?
+    /// A measured resting rate's ratio to Mifflin–St Jeor (`MeasuredRestingRate.factor`), for `.measured`.
+    public var measuredBasalFactor: Double?
     public init(weightKg: Double = 70.0, heightCm: Double = 170.0,
                 age: Double = 30.0, sex: String = "nonbinary",
                 stepTicksPerStep: Double = 1.0, maxHR: Double? = nil,
-                basalFormula: BasalFormula = .revisedHarrisBenedict, bodyFatPercent: Double? = nil) {
+                basalFormula: BasalFormula = .revisedHarrisBenedict, bodyFatPercent: Double? = nil,
+                measuredBasalFactor: Double? = nil) {
+        self.measuredBasalFactor = measuredBasalFactor
         self.weightKg = weightKg; self.heightCm = heightCm
         self.age = age; self.sex = sex
         self.stepTicksPerStep = stepTicksPerStep
@@ -54,6 +58,8 @@ public struct UserProfile: Equatable, Sendable {
     public var cacheKey: String {
         "w=\(weightKg.bitPattern),h=\(heightCm.bitPattern),a=\(age.bitPattern),s=\(sex),t=\(stepTicksPerStep.bitPattern)"
             + ",b=\(basalFormula.rawValue),f=\(bodyFatPercent?.bitPattern.description ?? "-")"
+            // Only when set, so every profile without a measurement keeps the key it always had.
+            + (measuredBasalFactor.map { ",m=\($0.bitPattern)" } ?? "")
     }
 }
 
@@ -724,11 +730,18 @@ public enum Calories {
     /// the more accurate of the two height-and-weight regressions, rather than returning nothing.
     public static func bmrKcalPerDay(profile: UserProfile) -> Double? {
         guard profile.weightKg > 0, profile.heightCm > 0, profile.age > 0 else { return nil }
-        let formula: BasalFormula = profile.basalFormula == .katchMcArdle && profile.bodyFatPercent == nil
-            ? .mifflinStJeor : profile.basalFormula
+        // Katch–McArdle without a body-fat reading, or "measured" without a measurement, falls back to
+        // Mifflin–St Jeor rather than to nothing.
+        let formula: BasalFormula
+        switch profile.basalFormula {
+        case .katchMcArdle where profile.bodyFatPercent == nil: formula = .mifflinStJeor
+        case .measured where profile.measuredBasalFactor == nil: formula = .mifflinStJeor
+        default: formula = profile.basalFormula
+        }
         return BasalRate.kcalPerDay(formula, weightKg: profile.weightKg, heightCm: profile.heightCm,
                                     age: profile.age, sex: profile.sex,
-                                    bodyFatPercent: profile.bodyFatPercent)
+                                    bodyFatPercent: profile.bodyFatPercent,
+                                    measuredFactor: profile.measuredBasalFactor)
             ?? BasalRate.kcalPerDay(.mifflinStJeor, weightKg: profile.weightKg,
                                     heightCm: profile.heightCm, age: profile.age, sex: profile.sex)
     }

@@ -37,10 +37,11 @@ public struct WhoopDailyEnergyRow: Equatable, Sendable {
     public let measuredWeightKg: Double?
     /// The Jurca category (1–5) the estimate used. Nil for a measured ceiling.
     public let activityLevel: Int?
-    /// The everyday allowance already inside `rawTotalKcal`: awake still time above lying basal, for the
-    /// represented buckets and for the day's unrepresented time outside the usual sleep window. Zero for
-    /// model generations before it existed.
-    public let everydayKcal: Double
+    /// Awake still seconds the everyday allowance applies to: the represented buckets' still time outside
+    /// the usual sleep window and the day's unrepresented awake time. Seconds rather than kcal, so the
+    /// allowance follows the basal rate the day is shown with (a formula switch, a measured rate), as basal
+    /// itself does. Zero for model generations before it existed.
+    public let everydaySeconds: Int
     /// The usual sleep window the allowance was resolved against, in minutes after local midnight
     /// (start may be after end when the window spans midnight). Nil when not resolved.
     public let sleepWindowStartMinute: Int?
@@ -54,7 +55,7 @@ public struct WhoopDailyEnergyRow: Equatable, Sendable {
                 aerobicSeconds: Int = 0, hadLightActivity: Bool = false,
                 peakMET: Double? = nil, peakMETSource: String? = nil, peakMETSourceDay: String? = nil,
                 measuredVO2max: Double? = nil, measuredWeightKg: Double? = nil,
-                activityLevel: Int? = nil, everydayKcal: Double = 0,
+                activityLevel: Int? = nil, everydaySeconds: Int = 0,
                 sleepWindowStartMinute: Int? = nil, sleepWindowEndMinute: Int? = nil) {
         self.day = day
         self.rawTotalKcal = rawTotalKcal
@@ -77,7 +78,7 @@ public struct WhoopDailyEnergyRow: Equatable, Sendable {
         self.measuredVO2max = measuredVO2max
         self.measuredWeightKg = measuredWeightKg
         self.activityLevel = activityLevel
-        self.everydayKcal = everydayKcal
+        self.everydaySeconds = everydaySeconds
         self.sleepWindowStartMinute = sleepWindowStartMinute
         self.sleepWindowEndMinute = sleepWindowEndMinute
     }
@@ -200,7 +201,7 @@ extension WhoopStore {
                        modeledSeconds, representedSeconds, physiologicalSeconds, contextJSON,
                        uncertaintyFraction, weightKg, weightSource, aerobicSeconds, hadLightActivity,
                        peakMET, peakMETSource, peakMETSourceDay, measuredVO2max, measuredWeightKg,
-                       activityLevel, everydayKcal, sleepWindowStartMinute, sleepWindowEndMinute
+                       activityLevel, everydaySeconds, sleepWindowStartMinute, sleepWindowEndMinute
                 FROM whoopDailyEnergy
                 WHERE deviceId = ? AND day >= ? AND day <= ?
                 ORDER BY day ASC
@@ -219,7 +220,7 @@ extension WhoopStore {
                         hadLightActivity: row["hadLightActivity"], peakMET: row["peakMET"],
                         peakMETSource: row["peakMETSource"], peakMETSourceDay: row["peakMETSourceDay"],
                         measuredVO2max: row["measuredVO2max"], measuredWeightKg: row["measuredWeightKg"],
-                        activityLevel: row["activityLevel"], everydayKcal: row["everydayKcal"],
+                        activityLevel: row["activityLevel"], everydaySeconds: row["everydaySeconds"],
                         sleepWindowStartMinute: row["sleepWindowStartMinute"],
                         sleepWindowEndMinute: row["sleepWindowEndMinute"])
                 }
@@ -309,9 +310,7 @@ extension WhoopStore {
         guard row.weightKg.isFinite, (25...350).contains(row.weightKg) else { return false }
         guard row.aerobicSeconds >= 0, row.aerobicSeconds <= 86_400 else { return false }
         if let peak = row.peakMET, !(peak.isFinite && peak > 0) { return false }
-        guard row.everydayKcal.isFinite, row.everydayKcal >= 0, row.everydayKcal <= row.rawTotalKcal else {
-            return false
-        }
+        guard row.everydaySeconds >= 0, row.everydaySeconds <= 100_000 else { return false }
         for minute in [row.sleepWindowStartMinute, row.sleepWindowEndMinute].compactMap({ $0 })
         where !(0..<1_440).contains(minute) {
             return false
@@ -340,7 +339,7 @@ extension WhoopStore {
         let fitness: StatementArguments = [row.aerobicSeconds, row.hadLightActivity, row.peakMET,
                                            row.peakMETSource, row.peakMETSourceDay, row.measuredVO2max,
                                            row.measuredWeightKg, row.activityLevel]
-        let everyday: StatementArguments = [row.everydayKcal, row.sleepWindowStartMinute,
+        let everyday: StatementArguments = [row.everydaySeconds, row.sleepWindowStartMinute,
                                             row.sleepWindowEndMinute]
         let arguments = base + fitness + everyday
         try db.execute(sql: """
@@ -349,7 +348,7 @@ extension WhoopStore {
                  inferredSeconds, modeledSeconds, representedSeconds, physiologicalSeconds, contextJSON,
                  uncertaintyFraction, weightKg, weightSource, aerobicSeconds, hadLightActivity,
                  peakMET, peakMETSource, peakMETSourceDay, measuredVO2max, measuredWeightKg, activityLevel,
-                 everydayKcal, sleepWindowStartMinute, sleepWindowEndMinute)
+                 everydaySeconds, sleepWindowStartMinute, sleepWindowEndMinute)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(deviceId, day) DO UPDATE SET
                 rawTotalKcal = excluded.rawTotalKcal,
@@ -371,7 +370,7 @@ extension WhoopStore {
                 measuredVO2max = excluded.measuredVO2max,
                 measuredWeightKg = excluded.measuredWeightKg,
                 activityLevel = excluded.activityLevel,
-                everydayKcal = excluded.everydayKcal,
+                everydaySeconds = excluded.everydaySeconds,
                 sleepWindowStartMinute = excluded.sleepWindowStartMinute,
                 sleepWindowEndMinute = excluded.sleepWindowEndMinute
             WHERE rawTotalKcal IS NOT excluded.rawTotalKcal
@@ -393,7 +392,7 @@ extension WhoopStore {
                OR measuredVO2max IS NOT excluded.measuredVO2max
                OR measuredWeightKg IS NOT excluded.measuredWeightKg
                OR activityLevel IS NOT excluded.activityLevel
-               OR everydayKcal IS NOT excluded.everydayKcal
+               OR everydaySeconds IS NOT excluded.everydaySeconds
                OR sleepWindowStartMinute IS NOT excluded.sleepWindowStartMinute
                OR sleepWindowEndMinute IS NOT excluded.sleepWindowEndMinute
             """, arguments: arguments)
