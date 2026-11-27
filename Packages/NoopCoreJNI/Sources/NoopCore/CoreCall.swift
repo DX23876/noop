@@ -979,8 +979,10 @@ public enum CoreCall {
         case "training.finishDraft":
             let rpe = (args["sessionRPE"] as? NSNumber)?.doubleValue
             let finished = await CoreTraining.finishDraft(store: store, sessionRPE: rpe)
-            struct Wire: Encodable { let saved: Bool; let reason: String }
-            return CoreRead.json(Wire(saved: finished.workout != nil, reason: finished.outcome.rawValue))
+            // The saved session's id in the history's spelling, so the logger can open its page right away.
+            struct Wire: Encodable { let saved: Bool; let reason: String; let sessionId: String? }
+            return CoreRead.json(Wire(saved: finished.workout != nil, reason: finished.outcome.rawValue,
+                                      sessionId: finished.workout.map { NativeTrainingProjection.projectedId($0.id) }))
         default:
             return #"{"error":"unknownOp"}"#
         }

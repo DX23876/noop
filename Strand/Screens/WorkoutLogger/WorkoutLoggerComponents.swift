@@ -457,6 +457,9 @@ struct EffortPickerSheet: View {
                                             color: choice.color)
                                     .frame(width: 44, height: 32)
                                 Text(choice.title).foregroundStyle(StrandPalette.textPrimary)
+                                    // The separator starts under the words. Left to itself it took the badge's
+                                    // centred number, so "10" and "9,5" started their lines at different places.
+                                    .alignmentGuide(.listRowSeparatorLeading) { $0[.leading] }
                                 Spacer()
                                 if request.current?.value == choice.value {
                                     Image(systemName: "checkmark").foregroundStyle(StrandPalette.accent)

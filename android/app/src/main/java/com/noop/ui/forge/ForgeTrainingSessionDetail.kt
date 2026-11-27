@@ -86,16 +86,16 @@ fun ForgeTrainingSessionDetailPage(id: String, onClose: () -> Unit) {
             s.energyKcal?.let { ReportFact(stringResource(R.string.forge_report_energy), sessionNumber(it, 0) + " kcal") }
             s.summary?.let { summary ->
                 ReportFact(stringResource(R.string.forge_report_working_sets), summary.workingSets.toString())
-                ReportFact(stringResource(R.string.forge_report_volume), UnitFormatter.massFromKilograms(summary.volumeKg, massUnits))
+                ReportFact(stringResource(R.string.forge_report_volume), sessionMass(summary.volumeKg, massUnits))
                 ReportNote(stringResource(R.string.forge_report_volume_coverage, summary.volumeSets, summary.workingSets))
-                if (summary.bodyweightVolumeKg > 0) ReportFact(stringResource(R.string.forge_report_bodyweight_volume), UnitFormatter.massFromKilograms(summary.bodyweightVolumeKg, massUnits))
+                if (summary.bodyweightVolumeKg > 0) ReportFact(stringResource(R.string.forge_report_bodyweight_volume), sessionMass(summary.bodyweightVolumeKg, massUnits))
                 if (summary.unpricedBodyweightSets > 0) ReportNote(stringResource(R.string.forge_session_bodyweight_unpriced, summary.unpricedBodyweightSets))
                 summary.meanRPE?.let {
                     ReportFact(stringResource(R.string.forge_report_average_rpe), sessionNumber(it))
                     ReportNote(stringResource(R.string.forge_report_rated_sets, summary.ratedSets, summary.workingSets))
                 }
                 summary.densityKgPerMinute?.let {
-                    ReportFact(stringResource(R.string.forge_session_density), UnitFormatter.massFromKilograms(it, massUnits) + "/min")
+                    ReportFact(stringResource(R.string.forge_session_density), sessionMass(it, massUnits) + "/min")
                 }
             }
             ReportFact(stringResource(R.string.forge_report_source), if (s.kind == "strength" && s.summary != null) strengthSource(s.source) else s.source)
@@ -144,7 +144,9 @@ fun ForgeTrainingSessionDetailPage(id: String, onClose: () -> Unit) {
             } else {
                 ReportFact(stringResource(R.string.forge_session_whole_rpe), sessionNumber(rating.rpe))
                 rating.loadAU?.let { ReportFact(stringResource(R.string.forge_tl_session_load), sessionNumber(it, 0) + " AU") }
-                rating.durationMinutes?.let { ReportNote(stringResource(R.string.forge_session_rating_formula, sessionNumber(rating.rpe), sessionMinutes(it))) }
+                // Whole minutes, as on iOS: "0,33 Min." was the arithmetic, not a duration anyone reads.
+                rating.durationMinutes?.let { ReportNote(stringResource(R.string.forge_session_rating_formula, sessionNumber(rating.rpe),
+                    sessionMinutes(kotlin.math.max(1.0, Math.rint(it))))) }
                     ?: ReportNote(stringResource(R.string.forge_session_duration_missing))
                 ReportNote(stringResource(when (rating.timing) {
                     "about30Minutes" -> R.string.forge_session_rated_delayed
@@ -181,8 +183,8 @@ private fun SessionSetLine(s: CoreTrainingSession.Set, kind: String, mass: UnitS
     val parts = mutableListOf<String>()
     s.weightKg?.takeIf { it > 0 }?.let { value ->
         val sign = if (kind == "assistedBodyweight") "−" else if (kind in listOf("weightedBodyweight", "bodyweightReps") && value > 0) "+" else ""
-        parts += sign + UnitFormatter.massFromKilograms(if (kind == "assistedBodyweight") kotlin.math.abs(value) else value, mass)
-    } ?: s.bodyweightLoadKg?.let { parts += UnitFormatter.massFromKilograms(it, mass) + " " + stringResource(R.string.forge_session_bodyweight) }
+        parts += sign + sessionMass(if (kind == "assistedBodyweight") kotlin.math.abs(value) else value, mass)
+    } ?: s.bodyweightLoadKg?.let { parts += sessionMass(it, mass) + " " + stringResource(R.string.forge_session_bodyweight) }
     if (s.leftReps != null || s.rightReps != null) {
         s.leftReps?.let { parts += stringResource(R.string.forge_library_left) + " " + it }
         s.rightReps?.let { parts += stringResource(R.string.forge_library_right) + " " + it }
@@ -195,7 +197,7 @@ private fun SessionSetLine(s: CoreTrainingSession.Set, kind: String, mass: UnitS
         Text(parts.joinToString(" · ").ifEmpty { "—" }, style = Forge.type.bodyNumber,
             color = if (s.isWorking) Forge.colors.text else Forge.colors.textTertiary)
         s.rpe?.let { ReportNote(stringResource(R.string.forge_session_set_rpe, sessionNumber(it))) }
-        if (s.isWorking) s.e1rmKg?.let { ReportNote(stringResource(R.string.forge_session_e1rm, UnitFormatter.massFromKilograms(it, mass))) }
+        if (s.isWorking) s.e1rmKg?.let { ReportNote(stringResource(R.string.forge_session_e1rm, sessionMass(it, mass))) }
     }
 }
 
@@ -231,6 +233,10 @@ private fun sessionMinutes(value: Double): String = NumberFormat.getNumberInstan
 }.format(value)
 
 private fun sessionTime(ts: Long): String = Instant.ofEpochSecond(ts).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(Locale.getDefault()))
+/** A mass in the reader's own number format ("362,5 kg" in German): the shared formatter writes a point everywhere. */
+private fun sessionMass(kg: Double, system: UnitSystem): String =
+    if (system == UnitSystem.IMPERIAL) sessionNumber(UnitFormatter.kgToPounds(kg)) + " lb" else sessionNumber(kg) + " kg"
+
 private fun sessionNumber(value: Double, digits: Int = 1): String = NumberFormat.getNumberInstance(Locale.getDefault()).apply {
     minimumFractionDigits = digits; maximumFractionDigits = digits
 }.format(value)

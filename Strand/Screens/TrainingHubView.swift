@@ -1658,7 +1658,10 @@ struct NativeWorkoutLoggerView: View {
                 for index in 0..<min(3, model.draft.exercises[1].sets.count) { model.toggleSet(exerciseIndex: 1, setIndex: index) }
             }
             #endif
-            .onAppear { TrainingRestNotification.loggerOnScreen = true }
+            .onAppear {
+                TrainingRestNotification.loggerOnScreen = true
+                TrainingRestNotification.requestPermissionIfUndetermined()
+            }
             .onDisappear { TrainingRestNotification.loggerOnScreen = false }
             .onAppear {
                 guard !model.isRetrospective else { return }

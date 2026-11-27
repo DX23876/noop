@@ -153,6 +153,21 @@ final class StrandTrainingTests: XCTestCase {
         XCTAssertNil(TrainingEffortRating(scale: .rpe, value: 11))
     }
 
+    /// A routine done today is no longer offered as planned; another one planned that day still is.
+    func testPlannedTodayLeavesOutRoutinesDoneThatDay() {
+        let pull = UUID(), legs = UUID()
+        func workout(day: String, routines: [UUID]) -> NativeWorkout {
+            NativeWorkout(id: UUID(), title: "W", startedAt: 0, endedAt: 60, plannedDay: day, routineIds: routines,
+                          exercises: [], tracker: nil)
+        }
+        XCTAssertEqual(PlannedToday.openRoutineIds([pull, legs], day: "2026-11-27", workouts: []), [pull, legs])
+        XCTAssertEqual(PlannedToday.openRoutineIds([pull, legs], day: "2026-11-27",
+                                                   workouts: [workout(day: "2026-11-27", routines: [pull])]), [legs])
+        XCTAssertEqual(PlannedToday.openRoutineIds([pull], day: "2026-11-27",
+                                                   workouts: [workout(day: "2026-11-26", routines: [pull])]), [pull],
+                       "yesterday's session does not close today's plan")
+    }
+
     /// The previous column shows last time's effort on the scale the wearer reads now.
     func testEffortConvertsBetweenScales() {
         let rpe = TrainingEffortRating(scale: .rpe, value: 9.5)!

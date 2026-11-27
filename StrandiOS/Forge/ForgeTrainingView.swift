@@ -222,7 +222,8 @@ struct ForgeTrainingView: View {
     /// Today's routine from the plan, ready to start, as the prototype's coach card shows it. The coach's
     /// quick asks sit under it when the coach is on; with nothing planned it offers to plan with the coach.
     @ViewBuilder private var todayPlan: some View {
-        let planned = hub.loaded ? hub.routines(on: Date()) : []
+        // Only what is still to do: a routine already run today no longer offers its Start.
+        let planned = hub.loaded ? hub.openRoutines(on: Date()) : []
         if let routine = planned.first {
             VStack(alignment: .leading, spacing: 10) {
                 Label("Planned today", systemImage: "calendar")

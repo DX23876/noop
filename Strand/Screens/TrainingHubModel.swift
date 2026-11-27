@@ -86,6 +86,13 @@ final class TrainingHubModel: ObservableObject {
 
     func routines(on date: Date) -> [TrainingRoutine] { Self.routines(in: plan, on: date) }
 
+    /// The routines planned for `date` that no saved workout of that day was run from (`PlannedToday`).
+    func openRoutines(on date: Date) -> [TrainingRoutine] {
+        let planned = routines(on: date)
+        let open = Set(PlannedToday.openRoutineIds(planned.map(\.id), day: Self.dayString(date), workouts: workouts))
+        return planned.filter { open.contains($0.id) }
+    }
+
     /// The routines `plan` holds for `date`: its own day first, then its weekday. Shared with Today's
     /// next-session widget, which reads the plan alone instead of the whole hub.
     static func routines(in plan: TrainingPlan, on date: Date) -> [TrainingRoutine] {

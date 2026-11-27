@@ -149,6 +149,8 @@ private sealed interface TrainingPage {
     data object Schedule : TrainingPage
     data object Starters : TrainingPage
     data class Detail(val session: CoreTraining.Session) : TrainingPage
+    /** The page of a workout just saved in the logger, as iOS shows its summary after the finish. */
+    data class Saved(val id: String) : TrainingPage
     data object Muscles : TrainingPage
     data object Load : TrainingPage
     data object Strength : TrainingPage
@@ -289,7 +291,8 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                 StartChip(stringResource(R.string.nav_breathe), Icons.Rounded.Air) { page = TrainingPage.Breathe }
             }
             // Today's routine from the plan, ready to start, as iOS's `todayPlan`.
-            val todayIds = s.week.firstOrNull { it.isToday }?.routineIds.orEmpty()
+            // Only what is still to do: a routine already run today no longer offers its Start.
+            val todayIds = s.week.firstOrNull { it.isToday }?.openRoutineIds.orEmpty()
             val planned = s.routines.firstOrNull { it.id in todayIds }
             if (planned != null) TrainingPlannedToday(planned, onStart = { start(listOf(planned.id)) }, onAsk = askCoach)
             else if (askCoach != null) {
@@ -488,7 +491,9 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                             scope.launch { core(context) { CoreTraining.duplicateRoutine(r.id, title) }; reload() }
                         })
                     }
+                    is TrainingPage.Saved -> ForgeTrainingSessionDetailPage(open.id, onClose = close)
                     TrainingPage.Session -> ForgeTrainingSession(s?.exercises.orEmpty(), onClose = close,
+                        onSaved = { id -> page = TrainingPage.Saved(id); reload(); viewModel.loadWorkouts() },
                         onStrapBuzz = { viewModel.buzz(3, RestTimerPrefs.STRAP_BUZZ) },
                         strap = remember(viewModel) { StrapTapHost(claim = { viewModel.strapDoubleTapOverride = it },
                                              confirm = { viewModel.buzz(1) }, log = viewModel::strapLog) })
@@ -1003,6 +1008,7 @@ private fun StarterPlans(onClose: () -> Unit) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose: () -> Unit,
+                                 onSaved: (String) -> Unit = { onClose() },
                                  onStrapBuzz: () -> Unit = {}, strap: StrapTapHost? = null) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -1158,14 +1164,15 @@ private fun ForgeTrainingSession(exercises: List<CoreTraining.Exercise>, onClose
      */
     suspend fun finishWorkout(rpe: Double?) {
         val shape = draftShape()
-        val outcome = core(context) { CoreTraining.finish(rpe) } ?: CoreTraining.Finish.NO_CORE
+        val finished = core(context) { CoreTraining.finishSession(rpe) }
+        val outcome = finished?.outcome ?: CoreTraining.Finish.NO_CORE
         val ble = (context.applicationContext as NoopApplication).ble
         if (outcome == CoreTraining.Finish.SAVED) {
             ble.externalLog("Training: workout saved — $shape")
             // Every reader of the store reads again, the goal cards included: without it the tab kept "no workouts
             // this week" and the goal at 0/4 after a saved session (emulator walk-through 2026-11-27).
             com.noop.core.CoreShadow.noteDataChanged()
-            onClose()
+            finished?.sessionId?.let(onSaved) ?: onClose()
             return
         }
         finishing = false

@@ -102,10 +102,12 @@ public enum CoreTraining {
     /// One day of the week strip.
     public struct PlannedDay: Encodable {
         public var day: String, weekday: Int, isToday: Bool, routineIds: [String]
+        /// `routineIds` less the ones a workout of that day was run from (`PlannedToday`): what is still to do.
+        public var openRoutineIds: [String] = []
     }
 
     /// The current week as the Training tab's strip shows it, starting on the plan's first weekday.
-    static func week(plan: TrainingPlan, now: Date = Date()) -> [PlannedDay] {
+    static func week(plan: TrainingPlan, workouts: [NativeWorkout] = [], now: Date = Date()) -> [PlannedDay] {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         let today = calendar.startOfDay(for: now)
@@ -117,7 +119,9 @@ public enum CoreTraining {
             let iso = (calendar.component(.weekday, from: date) + 5) % 7 + 1
             let key = StoreReader.localDayKey(date)
             let ids = TrainingWeekday(rawValue: iso).map { plan.effectiveRoutineIds(day: key, weekday: $0) } ?? []
-            return PlannedDay(day: key, weekday: iso, isToday: date == today, routineIds: ids.map(\.uuidString))
+            let open = PlannedToday.openRoutineIds(ids, day: key, workouts: workouts)
+            return PlannedDay(day: key, weekday: iso, isToday: date == today, routineIds: ids.map(\.uuidString),
+                              openRoutineIds: open.map(\.uuidString))
         }
     }
 
@@ -208,7 +212,7 @@ public enum CoreTraining {
         return Snapshot(exercises: exercises, plan: plan, workouts: workouts, draft: draft, strength: sessions,
                         weeklyTonnes: tonnes, fourWeekChange: StrengthWeeklyVolume.fourWeekChange(tonnes),
                         muscleLoad: load.byMuscle, workingSets: load.workingSets, mappedSets: load.mappedSets,
-                        week: week(plan: plan), routineMuscles: routineMuscles,
+                        week: week(plan: plan, workouts: workouts), routineMuscles: routineMuscles,
                         activity: TrainingActivityDay.pastYear(sessions: history.sessions, weekStart: weekStartsOn)
                             .map { ActivityDay(day: $0.day, minutes: $0.minutes) },
                         muscles: MuscleAnalytics(analytics),

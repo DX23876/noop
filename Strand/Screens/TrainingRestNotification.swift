@@ -32,6 +32,17 @@ enum TrainingRestNotification {
         }
     }
 
+    /// Asks for notification permission once, when the logger opens, if it was never asked. Asked at the first
+    /// rest instead, the system prompt landed over the set being ticked and took the next tap (simulator
+    /// walk-through 2026-11-27). A no-op once the wearer has answered either way.
+    static func requestPermissionIfUndetermined() {
+        let center = UNUserNotificationCenter.current()
+        Task {
+            guard await center.notificationSettings().authorizationStatus == .notDetermined else { return }
+            _ = try? await center.requestAuthorization(options: [.alert, .sound])
+        }
+    }
+
     static func cancel(for workoutId: UUID) {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [id(workoutId)])
     }

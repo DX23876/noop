@@ -3694,7 +3694,7 @@
     <string name="forge_session_rated_later">Später bewertet</string>
     <string name="forge_session_rated_unknown">Bewertungszeitpunkt unbekannt</string>
     <string name="forge_session_rating">RPE</string>
-    <string name="forge_session_rating_formula">RPE %1$s × %2$s Min. · sRPE-Last</string>
+    <string name="forge_session_rating_formula">RPE %1$s × %2$s Min.</string>
     <string name="forge_session_rating_note">Bewerte sie von 1 bis 10. NOOP multipliziert deine Bewertung mit der Dauer und hält sie getrennt von Herzfrequenz- und Kraft-Last.</string>
     <string name="forge_session_recorded_hr">Aufgezeichnete Herzfrequenz</string>
     <string name="forge_session_remove_rating">Entfernen</string>
@@ -4916,7 +4916,7 @@
     <string name="forge_lg_rest_remaining">Verbleibende Pause</string>
     <string name="forge_lg_col_previous">ZULETZT</string>
     <string name="forge_lg_discard_q">Dieses Workout verwerfen?</string>
-    <string name="forge_lg_discard_msg">Alle in dieser Einheit erfassten Sätze werden gelöscht und nichts wird deinem Verlauf hinzugefügt. Das lässt sich nicht rückgängig machen.</string>
+    <string name="forge_lg_discard_msg">Alle in diesem Training erfassten Sätze werden gelöscht und nichts wird deinem Verlauf hinzugefügt. Das lässt sich nicht rückgängig machen.</string>
     <string name="forge_lg_keep">Weiter trainieren</string>
     <string name="forge_lg_incomplete_q">Unvollständige Sätze</string>
     <string name="forge_lg_incomplete_msg">Einige Sätze sind unvollständig. Es werden nur abgeschlossene Sätze gespeichert.</string>

@@ -16,7 +16,9 @@ object CoreTraining {
                        val muscles: Map<String, Double>, val weekdays: List<Int>) {
         val exerciseCount get() = exerciseIds.size
     }
-    data class PlannedDay(val day: String, val weekday: Int, val isToday: Boolean, val routineIds: List<String>)
+    /** [openRoutineIds]: the planned routines no workout of that day was run from yet (core `PlannedToday`). */
+    data class PlannedDay(val day: String, val weekday: Int, val isToday: Boolean, val routineIds: List<String>,
+                          val openRoutineIds: List<String> = routineIds)
     data class SetLine(val weightKg: Double?, val reps: Int?, val durationS: Double?, val distanceM: Double?)
     data class ExerciseLine(val title: String, val sets: List<SetLine>)
     data class Session(val id: String, val title: String, val startTs: Long, val durationS: Double,
@@ -199,9 +201,16 @@ object CoreTraining {
      */
     enum class Finish { SAVED, NO_DRAFT, NO_COMPLETED_WORK, CLOCK_WENT_BACKWARDS, NOT_STORED, NO_CORE }
 
-    fun finish(sessionRPE: Double?): Finish =
-        call("training.finishDraft", JSONObject().put("sessionRPE", sessionRPE ?: JSONObject.NULL))
-            ?.let(::parseFinished) ?: Finish.NO_CORE
+    fun finish(sessionRPE: Double?): Finish = finishSession(sessionRPE).outcome
+
+    /** [outcome] with the saved session's id, for opening its page after the save (null when not saved). */
+    data class Finished(val outcome: Finish, val sessionId: String?)
+
+    fun finishSession(sessionRPE: Double?): Finished =
+        call("training.finishDraft", JSONObject().put("sessionRPE", sessionRPE ?: JSONObject.NULL))?.let { json ->
+            Finished(parseFinished(json),
+                     runCatching { JSONObject(json).optString("sessionId").takeIf { it.isNotEmpty() } }.getOrNull())
+        } ?: Finished(Finish.NO_CORE, null)
 
     fun discard(draftId: String): Boolean =
         call("training.discardDraft", JSONObject().put("id", draftId))?.contains("true") == true
@@ -266,7 +275,8 @@ object CoreTraining {
         }
         val week = o.optJSONArray("week").objects().map {
             PlannedDay(it.getString("day"), it.getInt("weekday"), it.getBoolean("isToday"),
-                       it.optJSONArray("routineIds").strings())
+                       it.optJSONArray("routineIds").strings(),
+                       (it.optJSONArray("openRoutineIds") ?: it.optJSONArray("routineIds")).strings())
         }
         val sessions = o.optJSONArray("strength").objects().map {
             Session(it.getString("id"), it.getString("title"), it.getLong("startTs"), it.getDouble("durationS"),
