@@ -530,6 +530,45 @@ final class WhoopEnergyModelTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(sameDay), 79, accuracy: 0.001)
     }
 
+    func testCausalWeightDailyWeighInsKeepTheTenDayEWMA() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let start = 2_000_000_000
+        let kilos = [100.0, 99.6, 99.9, 99.1, 98.8, 99.0, 98.4]
+        let observations = kilos.enumerated().map {
+            CausalWeightObservation(timestamp: start + $0.offset * 86_400, weightKg: $0.element, source: .manual)
+        }
+        let alpha = 2.0 / 11.0
+        let expected = kilos.dropFirst().reduce(kilos[0]) { alpha * $1 + (1 - alpha) * $0 }
+        let resolved = CausalWeightResolver.weight(
+            at: start + 6 * 86_400 + 60, observations: observations, calendar: calendar)
+        XCTAssertEqual(try XCTUnwrap(resolved), expected, accuracy: 1e-9)
+    }
+
+    /// The owner's history (2026-11-27): Health readings near 209.5 kg, manual ones down to 205.6 kg by
+    /// 2026-10-10, then 200.2 kg six weeks later. Per weigh-in the value stayed at 208.7 kg for those six
+    /// weeks (207.8 kg on this shorter series) and reached only 207.2 kg on the new reading's day. Per day
+    /// it holds the trend of the last readings and takes the new one almost whole.
+    func testCausalWeightFollowsAReadingAfterALongGap() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let day0 = 2_000_000_000
+        let rows: [(Int, Double, CausalWeightObservation.Source)] = [
+            (0, 209.55, .health), (2, 209.55, .health), (4, 209.55, .health), (8, 209.25, .health),
+            (20, 210.5, .manual), (24, 209.5, .manual), (33, 207.3, .manual), (35, 207.5, .manual),
+            (37, 205.6, .manual), (38, 205.6, .manual), (81, 200.2, .manual),
+        ]
+        let observations = rows.map {
+            CausalWeightObservation(timestamp: day0 + $0.0 * 86_400, weightKg: $0.1, source: $0.2)
+        }
+        let beforeNewReading = CausalWeightResolver.weight(
+            at: day0 + 80 * 86_400, observations: observations, calendar: calendar)
+        XCTAssertEqual(try XCTUnwrap(beforeNewReading), 206.72, accuracy: 0.01)
+        let onNewReading = CausalWeightResolver.weight(
+            at: day0 + 81 * 86_400 + 60, observations: observations, calendar: calendar)
+        XCTAssertEqual(try XCTUnwrap(onNewReading), 200.2, accuracy: 0.01)
+    }
+
     func testCausalWeightExpiresAfterNinetyDays() {
         let row = CausalWeightObservation(timestamp: 1_000_000, weightKg: 80, source: .manual)
         XCTAssertNil(CausalWeightResolver.weight(

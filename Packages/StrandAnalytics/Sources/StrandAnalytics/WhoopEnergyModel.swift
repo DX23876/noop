@@ -547,9 +547,16 @@ public struct CausalWeightObservation: Equatable, Sendable {
 }
 
 public enum CausalWeightResolver {
-    /// Ten-day EWMA using observations available at or before the requested instant. A manual entry
-    /// wins over Health on the same local day. Values are carried for at most 90 days; otherwise the
-    /// caller's profile fallback is returned at lower confidence by the caller.
+    /// What a ten-day EWMA keeps of yesterday's value. Applied once per calendar DAY between two
+    /// weigh-ins, not once per weigh-in: per weigh-in, a reading after six weeks without one moved the
+    /// value by only 18 %, so the energy model priced the owner's days at 208.7 kg for six weeks after
+    /// a measured 205.6 (2026-11-27). Daily weigh-ins give exactly the old per-weigh-in result.
+    static let dayDecay = 1 - 2.0 / 11.0
+
+    /// Ten-day EWMA using observations available at or before the requested instant, decayed per day
+    /// between them (`dayDecay`). A manual entry wins over Health on the same local day. Values are
+    /// carried for at most 90 days; otherwise the caller's profile fallback is returned at lower
+    /// confidence by the caller.
     public static func weight(at timestamp: Int, observations: [CausalWeightObservation],
                               calendar: Calendar = .current) -> Double? {
         let eligible = observations.filter {
@@ -564,10 +571,18 @@ public enum CausalWeightResolver {
         let rows = byDay.sorted { $0.key < $1.key }
         guard let last = rows.last,
               timestamp - Int(last.key.timeIntervalSince1970) <= 90 * 86_400 else { return nil }
-        let alpha = 2.0 / 11.0
-        return rows.reduce(nil as Double?) { smoothed, item in
-            guard let smoothed else { return item.value.weightKg }
-            return alpha * item.value.weightKg + (1 - alpha) * smoothed
+        var smoothed: Double?
+        var previousDay: Date?
+        for (day, row) in rows {
+            if let current = smoothed, let previousDay {
+                let gap = max(1, calendar.dateComponents([.day], from: previousDay, to: day).day ?? 1)
+                let keep = pow(dayDecay, Double(gap))
+                smoothed = (1 - keep) * row.weightKg + keep * current
+            } else {
+                smoothed = row.weightKg
+            }
+            previousDay = day
         }
+        return smoothed
     }
 }

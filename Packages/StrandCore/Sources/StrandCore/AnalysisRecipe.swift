@@ -276,6 +276,11 @@ public enum AnalysisRecipe {
     // day as `rhr_effort`. The full rebuild scores every day and fills every workout again, and scores the
     // Effort stored on recorded and confirmed sessions again from the band (`rescoreRecordedEffort`); nothing
     // the wearer entered is rewritten.
+    // AI-38 also carries the body mass each day is priced at (2026-11-27): `CausalWeightResolver` decays its
+    // ten-day EWMA per calendar day instead of per weigh-in, so a reading after weeks without one is taken
+    // almost whole instead of moving the value by 18 % (the owner was priced at 208.7 kg for six weeks after
+    // weighing 205.6). The full rebuild prices every day's `activeKcalEst` and detected workouts again with
+    // that weight; no weigh-in is rewritten, and daily weigh-ins resolve exactly as before.
     public static let currentVersion = 38
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy
