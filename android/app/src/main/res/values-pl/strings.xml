@@ -6654,7 +6654,10 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_ap_score_rings">Pierścienie wyników</string>
     <string name="forge_ap_living">Żywe</string>
     <string name="forge_ap_classic">Klasyczny</string>
-    <string name="forge_ap_rings_note">Żywe pierścienie poruszają się i oddychają. Klasyczne stoją w miejscu i zużywają mniej baterii.</string>
+    <string name="forge_ap_colored">Kolorowe</string>
+    <string name="forge_ap_rings_living_detail">Żywe pierścienie poruszają się i oddychają.</string>
+    <string name="forge_ap_rings_classic_detail">Nieruchome pierścienie z delikatnym cieniowaniem. Zużywają mniej baterii.</string>
+    <string name="forge_ap_rings_colored_detail">Płaskie pierścienie w wyraźnych kolorach: Charge od czerwieni do zieleni zależnie od wartości, Effort niebieski, Rest jasnoniebieski. Stoją w miejscu i zużywają mniej baterii.</string>
     <string name="forge_ap_motion">Ruch</string>
     <string name="forge_log_photo">Zdjęcie</string>
     <string name="forge_log_photo_question">Oto zdjęcie, które chcę zapisać, np. posiłek albo ekran treningu. Powiedz, co widzisz i co mogę z niego zapisać. Oznacz szacunki jako szacunki i niczego sam nie zapisuj.</string>
@@ -7527,7 +7530,7 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="fsw4_wake_check">Sprawdzanie przebudzeń</string>
     <string name="fsw4_wake_note">Liczy przebudzenie tylko wtedy, gdy chodziłeś lub zmieniłeś pozycję. Sam wzrost tętna pozostaje snem płytkim. Pomijane w nocach ze zbyt małą ilością danych ruchu. Obowiązuje od następnej nocy.</string>
     <string name="fsw4_style">Styl</string>
-    <string name="fsw4_style_blurb">Jasny, ciemny lub zgodnie z systemem, do tego akcent i ikony.</string>
+    <string name="fsw4_style_blurb">Jasny, ciemny lub zgodnie z systemem, do tego akcent, pierścienie i ikony.</string>
     <string name="fsw4_system">Systemowy</string>
     <string name="fsw4_backup_group">Kopia zapasowa i przywracanie</string>
     <string name="fsw4_imports_blurb">Inne źródła, które czyta NOOP, i miejsce, które zajmuje.</string>

@@ -344,7 +344,8 @@ enum SettingsSearchCatalog {
             id: .design,
             title: "Style",
             keywords: ["theme", "dark mode", "light mode", "preset", "accent colour", "app icon",
-                       "coloured icons", "tab bar"]
+                       "coloured icons", "tab bar", "rings", "score rings", "classic rings", "living rings",
+                       "coloured rings"]
         ),
         SettingsSearchEntry(
             id: .background,
@@ -360,8 +361,7 @@ enum SettingsSearchCatalog {
         SettingsSearchEntry(
             id: .motion,
             title: "Motion",
-            keywords: ["reduce motion", "animation", "motion effect", "coach animation", "tilt",
-                       "rings", "classic rings", "living rings"]
+            keywords: ["reduce motion", "animation", "motion effect", "coach animation", "tilt"]
         ),
         SettingsSearchEntry(
             id: .calculation,

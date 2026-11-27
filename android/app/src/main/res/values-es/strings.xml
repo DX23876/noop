@@ -6635,7 +6635,10 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_ap_score_rings">Anillos de puntuación</string>
     <string name="forge_ap_living">Vivos</string>
     <string name="forge_ap_classic">Clásico</string>
-    <string name="forge_ap_rings_note">Los anillos vivos se mueven y respiran. Los clásicos se quedan quietos y gastan menos batería.</string>
+    <string name="forge_ap_colored">De color</string>
+    <string name="forge_ap_rings_living_detail">Los anillos vivos se mueven y respiran.</string>
+    <string name="forge_ap_rings_classic_detail">Anillos quietos con un degradado suave. Gastan menos batería.</string>
+    <string name="forge_ap_rings_colored_detail">Anillos planos en colores claros: Charge de rojo a verde según su valor, Effort azul, Rest azul claro. Se quedan quietos y gastan menos batería.</string>
     <string name="forge_ap_motion">Movimiento</string>
     <string name="forge_log_photo">Foto</string>
     <string name="forge_log_photo_question">Aquí tienes una foto que quiero registrar, como una comida o una pantalla de entreno. Di qué ves y qué podría registrar. Marca cualquier estimación como estimación y no registres nada tú.</string>
@@ -7476,7 +7479,7 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="fsw4_wake_check">Comprobación de despertares</string>
     <string name="fsw4_wake_note">Cuenta un despertar solo si caminaste o cambiaste de postura. Una subida de pulso por sí sola sigue siendo sueño ligero. Se omite en noches con pocos datos de movimiento. Se aplica desde la próxima noche.</string>
     <string name="fsw4_style">Estilo</string>
-    <string name="fsw4_style_blurb">Claro, oscuro o según el sistema, además de acento e iconos.</string>
+    <string name="fsw4_style_blurb">Claro, oscuro o según el sistema, además de acento, anillos e iconos.</string>
     <string name="fsw4_system">Sistema</string>
     <string name="fsw4_backup_group">Copia de seguridad y restauración</string>
     <string name="fsw4_imports_blurb">Otras fuentes que lee NOOP y el espacio que ocupa.</string>

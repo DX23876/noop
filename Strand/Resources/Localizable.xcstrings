@@ -615395,64 +615395,6 @@
         }
       }
     },
-    "Light, dark or your system setting, plus accent and icons." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hell, dunkel oder wie im System, dazu Akzentfarbe und Symbole."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claro, oscuro o según el sistema, además de acento e iconos."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Clair, sombre ou selon le système, plus accent et icônes."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chiaro, scuro o come il sistema, più colore di accento e icone."
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Jasny, ciemny lub zgodnie z systemem, do tego akcent i ikony."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Claro, escuro ou como o sistema, mais destaque e ícones."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Светлая, тёмная или как в системе, плюс акцент и значки."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "浅色、深色或跟随系统，以及强调色和图标。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "淺色、深色或跟隨系統，以及強調色和圖示。"
-          }
-        }
-      }
-    },
     "Lock Screen, wrist alerts and reminders" : {
       "localizations" : {
         "de" : {
@@ -658241,64 +658183,6 @@
         }
       }
     },
-    "Living rings move and breathe. Classic rings stand still and use less battery." : {
-      "localizations" : {
-        "de" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lebendige Ringe bewegen sich und atmen. Klassische Ringe stehen still und sparen Akku."
-          }
-        },
-        "es" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Los anillos vivos se mueven y respiran. Los clásicos se quedan quietos y gastan menos batería."
-          }
-        },
-        "fr" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Les anneaux vivants bougent et respirent. Les classiques restent immobiles et consomment moins de batterie."
-          }
-        },
-        "it" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gli anelli vivi si muovono e respirano. Quelli classici restano fermi e consumano meno batteria."
-          }
-        },
-        "pl" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Żywe pierścienie poruszają się i oddychają. Klasyczne stoją w miejscu i zużywają mniej baterii."
-          }
-        },
-        "pt-PT" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Os anéis vivos movem-se e respiram. Os clássicos ficam parados e gastam menos bateria."
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Живые кольца двигаются и дышат. Классические неподвижны и экономят заряд."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "灵动圆环会移动和呼吸。经典圆环保持静止，更省电。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "靈動圓環會移動和呼吸。經典圓環保持靜止，更省電。"
-          }
-        }
-      }
-    },
     "Bedtime counts %@ h, as set in Alarms." : {
       "localizations" : {
         "de" : {
@@ -687235,6 +687119,326 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "你的心血管負荷。每一分鐘的心率越接近你的最大心率，計入就越多：按你的心率儲備（Karvonen）計算，介於你夜間的靜息心率和 NOOP 從你的訓練中學到的最大心率（或你自己輸入的值）之間。一天的負荷落在一條根據 3,760 次訓練擬合、頂部有柔性上限的 0-100 曲線上，因此輕鬆的日子分數較低，100 始終無法達到。低於心率儲備一半的心率不計入當天，所以長時間站立和走動不會累積成艱苦的一天。訓練本身仍計入較輕鬆的分鐘；一天的值絕不低於當天最強的一次訓練。"
+          }
+        }
+      }
+    },
+    "Colored" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Colored"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Farbig"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "De color"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Colorés"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coloridos"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kolorowe"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A colori"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Цветные"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "彩色"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "彩色"
+          }
+        }
+      }
+    },
+    "Flat rings in clear colours: Charge red to green by its value, Effort blue, Rest light blue. They stand still and use less battery." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flat rings in clear colours: Charge red to green by its value, Effort blue, Rest light blue. They stand still and use less battery."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flache Ringe in klaren Farben: Charge rot bis grün nach Wert, Effort blau, Rest hellblau. Sie stehen still und sparen Akku."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anillos planos en colores claros: Charge de rojo a verde según su valor, Effort azul, Rest azul claro. Se quedan quietos y gastan menos batería."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anneaux plats aux couleurs nettes : Charge du rouge au vert selon sa valeur, Effort en bleu, Rest en bleu clair. Ils restent immobiles et consomment moins de batterie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anéis planos em cores nítidas: Charge do vermelho ao verde conforme o valor, Effort azul, Rest azul-claro. Ficam parados e gastam menos bateria."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Płaskie pierścienie w wyraźnych kolorach: Charge od czerwieni do zieleni zależnie od wartości, Effort niebieski, Rest jasnoniebieski. Stoją w miejscu i zużywają mniej baterii."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anelli piatti in colori netti: Charge dal rosso al verde secondo il valore, Effort blu, Rest azzurro. Restano fermi e consumano meno batteria."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Плоские кольца чётких цветов: Charge от красного до зелёного по значению, Effort синий, Rest голубой. Неподвижны и экономят заряд."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "扁平圆环，颜色清晰：Charge 按数值从红到绿，Effort 为蓝色，Rest 为浅蓝色。保持静止，更省电。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "扁平圓環，顏色清晰：Charge 依數值由紅到綠，Effort 為藍色，Rest 為淺藍色。保持靜止，更省電。"
+          }
+        }
+      }
+    },
+    "Light, dark or your system setting, plus accent, rings and icons." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Light, dark or your system setting, plus accent, rings and icons."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hell, dunkel oder wie im System, dazu Akzentfarbe, Ringe und Symbole."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claro, oscuro o según el sistema, además de acento, anillos e iconos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clair, sombre ou selon le système, plus accent, anneaux et icônes."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Claro, escuro ou como o sistema, mais destaque, anéis e ícones."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jasny, ciemny lub zgodnie z systemem, do tego akcent, pierścienie i ikony."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chiaro, scuro o come il sistema, più colore di accento, anelli e icone."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Светлая, тёмная или как в системе, плюс акцент, кольца и значки."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "浅色、深色或跟随系统，以及强调色、圆环和图标。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "淺色、深色或跟隨系統，以及強調色、圓環和圖示。"
+          }
+        }
+      }
+    },
+    "Living rings move and breathe." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Living rings move and breathe."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lebendige Ringe bewegen sich und atmen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los anillos vivos se mueven y respiran."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les anneaux vivants bougent et respirent."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Os anéis vivos movem-se e respiram."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Żywe pierścienie poruszają się i oddychają."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gli anelli vivi si muovono e respirano."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Живые кольца двигаются и дышат."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "灵动圆环会移动和呼吸。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "靈動圓環會移動和呼吸。"
+          }
+        }
+      }
+    },
+    "Still rings with a soft shading. They use less battery." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Still rings with a soft shading. They use less battery."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ruhige Ringe mit weichem Verlauf. Sie stehen still und sparen Akku."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anillos quietos con un degradado suave. Gastan menos batería."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anneaux immobiles avec un léger dégradé. Ils consomment moins de batterie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anéis parados com um sombreado suave. Gastam menos bateria."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nieruchome pierścienie z delikatnym cieniowaniem. Zużywają mniej baterii."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anelli fermi con una leggera sfumatura. Consumano meno batteria."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Неподвижные кольца с мягким переходом цвета. Экономят заряд."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "静止圆环，带柔和渐变，更省电。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "靜止圓環，帶柔和漸層，更省電。"
           }
         }
       }

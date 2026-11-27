@@ -6602,7 +6602,10 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="forge_ap_score_rings">Anelli dei punteggi</string>
     <string name="forge_ap_living">Vivi</string>
     <string name="forge_ap_classic">Classico</string>
-    <string name="forge_ap_rings_note">Gli anelli vivi si muovono e respirano. Quelli classici restano fermi e consumano meno batteria.</string>
+    <string name="forge_ap_colored">A colori</string>
+    <string name="forge_ap_rings_living_detail">Gli anelli vivi si muovono e respirano.</string>
+    <string name="forge_ap_rings_classic_detail">Anelli fermi con una leggera sfumatura. Consumano meno batteria.</string>
+    <string name="forge_ap_rings_colored_detail">Anelli piatti in colori netti: Charge dal rosso al verde secondo il valore, Effort blu, Rest azzurro. Restano fermi e consumano meno batteria.</string>
     <string name="forge_ap_motion">Movimento</string>
     <string name="forge_log_photo">Foto</string>
     <string name="forge_log_photo_question">Ecco una foto che voglio registrare, come un pasto o una schermata di allenamento. Dimmi cosa vedi e cosa potrei registrare. Indica le stime come stime e non registrare nulla tu.</string>
@@ -7443,7 +7446,7 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="fsw4_wake_check">Verifica dei risvegli</string>
     <string name="fsw4_wake_note">Conta un risveglio solo se hai camminato o cambiato posizione. Un aumento del battito da solo resta sonno leggero. Saltato nelle notti con pochi dati di movimento. Vale dalla prossima notte.</string>
     <string name="fsw4_style">Stile</string>
-    <string name="fsw4_style_blurb">Chiaro, scuro o come il sistema, più colore di accento e icone.</string>
+    <string name="fsw4_style_blurb">Chiaro, scuro o come il sistema, più colore di accento, anelli e icone.</string>
     <string name="fsw4_system">Sistema</string>
     <string name="fsw4_backup_group">Backup e ripristino</string>
     <string name="fsw4_imports_blurb">Altre fonti che NOOP legge e lo spazio che occupa.</string>

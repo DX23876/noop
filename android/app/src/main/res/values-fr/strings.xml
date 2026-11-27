@@ -6631,7 +6631,10 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="forge_ap_score_rings">Anneaux de score</string>
     <string name="forge_ap_living">Vivants</string>
     <string name="forge_ap_classic">Classique</string>
-    <string name="forge_ap_rings_note">Les anneaux vivants bougent et respirent. Les classiques restent immobiles et consomment moins de batterie.</string>
+    <string name="forge_ap_colored">Colorés</string>
+    <string name="forge_ap_rings_living_detail">Les anneaux vivants bougent et respirent.</string>
+    <string name="forge_ap_rings_classic_detail">Anneaux immobiles avec un léger dégradé. Ils consomment moins de batterie.</string>
+    <string name="forge_ap_rings_colored_detail">Anneaux plats aux couleurs nettes : Charge du rouge au vert selon sa valeur, Effort en bleu, Rest en bleu clair. Ils restent immobiles et consomment moins de batterie.</string>
     <string name="forge_ap_motion">Mouvement</string>
     <string name="forge_log_photo">Photo</string>
     <string name="forge_log_photo_question">Voici une photo que je veux enregistrer, comme un repas ou un écran d\'entraînement. Dis ce que tu vois et ce que je pourrais en saisir. Indique toute estimation comme telle et n\'enregistre rien toi-même.</string>
@@ -7473,7 +7476,7 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="fsw4_wake_check">Vérification des réveils</string>
     <string name="fsw4_wake_note">Ne compte un réveil que si vous avez marché ou changé de position. Une hausse du pouls seule reste du sommeil léger. Ignoré les nuits avec trop peu de données de mouvement. S\'applique dès la nuit prochaine.</string>
     <string name="fsw4_style">Style</string>
-    <string name="fsw4_style_blurb">Clair, sombre ou selon le système, plus accent et icônes.</string>
+    <string name="fsw4_style_blurb">Clair, sombre ou selon le système, plus accent, anneaux et icônes.</string>
     <string name="fsw4_system">Système</string>
     <string name="fsw4_backup_group">Sauvegarde et restauration</string>
     <string name="fsw4_imports_blurb">Autres sources lues par NOOP et l\'espace qu\'il occupe.</string>

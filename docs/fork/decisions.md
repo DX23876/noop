@@ -2145,3 +2145,26 @@ points and hard days by about one, and a day sits a median 2.1 above its stronge
 2.7, lower quarter 1.7); the issue's example values for workouts are unchanged.
 
 Analysis migration required: yes, riding on AI-38, which had not shipped.
+
+## 2026-11-27 — Coloured score rings, a third ring style beside Living and Classic
+
+The owner wanted to swap Today's rings for rings in the style of WHOOP's: flat, in clear colours. The app
+already offered Living and Classic rings, through one funnel (`ScoreRing` on Apple, `OrganicRing` on
+Android), so the new look is a third value of the same setting (`ScoreRingStyle.colored`) and holds wherever a
+score ring is drawn: Today, the Charge, Effort and Rest pages, Sleep and the weekly report. Widgets and the
+watch draw their own rings and are not part of it.
+
+Decided with the owner:
+
+- **Colours are fixed.** Charge is red to green by its band, from the classic readiness swatches, under every
+  chart style; Effort is blue, Rest light blue, on a neutral grey track. The two blues are the fork's own
+  tokens (`StrandPalette.coloredRing*`), shared with Android through `Tools/design_tokens.py`. One resolver
+  (`coloredRingTint`) gives the colour, so the pinned score bar on Today shows the same colours as the rings.
+- **The menu names no brand.** The style is called "Colored" ("Farbig"), beside "Bunt" for the colour profile.
+- **The ring choice moves to Style, directly under the colour profile.** With three looks it is a look choice
+  rather than a motion one; Motion keeps reduce motion, the motion effect and the coach animation. A line
+  under the menu says what the chosen style looks like.
+- Like Classic, the coloured rings stand still: no frame clock, no motion sensor, and the motion-effect switch
+  is greyed out (`ScoreRingStyle.isStill`).
+
+Analysis migration required: no (display only).

@@ -349,6 +349,11 @@ internal fun AppearanceSection(change: (() -> Unit) -> Unit) {
                               }
                           })
             }
+        }
+        // The score rings, a look choice since there are three: under the colour profile, as iOS (2026-11-27).
+        RowDivider()
+        ScoreRingsRow(change)
+        if (ForgeDesign.preview) {
             // iOS shows the accent choice only for the colourful profile; the calm ones bring their own.
             if (ForgeColorProfile.current == ForgeColorProfile.Colorful) {
                 RowDivider()
@@ -386,18 +391,11 @@ internal fun AppearanceSection(change: (() -> Unit) -> Unit) {
     }
     BackgroundCard()
     // iOS's Motion, one group per setting as `motionGroups`: its control on the card, what it does as the footer under it.
-    // The first group carries the header. Reduce motion holds every looping surface still; the rings are living or classic.
+    // The first group carries the header. Reduce motion holds every looping surface still; the rings are chosen in Style.
     var quiet by remember { mutableStateOf(NoopPrefs.quietMotion(context)) }
     SettingsCard(title = stringResource(R.string.forge_ap_motion), blurb = stringResource(R.string.forge_ap_reduce_motion_note)) {
         ToggleRow(stringResource(R.string.forge_ap_reduce_motion), null, quiet) { on ->
             quiet = on; change { NoopPrefs.setQuietMotion(context, on) }
-        }
-    }
-    SettingsCard(title = null, blurb = stringResource(R.string.forge_ap_rings_note)) {
-        SettingRow(stringResource(R.string.forge_ap_score_rings)) {
-            Segmented(ScoreRingStyle.entries.toList(), ScoreRingStyle.current,
-                      label = { stringResource(if (it == ScoreRingStyle.Classic) R.string.forge_ap_classic else R.string.forge_ap_living) },
-                      onSelect = { change { ScoreRingStyle.set(context, it) } })
         }
     }
     // The coach button's slow pulse (iOS `CoachTilePrefs.breathingKey`); Reduce motion above still holds it still.
@@ -405,6 +403,28 @@ internal fun AppearanceSection(change: (() -> Unit) -> Unit) {
         ToggleRow(stringResource(R.string.fsp4_coach_animation), null,
                   CoachBreathPrefs.enabled(context)) { on -> change { CoachBreathPrefs.set(context, on) } }
     }
+}
+
+/** The ring style menu of the Style card (iOS `scoreRingsRow`), with what the chosen style looks like under it. */
+@Composable
+private fun ScoreRingsRow(change: (() -> Unit) -> Unit) {
+    val context = LocalContext.current
+    val ringLabel: @Composable (ScoreRingStyle) -> String = { stringResource(when (it) {
+        ScoreRingStyle.Organic -> R.string.forge_ap_living
+        ScoreRingStyle.Classic -> R.string.forge_ap_classic
+        ScoreRingStyle.Colored -> R.string.forge_ap_colored
+    }) }
+    SettingRow(stringResource(R.string.forge_ap_score_rings)) {
+        MenuPicker(ringLabel(ScoreRingStyle.current), ScoreRingStyle.entries.toList(), label = ringLabel,
+                   onSelect = { change { ScoreRingStyle.set(context, it) } })
+    }
+    Text(stringResource(when (ScoreRingStyle.current) {
+             ScoreRingStyle.Organic -> R.string.forge_ap_rings_living_detail
+             ScoreRingStyle.Classic -> R.string.forge_ap_rings_classic_detail
+             ScoreRingStyle.Colored -> R.string.forge_ap_rings_colored_detail
+         }),
+         style = Forge.type.footnote, color = Forge.colors.textSecondary,
+         modifier = Modifier.padding(bottom = ForgeMetrics.space2))
 }
 
 /** The iOS Settings › Dashboard card: which dashboard Today shows, and for Trends its four metric slots. */

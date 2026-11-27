@@ -32,11 +32,15 @@ import com.noop.ui.rememberPoseStill
 
 /**
  * Fork (DX23876), Android parity 2026-11-12: the score ring style the wearer chose (iOS `ScoreRingStyle`, Settings,
- * Motion, Rings): the living organic ring, or a still classic ring like Apple's. Same key and values as iOS. Every
- * Charge, Effort and Rest ring is an [OrganicRing], which reads this, so the one setting holds everywhere.
+ * Style, Rings): the living organic ring, a still classic ring like Apple's, or a flat coloured ring (2026-11-27). Same
+ * key and values as iOS. Every Charge, Effort and Rest ring is an [OrganicRing], which reads this, so the one setting
+ * holds everywhere.
  */
 enum class ScoreRingStyle(val raw: String) {
-    Organic("organic"), Classic("classic");
+    Organic("organic"), Classic("classic"), Colored("colored");
+
+    /** Only the living rings move (iOS `ScoreRingStyle.isStill`). */
+    val still: Boolean get() = this != Organic
 
     companion object {
         const val KEY = "noop.scoreRingStyle"

@@ -613,14 +613,20 @@ public enum OrganicScoreMotionPrefs {
     public static let reactsToMovementDefault = true
 }
 
-/// How the Charge, Effort and Rest score rings are drawn everywhere in the app: the living organic rings
-/// or still, classic arcs. Display only.
+/// How the Charge, Effort and Rest score rings are drawn everywhere in the app: the living organic rings,
+/// still classic arcs like Apple's, or flat coloured rings on a grey track (Charge by its band, Effort blue,
+/// Rest light blue). Display only.
 public enum ScoreRingStyle: String, CaseIterable, Sendable {
     case organic
     case classic
+    case colored
 
     public static let storageKey = "noop.scoreRingStyle"
     public static let defaultStyle = ScoreRingStyle.organic
+
+    /// Whether the rings stand still: no frame clock, no motion sensor, no tilt response. Only the living
+    /// rings move, so every check of "is this a still ring" asks here rather than naming one still style.
+    public var isStill: Bool { self != .organic }
 
     /// An unknown or missing value keeps the living rings.
     public static func resolve(_ raw: String?) -> ScoreRingStyle {

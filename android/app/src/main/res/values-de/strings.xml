@@ -6651,7 +6651,10 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_ap_score_rings">Ringe</string>
     <string name="forge_ap_living">Lebendig</string>
     <string name="forge_ap_classic">Klassisch</string>
-    <string name="forge_ap_rings_note">Lebendige Ringe bewegen sich und atmen. Klassische Ringe stehen still und sparen Akku.</string>
+    <string name="forge_ap_colored">Farbig</string>
+    <string name="forge_ap_rings_living_detail">Lebendige Ringe bewegen sich und atmen.</string>
+    <string name="forge_ap_rings_classic_detail">Ruhige Ringe mit weichem Verlauf. Sie stehen still und sparen Akku.</string>
+    <string name="forge_ap_rings_colored_detail">Flache Ringe in klaren Farben: Charge rot bis grün nach Wert, Effort blau, Rest hellblau. Sie stehen still und sparen Akku.</string>
     <string name="forge_ap_motion">Bewegung</string>
     <string name="forge_log_photo">Foto</string>
     <string name="forge_log_photo_question">Hier ist ein Foto, das ich eintragen möchte, etwa eine Mahlzeit oder ein Trainingsbildschirm. Sag, was du siehst und was ich daraus eintragen könnte. Kennzeichne Schätzungen als Schätzungen und trage selbst nichts ein.</string>
@@ -7492,7 +7495,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fsw4_wake_check">Wachphasen-Prüfung</string>
     <string name="fsw4_wake_note">Zählt eine Wachphase nur, wenn du gegangen bist oder die Lage gewechselt hast. Ein Pulsanstieg allein bleibt leichter Schlaf. Entfällt in Nächten mit zu wenig Bewegungsdaten. Gilt ab der nächsten Nacht.</string>
     <string name="fsw4_style">Stil</string>
-    <string name="fsw4_style_blurb">Hell, dunkel oder wie im System, dazu Akzentfarbe und Symbole.</string>
+    <string name="fsw4_style_blurb">Hell, dunkel oder wie im System, dazu Akzentfarbe, Ringe und Symbole.</string>
     <string name="fsw4_system">System</string>
     <string name="fsw4_backup_group">Sicherung &amp; Wiederherstellung</string>
     <string name="fsw4_imports_blurb">Weitere Quellen, die NOOP liest, und der Speicher, den es belegt.</string>
