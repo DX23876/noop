@@ -165,6 +165,21 @@ public enum SleepStager {
     /// stillness keeps a near-waking HR, so only a block that dips clearly (a true second sleep) survives.
     public static let morningReonsetRestingHRMult: Double = 0.90
 
+    // MARK: - H9 evening-stillness nap suppression (DX23876/noop#60)
+
+    // The evening twin of H7: a long still stretch on the sofa before bed (reading, a film) became a separate
+    // "sleep" when it ended more than `nightContinuationGapMin` before the real night, because a window centred
+    // after 20:00 counts as overnight and skips the daytime guard. H9 holds an evening block that a LONGER sleep
+    // follows within `eveningStillnessWindowMin` to the suspected-morning-stillness bar: long enough, a real
+    // dip, then the strap's own "asleep" band state or the deeper re-onset dip. The first half of a genuinely
+    // split night dips far below the day's median and keeps its place.
+
+    /// Local hour (inclusive) from which a block's centre counts as evening; evening runs to midnight.
+    public static let eveningBandStartHour: Int = 20
+    /// A longer sleep that begins within this many minutes after an evening block ends makes the block suspected
+    /// pre-bed stillness.
+    public static let eveningStillnessWindowMin: Int = 180
+
     /// The persisted v18 BAND sleep_state value that means "asleep" (Interpreter's `(sb>>4)&3`: 0 wake /
     /// 1 still / 2 asleep / 3 up). The strap's OWN scored band state — an independent anchor we CONSUME to
     /// confirm a borderline morning re-onset (H7) without re-deriving anything. (#531 / H8 consume)
@@ -1070,6 +1085,35 @@ public enum SleepStager {
         return hour >= daytimeBandStartHour && hour < daytimeBandEndHour
     }
 
+    /// True when the run's CENTRE, in local time, lies between `eveningBandStartHour` and midnight (H9, #60).
+    static func isEveningCenter(_ p: Period, tzOffsetSeconds: Int) -> Bool {
+        let center = p.start + (p.end - p.start) / 2
+        let secOfDay = ((center + tzOffsetSeconds) % secondsPerDay + secondsPerDay) % secondsPerDay
+        return secOfDay / 3_600 >= eveningBandStartHour
+    }
+
+    /// The start of the night that follows an evening block (H9, #60): the first later sleep run that is longer
+    /// than `p` and begins after the continuation gap but within `eveningStillnessWindowMin`. Nil when none does.
+    static func followingNightStart(after p: Period, runs: [Period]) -> Int? {
+        let gap = nightContinuationGapMin * 60, window = eveningStillnessWindowMin * 60
+        return runs.first { r in
+            r.stage == "sleep" && r.start - p.end > gap && r.start - p.end <= window
+                && (r.end - r.start) > (p.end - p.start)
+        }?.start
+    }
+
+    /// H9 (#60): true = KEEP. An evening block the night follows (`nightStart`) must clear the daytime guard and
+    /// then show the strap's own "asleep" state or the deeper re-onset dip, as suspected morning stillness does.
+    /// Without a following night it is untouched.
+    static func passesEveningStillnessGuard(_ p: Period, restingHR: Int?, baseline: Double?, nightStart: Int?,
+                                            bandSleepState: [(ts: Int, state: Int)] = []) -> Bool {
+        guard nightStart != nil else { return true }
+        if !passesDaytimeGuard(p, restingHR: restingHR, baseline: baseline) { return false }
+        if bandStateConfirmsAsleep(p, bandSleepState: bandSleepState) { return true }
+        guard let baseline = baseline, let resting = restingHR else { return false }
+        return Double(resting) <= baseline * morningReonsetRestingHRMult
+    }
+
     /// True when a run's ONSET (start), in LOCAL time, falls OUTSIDE the daytime band — i.e.
     /// the sleep began at night, not during the day. Anchors a continuous-sleep chain: only a
     /// chain that began overnight may carry its tail past the daytime-band start (a late wake).
@@ -1706,6 +1750,18 @@ public enum SleepStager {
                 traceSink?(GateTrace.runLine(index: runIndex, startTs: p.start, endTs: p.end,
                     verdict: .dropped, gate: gateName,
                     detail: "daytime=true restingHR=\(resting ?? -1) baseline=\(baseline.map { Int($0) } ?? -1) nightTail=false"))
+                continue
+            }
+            // H9 (#60): an evening block that the real night follows is held to the morning-stillness bar, so a
+            // still evening on the sofa is not kept as sleep.
+            if !isDaytime, !isNightTail, isEveningCenter(p, tzOffsetSeconds: tzOffsetSeconds),
+               let nightStart = followingNightStart(after: p, runs: runs),
+               !passesEveningStillnessGuard(p, restingHR: resting, baseline: baseline, nightStart: nightStart,
+                                            bandSleepState: bandSleepState) {
+                traceSink?(GateTrace.runLine(index: runIndex, startTs: p.start, endTs: p.end,
+                    verdict: .dropped, gate: "eveningStillness",
+                    detail: "restingHR=\(resting ?? -1) baseline=\(baseline.map { Int($0) } ?? -1) "
+                        + "nightGapMin=\((nightStart - p.end) / 60)"))
                 continue
             }
             let rawStages = method.usesV2Stages

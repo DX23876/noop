@@ -4,6 +4,7 @@ import com.noop.data.GravitySample
 import com.noop.data.HrSample
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -177,5 +178,22 @@ class SleepStagerPhase2Test {
         val reconstructed = states.mapIndexed { i, st -> (p.start + i * 30L) to st }
         assertTrue("the persisted+re-expanded band grid drives the H7 confirm end to end",
             SleepStager.passesMorningStillnessGuard(p, 74, 80.0, wakeEnd, reconstructed))
+    }
+
+    @Test
+    fun theEveningGuardNeedsAFollowingNightAndAnEveningCentre() {
+        // DX23876/noop#60, the same cases as Swift's testTheEveningGuardNeedsAFollowingNightAndAnEveningCentre.
+        val evening = SleepStager.Period("sleep", startAtHour(21), startAtHour(21) + 100 * 60L)
+        val night = SleepStager.Period("sleep", startAtHour(24) + 40 * 60L, startAtHour(31))
+        assertTrue(SleepStager.isEveningCenter(evening, 0L))
+        assertFalse(SleepStager.isEveningCenter(night, 0L))
+        assertEquals(night.start, SleepStager.followingNightStart(evening, listOf(evening, night)))
+        val tooFar = SleepStager.Period("sleep", evening.end + 4 * 3_600L, evening.end + 12 * 3_600L)
+        assertNull(SleepStager.followingNightStart(evening, listOf(evening, tooFar)))
+        val close = SleepStager.Period("sleep", evening.end + 60 * 60L, evening.end + 9 * 3_600L)
+        assertNull(SleepStager.followingNightStart(evening, listOf(evening, close)))
+        assertFalse(SleepStager.passesEveningStillnessGuard(evening, 70, 72.0, night.start))
+        assertTrue(SleepStager.passesEveningStillnessGuard(evening, 60, 72.0, night.start))
+        assertTrue(SleepStager.passesEveningStillnessGuard(evening, 70, 72.0, null))
     }
 }

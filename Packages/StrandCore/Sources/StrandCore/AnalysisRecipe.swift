@@ -276,6 +276,9 @@ public enum AnalysisRecipe {
     // day as `rhr_effort`. The full rebuild scores every day and fills every workout again, and scores the
     // Effort stored on recorded and confirmed sessions again from the band (`rescoreRecordedEffort`); nothing
     // the wearer entered is rewritten.
+    // AI-38 also carries the evening sofa rule (2026-11-28, DX23876/noop#60, `SleepStager` H9): a still evening
+    // block that a longer night follows within three hours is held to the morning-stillness bar, so the rebuild
+    // detects every night again without the sofa naps; a night the wearer edited or deleted stays as it was.
     public static let currentVersion = 38
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy

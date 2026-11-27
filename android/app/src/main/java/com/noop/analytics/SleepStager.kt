@@ -161,6 +161,14 @@ object SleepStager {
      *  Mirrors Swift `morningReonsetRestingHRMult`. (#531) */
     const val morningReonsetRestingHRMult: Double = 0.90
 
+    /** H9 (DX23876/noop#60), the evening twin of H7: local hour (inclusive) from which a block's centre counts as
+     *  evening, to midnight. Mirrors Swift `eveningBandStartHour`. */
+    const val eveningBandStartHour: Int = 20
+
+    /** A longer sleep beginning within this many minutes after an evening block ends makes the block suspected
+     *  pre-bed stillness. Mirrors Swift `eveningStillnessWindowMin`. (#60) */
+    const val eveningStillnessWindowMin: Int = 180
+
     /** The persisted v18 BAND sleep_state value that means "asleep" (Interpreter's `(sb>>4)&3`: 0 wake /
      *  1 still / 2 asleep / 3 up). The strap's OWN scored band state — an independent anchor we CONSUME to
      *  confirm a borderline morning re-onset (H7). Mirrors Swift `bandStateAsleep`. (#531 / H8 consume) */
@@ -1196,6 +1204,39 @@ object SleepStager {
         return hour >= daytimeBandStartHour && hour < daytimeBandEndHour
     }
 
+    /** True when the run's centre, in local time, lies between [eveningBandStartHour] and midnight. Mirrors Swift. (#60) */
+    internal fun isEveningCenter(p: Period, tzOffsetSeconds: Long): Boolean {
+        val center = p.start + (p.end - p.start) / 2
+        val secOfDay = Math.floorMod(center + tzOffsetSeconds, secondsPerDay)
+        return (secOfDay / 3_600L).toInt() >= eveningBandStartHour
+    }
+
+    /** The start of the night that follows an evening block: the first later sleep run longer than [p] that begins
+     *  after the continuation gap but within [eveningStillnessWindowMin]. Mirrors Swift `followingNightStart`. (#60) */
+    internal fun followingNightStart(p: Period, runs: List<Period>): Long? {
+        val gap = (nightContinuationGapMin * 60).toLong()
+        val window = (eveningStillnessWindowMin * 60).toLong()
+        return runs.firstOrNull { r ->
+            r.stage == "sleep" && r.start - p.end > gap && r.start - p.end <= window && (r.end - r.start) > (p.end - p.start)
+        }?.start
+    }
+
+    /** H9 (#60): true = KEEP. Mirrors Swift `passesEveningStillnessGuard`: with a following night, the daytime guard,
+     *  then the strap's own "asleep" state or the deeper re-onset dip. */
+    internal fun passesEveningStillnessGuard(
+        p: Period,
+        restingHR: Int?,
+        baseline: Double?,
+        nightStart: Long?,
+        bandSleepState: List<Pair<Long, Int>> = emptyList(),
+    ): Boolean {
+        if (nightStart == null) return true
+        if (!passesDaytimeGuard(p, restingHR, baseline)) return false
+        if (bandStateConfirmsAsleep(p, bandSleepState)) return true
+        if (baseline == null || restingHR == null) return false
+        return restingHR.toDouble() <= baseline * morningReonsetRestingHRMult
+    }
+
     /**
      * True when a run's ONSET (start), in LOCAL time, falls OUTSIDE the daytime band — i.e. the
      * sleep began at night, not during the day. Anchors a continuous-sleep chain: only a chain
@@ -1824,6 +1865,15 @@ object SleepStager {
                 traceSink?.invoke(SleepStagerTrace.runLine(runIndex, p.start, p.end,
                     SleepStagerTrace.Verdict.DROPPED, gateName,
                     "daytime=true restingHR=${resting ?: -1} baseline=${baseline?.toInt() ?: -1} nightTail=false"))
+                continue
+            }
+            // H9 (#60): an evening block that the real night follows is held to the morning-stillness bar.
+            val nightStart = if (!isDaytime && !isNightTail && isEveningCenter(p, tzOffsetSeconds))
+                followingNightStart(p, runs) else null
+            if (nightStart != null && !passesEveningStillnessGuard(p, resting, baseline, nightStart, bandSleepState)) {
+                traceSink?.invoke(SleepStagerTrace.runLine(runIndex, p.start, p.end,
+                    SleepStagerTrace.Verdict.DROPPED, "eveningStillness",
+                    "restingHR=${resting ?: -1} baseline=${baseline?.toInt() ?: -1} nightGapMin=${(nightStart - p.end) / 60}"))
                 continue
             }
             val rawStages = if (useSleepStagerV2) {

@@ -1089,6 +1089,46 @@ final class SleepStagerTests: XCTestCase {
         return SleepStager.Period(stage: "sleep", start: s, end: s + durMin * 60)
     }
 
+    /// DX23876/noop#60: 100 still minutes on the sofa from 21:30 with a waking heart rate, then up for 100 minutes,
+    /// then the night from 00:50. The sofa block is evening-centred and the night follows within three hours, so
+    /// H9 holds it to the morning-stillness bar and drops it; the night stays.
+    func testAnEveningOnTheSofaBeforeTheNightIsNotSleep() {
+        // A waking day from 07:00, so the day's median is a waking heart rate as on a real day.
+        let dayStart = startAtHour(7)
+        let dayDur = 14 * 3_600 + 30 * 60               // 07:00 to 21:30, moving, HR 72
+        let sofaStart = dayStart + dayDur, sofaDur = 100 * 60
+        let upStart = sofaStart + sofaDur, upDur = 100 * 60
+        let nightStart = upStart + upDur, nightDur = 7 * 3_600
+        let grav = activeGravity(start: dayStart, durationS: dayDur) + stillGravity(start: sofaStart, durationS: sofaDur)
+            + activeGravity(start: upStart, durationS: upDur) + stillGravity(start: nightStart, durationS: nightDur)
+        func hr(sofa bpm: Int) -> [HRSample] {
+            hrStream(start: dayStart, durationS: dayDur, bpm: 72) + hrStream(start: sofaStart, durationS: sofaDur, bpm: bpm)
+                + hrStream(start: upStart, durationS: upDur, bpm: 72) + hrStream(start: nightStart, durationS: nightDur, bpm: 50)
+        }
+        let sofa = SleepStager.detectSleep(hr: hr(sofa: 70), gravity: grav)
+        XCTAssertEqual(sofa.count, 1, "the sofa is not a nap")
+        XCTAssertGreaterThanOrEqual(sofa.first?.start ?? 0, nightStart - 10 * 60)
+        // The same block with a real sleeper's heart rate (a first half of a split night) keeps its place.
+        let asleep = SleepStager.detectSleep(hr: hr(sofa: 50), gravity: grav)
+        XCTAssertEqual(asleep.count, 2, "a block with a clear dip stays sleep")
+    }
+
+    func testTheEveningGuardNeedsAFollowingNightAndAnEveningCentre() {
+        let evening = SleepStager.Period(stage: "sleep", start: startAtHour(21), end: startAtHour(21) + 100 * 60)
+        let night = SleepStager.Period(stage: "sleep", start: startAtHour(24) + 40 * 60, end: startAtHour(31))
+        XCTAssertTrue(SleepStager.isEveningCenter(evening, tzOffsetSeconds: 0))
+        XCTAssertFalse(SleepStager.isEveningCenter(night, tzOffsetSeconds: 0))
+        XCTAssertEqual(SleepStager.followingNightStart(after: evening, runs: [evening, night]), night.start)
+        let tooFar = SleepStager.Period(stage: "sleep", start: evening.end + 4 * 3_600, end: evening.end + 12 * 3_600)
+        XCTAssertNil(SleepStager.followingNightStart(after: evening, runs: [evening, tooFar]), "beyond three hours")
+        let close = SleepStager.Period(stage: "sleep", start: evening.end + 60 * 60, end: evening.end + 9 * 3_600)
+        XCTAssertNil(SleepStager.followingNightStart(after: evening, runs: [evening, close]),
+                     "within the continuation gap it is one night, which the chain handles")
+        XCTAssertFalse(SleepStager.passesEveningStillnessGuard(evening, restingHR: 70, baseline: 72, nightStart: night.start))
+        XCTAssertTrue(SleepStager.passesEveningStillnessGuard(evening, restingHR: 60, baseline: 72, nightStart: night.start))
+        XCTAssertTrue(SleepStager.passesEveningStillnessGuard(evening, restingHR: 70, baseline: 72, nightStart: nil))
+    }
+
     func testMorningStillnessRejectedNearOvernightWake() {
         // A 120-min daytime block at 09:00 that clears the ORDINARY daytime guard (resting 74 ≤ 0.95×80=76)
         // but NOT the stronger re-onset bar (74 > 0.90×80=72), beginning right after a 08:00 overnight wake,
