@@ -7853,5 +7853,9 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_lab_sleep_recipe">Fases del sueño (prueba)</string>
     <string name="forge_lab_sleep_recipe_standard">Estándar</string>
     <string name="forge_lab_sleep_recipe_trained">Modelo entrenado</string>
-    <string name="forge_lab_sleep_recipe_detail">Qué método divide tu noche en ligero, profundo, REM y despierto. El modelo entrenado se ajustó a registros de laboratorio del sueño de otros dispositivos de muñeca y aún no se ha comprobado en noches de WHOOP. Al cambiar se recalculan todas las noches; tus datos registrados y tus correcciones del sueño se mantienen.</string>
+    <string name="forge_lab_sleep_recipe_restless">Con detección de inquietud</string>
+    <string name="forge_lab_sleep_recipe_standard_detail">El método habitual. Lee tu frecuencia cardíaca, cuánto varía, tu ritmo respiratorio y cómo te mueves. Recomendado si no tienes motivo para cambiar.</string>
+    <string name="forge_lab_sleep_recipe_restless_detail">Como Estándar, con una comprobación más. En el sueño REM el cuerpo está casi quieto. Si la pulsera se mueve ligeramente durante más de unos segundos, ese tiempo cuenta como sueño ligero en lugar de REM, porque estar acostado con inquietud se confundía a menudo con REM. Nunca te marca como despierto. Vale la pena probarlo si tu REM suele pasar del 30 %. Comprobado con registros de laboratorio del sueño.</string>
+    <string name="forge_lab_sleep_recipe_trained_detail">Aprendido de registros de laboratorio del sueño de otros dispositivos de muñeca y aún no comprobado en noches de WHOOP. Algunas noches muestra muy poco REM. Solo para pruebas.</string>
+    <string name="forge_lab_sleep_recipe_detail">Qué método divide tu noche en ligero, profundo, REM y despierto. Al cambiar se recalculan todas las noches; tus datos registrados y tus correcciones del sueño se mantienen.</string>
 </resources>

@@ -7895,5 +7895,9 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_lab_sleep_recipe">Sleep stages (test)</string>
     <string name="forge_lab_sleep_recipe_standard">Standard</string>
     <string name="forge_lab_sleep_recipe_trained">Trained model</string>
-    <string name="forge_lab_sleep_recipe_detail">Which method sorts your night into light, deep, REM and awake. The trained model was fitted to sleep-lab recordings from other wrist devices and is not yet checked on WHOOP nights. Switching recalculates all nights; your recorded data and your sleep corrections stay.</string>
+    <string name="forge_lab_sleep_recipe_restless">With restlessness check</string>
+    <string name="forge_lab_sleep_recipe_standard_detail">The usual method. It reads your heart rate, how much it varies, your breathing rhythm and how you move. Recommended if you have no reason to switch.</string>
+    <string name="forge_lab_sleep_recipe_restless_detail">Like Standard, with one check added. In REM sleep the body lies almost still. When the strap keeps moving slightly for longer than a few seconds, that time counts as light sleep instead of REM, because lying restless was often mistaken for REM. It never marks you as awake. Worth trying if your REM is often above 30 %. Checked against sleep-lab recordings.</string>
+    <string name="forge_lab_sleep_recipe_trained_detail">Learned from sleep-lab recordings of other wrist devices and not yet checked on WHOOP nights. On some nights it shows very little REM. For testing only.</string>
+    <string name="forge_lab_sleep_recipe_detail">Which method sorts your night into light, deep, REM and awake. Switching recalculates all nights; your recorded data and your sleep corrections stay.</string>
 </resources>

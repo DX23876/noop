@@ -7845,5 +7845,9 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="forge_lab_sleep_recipe">Fases do sono (teste)</string>
     <string name="forge_lab_sleep_recipe_standard">Padrão</string>
     <string name="forge_lab_sleep_recipe_trained">Modelo treinado</string>
-    <string name="forge_lab_sleep_recipe_detail">Que método divide a tua noite em leve, profundo, REM e acordado. O modelo treinado foi ajustado a gravações de laboratório do sono de outros dispositivos de pulso e ainda não foi verificado em noites WHOOP. Mudar recalcula todas as noites; os teus dados registados e as tuas correções do sono mantêm-se.</string>
+    <string name="forge_lab_sleep_recipe_restless">Com deteção de agitação</string>
+    <string name="forge_lab_sleep_recipe_standard_detail">O método habitual. Lê a tua frequência cardíaca, quanto varia, o teu ritmo respiratório e como te mexes. Recomendado se não tiveres motivo para mudar.</string>
+    <string name="forge_lab_sleep_recipe_restless_detail">Como Padrão, com uma verificação extra. No sono REM o corpo fica quase imóvel. Quando a pulseira se mexe ligeiramente durante mais de alguns segundos, esse tempo conta como sono leve em vez de REM, porque estar deitado inquieto era muitas vezes confundido com REM. Nunca te marca como acordado. Vale a pena experimentar se o teu REM passa muitas vezes dos 30 %. Verificado com gravações de laboratório do sono.</string>
+    <string name="forge_lab_sleep_recipe_trained_detail">Aprendido com gravações de laboratório do sono de outros dispositivos de pulso e ainda não verificado em noites WHOOP. Em algumas noites mostra muito pouco REM. Apenas para testes.</string>
+    <string name="forge_lab_sleep_recipe_detail">Que método divide a tua noite em leve, profundo, REM e acordado. Mudar recalcula todas as noites; os teus dados registados e as tuas correções do sono mantêm-se.</string>
 </resources>

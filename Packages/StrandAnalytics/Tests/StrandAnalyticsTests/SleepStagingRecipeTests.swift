@@ -42,8 +42,25 @@ final class SleepStagingRecipeTests: XCTestCase {
         XCTAssertEqual(SleepStager.StagingRecipe.resolved(rawValue: nil), .standard)
         XCTAssertEqual(SleepStager.StagingRecipe.resolved(rawValue: "garbage"), .standard)
         XCTAssertEqual(SleepStager.StagingRecipe.resolved(rawValue: "trained"), .trained)
+        XCTAssertEqual(SleepStager.StagingRecipe.resolved(rawValue: "restless"), .restless)
         XCTAssertEqual(SleepStager.StagingRecipe.standard.signatureSuffix, "")
         XCTAssertEqual(SleepStager.StagingRecipe.trained.signatureSuffix, "+trained")
+        XCTAssertEqual(SleepStager.StagingRecipe.restless.signatureSuffix, "+restless")
+    }
+
+    /// The restless recipe is the standard recipe with the restless term, on the same detected window.
+    func testTheRestlessRecipeStagesTheSameWindowWithTheRestlessTerm() throws {
+        let n = night()
+        let standard = try XCTUnwrap(detect(n, .v3, .standard).first)
+        let restless = try XCTUnwrap(detect(n, .v3, .restless).first)
+        XCTAssertEqual(restless.start, standard.start, "the recipe stages a window; it never moves detection")
+        XCTAssertEqual(restless.end, standard.end)
+        XCTAssertEqual(restless.stages, SleepStagerV2.stageSession(start: restless.start, end: restless.end,
+                                                                   grav: n.gravity, hr: n.hr, rr: [], resp: [],
+                                                                   restless: .remOnly))
+        XCTAssertEqual(SleepStager.stageV2Family(.restless, start: restless.start, end: restless.end, grav: n.gravity,
+                                                 hr: n.hr, rr: [], resp: []),
+                       restless.stages)
     }
 
     func testTheStandardRecipeStagesExactlyAsBefore() throws {

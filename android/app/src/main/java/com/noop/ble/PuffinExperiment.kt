@@ -371,7 +371,7 @@ class PuffinExperiment(
         const val KEY_SLEEP_STAGER_METHOD = "noopSleepStagerMethod"
         val SLEEP_METHODS = listOf("v3", "v2", "v1")
         const val KEY_SLEEP_STAGING_RECIPE = "noopSleepStagingRecipe"
-        val SLEEP_RECIPES = listOf("standard", "trained")
+        val SLEEP_RECIPES = listOf("standard", "restless", "trained")
 
         /** "HR-from-PPG sub-lag interpolation" opt-in (mirrors macOS `PuffinExperiment.ppgHrSubLagInterpKey`). */
         const val KEY_PPG_HR_SUBLAG_INTERP = "noopPpgHrSubLagInterp"

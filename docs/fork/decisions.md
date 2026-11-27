@@ -2149,4 +2149,11 @@ falls from 28.9 to 24.7 %, the nights over 30 % REM from 5 to 3; wake rises from
 the worst night) and deep is unchanged. Whether it becomes a third Lab entry is the owner's call on these
 numbers.
 
-Analysis migration required: no (no product path reaches the term yet)
+The owner took it on those numbers, as a Lab entry and not as the default: overall it agrees with sleep-lab
+truth no better than Standard, it only moves excess REM to light sleep. `SleepStager.StagingRecipe.restless`
+("With restlessness check", German "Mit Unruhe-Erkennung") sits between Standard and the trained model, with
+the same switch rules (signature suffix "+restless", the whole history restaged on a switch, nothing on an
+untouched install). Each choice now carries its own plain-words explanation under the menu, because the owner
+asked that a reader can tell what the check does without the background above.
+
+Analysis migration required: no (a Lab choice, default standard; switching it restages the history itself)

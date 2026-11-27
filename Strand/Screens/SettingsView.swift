@@ -4251,6 +4251,7 @@ private struct SettingsPageContent: View, Equatable {
             set: { sleepStagingRecipeRaw = $0.rawValue }
         )) {
             Text("Standard").tag(SleepStager.StagingRecipe.standard)
+            Text("With restlessness check").tag(SleepStager.StagingRecipe.restless)
             Text("Trained model").tag(SleepStager.StagingRecipe.trained)
         }
         .labelsHidden()
@@ -4262,6 +4263,21 @@ private struct SettingsPageContent: View, Equatable {
                 await model.intelligence.reanalyzeHistoryReusingUnchangedDays(triggerLabel: "sleep-recipe")
                 await model.repo.refresh()
             }
+        }
+    }
+
+    /// What the chosen staging recipe does, in plain words, under the menu in both looks.
+    @ViewBuilder private var sleepStagingRecipeExplanation: some View {
+        switch SleepStager.StagingRecipe.resolved(rawValue: sleepStagingRecipeRaw) {
+        case .standard:
+            Text("The usual method. It reads your heart rate, how much it varies, your breathing rhythm and how you move. Recommended if you have no reason to switch.")
+                .settingsCaption()
+        case .restless:
+            Text("Like Standard, with one check added. In REM sleep the body lies almost still. When the strap keeps moving slightly for longer than a few seconds, that time counts as light sleep instead of REM, because lying restless was often mistaken for REM. It never marks you as awake. Worth trying if your REM is often above 30 %. Checked against sleep-lab recordings.")
+                .settingsCaption()
+        case .trained:
+            Text("Learned from sleep-lab recordings of other wrist devices and not yet checked on WHOOP nights. On some nights it shows very little REM. For testing only.")
+                .settingsCaption()
         }
     }
 
@@ -4395,8 +4411,9 @@ private struct SettingsPageContent: View, Equatable {
                     }
                 }
             SettingsSection(icon: "flask", title: "Sleep stages (test)",
-                            blurb: "Which method sorts your night into light, deep, REM and awake. The trained model was fitted to sleep-lab recordings from other wrist devices and is not yet checked on WHOOP nights. Switching recalculates all nights; your recorded data and your sleep corrections stay.") {
+                            blurb: "Which method sorts your night into light, deep, REM and awake. Switching recalculates all nights; your recorded data and your sleep corrections stay.") {
                 FormRow(label: "Sleep stages (test)") { sleepStagingRecipePicker }
+                sleepStagingRecipeExplanation
             }
             .environment(\.settingsSectionHeaderHidden, true)
             labToggle("AgeLess", isOn: $healthspanEnabled,
@@ -4504,7 +4521,8 @@ private struct SettingsPageContent: View, Equatable {
                 Divider().overlay(StrandPalette.hairline)
 
                 FormRow(label: "Sleep stages (test)") { sleepStagingRecipePicker }
-                Text("Which method sorts your night into light, deep, REM and awake. The trained model was fitted to sleep-lab recordings from other wrist devices and is not yet checked on WHOOP nights. Switching recalculates all nights; your recorded data and your sleep corrections stay.")
+                sleepStagingRecipeExplanation
+                Text("Which method sorts your night into light, deep, REM and awake. Switching recalculates all nights; your recorded data and your sleep corrections stay.")
                     .settingsCaption()
 
                 // MARK: Fork — AgeLess, a healthspan age from published mortality studies. Off by default; replaces Body Age.

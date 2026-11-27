@@ -267,16 +267,25 @@ internal fun LabSection(viewModel: AppViewModel, onOpen: (ForgeSettingsSub) -> U
     // recorded streams and corrected bed and wake times stay.
     var sleepRecipe by remember { mutableStateOf(com.noop.ble.PuffinExperiment.from(context).sleepStagingRecipe) }
     SettingsCard(title = null, blurb = stringResource(R.string.forge_lab_sleep_recipe_detail)) {
-        val standard = stringResource(R.string.forge_lab_sleep_recipe_standard)
-        val trained = stringResource(R.string.forge_lab_sleep_recipe_trained)
+        val names = mapOf(
+            "standard" to stringResource(R.string.forge_lab_sleep_recipe_standard),
+            "restless" to stringResource(R.string.forge_lab_sleep_recipe_restless),
+            "trained" to stringResource(R.string.forge_lab_sleep_recipe_trained))
+        val explanations = mapOf(
+            "standard" to stringResource(R.string.forge_lab_sleep_recipe_standard_detail),
+            "restless" to stringResource(R.string.forge_lab_sleep_recipe_restless_detail),
+            "trained" to stringResource(R.string.forge_lab_sleep_recipe_trained_detail))
         SettingRow(stringResource(R.string.forge_lab_sleep_recipe)) {
-            MenuPicker(if (sleepRecipe == "trained") trained else standard,
+            MenuPicker(names.getValue(sleepRecipe),
                        com.noop.ble.PuffinExperiment.SLEEP_RECIPES,
-                       label = { if (it == "trained") trained else standard }, onSelect = { recipe ->
+                       label = { names.getValue(it) }, onSelect = { recipe ->
                            sleepRecipe = recipe
                            viewModel.setSleepStagingRecipe(recipe)
                        })
         }
+        // What the chosen recipe does, in plain words, under the menu as on iOS.
+        Text(explanations.getValue(sleepRecipe), style = Forge.type.footnote, color = Forge.colors.textSecondary,
+             modifier = Modifier.padding(bottom = ForgeMetrics.space2))
     }
     // The two Lab passes of the shared core, as on iOS: off by default, scored at the next analysis.
     var ageless by remember { mutableStateOf(com.noop.core.CoreFeatures.healthspan(context)) }

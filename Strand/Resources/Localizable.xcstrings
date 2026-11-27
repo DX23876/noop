@@ -687249,66 +687249,322 @@
         }
       }
     },
-    "Which method sorts your night into light, deep, REM and awake. The trained model was fitted to sleep-lab recordings from other wrist devices and is not yet checked on WHOOP nights. Switching recalculates all nights; your recorded data and your sleep corrections stay." : {
+    "Learned from sleep-lab recordings of other wrist devices and not yet checked on WHOOP nights. On some nights it shows very little REM. For testing only." : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Which method sorts your night into light, deep, REM and awake. The trained model was fitted to sleep-lab recordings from other wrist devices and is not yet checked on WHOOP nights. Switching recalculates all nights; your recorded data and your sleep corrections stay."
+            "value" : "Learned from sleep-lab recordings of other wrist devices and not yet checked on WHOOP nights. On some nights it shows very little REM. For testing only."
           }
         },
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Welches Verfahren deine Nacht in leicht, tief, REM und wach einteilt. Das trainierte Modell wurde an Schlaflabor-Aufnahmen anderer Geräte am Handgelenk angepasst und ist auf WHOOP-Nächten noch nicht geprüft. Umschalten berechnet alle Nächte neu; deine aufgezeichneten Daten und deine Schlafkorrekturen bleiben."
+            "value" : "An Schlaflabor-Aufnahmen anderer Geräte am Handgelenk gelernt und auf WHOOP-Nächten noch nicht geprüft. In manchen Nächten zeigt es sehr wenig REM. Nur zum Testen."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Qué método divide tu noche en ligero, profundo, REM y despierto. El modelo entrenado se ajustó a registros de laboratorio del sueño de otros dispositivos de muñeca y aún no se ha comprobado en noches de WHOOP. Al cambiar se recalculan todas las noches; tus datos registrados y tus correcciones del sueño se mantienen."
+            "value" : "Aprendido de registros de laboratorio del sueño de otros dispositivos de muñeca y aún no comprobado en noches de WHOOP. Algunas noches muestra muy poco REM. Solo para pruebas."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La méthode qui répartit ta nuit en léger, profond, REM et éveil. Le modèle entraîné a été ajusté sur des enregistrements de laboratoire du sommeil d'autres appareils au poignet et n'est pas encore vérifié sur des nuits WHOOP. Changer recalcule toutes les nuits ; tes données enregistrées et tes corrections de sommeil sont conservées."
+            "value" : "Appris sur des enregistrements de laboratoire du sommeil d'autres appareils au poignet et pas encore vérifié sur des nuits WHOOP. Certaines nuits, il affiche très peu de REM. Uniquement pour tester."
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Que método divide a tua noite em leve, profundo, REM e acordado. O modelo treinado foi ajustado a gravações de laboratório do sono de outros dispositivos de pulso e ainda não foi verificado em noites WHOOP. Mudar recalcula todas as noites; os teus dados registados e as tuas correções do sono mantêm-se."
+            "value" : "Aprendido com gravações de laboratório do sono de outros dispositivos de pulso e ainda não verificado em noites WHOOP. Em algumas noites mostra muito pouco REM. Apenas para testes."
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Która metoda dzieli twoją noc na sen płytki, głęboki, REM i czuwanie. Wytrenowany model dopasowano do nagrań z laboratoriów snu z innych urządzeń na nadgarstek i nie sprawdzono go jeszcze na nocach WHOOP. Zmiana przelicza wszystkie noce; zapisane dane i twoje poprawki snu zostają."
+            "value" : "Nauczony na nagraniach z laboratoriów snu z innych urządzeń na nadgarstek i jeszcze niesprawdzony na nocach WHOOP. W niektóre noce pokazuje bardzo mało REM. Tylko do testów."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Quale metodo divide la tua notte in leggero, profondo, REM e sveglio. Il modello addestrato è stato adattato a registrazioni di laboratorio del sonno di altri dispositivi da polso e non è ancora verificato su notti WHOOP. Cambiare ricalcola tutte le notti; i dati registrati e le tue correzioni del sonno restano."
+            "value" : "Appreso da registrazioni di laboratorio del sonno di altri dispositivi da polso e non ancora verificato su notti WHOOP. In alcune notti mostra pochissimo REM. Solo per test."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Какой метод делит вашу ночь на лёгкий и глубокий сон, REM и бодрствование. Обученная модель подобрана по записям сомнологических лабораторий с других наручных устройств и на ночах WHOOP пока не проверена. Переключение пересчитывает все ночи; записанные данные и ваши исправления сна сохраняются."
+            "value" : "Обучена на записях сомнологических лабораторий с других наручных устройств и на ночах WHOOP пока не проверена. В некоторые ночи показывает очень мало REM. Только для тестирования."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "将你的夜晚划分为浅睡、深睡、REM 和清醒的方法。训练模型是根据其他腕戴设备的睡眠实验室记录拟合的，尚未在 WHOOP 夜晚上验证。切换后会重新计算所有夜晚；你记录的数据和睡眠修正会保留。"
+            "value" : "从其他腕戴设备的睡眠实验室记录中学习，尚未在 WHOOP 夜晚上验证。某些夜晚显示的 REM 很少。仅供测试。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "將你的夜晚劃分為淺睡、深睡、REM 和清醒的方法。訓練模型是根據其他腕戴裝置的睡眠實驗室記錄擬合的，尚未在 WHOOP 夜晚上驗證。切換後會重新計算所有夜晚；你記錄的資料和睡眠修正會保留。"
+            "value" : "從其他腕戴裝置的睡眠實驗室記錄中學習，尚未在 WHOOP 夜晚上驗證。某些夜晚顯示的 REM 很少。僅供測試。"
+          }
+        }
+      }
+    },
+    "Like Standard, with one check added. In REM sleep the body lies almost still. When the strap keeps moving slightly for longer than a few seconds, that time counts as light sleep instead of REM, because lying restless was often mistaken for REM. It never marks you as awake. Worth trying if your REM is often above 30 %. Checked against sleep-lab recordings." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Like Standard, with one check added. In REM sleep the body lies almost still. When the strap keeps moving slightly for longer than a few seconds, that time counts as light sleep instead of REM, because lying restless was often mistaken for REM. It never marks you as awake. Worth trying if your REM is often above 30 %. Checked against sleep-lab recordings."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wie Standard, mit einer zusätzlichen Prüfung. Im REM-Schlaf liegt der Körper fast still. Bewegt sich der Strap länger als ein paar Sekunden leicht, zählt diese Zeit als Leichtschlaf statt als REM, weil unruhiges Liegen oft für REM gehalten wurde. Als wach wertet sie dich nie. Einen Versuch wert, wenn dein REM oft über 30 % liegt. Geprüft an Schlaflabor-Aufnahmen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Como Estándar, con una comprobación más. En el sueño REM el cuerpo está casi quieto. Si la pulsera se mueve ligeramente durante más de unos segundos, ese tiempo cuenta como sueño ligero en lugar de REM, porque estar acostado con inquietud se confundía a menudo con REM. Nunca te marca como despierto. Vale la pena probarlo si tu REM suele pasar del 30 %. Comprobado con registros de laboratorio del sueño."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comme Standard, avec une vérification en plus. En sommeil REM, le corps reste presque immobile. Quand le bracelet bouge légèrement pendant plus de quelques secondes, ce temps compte comme sommeil léger au lieu de REM, car rester couché agité était souvent pris pour du REM. Elle ne te compte jamais comme éveillé. À essayer si ton REM dépasse souvent 30 %. Vérifié sur des enregistrements de laboratoire du sommeil."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Como Padrão, com uma verificação extra. No sono REM o corpo fica quase imóvel. Quando a pulseira se mexe ligeiramente durante mais de alguns segundos, esse tempo conta como sono leve em vez de REM, porque estar deitado inquieto era muitas vezes confundido com REM. Nunca te marca como acordado. Vale a pena experimentar se o teu REM passa muitas vezes dos 30 %. Verificado com gravações de laboratório do sono."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jak Standardowe, z jednym dodatkowym sprawdzeniem. W fazie REM ciało leży niemal nieruchomo. Gdy opaska porusza się lekko dłużej niż kilka sekund, ten czas liczy się jako sen płytki zamiast REM, bo niespokojne leżenie często brano za REM. Nigdy nie oznacza cię jako przebudzonego. Warto spróbować, jeśli twój REM często przekracza 30 %. Sprawdzone na nagraniach z laboratoriów snu."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Come Standard, con un controllo in più. Nel sonno REM il corpo resta quasi immobile. Se il bracciale si muove leggermente per più di qualche secondo, quel tempo conta come sonno leggero invece che REM, perché stare a letto agitati veniva spesso scambiato per REM. Non ti segna mai come sveglio. Da provare se il tuo REM supera spesso il 30 %. Verificato su registrazioni di laboratorio del sonno."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Как «Стандарт», но с одной дополнительной проверкой. Во сне REM тело почти неподвижно. Если браслет слегка двигается дольше нескольких секунд, это время считается лёгким сном, а не REM, потому что беспокойное лежание раньше часто принималось за REM. Бодрствующим эта проверка вас никогда не отмечает. Стоит попробовать, если REM у вас часто выше 30 %. Проверено на записях сомнологических лабораторий."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "与标准相同，另加一项检查。REM 睡眠时身体几乎不动。当手环持续轻微移动超过几秒钟，这段时间会算作浅睡而不是 REM，因为躺着不安以前常被误认为 REM。它从不把你标记为清醒。如果你的 REM 经常超过 30%，值得一试。已用睡眠实验室记录核对。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "與標準相同，另加一項檢查。REM 睡眠時身體幾乎不動。當手環持續輕微移動超過幾秒鐘，這段時間會算作淺睡而不是 REM，因為躺著不安以前常被誤認為 REM。它從不把你標記為清醒。如果你的 REM 經常超過 30%，值得一試。已用睡眠實驗室記錄核對。"
+          }
+        }
+      }
+    },
+    "The usual method. It reads your heart rate, how much it varies, your breathing rhythm and how you move. Recommended if you have no reason to switch." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The usual method. It reads your heart rate, how much it varies, your breathing rhythm and how you move. Recommended if you have no reason to switch."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das übliche Verfahren. Es liest deinen Puls, wie stark er schwankt, deinen Atemrhythmus und wie du dich bewegst. Empfohlen, wenn du keinen Grund zum Wechseln hast."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El método habitual. Lee tu frecuencia cardíaca, cuánto varía, tu ritmo respiratorio y cómo te mueves. Recomendado si no tienes motivo para cambiar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La méthode habituelle. Elle lit ta fréquence cardiaque, ses variations, ton rythme respiratoire et tes mouvements. Recommandé si tu n'as pas de raison de changer."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O método habitual. Lê a tua frequência cardíaca, quanto varia, o teu ritmo respiratório e como te mexes. Recomendado se não tiveres motivo para mudar."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zwykła metoda. Odczytuje tętno, to, jak bardzo się zmienia, rytm oddechu i twoje ruchy. Zalecane, jeśli nie masz powodu do zmiany."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il metodo abituale. Legge la frequenza cardiaca, quanto varia, il ritmo del respiro e come ti muovi. Consigliato se non hai motivo di cambiare."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обычный метод. Он учитывает ваш пульс, насколько он меняется, ритм дыхания и ваши движения. Рекомендуется, если нет причин менять."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "常用方法。它读取你的心率、心率的波动、呼吸节律和你的动作。如无特别原因，建议使用。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "常用方法。它讀取你的心率、心率的波動、呼吸節律和你的動作。如無特別原因，建議使用。"
+          }
+        }
+      }
+    },
+    "Which method sorts your night into light, deep, REM and awake. Switching recalculates all nights; your recorded data and your sleep corrections stay." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Which method sorts your night into light, deep, REM and awake. Switching recalculates all nights; your recorded data and your sleep corrections stay."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Welches Verfahren deine Nacht in leicht, tief, REM und wach einteilt. Umschalten berechnet alle Nächte neu; deine aufgezeichneten Daten und deine Schlafkorrekturen bleiben."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qué método divide tu noche en ligero, profundo, REM y despierto. Al cambiar se recalculan todas las noches; tus datos registrados y tus correcciones del sueño se mantienen."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La méthode qui répartit ta nuit en léger, profond, REM et éveil. Changer recalcule toutes les nuits ; tes données enregistrées et tes corrections de sommeil sont conservées."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Que método divide a tua noite em leve, profundo, REM e acordado. Mudar recalcula todas as noites; os teus dados registados e as tuas correções do sono mantêm-se."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Która metoda dzieli twoją noc na sen płytki, głęboki, REM i czuwanie. Zmiana przelicza wszystkie noce; zapisane dane i twoje poprawki snu zostają."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quale metodo divide la tua notte in leggero, profondo, REM e sveglio. Cambiare ricalcola tutte le notti; i dati registrati e le tue correzioni del sonno restano."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Какой метод делит вашу ночь на лёгкий и глубокий сон, REM и бодрствование. Переключение пересчитывает все ночи; записанные данные и ваши исправления сна сохраняются."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将你的夜晚划分为浅睡、深睡、REM 和清醒的方法。切换后会重新计算所有夜晚；你记录的数据和睡眠修正会保留。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "將你的夜晚劃分為淺睡、深睡、REM 和清醒的方法。切換後會重新計算所有夜晚；你記錄的資料和睡眠修正會保留。"
+          }
+        }
+      }
+    },
+    "With restlessness check" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "With restlessness check"
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mit Unruhe-Erkennung"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Con detección de inquietud"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avec détection de l'agitation"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Com deteção de agitação"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Z wykrywaniem niepokoju"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Con rilevamento dell'agitazione"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "С учётом беспокойства"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "附加躁动检测"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "附加躁動偵測"
           }
         }
       }

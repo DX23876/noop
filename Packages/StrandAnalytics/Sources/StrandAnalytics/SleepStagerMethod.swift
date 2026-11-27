@@ -25,6 +25,8 @@ extension SleepStager {
     public enum StagingRecipe: String, Codable, CaseIterable, Sendable {
         /// `SleepStagerV2`, the hand-built recipe.
         case standard
+        /// `SleepStagerV2` with `RestlessTerm.remOnly`: sustained small movements count against REM (#59, Lab only).
+        case restless
         /// `SleepStagerTrained`, ayiskakov's model fitted to open polysomnography (Lab only).
         case trained
 
@@ -46,6 +48,9 @@ extension SleepStager {
         switch recipe {
         case .standard:
             return SleepStagerV2.stageSession(start: start, end: end, grav: grav, hr: hr, rr: rr, resp: resp)
+        case .restless:
+            return SleepStagerV2.stageSession(start: start, end: end, grav: grav, hr: hr, rr: rr, resp: resp,
+                                              restless: .remOnly)
         case .trained:
             return SleepStagerTrained.stageSession(start: start, end: end, grav: grav, hr: hr, rr: rr, resp: resp)
         }

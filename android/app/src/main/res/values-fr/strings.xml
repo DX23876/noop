@@ -7850,5 +7850,9 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="forge_lab_sleep_recipe">Phases de sommeil (test)</string>
     <string name="forge_lab_sleep_recipe_standard">Standard</string>
     <string name="forge_lab_sleep_recipe_trained">Modèle entraîné</string>
-    <string name="forge_lab_sleep_recipe_detail">La méthode qui répartit ta nuit en léger, profond, REM et éveil. Le modèle entraîné a été ajusté sur des enregistrements de laboratoire du sommeil d\'autres appareils au poignet et n\'est pas encore vérifié sur des nuits WHOOP. Changer recalcule toutes les nuits ; tes données enregistrées et tes corrections de sommeil sont conservées.</string>
+    <string name="forge_lab_sleep_recipe_restless">Avec détection de l\'agitation</string>
+    <string name="forge_lab_sleep_recipe_standard_detail">La méthode habituelle. Elle lit ta fréquence cardiaque, ses variations, ton rythme respiratoire et tes mouvements. Recommandé si tu n\'as pas de raison de changer.</string>
+    <string name="forge_lab_sleep_recipe_restless_detail">Comme Standard, avec une vérification en plus. En sommeil REM, le corps reste presque immobile. Quand le bracelet bouge légèrement pendant plus de quelques secondes, ce temps compte comme sommeil léger au lieu de REM, car rester couché agité était souvent pris pour du REM. Elle ne te compte jamais comme éveillé. À essayer si ton REM dépasse souvent 30 %. Vérifié sur des enregistrements de laboratoire du sommeil.</string>
+    <string name="forge_lab_sleep_recipe_trained_detail">Appris sur des enregistrements de laboratoire du sommeil d\'autres appareils au poignet et pas encore vérifié sur des nuits WHOOP. Certaines nuits, il affiche très peu de REM. Uniquement pour tester.</string>
+    <string name="forge_lab_sleep_recipe_detail">La méthode qui répartit ta nuit en léger, profond, REM et éveil. Changer recalcule toutes les nuits ; tes données enregistrées et tes corrections de sommeil sont conservées.</string>
 </resources>

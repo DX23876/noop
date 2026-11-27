@@ -7869,5 +7869,9 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_lab_sleep_recipe">Schlafphasen (Test)</string>
     <string name="forge_lab_sleep_recipe_standard">Standard</string>
     <string name="forge_lab_sleep_recipe_trained">Trainiertes Modell</string>
-    <string name="forge_lab_sleep_recipe_detail">Welches Verfahren deine Nacht in leicht, tief, REM und wach einteilt. Das trainierte Modell wurde an Schlaflabor-Aufnahmen anderer Geräte am Handgelenk angepasst und ist auf WHOOP-Nächten noch nicht geprüft. Umschalten berechnet alle Nächte neu; deine aufgezeichneten Daten und deine Schlafkorrekturen bleiben.</string>
+    <string name="forge_lab_sleep_recipe_restless">Mit Unruhe-Erkennung</string>
+    <string name="forge_lab_sleep_recipe_standard_detail">Das übliche Verfahren. Es liest deinen Puls, wie stark er schwankt, deinen Atemrhythmus und wie du dich bewegst. Empfohlen, wenn du keinen Grund zum Wechseln hast.</string>
+    <string name="forge_lab_sleep_recipe_restless_detail">Wie Standard, mit einer zusätzlichen Prüfung. Im REM-Schlaf liegt der Körper fast still. Bewegt sich der Strap länger als ein paar Sekunden leicht, zählt diese Zeit als Leichtschlaf statt als REM, weil unruhiges Liegen oft für REM gehalten wurde. Als wach wertet sie dich nie. Einen Versuch wert, wenn dein REM oft über 30 % liegt. Geprüft an Schlaflabor-Aufnahmen.</string>
+    <string name="forge_lab_sleep_recipe_trained_detail">An Schlaflabor-Aufnahmen anderer Geräte am Handgelenk gelernt und auf WHOOP-Nächten noch nicht geprüft. In manchen Nächten zeigt es sehr wenig REM. Nur zum Testen.</string>
+    <string name="forge_lab_sleep_recipe_detail">Welches Verfahren deine Nacht in leicht, tief, REM und wach einteilt. Umschalten berechnet alle Nächte neu; deine aufgezeichneten Daten und deine Schlafkorrekturen bleiben.</string>
 </resources>
