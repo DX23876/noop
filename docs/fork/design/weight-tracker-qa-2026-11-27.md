@@ -48,5 +48,8 @@ the trend and the week's change, which is the core idea of the page.
   app-wide metric palette; changing one tile is the owner's call.
 - Android's Today change chips print a decimal point in German ("−1.2" where iOS says "−1,2"). The text comes
   from the shared core's `CoreTile.delta`, so it is a core localisation issue for every chip, not the weight tile.
-- The iOS simulator never finished loading the widget's colour editor (spinner); the same configuration
-  intent is exercised by the gallery, which shows each widget in its start colour. Check on the iPhone.
+- The iOS simulator never finishes loading a widget's colour editor (spinner; its log stops after loading the
+  App Intents metadata). The built extension's metadata does carry `WeightTintIntent`, `WeightMonthTintIntent`,
+  `WeightFiguresTintIntent`, `WeightEventIntent` and the `WeightWidgetTint` enum, beside the goals widget's
+  `SelectGoalIntent` that works the same way, and the gallery shows each widget in its start colour. The editor
+  itself still needs one look on an iPhone.
