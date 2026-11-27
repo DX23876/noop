@@ -125,8 +125,12 @@ public enum WeightTracker {
         /// The weigh-in's id when NOOP owns it (editable here); nil for an imported reading.
         public var id: String?
         public var source: String
-        public init(date: Date, kg: Double, note: String? = nil, id: String? = nil, source: String = "") {
+        /// The weigh-in's water mark as stored (`BodyWeightRow.WaterMark` raw value), shown in the logbook.
+        public var waterMark: String?
+        public init(date: Date, kg: Double, note: String? = nil, id: String? = nil, source: String = "",
+                    waterMark: String? = nil) {
             self.date = date; self.kg = kg; self.note = note; self.id = id; self.source = source
+            self.waterMark = waterMark
         }
     }
 

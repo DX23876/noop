@@ -93,7 +93,8 @@ enum CoreWeight {
                 .first(where: { $0.id == id }) else { return #"{"ok":false}"# }
             _ = try? await store.deleteBodyWeight(id: id)
             let row = BodyWeightRow(id: id, deviceId: WhoopStore.noopWeightSourceId, day: StoreReader.localDayKey(at),
-                                    takenAt: Int(at.timeIntervalSince1970), weightKg: kg, source: existing.source, note: note)
+                                    takenAt: Int(at.timeIntervalSince1970), weightKg: kg, source: existing.source, note: note,
+                                    waterMark: (args["waterMark"] as? String).flatMap(BodyWeightRow.WaterMark.init(rawValue:)))
             return (try? await store.upsertBodyWeights([row])) != nil ? #"{"ok":true}"# : #"{"ok":false}"#
         case "weight.deleteEvent":
             let id = args["id"] as? String ?? ""

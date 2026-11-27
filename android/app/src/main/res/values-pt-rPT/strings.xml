@@ -8052,4 +8052,12 @@ Traçar cada série como variação face à sua própria primeira medição colo
         <item quantity="one">%1$d pesagem</item>
         <item quantity="other">%1$d pesagens</item>
     </plurals>
+    <string name="wt_water">Marca de água</string>
+    <string name="wt_water_none">Sem marca</string>
+    <string name="wt_water_creatine_started">Comecei creatina</string>
+    <string name="wt_water_creatine_stopped">Parei a creatina</string>
+    <string name="wt_water_period">Menstruação</string>
+    <string name="wt_water_salty">Comida salgada ou uma festa</string>
+    <string name="wt_water_medicine">Medicamento novo</string>
+    <string name="wt_water_footer">Uma marca deixa esta pesagem fora do gasto da tua balança: mexeu-se a água, não o teu corpo.</string>
 </resources>

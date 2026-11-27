@@ -8076,4 +8076,12 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
         <item quantity="one">%1$d Messung</item>
         <item quantity="other">%1$d Messungen</item>
     </plurals>
+    <string name="wt_water">Wasser-Zeichen</string>
+    <string name="wt_water_none">Kein Zeichen</string>
+    <string name="wt_water_creatine_started">Kreatin begonnen</string>
+    <string name="wt_water_creatine_stopped">Kreatin abgesetzt</string>
+    <string name="wt_water_period">Periode</string>
+    <string name="wt_water_salty">Salzig gegessen oder gefeiert</string>
+    <string name="wt_water_medicine">Neues Medikament</string>
+    <string name="wt_water_footer">Ein Zeichen lässt diese Wiegung aus der Waagenrechnung heraus: das Wasser hat sich bewegt, nicht dein Körper.</string>
 </resources>

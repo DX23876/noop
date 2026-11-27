@@ -880,7 +880,7 @@ enum DemoScreens {
         case "addworkout": return AnyView(ManualWorkoutSheet(onSave: { _, _ in }))
         case "onboarding": return AnyView(OnboardingWizard(onFinished: {}))
         case "longtermsetup": return AnyView(NavigationStack { LongTermGoalSetupView() })
-        case "weighin": return AnyView(WeightLogSheet(draft: WeightLogDraft(seedKg: 96.4), unitSystem: .metric, onSave: { _, _, _ in }, onDelete: nil))
+        case "weighin": return AnyView(WeightLogSheet(draft: WeightLogDraft(seedKg: 96.4), unitSystem: .metric, onSave: { _, _, _, _ in }, onDelete: nil))
         case "library": return AnyView(DemoExerciseLibraryHost())
         // The DEFAULT iOS Today (`noop.liquidTodayEnabled` ships true), so it needs its own entry — plain
         // "today" renders the CLASSIC screen, which is exactly the screen whose behaviour Liquid was found

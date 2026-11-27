@@ -262,7 +262,11 @@ final class ForgeFoodModel {
         guard var current = plan, let planResult else { return }
         let today = Repository.localDayKey(.now)
         guard current.lastAdjustedDay != today else { return }
-        let weights = await repo.weightDailyValues(days: 21).map { (day: $0.day, kg: $0.value) }
+        // A day with a water-marked weigh-in is left out, as the scale's burn leaves it out (Q31).
+        let marked = await WeightSeries.waterMarkedDays(store: store, from: Repository.localDayKey(
+            Calendar.current.date(byAdding: .day, value: -21, to: .now) ?? .now), to: today)
+        let weights = await repo.weightDailyValues(days: 21).filter { !marked.contains($0.day) }
+            .map { (day: $0.day, kg: $0.value) }
         guard let weekStart = Calendar.current.date(byAdding: .day, value: -6, to: .now) else { return }
         let logged = Set(((try? await store.foodLogEntries(from: Repository.localDayKey(weekStart), to: today)) ?? []).map(\.day)).count
         let outcome = DietAdjust.weekly(plan: current, result: planResult, weighIns: weights, loggedDays: logged,

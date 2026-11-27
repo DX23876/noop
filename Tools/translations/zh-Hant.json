@@ -4989,5 +4989,13 @@
   "Likely %@ to %@ kcal, narrowed by your scale": "大約在 %@ 到 %@ 千卡之間，已由體重秤縮小範圍",
   "First look: your scale and the strap agree so far. Sure only after six weeks.": "初步觀察：體重秤和 strap 目前一致。六週後才可靠。",
   "First look: your scale reads about %lld %% more than the strap. Sure only after six weeks.": "初步觀察：體重秤比 strap 高約 %lld %%。六週後才可靠。",
-  "First look: your scale reads about %lld %% less than the strap. Sure only after six weeks.": "初步觀察：體重秤比 strap 低約 %lld %%。六週後才可靠。"
+  "First look: your scale reads about %lld %% less than the strap. Sure only after six weeks.": "初步觀察：體重秤比 strap 低約 %lld %%。六週後才可靠。",
+  "Water mark": "水分標記",
+  "No mark": "無標記",
+  "Creatine started": "開始服用肌酸",
+  "Creatine stopped": "停用肌酸",
+  "Your period": "經期",
+  "Salty food or a party": "吃得鹹或聚會",
+  "New medicine": "新藥物",
+  "A mark leaves this weigh-in out of your scale's burn: the water moved, not your body.": "標記會讓這次稱重不計入體重秤的消耗計算：變化的是水分，不是身體。"
 }

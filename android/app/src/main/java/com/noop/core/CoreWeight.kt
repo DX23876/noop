@@ -24,7 +24,9 @@ object CoreWeight {
     data class Milestone(val kg: Double, val reachedDay: String?)
     data class Milestones(val route: List<Milestone>, val reachedCount: Int, val next: Double?, val toNextKg: Double?, val progress: Double)
     data class Goal(val baseline: Double, val target: Double, val createdAt: Long, val targetAt: Long?, val band: Double?)
-    data class Reading(val at: Long, val kg: Double, val note: String?, val id: String?, val source: String)
+    /** [waterMark] is the core's `BodyWeightRow.WaterMark` raw value: what moved the water rather than the tissue. */
+    data class Reading(val at: Long, val kg: Double, val note: String?, val id: String?, val source: String,
+                       val waterMark: String? = null)
     data class LogRow(val reading: Reading, val day: String, val trendKg: Double, val weeklyRateKg: Double?, val milestoneKg: Double?)
     data class Report(val period: String, val key: String, val start: Long, val count: Int, val enough: Boolean, val low: Point?,
                       val averageKg: Double?, val trendChangeKg: Double?, val ratePerWeekKg: Double?, val vsPreviousKg: Double?,
@@ -65,15 +67,16 @@ object CoreWeight {
 
     fun deleteEvent(id: String): Boolean = ok(SwiftCore.call("weight.deleteEvent", JSONObject().put("id", id).toString()))
 
-    /** A weigh-in at [at] with an optional note, on NOOP's own weight lane (`body.logWeight`). */
-    fun logWeight(kg: Double, at: Instant, note: String?): Boolean =
+    /** A weigh-in at [at] with an optional note and water mark, on NOOP's own weight lane (`body.logWeight`). */
+    fun logWeight(kg: Double, at: Instant, note: String?, waterMark: String? = null): Boolean =
         ok(SwiftCore.call("body.logWeight", JSONObject().put("kg", kg).put("takenAt", at.epochSecond)
-            .apply { note?.takeIf { it.isNotBlank() }?.let { put("note", it) } }.toString()))
+            .apply { note?.takeIf { it.isNotBlank() }?.let { put("note", it) }; waterMark?.let { put("waterMark", it) } }
+            .toString()))
 
     /** An edit that keeps the weigh-in's id, as iOS's `updateWeight`. */
-    fun updateWeight(id: String, kg: Double, at: Instant, note: String?): Boolean =
+    fun updateWeight(id: String, kg: Double, at: Instant, note: String?, waterMark: String? = null): Boolean =
         ok(SwiftCore.call("weight.updateWeight", JSONObject().put("id", id).put("kg", kg).put("takenAt", at.epochSecond)
-            .put("note", note ?: "").toString()))
+            .put("note", note ?: "").apply { waterMark?.let { put("waterMark", it) } }.toString()))
 
     fun deleteWeight(id: String): Boolean = ok(SwiftCore.call("body.deleteWeight", JSONObject().put("id", id).toString()))
 
@@ -160,7 +163,8 @@ object CoreWeight {
                 },
                 log = o.optJSONArray("log").list { row ->
                     val rd = row.getJSONObject("reading")
-                    LogRow(Reading(rd.getDouble("date").toLong(), rd.getDouble("kg"), rd.str("note"), rd.str("id"), rd.optString("source")),
+                    LogRow(Reading(rd.getDouble("date").toLong(), rd.getDouble("kg"), rd.str("note"), rd.str("id"), rd.optString("source"),
+                                  rd.str("waterMark")),
                            row.getString("day"), row.getDouble("trendKg"), row.num("weeklyRateKg"), row.num("milestoneKg"))
                 },
                 months = o.optJSONArray("months").list(::report), years = o.optJSONArray("years").list(::report),

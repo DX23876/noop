@@ -8060,4 +8060,12 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
         <item quantity="one">%1$d pesaje</item>
         <item quantity="other">%1$d pesajes</item>
     </plurals>
+    <string name="wt_water">Marca de agua</string>
+    <string name="wt_water_none">Sin marca</string>
+    <string name="wt_water_creatine_started">Empecé con creatina</string>
+    <string name="wt_water_creatine_stopped">Dejé la creatina</string>
+    <string name="wt_water_period">Menstruación</string>
+    <string name="wt_water_salty">Comida salada o una fiesta</string>
+    <string name="wt_water_medicine">Medicamento nuevo</string>
+    <string name="wt_water_footer">Una marca deja este pesaje fuera del gasto de tu báscula: se movió el agua, no tu cuerpo.</string>
 </resources>

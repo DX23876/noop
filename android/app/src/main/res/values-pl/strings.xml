@@ -8117,4 +8117,12 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
         <item quantity="few">%1$d pomiary</item>
         <item quantity="many">%1$d pomiarów</item>
     </plurals>
+    <string name="wt_water">Znacznik wody</string>
+    <string name="wt_water_none">Bez znacznika</string>
+    <string name="wt_water_creatine_started">Początek kreatyny</string>
+    <string name="wt_water_creatine_stopped">Koniec kreatyny</string>
+    <string name="wt_water_period">Miesiączka</string>
+    <string name="wt_water_salty">Słone jedzenie lub impreza</string>
+    <string name="wt_water_medicine">Nowy lek</string>
+    <string name="wt_water_footer">Znacznik wyłącza to ważenie z wyliczeń wagi: przesunęła się woda, nie twoje ciało.</string>
 </resources>

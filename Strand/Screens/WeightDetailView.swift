@@ -3,6 +3,7 @@ import Charts
 import StrandAnalytics
 import StrandDesign
 import StrandCore
+import WhoopStore
 
 // MARK: - Weight — overview, history and reports (owner decisions 2026-11-26)
 //
@@ -91,7 +92,7 @@ struct WeightDetailView: View {
         .onReceive(goalStore.$goals.dropFirst()) { _ in Task { await model.reload(repo: repo) } }
         .sheet(item: $editing) { draft in
             WeightLogSheet(draft: draft, unitSystem: units,
-                           onSave: { kg, at, note in await save(draft: draft, kg: kg, at: at, note: note) },
+                           onSave: { kg, at, note, mark in await save(draft: draft, kg: kg, at: at, note: note, waterMark: mark) },
                            onDelete: draft.isExisting ? { await delete(id: draft.id) } : nil)
         }
         .sheet(item: $editingEvent) { draft in
@@ -565,6 +566,10 @@ struct WeightDetailView: View {
             if let note = row.reading.note, !note.isEmpty {
                 Text(note).font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
             }
+            if let mark = row.reading.waterMark.flatMap(BodyWeightRow.WaterMark.init(rawValue:)) {
+                Label(WaterMarkText.name(mark), systemImage: "drop.fill")
+                    .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+            }
             if let m = row.milestoneKg {
                 Label(String(localized: "Reached \(mass(m))"), systemImage: "flag.fill")
                     .font(StrandFont.caption.weight(.semibold)).foregroundStyle(Self.weightTint)
@@ -574,7 +579,8 @@ struct WeightDetailView: View {
         .contentShape(Rectangle())
         .onTapGesture {
             guard editable, let id = row.reading.id else { return }
-            editing = WeightLogDraft(id: id, kg: row.reading.kg, at: row.reading.date, note: row.reading.note)
+            editing = WeightLogDraft(id: id, kg: row.reading.kg, at: row.reading.date, note: row.reading.note,
+                                     waterMark: row.reading.waterMark.flatMap(BodyWeightRow.WaterMark.init(rawValue:)))
         }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(editable ? .isButton : [])
@@ -724,11 +730,12 @@ struct WeightDetailView: View {
 
     // MARK: Mutations
 
-    private func save(draft: WeightLogDraft, kg: Double, at: Date, note: String?) async {
+    private func save(draft: WeightLogDraft, kg: Double, at: Date, note: String?,
+                      waterMark: BodyWeightRow.WaterMark?) async {
         if draft.isExisting {
-            _ = await repo.updateWeight(id: draft.id, kg: kg, at: at, note: note)
+            _ = await repo.updateWeight(id: draft.id, kg: kg, at: at, note: note, waterMark: waterMark)
         } else {
-            _ = await repo.logWeight(kg: kg, at: at, note: note)
+            _ = await repo.logWeight(kg: kg, at: at, note: note, source: .manual, waterMark: waterMark)
         }
         // The Apple Health mirror and the reminder follow `.noopWeightLogged` in `StrandiOSApp`.
         await repo.reconcileProfileWeight(profile)
@@ -768,6 +775,8 @@ struct WeightLogDraft: Identifiable {
     let kg: Double
     let at: Date
     let note: String?
+    /// Something that moved the body's water rather than its tissue (Q23); the scale's burn leaves the weigh-in out.
+    let waterMark: BodyWeightRow.WaterMark?
     /// False for a brand-new weigh-in — the sheet hides Delete and the save path inserts.
     let isExisting: Bool
 
@@ -778,15 +787,17 @@ struct WeightLogDraft: Identifiable {
         self.kg = seedKg
         self.at = Date()
         self.note = nil
+        self.waterMark = nil
         self.isExisting = false
     }
 
     /// An existing weigh-in from the page's log.
-    init(id: String, kg: Double, at: Date, note: String?) {
+    init(id: String, kg: Double, at: Date, note: String?, waterMark: BodyWeightRow.WaterMark? = nil) {
         self.id = id
         self.kg = kg
         self.at = at
         self.note = note
+        self.waterMark = waterMark
         self.isExisting = true
     }
 
@@ -795,6 +806,7 @@ struct WeightLogDraft: Identifiable {
         self.kg = entry.value
         self.at = entry.takenAt ?? WeightSeries.date(forDay: entry.day) ?? Date()
         self.note = entry.note
+        self.waterMark = entry.waterMark
         self.isExisting = true
     }
 }
@@ -806,7 +818,7 @@ struct WeightLogDraft: Identifiable {
 struct WeightLogSheet: View {
     let draft: WeightLogDraft
     let unitSystem: UnitSystem
-    let onSave: (Double, Date, String?) async -> Void
+    let onSave: (Double, Date, String?, BodyWeightRow.WaterMark?) async -> Void
     /// Nil for a new weigh-in — there is nothing to delete yet.
     let onDelete: (() async -> Void)?
 
@@ -814,6 +826,7 @@ struct WeightLogSheet: View {
     @State private var text: String = ""
     @State private var at: Date = Date()
     @State private var note: String = ""
+    @State private var waterMark: BodyWeightRow.WaterMark?
     @State private var saving = false
 
     /// The typed value converted back to kilograms, or nil when it isn't a usable number. Accepts a
@@ -854,6 +867,11 @@ struct WeightLogSheet: View {
                 Section("Note") {
                     TextField("Optional", text: $note, axis: .vertical)
                 }
+                Section {
+                    waterPicker
+                } footer: {
+                    Text("A mark leaves this weigh-in out of your scale's burn: the water moved, not your body.")
+                }
                 if let onDelete {
                     Section {
                         Button(role: .destructive) {
@@ -876,7 +894,7 @@ struct WeightLogSheet: View {
                         guard let kg = parsedKg else { return }
                         Task {
                             saving = true
-                            await onSave(kg, at, note.isEmpty ? nil : note)
+                            await onSave(kg, at, note.isEmpty ? nil : note, waterMark)
                             dismiss()
                         }
                     }
@@ -891,6 +909,17 @@ struct WeightLogSheet: View {
                 : String(format: "%.1f", shown)
             at = draft.at
             note = draft.note ?? ""
+            waterMark = draft.waterMark
+        }
+    }
+
+    /// The water mark beside the note (owner decision 2026-11-27, Q26): none, or what moved the water.
+    private var waterPicker: some View {
+        Picker("Water mark", selection: $waterMark) {
+            Text("No mark").tag(BodyWeightRow.WaterMark?.none)
+            ForEach(BodyWeightRow.WaterMark.allCases, id: \.self) { mark in
+                Text(WaterMarkText.name(mark)).tag(BodyWeightRow.WaterMark?.some(mark))
+            }
         }
     }
 
@@ -926,8 +955,13 @@ struct WeightLogSheet: View {
                         TextField("Note", text: $note, axis: .vertical)
                             .font(StrandFont.subhead)
                             .frame(minHeight: 44)
+                        Divider().overlay(StrandPalette.hairline)
+                        waterPicker.font(StrandFont.subhead)
                     }
                 }
+                Text("A mark leaves this weigh-in out of your scale's burn: the water moved, not your body.")
+                    .font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 if let onDelete {
                     Button(role: .destructive) {
                         Task { saving = true; await onDelete(); dismiss() }
@@ -944,5 +978,18 @@ struct WeightLogSheet: View {
             .padding(NoopMetrics.screenPadding)
         }
         .forgeScreenBackground()
+    }
+}
+
+/// A water mark in words (`BodyWeightRow.WaterMark`), for the sheet and the logbook.
+enum WaterMarkText {
+    static func name(_ mark: BodyWeightRow.WaterMark) -> String {
+        switch mark {
+        case .creatineStarted: String(localized: "Creatine started")
+        case .creatineStopped: String(localized: "Creatine stopped")
+        case .period: String(localized: "Your period")
+        case .saltyOrParty: String(localized: "Salty food or a party")
+        case .newMedicine: String(localized: "New medicine")
+        }
     }
 }

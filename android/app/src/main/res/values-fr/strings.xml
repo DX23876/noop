@@ -8057,4 +8057,12 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
         <item quantity="one">%1$d pesée</item>
         <item quantity="other">%1$d pesées</item>
     </plurals>
+    <string name="wt_water">Marque d\'eau</string>
+    <string name="wt_water_none">Aucune marque</string>
+    <string name="wt_water_creatine_started">Créatine commencée</string>
+    <string name="wt_water_creatine_stopped">Créatine arrêtée</string>
+    <string name="wt_water_period">Règles</string>
+    <string name="wt_water_salty">Repas salé ou une fête</string>
+    <string name="wt_water_medicine">Nouveau médicament</string>
+    <string name="wt_water_footer">Une marque exclut cette pesée de la dépense de ta balance : c\'est l\'eau qui a bougé, pas ton corps.</string>
 </resources>

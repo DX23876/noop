@@ -4811,5 +4811,13 @@
   "Likely %@ to %@ kcal, narrowed by your scale": "Скорее всего от %@ до %@ ккал, уточнено по весам",
   "First look: your scale and the strap agree so far. Sure only after six weeks.": "Первый взгляд: весы и strap пока совпадают. Надёжно только через шесть недель.",
   "First look: your scale reads about %lld %% more than the strap. Sure only after six weeks.": "Первый взгляд: весы показывают примерно на %lld %% больше, чем strap. Надёжно только через шесть недель.",
-  "First look: your scale reads about %lld %% less than the strap. Sure only after six weeks.": "Первый взгляд: весы показывают примерно на %lld %% меньше, чем strap. Надёжно только через шесть недель."
+  "First look: your scale reads about %lld %% less than the strap. Sure only after six weeks.": "Первый взгляд: весы показывают примерно на %lld %% меньше, чем strap. Надёжно только через шесть недель.",
+  "Water mark": "Отметка о воде",
+  "No mark": "Без отметки",
+  "Creatine started": "Начало приёма креатина",
+  "Creatine stopped": "Конец приёма креатина",
+  "Your period": "Менструация",
+  "Salty food or a party": "Солёная еда или вечеринка",
+  "New medicine": "Новое лекарство",
+  "A mark leaves this weigh-in out of your scale's burn: the water moved, not your body.": "Отметка исключает это взвешивание из расчёта по весам: изменилась вода, а не тело."
 }

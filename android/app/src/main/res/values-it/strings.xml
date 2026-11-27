@@ -8027,4 +8027,12 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
         <item quantity="one">%1$d pesata</item>
         <item quantity="other">%1$d pesate</item>
     </plurals>
+    <string name="wt_water">Segno d\'acqua</string>
+    <string name="wt_water_none">Nessun segno</string>
+    <string name="wt_water_creatine_started">Iniziata la creatina</string>
+    <string name="wt_water_creatine_stopped">Sospesa la creatina</string>
+    <string name="wt_water_period">Ciclo mestruale</string>
+    <string name="wt_water_salty">Cibo salato o una festa</string>
+    <string name="wt_water_medicine">Nuovo farmaco</string>
+    <string name="wt_water_footer">Un segno esclude questa pesata dal consumo della tua bilancia: si è spostata l\'acqua, non il tuo corpo.</string>
 </resources>

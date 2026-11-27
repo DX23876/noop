@@ -8077,4 +8077,12 @@ NOOP не задаёт фиксированный порог, а берёт ег
         <item quantity="many">%1$d взвешиваний</item>
         <item quantity="other">%1$d взвешивания</item>
     </plurals>
+    <string name="wt_water">Отметка о воде</string>
+    <string name="wt_water_none">Без отметки</string>
+    <string name="wt_water_creatine_started">Начало приёма креатина</string>
+    <string name="wt_water_creatine_stopped">Конец приёма креатина</string>
+    <string name="wt_water_period">Менструация</string>
+    <string name="wt_water_salty">Солёная еда или вечеринка</string>
+    <string name="wt_water_medicine">Новое лекарство</string>
+    <string name="wt_water_footer">Отметка исключает это взвешивание из расчёта по весам: изменилась вода, а не тело.</string>
 </resources>

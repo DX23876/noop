@@ -1,5 +1,6 @@
 package com.noop.ui.forge
 
+import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -101,9 +102,10 @@ internal fun ForgeWeightPage(onBack: () -> Unit) {
     val fmt = rememberWeightFormat(units)
 
     logging?.let { draft ->
-        WeighInEditor(draft, fmt, onCancel = { logging = null }, onSave = { kg, at, note ->
+        WeighInEditor(draft, fmt, onCancel = { logging = null }, onSave = { kg, at, note, mark ->
             after {
-                val ok = if (draft.id == null) CoreWeight.logWeight(kg, at, note) else CoreWeight.updateWeight(draft.id, kg, at, note)
+                val ok = if (draft.id == null) CoreWeight.logWeight(kg, at, note, mark)
+                         else CoreWeight.updateWeight(draft.id, kg, at, note, mark)
                 if (ok) { logging = null; com.noop.notif.BodyMeasurementReminder.refresh(context) }
                 ok
             }
@@ -162,7 +164,8 @@ internal fun ForgeWeightPage(onBack: () -> Unit) {
             0 -> Overview(p, s, fmt, onRate = { mode -> after { CoreWeight.saveSettings(p.settings.copy(rateMode = mode)) } },
                           onEvent = { editingEvent = it }, onLog = { logging = WeighInDraft(null, s.latest.kg, Instant.now(), null) })
             1 -> History(p, s, fmt, onLog = { logging = WeighInDraft(null, s.latest.kg, Instant.now(), null) },
-                         onEdit = { row -> row.reading.id?.let { logging = WeighInDraft(it, row.reading.kg, Instant.ofEpochSecond(row.reading.at), row.reading.note) } })
+                         onEdit = { row -> row.reading.id?.let { logging = WeighInDraft(it, row.reading.kg, Instant.ofEpochSecond(row.reading.at), row.reading.note,
+                                                                                    row.reading.waterMark) } })
             else -> Reports(p, s, fmt)
         }
     }
@@ -178,7 +181,8 @@ private const val SOURCE_NOOP = "noop"
 /** The page's one colour: the pink of its picture, as on iOS. */
 internal val WEIGHT_TINT = ForgeTokens.Color.systemPink
 
-internal data class WeighInDraft(val id: String?, val kg: Double?, val at: Instant, val note: String?)
+internal data class WeighInDraft(val id: String?, val kg: Double?, val at: Instant, val note: String?,
+                                  val waterMark: String? = null)
 internal data class EventDraft(val id: String?, val name: String, val day: LocalDate)
 
 /** Number and date formatting made once per page: a pattern per row is what filled a tester's heap (2026-11-22). */
@@ -643,6 +647,14 @@ private fun History(p: CoreWeight.Page, s: CoreWeight.Snapshot, fmt: WeightForma
                          color = deltaColor(row.weeklyRateKg, s.goal), modifier = Modifier.width(60.dp), textAlign = TextAlign.End)
                 }
                 row.reading.note?.takeIf { it.isNotBlank() }?.let { Text(it, style = Forge.type.footnote, color = colors.textSecondary) }
+                row.reading.waterMark?.let { waterMarkName(it) }?.let { name ->
+                    // As iOS's logbook: the mark with a drop, under the note.
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.WaterDrop, null,
+                            tint = colors.textSecondary, modifier = Modifier.size(12.dp))
+                        Text(stringResource(name), style = Forge.type.caption, color = colors.textSecondary)
+                    }
+                }
                 row.milestoneKg?.let { m ->
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Rounded.Flag, null, tint = WEIGHT_TINT.resolve(), modifier = Modifier.size(14.dp))

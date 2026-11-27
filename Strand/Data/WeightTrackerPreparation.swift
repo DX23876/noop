@@ -32,7 +32,7 @@ enum WeightTrackerPreparation {
         entries.compactMap { e in
             guard let date = e.takenAt ?? WeightSeries.date(forDay: e.day)?.addingTimeInterval(12 * 3_600) else { return nil }
             return WeightTracker.Reading(date: date, kg: e.value, note: e.note, id: e.isEditable ? e.id : nil,
-                                         source: e.source == .manual ? "noop" : "health")
+                                         source: e.source == .manual ? "noop" : "health", waterMark: e.waterMark?.rawValue)
         }
     }
 

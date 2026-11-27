@@ -6041,5 +6041,13 @@
   "Likely %@ to %@ kcal, narrowed by your scale": "Prawdopodobnie od %@ do %@ kcal, zawężone przez twoją wagę",
   "First look: your scale and the strap agree so far. Sure only after six weeks.": "Pierwsze spojrzenie: waga i strap na razie się zgadzają. Pewne dopiero po sześciu tygodniach.",
   "First look: your scale reads about %lld %% more than the strap. Sure only after six weeks.": "Pierwsze spojrzenie: waga pokazuje około %lld %% więcej niż strap. Pewne dopiero po sześciu tygodniach.",
-  "First look: your scale reads about %lld %% less than the strap. Sure only after six weeks.": "Pierwsze spojrzenie: waga pokazuje około %lld %% mniej niż strap. Pewne dopiero po sześciu tygodniach."
+  "First look: your scale reads about %lld %% less than the strap. Sure only after six weeks.": "Pierwsze spojrzenie: waga pokazuje około %lld %% mniej niż strap. Pewne dopiero po sześciu tygodniach.",
+  "Water mark": "Znacznik wody",
+  "No mark": "Bez znacznika",
+  "Creatine started": "Początek kreatyny",
+  "Creatine stopped": "Koniec kreatyny",
+  "Your period": "Miesiączka",
+  "Salty food or a party": "Słone jedzenie lub impreza",
+  "New medicine": "Nowy lek",
+  "A mark leaves this weigh-in out of your scale's burn: the water moved, not your body.": "Znacznik wyłącza to ważenie z wyliczeń wagi: przesunęła się woda, nie twoje ciało."
 }

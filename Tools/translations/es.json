@@ -4834,5 +4834,13 @@
   "Likely %@ to %@ kcal, narrowed by your scale": "Probablemente entre %@ y %@ kcal, acotado por tu báscula",
   "First look: your scale and the strap agree so far. Sure only after six weeks.": "Primer vistazo: tu báscula y el strap coinciden por ahora. Seguro solo tras seis semanas.",
   "First look: your scale reads about %lld %% more than the strap. Sure only after six weeks.": "Primer vistazo: tu báscula marca cerca de un %lld %% más que el strap. Seguro solo tras seis semanas.",
-  "First look: your scale reads about %lld %% less than the strap. Sure only after six weeks.": "Primer vistazo: tu báscula marca cerca de un %lld %% menos que el strap. Seguro solo tras seis semanas."
+  "First look: your scale reads about %lld %% less than the strap. Sure only after six weeks.": "Primer vistazo: tu báscula marca cerca de un %lld %% menos que el strap. Seguro solo tras seis semanas.",
+  "Water mark": "Marca de agua",
+  "No mark": "Sin marca",
+  "Creatine started": "Empecé con creatina",
+  "Creatine stopped": "Dejé la creatina",
+  "Your period": "Menstruación",
+  "Salty food or a party": "Comida salada o una fiesta",
+  "New medicine": "Medicamento nuevo",
+  "A mark leaves this weigh-in out of your scale's burn: the water moved, not your body.": "Una marca deja este pesaje fuera del gasto de tu báscula: se movió el agua, no tu cuerpo."
 }

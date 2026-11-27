@@ -8102,4 +8102,12 @@ Plotting each series as change from its own first reading puts them on one scale
         <item quantity="one">%1$d weigh-in</item>
         <item quantity="other">%1$d weigh-ins</item>
     </plurals>
+    <string name="wt_water">Water mark</string>
+    <string name="wt_water_none">No mark</string>
+    <string name="wt_water_creatine_started">Creatine started</string>
+    <string name="wt_water_creatine_stopped">Creatine stopped</string>
+    <string name="wt_water_period">Your period</string>
+    <string name="wt_water_salty">Salty food or a party</string>
+    <string name="wt_water_medicine">New medicine</string>
+    <string name="wt_water_footer">A mark leaves this weigh-in out of your scale\'s burn: the water moved, not your body.</string>
 </resources>

@@ -7998,4 +7998,12 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <plurals name="wt_weigh_ins">
         <item quantity="other">%1$d 次称重</item>
     </plurals>
+    <string name="wt_water">水分标记</string>
+    <string name="wt_water_none">无标记</string>
+    <string name="wt_water_creatine_started">开始服用肌酸</string>
+    <string name="wt_water_creatine_stopped">停用肌酸</string>
+    <string name="wt_water_period">经期</string>
+    <string name="wt_water_salty">吃得咸或聚会</string>
+    <string name="wt_water_medicine">新药物</string>
+    <string name="wt_water_footer">标记会让这次称重不计入体重秤的消耗计算：变化的是水分，不是身体。</string>
 </resources>

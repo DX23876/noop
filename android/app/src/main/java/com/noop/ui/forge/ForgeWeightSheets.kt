@@ -52,10 +52,12 @@ import java.util.Locale
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun WeighInEditor(draft: WeighInDraft, fmt: WeightFormat, onCancel: () -> Unit,
-                           onSave: (Double, Instant, String?) -> Unit, onDelete: (() -> Unit)?) {
+                           onSave: (Double, Instant, String?, String?) -> Unit, onDelete: (() -> Unit)?) {
     val colors = Forge.colors
     var text by remember { mutableStateOf(draft.kg?.let { fmt.number(it) } ?: "") }
     var note by remember { mutableStateOf(draft.note ?: "") }
+    var waterMark by remember { mutableStateOf(draft.waterMark) }
+    var marking by remember { mutableStateOf(false) }
     var day by remember { mutableStateOf(draft.at.atZone(ZoneId.systemDefault()).toLocalDate()) }
     var picking by remember { mutableStateOf(false) }
     // The core's plausibility bounds (GoalMeasure.weightTrend, 25 to 400 kg): a value outside is dropped there.
@@ -75,6 +77,23 @@ internal fun WeighInEditor(draft: WeighInDraft, fmt: WeightFormat, onCancel: () 
             }
             OutlinedTextField(value = note, onValueChange = { note = it.take(200) }, modifier = Modifier.fillMaxWidth(),
                               colors = forgeFieldColors(), label = { Text(stringResource(R.string.wt_note)) })
+            // The water mark beside the note (owner decision 2026-11-27, Q26), as iOS's `waterPicker`.
+            Box {
+                Row(Modifier.fillMaxWidth().clickable { marking = true }.padding(vertical = ForgeMetrics.space2),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.wt_water), style = Forge.type.body, color = colors.text, modifier = Modifier.weight(1f))
+                    Text(stringResource(waterMark?.let { waterMarkName(it) } ?: R.string.wt_water_none), style = Forge.type.body,
+                         color = WEIGHT_TINT.resolve())
+                }
+                androidx.compose.material3.DropdownMenu(expanded = marking, onDismissRequest = { marking = false }) {
+                    (listOf<String?>(null) + WATER_MARKS).forEach { mark ->
+                        androidx.compose.material3.DropdownMenuItem(
+                            text = { Text(stringResource(mark?.let { waterMarkName(it) } ?: R.string.wt_water_none)) },
+                            onClick = { waterMark = mark; marking = false })
+                    }
+                }
+            }
+            Text(stringResource(R.string.wt_water_footer), style = Forge.type.footnote, color = colors.textSecondary)
             if (text.isNotBlank() && kg == null) {
                 Text(stringResource(R.string.wt_weight_invalid), style = Forge.type.footnote,
                      color = ForgeTokens.Color.systemOrange.resolve())
@@ -89,7 +108,7 @@ internal fun WeighInEditor(draft: WeighInDraft, fmt: WeightFormat, onCancel: () 
                 val now = Instant.now()
                 val at = if (day == LocalDate.now()) now
                          else day.atTime(draft.at.atZone(ZoneId.systemDefault()).toLocalTime()).atZone(ZoneId.systemDefault()).toInstant()
-                kg?.let { onSave(it, at, note.trim().ifEmpty { null }) }
+                kg?.let { onSave(it, at, note.trim().ifEmpty { null }, waterMark) }
             }) { Text(stringResource(R.string.forge_lay_save), fontWeight = FontWeight.SemiBold) }
         }
     }
@@ -263,4 +282,17 @@ internal fun WeightSettingsPage(settings: CoreWeight.Settings, rates: CoreWeight
             text = { TimePicker(state = state) },
         )
     }
+}
+
+/** The core's `BodyWeightRow.WaterMark` raw values, in iOS's order. */
+internal val WATER_MARKS = listOf("creatineStarted", "creatineStopped", "period", "saltyOrParty", "newMedicine")
+
+/** iOS `WaterMarkText.name`: a water mark in words, nil for a value this build does not know. */
+internal fun waterMarkName(mark: String): Int? = when (mark) {
+    "creatineStarted" -> R.string.wt_water_creatine_started
+    "creatineStopped" -> R.string.wt_water_creatine_stopped
+    "period" -> R.string.wt_water_period
+    "saltyOrParty" -> R.string.wt_water_salty
+    "newMedicine" -> R.string.wt_water_medicine
+    else -> null
 }

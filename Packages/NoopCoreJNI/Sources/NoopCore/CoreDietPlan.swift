@@ -301,7 +301,10 @@ enum CoreDietPlan {
             guard let plan = DietPlan.decode(args["plan"] as? String) else { return "null" }
             let result = DietTargets.resolve(plan, person: person, burnKcal: burn, kcalPerKg: kcalPerKg)
             let from = Calendar.current.date(byAdding: .day, value: -21, to: Date()).map(StoreReader.localDayKey) ?? today
-            let weights = await WeightSeries.series(reader: reader, from: from, to: today).map { (day: $0.day, kg: $0.value) }
+            // A day with a water-marked weigh-in is left out, as the scale's burn leaves it out (Q31).
+            let marked = await WeightSeries.waterMarkedDays(store: reader.store, from: from, to: today)
+            let weights = await WeightSeries.series(reader: reader, from: from, to: today)
+                .filter { !marked.contains($0.day) }.map { (day: $0.day, kg: $0.value) }
             let weekStart = Calendar.current.date(byAdding: .day, value: -6, to: Date()).map(StoreReader.localDayKey) ?? today
             let logged = Set(((try? await store.foodLogEntries(from: weekStart, to: today)) ?? []).map(\.day)).count
             let outcome = DietAdjust.weekly(plan: plan, result: result, weighIns: weights, loggedDays: logged, today: today,
@@ -314,7 +317,10 @@ enum CoreDietPlan {
             // goal weight as planned, the smoothed weight trend, and for recomposition body fat and the waist.
             guard let plan = DietPlan.decode(args["plan"] as? String), !plan.hideNumbers else { return "null" }
             let from = Calendar.current.date(byAdding: .day, value: -120, to: Date()).map(StoreReader.localDayKey) ?? today
-            let weights = await WeightSeries.series(reader: reader, from: from, to: today).map { (day: $0.day, kg: $0.value) }
+            // A day with a water-marked weigh-in is left out, as the scale's burn leaves it out (Q31).
+            let marked = await WeightSeries.waterMarkedDays(store: reader.store, from: from, to: today)
+            let weights = await WeightSeries.series(reader: reader, from: from, to: today)
+                .filter { !marked.contains($0.day) }.map { (day: $0.day, kg: $0.value) }
             var bodyFat: [(day: String, value: Double)] = []
             var waist: [(day: String, value: Double)] = []
             var strength: Double?
