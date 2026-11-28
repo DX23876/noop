@@ -10,7 +10,7 @@ you need. This page is for when you want to know *why*, or you're about to touch
 ## Contents
 
 - [Why a fork, not a contribution upstream?](#why-a-fork-not-a-contribution-upstream)
-- [The coach's 38 tools](#the-coachs-38-tools)
+- [The coach's 40 tools](#the-coachs-40-tools)
 - [Token cost and prompt caching](#token-cost-and-prompt-caching)
 - [Under the hood: the architecture](#under-the-hood-the-architecture)
 - [Quickstart: the signing fine print](#quickstart-the-signing-fine-print)
@@ -25,8 +25,8 @@ you need. This page is for when you want to know *why*, or you're about to touch
 NOOP Forge is a **personal fork** of [ryanbr/noop](https://github.com/ryanbr/noop). Not a competitor,
 not a rebrand that hides where it came from. Every protocol decoder, every analytics formula, every
 pixel of the design system comes from upstream NOOP and its own credited sources (see
-[Attribution](#attribution-in-full)). What this fork adds on top is **a much bigger coach** — and
-that addition is Apple-only.
+[Attribution](#attribution-in-full)). What this fork adds on top is **a much bigger coach**, which began
+as an Apple-only addition and now runs on Android too through the shared core.
 
 Upstream NOOP runs on a hard rule: **analytics and stored data must be byte-identical between the
 Swift and Kotlin implementations.** That's exactly the right rule for a dependable cross-platform
@@ -34,8 +34,8 @@ WHOOP client — but it means every feature has to earn its place on macOS, iOS 
 once, kept in lockstep, forever.
 
 A fast-moving, opinionated AI coach is precisely the kind of thing that rule *should* keep out of
-the core project. It doesn't need an Android twin, and it doesn't need to be re-derived in Kotlin to
-be worth having. It needs to iterate quickly, for one person. So rather than push upstream toward a
+the core project. It never needed an Android twin, and it was not re-derived in Kotlin: Android runs the same Swift
+coach engine. It needs to iterate quickly, for one person. So rather than push upstream toward a
 "no" it would be right to give, it lives here.
 
 **What that means in practice:**
@@ -60,7 +60,7 @@ be worth having. It needs to iterate quickly, for one person. So rather than pus
   one coach file ever needed a manual merge. The additive-files design is *why* that was painless; see
   [Relationship to upstream today](#relationship-to-upstream-today) for where things stand now.
 
-## The coach's 38 tools
+## The coach's 40 tools
 
 The README covers the idea (the coach fetches its own data instead of being handed a fixed
 summary). `get_readiness`, `get_charge_drivers` and `get_training_load` read from the **exact same
@@ -74,25 +74,32 @@ already see there.
 | 🏃 Training | `get_recent_workouts`, `get_strength_history`, `get_training_load`, `get_zone_minutes`, `get_plan_adherence`, `get_training_preferences` |
 | ⚖️ What-if | `get_session_outlook`, `simulate_day`, `estimate_session_effort` |
 | 🔥 Energy | `get_energy_balance` |
+| 🍽️ Food | `get_food_log` |
 | 📅 Long range | `get_range_report`, `get_metric_history`, `get_data_catalog` |
 | 🔍 Patterns | `get_personal_patterns` |
 | 📓 Logs | `get_my_logs`, `get_sensitive_logs` |
 | 🧠 Memory | `remember_fact`, `update_fact`, `forget_fact`, `search_past_conversations` |
-| 📝 Propose | `propose_plan`, `propose_goal_setup` |
+| 📝 Propose | `propose_plan`, `propose_goal_setup`, `propose_diet_change` |
 | 🏋️ Hevy | `find_hevy_exercises`, `get_hevy_routines`, `propose_hevy_routine`, `propose_hevy_workout` |
 | ☕ Log for you | `log_caffeine`, `log_journal`, `log_lab_marker`, `log_weight` |
 | 📈 Show | `plot_metric`, `show_card` |
 
 The log tools are the fun ones: **"just had a double espresso"** becomes a genuine entry in the
 Caffeine card, **"drank last night"** a journal entry, **"my Vitamin D came back at 38"** a Lab Book
-marker. Every propose tool only creates a draft; nothing is saved, scheduled or sent to Hevy until the
-user accepts it in the app.
+marker. Every propose tool only creates a draft; nothing is saved, scheduled, changed in the diet plan or
+sent to Hevy until the user accepts it in the app.
 
-**Access to all 38 is gated per purpose, not by one switch.** Every tool belongs to exactly one of
-nine `CoachPurpose` groups (`coreBiometrics`, `longHistory`, `workouts`, `planning`, `stress`, `logs`,
-`sensitiveLogs`, `memory`, `patterns`) via an exhaustive `switch`, so a new tool cannot ship without
+**Access to all 40 is gated per purpose, not by one switch.** Every tool belongs to exactly one of
+ten `CoachPurpose` groups (`coreBiometrics`, `longHistory`, `workouts`, `planning`, `stress`, `logs`,
+`sensitiveLogs`, `memory`, `patterns`, `food`) via an exhaustive `switch`, so a new tool cannot ship without
 being assigned a group. Essentials, Personal and Deep insights are simple presets over these groups;
-Expert mode exposes the individual controls. Sensitive logs remain a separate extra choice.
+Expert mode exposes the individual controls. Sensitive logs remain a separate extra choice, and the food
+group is granted together with the Coach by default.
+
+Providers: iPhone and Mac offer Anthropic, OpenAI, Google Gemini, OpenRouter and a custom OpenAI-compatible
+server; Android offers the same minus OpenRouter. The on-device semantic memory model ships in the iPhone
+app only; the Mac and Android answer by keyword. Every outbound network path of the app, the coach
+included, is listed in [`PRIVACY_SECURITY.md`](../PRIVACY_SECURITY.md).
 
 📖 The full schema for every one of these (parameters, gating, the two safety gates, the plan book's
 state machine, the memory ranking algorithm) lives in **[`COACH.md`](COACH.md)**.
@@ -122,7 +129,7 @@ design, not this fork's:
 | **Protocol** | `Packages/WhoopProtocol`, `OuraProtocol`, `PolarProtocol` | Raw BLE frames → structs. CRC-checked, pure Swift, no CoreBluetooth. Builds and tests on Linux. |
 | **Storage** | `Packages/WhoopStore` | SQLite via GRDB. Migrations, caches. |
 | **Analytics** | `Packages/StrandAnalytics` | The actual science: HRV, recovery, strain, sleep, training load, goal pace. Database-free, pure functions. |
-| **Import** | `Packages/StrandImport` | WHOOP CSV, Apple Health, Strong, Hevy, FitNotes. |
+| **Import** | `Packages/StrandImport` | WHOOP CSV, Apple Health, Strong, Hevy, FitNotes, Liftosaur, Oura, Fitbit and Garmin exports. |
 | **Training** 🆕 | `Packages/StrandTraining`, `Packages/MuscleMap` | Routines, the offline exercise catalogue, set maths, muscle taxonomy and body maps. |
 | **Memory** 🆕 | `Packages/SemanticMemory` | On-device embeddings and retrieval for the coach. |
 | **Shared core** 🆕 | `Packages/StrandCore`, `Packages/NoopCoreJNI` | The platform-neutral app core (daily analysis, `AnalysisRecipe`, collection and backfill, backup, metric resolver, energy, Hevy sync) and its JNI bridge, so Android runs the same Swift code. |
@@ -194,6 +201,10 @@ The complete, maintained index is the [documentation map](../README.md). The for
   and architecture.
 - [`MUSCLE_ANALYTICS.md`](MUSCLE_ANALYTICS.md): Balance, Fatigue and Strength on the muscle map.
 - [`LIVE_STRENGTH_WORKOUTS.md`](LIVE_STRENGTH_WORKOUTS.md): the workout lifecycle, trackers and resume.
+- [`AGELESS.md`](../AGELESS.md) and [`FITNESS_AGE.md`](../FITNESS_AGE.md): the Lab-switched age feature and the
+  weekly Fitness Age on Health.
+- [`PRIVACY_SECURITY.md`](../PRIVACY_SECURITY.md): every outbound network path and the security model.
+- [`health-sync.md`](health-sync.md): Apple Health and Health Connect hand-offs.
 - [`opengym-integration.md`](opengym-integration.md): native training, routines and the logger.
 - [`decisions.md`](decisions.md): every fork decision, in order.
 - [`releases/`](releases/): the fork's release notes.

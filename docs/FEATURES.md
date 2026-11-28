@@ -1,1396 +1,1049 @@
+# NOOP Forge: Feature Guide
 
-# NOOP — Feature Guide
+NOOP Forge is an offline-first companion app for WHOOP 4.0 and WHOOP 5.0/MG straps. It pairs directly with
+the strap over Bluetooth, needs no WHOOP account and no cloud, keeps everything in one database on your
+device, and works out its own daily scores from the strap's raw data: **Charge** (recovery), **Effort**
+(strain) and **Rest** (sleep). Imports from other apps and wearables fill in history; an optional AI coach,
+which you switch on yourself, can talk about your data.
 
-NOOP is an **offline-first** companion app for WHOOP straps (4.0 and 5.0/MG). It pairs
-directly with the strap over Bluetooth Low Energy — **no WHOOP account, no
-cloud** — stores everything on-device in SQLite, imports your WHOOP and Apple Health exports,
-and computes its own daily scores locally — **Charge** (recovery), **Effort** (strain) and **Rest**
-(sleep), an energy economy you wake with, spend, and rebuild — alongside HRV and the raw signals.
-These are honest approximations from published methods, **not WHOOP's scores**. macOS and iOS/iPadOS
-ship from this fork and share the same store and analysis implementations; iOS is distributed as an
-unsigned AltStore/SideStore IPA or built with Xcode. The optional Watch companion is part of the Full
-IPA. This guide describes the Apple apps. An Android app built on the same shared Swift core
-(`Packages/`, reached through `Packages/NoopCoreJNI`) is in testing and not yet a release download;
-what it already covers is tracked in [`fork/android/STATUS.md`](fork/android/STATUS.md), and testers
-start at [`fork/android/TESTING.md`](fork/android/TESTING.md).
+It runs on iPhone and iPad, Mac, Apple Watch (as a companion) and Android. Android has been a released
+platform since 13.0 (28 November 2026) and runs the same shared core as the Apple apps. This guide says
+where a feature differs between platforms.
 
-> **Not affiliated with WHOOP.** NOOP is independent interoperability software for *your own*
-> device and *your own* data. "WHOOP" is used only to identify the hardware NOOP talks to.
-> **NOOP is not a medical device** — every metric (HR, HRV, Charge, Effort, Rest, SpO₂,
-> respiration, skin temperature) is an approximation, not a clinical reading, and must not be
-> used to diagnose, treat or make health decisions.
+> **Not affiliated with WHOOP.** NOOP is independent interoperability software for your own device and your
+> own data. "WHOOP" is used only to name the hardware NOOP talks to.
+> **NOOP is not a medical device.** Every figure (heart rate, HRV, Charge, Effort, Rest, SpO₂, breathing,
+> skin temperature, stress, ECG) is an approximation from published methods, not a clinical reading, and must
+> not be used to diagnose, treat or make health decisions.
 
-NOOP is built on community interoperability and protocol-documentation work, with thanks to:
+NOOP builds on community interoperability and protocol work, with thanks to:
 
 | Project | Contribution |
 | --- | --- |
-| [`johnmiddleton12/my-whoop`](https://github.com/johnmiddleton12/my-whoop) | WHOOP 4.0 BLE protocol — framing, commands, decoding |
-| [`b-nnett/goose`](https://github.com/b-nnett/goose) | WHOOP 5.0 / MG BLE protocol |
-| [`groue/GRDB.swift`](https://github.com/groue/GRDB.swift) | On-device SQLite persistence |
+| [`johnmiddleton12/my-whoop`](https://github.com/johnmiddleton12/my-whoop) | WHOOP 4.0 Bluetooth protocol: framing, commands, decoding |
+| [`b-nnett/goose`](https://github.com/b-nnett/goose) | WHOOP 5.0 / MG Bluetooth protocol |
+| [`groue/GRDB.swift`](https://github.com/groue/GRDB.swift) | On-device SQLite storage |
 
----
+## Contents
 
-## At a glance
+1. [How to read this guide](#how-to-read-this-guide)
+2. [Platform matrix](#platform-matrix)
+3. [Today](#today)
+4. [Training](#training)
+5. [Nutrition](#nutrition)
+6. [Sleep](#sleep)
+7. [Health](#health)
+8. [Body and energy](#body-and-energy)
+9. [Goals](#goals)
+10. [Coach](#coach)
+11. [Devices and the strap](#devices-and-the-strap)
+12. [Widgets, Live Activities, Siri and Shortcuts](#widgets-live-activities-siri-and-shortcuts)
+13. [Apple Watch](#apple-watch)
+14. [Mac](#mac)
+15. [Android](#android)
+16. [Data in and out](#data-in-and-out)
+17. [Settings, Lab and Experimental](#settings-lab-and-experimental)
+18. [Privacy-relevant network features](#privacy-relevant-network-features)
+19. [For developers](#for-developers)
 
-NOOP is a `NavigationSplitView`: a left sidebar of screens, a live connection status pill
-pinned to the sidebar's bottom (bonded / connecting / disconnected, with battery %), and a
-detail pane. A menu-bar item gives a glanceable live heart rate from anywhere. The whole UI is
-dark, and a first-run wizard walks you through pairing.
+## How to read this guide
 
-The sidebar itself is five collapsible groups (macOS `RootView.swift`; the exact mapping is in
-[docs/ARCHITECTURE.md](ARCHITECTURE.md) §10) — **Today**, **Sleep**, **Body** (Workouts, Live,
-Health, Stress, Intervals, Breathe), **Insights** (Intelligence, What Moves You, Coach, Goal &
-Journey, Explore, Compare, Insights, Lab Book, Rhythm, Trends), and **Data & App** (Devices, NOOP
-Limitations, Data Sources, Apple Health, Mi Band, Backup & Sync, Your Data Fused, Notifications,
-Automations, Alarms, Battery & Recording, Settings, Test Centre) — and auto-expands whichever group owns
-the destination you're on. iOS reaches the same destinations through the tab bar's **More** tab
-instead of a sidebar.
+- **iPhone** means iPhone and iPad. The iPad runs the same layout as the iPhone.
+- **Where** lines name the place in the app. Settings pages are named as they appear in the Settings hub.
+- Status tags in brackets: *(optional, off by default)* means a switch you turn on. *(Settings › Lab)* is an
+  early feature behind the Lab page. *(Experimental)* is labelled that way in the app. *(Test Centre)* is
+  for bug reports and diagnostics only (Settings › Help and diagnostics › Test Centre). Anything without a
+  tag is on and visible without a switch.
+- **Two designs on Apple.** Since 20 November 2026 the iPhone has one design, called Forge: five tabs (Today,
+  Training, Nutrition, Sleep, Health), tiles you arrange, and the drawn Alps, Coast or Meadow scenery. There
+  is no switch to go back. The Mac keeps the classic design with a sidebar. Android uses Forge by default and
+  has a "Classic screens" row in About that turns it off.
+- Several screens appear on more than one platform under the same name. Where a feature is missing on a
+  platform, the platform matrix and the section say so.
 
-Screens are grouped below by whether they need a connected strap:
+## Platform matrix
 
-| Needs a connected strap (live BLE) | Works from imported/local data alone |
+| Feature | iPhone / iPad | Mac | Apple Watch | Android |
+| --- | --- | --- | --- | --- |
+| Charge, Effort, Rest scores and pages | yes | yes | glance and face | yes |
+| Today as arrangeable tiles with timeline | yes | no (classic Today with four layouts) | no | yes |
+| Sleep tab, editing nights, naps, alarms | yes | yes (classic) | no | yes |
+| Strap wake alarm | yes | yes | no | yes |
+| Phone smart alarm with wake window | no | no | no | yes |
+| Training: logging, routines, plans, library | yes | yes | strength workout only | yes (some gaps, see Android) |
+| GPS workouts, voice feedback, auto-pause | yes | yes | no | yes (fewer pages) |
+| Barometer elevation, laps, run plans, pacer | yes | partial (stored elevation) | no | no |
+| Muscle map, Strength, Cardio, Training Load | yes | yes | no | yes |
+| Nutrition tab, food database, barcode, diet plan | yes | no | no | yes |
+| Body page, weight tracker, progress photos | yes | partial | no | yes (photo picker) |
+| Energy and three burn estimates | yes | yes | no | yes |
+| Health records (lab book) | yes | yes | no | yes (no PDF or photo reading) |
+| Stress, Breathe, Intervals | yes | yes | Breathe and Intervals | yes |
+| ECG with WHOOP MG (Experimental) | yes | yes | no | yes |
+| Cycle awareness (optional) | yes | yes | no | yes |
+| Fitness Age, Vitality, Trends, What works, Journal | yes | yes | no | yes |
+| AgeLess and Daily rhythm (Settings › Lab) | yes | yes | no | yes |
+| Goals (daily, weekly, monthly, long-term) | yes | yes | complication | yes |
+| AI coach | yes (5 providers) | yes (5 providers) | no | yes (4 providers, see Coach) |
+| Coach on-device semantic memory | yes | partial | no | no |
+| Home Screen widgets | yes | no | n/a | yes |
+| Lock Screen widgets, Live Activities, Dynamic Island | yes | no | no | no (ongoing notification) |
+| Siri, Shortcuts, Home Screen quick actions | yes | partial (3 intents) | no | no |
+| Apple Health connection | yes | file import only | n/a | no |
+| Health Connect connection | no | no | n/a | yes |
+| Strong, FitNotes, OpenGym import | yes | yes | no | no |
+| Self-hosted push (Experimental) | no | no | no | yes |
+| Wrist alerts for other apps, calls and timers | no | not live yet | no | yes |
+| Demo data for users | no | no | no | yes (Demo flavor) |
+
+## Today
+
+Today is the first tab on iPhone and Android and the first sidebar entry on the Mac.
+
+**Score rings.** Three glowing rings show today's Charge, Effort and Rest. Tap a ring to open its page.
+Charge takes the colour of its band. While today is not scored yet, the last scored night's Charge is shown
+with a caption saying whose it is, and a baseline that is still learning shows a "calibrating" countdown
+instead of a stale number.
+
+**Pinned score bar.** When the rings scroll off screen, a small capsule keeps the three values at the top;
+tap it to jump back. (iPhone)
+
+**Hold the rings to customise.** Holding the rings, or choosing Customize Today in the + menu, starts the tile
+editor. (iPhone, Android)
+
+**Header.** The + menu offers Start workout (or Back to workout), Add entry and Customize Today. A coach
+button sits beside it when the coach is switched on.
+
+**Add entry (Log).** One sheet logs a workout, weight, status, journal answers, drink, food, sleep, blood
+pressure, mood, health records, medication, a breathing session or live heart rate. With the coach on it
+also accepts writing, speaking or a photo.
+
+**Activity status.** Tell the app you are ill, injured or on a break, for today, three days, this week, a
+custom date or until changed. A line at the top of Today says the status holds and that training suggestions
+are paused. The classic Mac Today has the same chip.
+
+**Illness early-warning banner** *(optional, off by default)*. When two or more of resting heart rate, HRV,
+skin temperature and breathing drift together from your own 28-day baseline, a banner appears on Today and
+at most one notification a day. It is not a diagnosis. Switch: Settings › Alerts and reminders.
+
+**First-run connection card.** On a fresh install a card shows the connection state and the one next step.
+
+**Today's advice.** A card next to the rings says how hard to train today (Push, Steady, Easy or Rest today)
+with an Effort target, from your Charge, recent load and plan.
+
+**Detected activity prompt.** When the app finds a walk or workout you did not start, a prompt asks whether to
+log it. See [Training](#training) for the switch.
+
+**Morning suggestion** *(optional, needs the AI coach)*. Each morning the coach proposes today's session with
+Accept, Change or Decline; after your decision it becomes the plan card.
+
+**The day's hint.** One line under the rings for the most pressing thing: a raised warning, a plan waiting
+for an answer, the newest coach note, other notices or "No weigh-in for a week". Dismissed ones stay hidden.
+
+**Timeline.** A rail of today and yesterday: workouts, walks (two or more bundled), the night's wake-up, naps,
+weigh-ins, drinks, food, journal answers, saved ECGs, coach notes (morning brief, check-in, nudge, weekly
+review, after-workout, evening), notices and an end-of-day summary. A calm day says so. Notices (for example
+"the night may not be fully synced") speak at most once in a few days unless the situation gets clearly worse.
+(iPhone, Android; the Mac's classic Today has no rail)
+
+**Tiles.** Today is a board of tiles. Remove with the minus, drag to reorder, switch small, medium or wide
+where a card allows, and add from a gallery. VoiceOver can move and resize tiles by action. Three layout
+choices: show or hide the timeline, whether tiles start under the rings or after the timeline, and two or
+three tiles per row.
+
+| Tile group | What is in it |
 | --- | --- |
-| Live, Breathe (for haptics), Intervals (for haptics), Health Monitor (live HR), Automations (to act), Notifications (to buzz), Alarms (to arm the strap wake-buzz — the wind-down nudge itself doesn't), Power saving (levers a connected strap's sync cadence) | Control Center, Intelligence, Explore, Compare, Insights, What Moves You, Coach, Goals, Lab Book, Rhythm, Sleep, Trends, Workouts, Stress, Mind, Devices (pairing itself needs Bluetooth, but the screen and history don't), NOOP Limitations, Apple Health, Mi Band, Data Sources, Backup & Sync, Your Data Fused |
-
-Most of NOOP works the moment you import an export. The strap adds the *live* layer — real-time
-heart rate, haptic cues, and physical-input automations.
-
-### Training, Strength and Cardio
-
-The **Training** destination plans and logs strength sessions directly in NOOP: routines, weekly
-schedules, freestyle and past sessions, supersets, unilateral work, RPE/RIR, timers, progression,
-plate loading and resumable drafts. A session started by mistake can be discarded outright: the draft
-and its recording are deleted and nothing reaches your history. FitNotes and Strong CSV files show a review screen before import;
-Hevy and other detailed sources join the same history without copying overlapping set lists.
-
-During a native strength workout, NOOP can keep the selected physiological source beside the set
-logger. A connected NOOP band or another selected heart-rate tracker uses the existing live recorder;
-an optional Apple Watch companion runs a real HealthKit workout and shows the current exercise, set,
-elapsed time, live heart rate and controls. The set log remains canonical on the phone. Locking,
-backgrounding and relaunch preserve the draft and recorder state, and losing heart rate never prevents
-set entry or workout completion. The summary joins the chosen recording to the completed session once,
-with measured coverage rather than invented values.
-
-Live cardio and activity tracking use the same honest base rule: elapsed time is recorded first, while
-heart rate, route, distance and pace are optional enrichments. A session of at least one minute is kept
-even when a tracker is disconnected, location is denied or GPS never gets a fix. Route capability,
-default route choice and indoor/outdoor classification are separate catalogue facts, so an outdoor golf
-round can offer GPS without silently enabling it and a treadmill run never asks for location. The start
-sheet shows the route choice before recording; the live screen keeps a route-status card visible while
-requesting permission, finding a fix, recording, paused or unavailable.
-
-GPS capture uses Core Location's native `.fitness` live updates on iOS 17+/macOS 14+ (the manager
-fallback remains for macOS 13). System-confirmed stillness does not add distance. Valid speed and its
-accuracy can preserve short walking legs and corners; absent or uncertain motion data uses a
-conservative overlapping-accuracy fallback. The 0.3 m/s motion threshold and overlap rule are app
-heuristics, not an Apple standard, and weak GPS can still under-record slow movement. Invalid fixes,
-accuracy worse than 50 m, non-increasing timestamps and pre-start/pre-resume cached fixes are rejected.
-This follows Apple's guidance to [filter route measurements before saving them](https://developer.apple.com/documentation/healthkit/creating-a-workout-route)
-and use the [fitness configuration](https://developer.apple.com/documentation/corelocation/cllocationupdate/liveconfiguration/fitness);
-it does not claim Apple Watch-equivalent accuracy. A stationary native update keeps the stream alive
-so Core Location can resume delivery when movement returns. Pause/end cancels the stream, and an older
-capture generation cannot deliver into a restarted workout. Real-device stationary, slow-walk, corner
-and locked-screen validation remains necessary; synthetic tests cannot verify satellite reception.
-
-On iPhone, starting and ending the matching HealthKit workout is race-safe when the app backgrounds or
-the user ends quickly. Pause releases the background Core Location session and resumes it only on an
-explicit workout resume. The Lock Screen and Dynamic Island use the activity's sport icon, update from
-either phone or Apple Watch heart rate, clear a stale reading through ActivityKit's stale date, and adopt
-an existing workout activity after relaunch instead of creating a duplicate. Ending the workout or
-turning its Live Activity switch off also removes an activity left by a previous process.
-
-**Analysis migration required: no.** These changes affect prospective live capture, lifecycle safety,
-HealthKit workout labels and presentation. No historical scoring formula, aggregation window, stored
-derived-value meaning or source precedence changes.
-
-Training and Strength share one detailed body map with three views. **Balance** shows how effective
-working sets were distributed over the past 28 days and, once available, compares each muscle's share
-with the wearer's previous eight complete weeks. **Fatigue** estimates how much recent training
-stimulus may remain using NOOP's existing exponential-decay model. **Strength** combines robust,
-RIR-corrected e1RM trends only after normalizing every exercise to its own history.
-
-Reviewed offline exercise mappings credit primary muscles fully and secondary muscles by half.
-Warm-ups and stabilizers do not color the analytics map. Unknown work remains visible in coverage and
-is never assigned to an invented muscle. Each mode offers a muscle drilldown with its contributing
-sessions or exercises; none of the three views claims ideal symmetry, muscle growth, measured recovery
-or injury risk.
-
-**Training Load** keeps cardiovascular load, strength load and whole-session load in their own units.
-The Strength ring works after the first session using a clearly provisional seven-day amount, while
-the existing personal comparison still waits for 21 complete days. Provisional values never generate
-“× usual”, adaptation or overreaching claims. Cardio remains limited to endurance views and uses the
-canonical session's selected heart-rate source.
-
-NOOP ships 1,324 exercises offline — with muscles, equipment, how each one is measured and
-step-by-step instructions — so the library is useful on a phone in flight mode and without an
-account. Animations and images are not included: their rights holder licenses them separately.
-
-The exercise library filters by body region, muscle, type and equipment at the same time, and every
-exercise opens a detail with its instructions, muscle involvement, your own session history, your
-heaviest set and your best estimated one-rep maximum — with imported sessions counted once, beside
-native ones. During a workout, an exercise can be added from there directly.
-
-While a workout runs, weights and repetitions can be typed directly or stepped by the increment your
-equipment actually allows, an exercise can be ended early or annotated, and its earlier sessions are
-one tap away. The summary afterwards names new records, what moved against your last session, every
-logged set and your notes. Optional exercise media, if you choose to download it, plays as an
-animation or a video and holds still when Reduce Motion is on.
-
-The logger (12.2.0) takes weight and repetitions on the number pad, shows the matching set of the last
-session beside each row (a tap copies it), has an **Add set** button on every exercise and removes a
-set with a swipe. On iPhone the workout Live Activity names the next set, logs it with one tap when it
-already has its numbers and offers −15 / +15 / Skip during a rest; the logger, Lock Screen, Watch and
-strap double-tap pick the same next set. **Training › Add** imports routines from a connected Hevy
-account (**Import Hevy routines**, Hevy Pro API key) or an OpenGym plan file (**Import OpenGym plan**),
-both with a preview; importing the same routine again updates the earlier copy, and your own routines
-are never changed.
-
-The media pack is downloaded only when you ask for it, directly from its disclosed upstream source,
-after the source, size and rights holder are shown (see
-[`fork/EXERCISE_CONTENT_AND_MEDIA.md`](fork/EXERCISE_CONTENT_AND_MEDIA.md)). A download that finishes
-while NOOP is closed is installed at the next launch; **Settings › Training › Manage offline exercise
-media** can delete the pack and download it again. The exercise library can also read exercise
-definitions from a personal **ExerciseDB source** (an endpoint and optional key you enter, stored in the
-Keychain): NOOP reads one page, previews it and saves only the definitions you select, and sends no
-workout or health data.
-
-Strength also summarises the selected range: sessions, weekly frequency, working sets, duration,
-volume, RPE coverage and average RPE, active weeks, the longest weekly streak and recent personal
-records, beside a past-year consistency heatmap that follows the chosen week start. Routines can be
-previewed with their muscle involvement and edited with exercise order, supersets, progression rules
-and scheduled weekdays. Settings › Training groups its controls under small headings: logging sets
-(effort entry, session ratings, weight unit and step, week start), rest times, what happens when a timer
-ends (notification, sound, phone vibration, the strap buzz five seconds early), the strap double-tap,
-and the workout screen (layout, exercise media and download, equipment, keeping the screen awake). On
-iPhone a "Lock Screen display" row leads to the Workout switch under Live notifications, which is
-separate from the rest-end notification. While the strength logger is on screen, the rest-end
-notification plays only its sound and shows no banner over the countdown it announces; with the
-workout minimized it shows as usual.
-Training weight has its own **Kilograms / Pounds** choice there, independent of body-measurement units.
-The active logger, routines, prior sessions, estimated 1RM, increments and plate calculator all follow
-it while values remain stored canonically in kilograms. Switching during a workout redraws the fields
-from the stored value instead of reinterpreting typed digits. Metric and imperial increments and plate
-inventories are kept separately (defaults: 2.5 kg and 5 lb), and the unit preference travels in backups.
-
-**Analysis migration required: no.** This is display and input conversion only; stored workout weights,
-progression calculations, e1RM inputs and historical analysis remain the same kilogram values.
-
----
-
-## Connection states
-
-Throughout the app the strap reports one of three states:
-
-- **Disconnected** — no strap found (critical / red dot).
-- **Connecting** — found and connecting, finishing the secure pairing handshake (warning / amber).
-- **Bonded** — paired and streaming; haptics and live HR are available (positive / green).
-
-> WHOOP straps do **not** appear in *System Settings → Bluetooth*. They advertise on a custom
-> profile that only apps like NOOP can find — so there's nothing to pair in System Settings.
-
-Commands that drive the strap motor (any wrist buzz) and the live realtime stream require a
-**bonded** connection. Where a feature needs this, it is noted below and the button is disabled
-until you bond.
-
----
-
-## First-run onboarding
-
-The onboarding wizard (`OnboardingWizard.swift`) appears on first launch and runs once
-(tracked by the `noop.onboarded` preference). It is a calm, paged flow with a progress
-"thread" along the bottom and a Back button always available:
-
-1. **Welcome** — "all your data, none of the cloud".
-2. **What NOOP does** — three value slides: the Charge ring, live heart, offline ownership.
-3. **Bluetooth priming** — explains *before* the macOS Bluetooth prompt that nothing leaves
-   your Mac; the connection is local BLE with no server in the middle.
-4. **Wear & wake** — put the strap on (snug, sensor on skin), charge it, keep it within ~1 m.
-5. **Scan** — a radar sweep; tapping **Scan** calls the BLE engine. If it hasn't bonded after
-   ~12 seconds, a reassurance card appears explaining the strap won't show in System Settings,
-   that only one host can hold it at a time (close the WHOOP phone app), etc.
-6. **Bonded celebration** — a Charge ring blooms in when the strap bonds, with battery %.
-7. **Profile** — age, sex, weight, height (feeds zones, calories and baselines). Shows your
-   estimated max heart rate.
-8. **Import (optional)** — points you to Data Sources; fully skippable.
-9. **Done** — "Your thread starts here."
-
-You can revisit pairing and profile any time from **Settings**.
-
----
-
-## Control Center
-
-**Sidebar: Today · works from imported data; live status shown in the sidebar.**
-
-The home dashboard (`TodayView.swift`, titled "Control Center"). A tight, gapless grid:
-
-- **Health alert banner** — the illness early-warning banner appears here when triggered (see
-  [Illness early-warning](#illness-early-warning)).
-- **Today's Synthesis** — the signature **Charge Ring** (HRV and resting HR underneath) beside
-  a plain-English read-out ("Charge is strong and sleep was consistent.") and a state
-  word (Depleted / Low / Steady / Primed / Peak). NOOP frames the day as an energy economy: you
-  **wake with Charge**, **spend it as Effort**, and **rebuild it with Rest**.
-- **Key Metrics** — a uniform tile grid, each with a 14-day sparkline: Charge, Effort
-  (of 100), Rest (hours + efficiency), HRV, Resting HR, Blood Oxygen, Respiratory,
-  Steps (on-device only for WHOOP 5/MG; on a 4.0, NOOP shows your imported Apple Health /
-  Health Connect steps, because it can't yet read steps off the 4.0 strap over Bluetooth —
-  the 4.0 itself does count steps in the official WHOOP app — and approximate),
-  Weight, Calories. Each tile carries a small note: nightly values show "+4" against your 30-day
-  normal, Effort, steps and calories show today's 30-day average ("Ø 8.400") and a delta only for
-  finished days, and weight shows its change over 30 days. WHOOP metrics come from the `my-whoop` source; Steps/Weight/Calories/
-  Respiratory pull from `apple-health`. Sparse series (e.g. weight) fall back to all history so
-  a tile never shows empty when data exists.
-- **Training Load** — strength and cardio each on one quiet scale from below to well above your
-  usual load, with the verdict word from the Training Load screen and one line on whether recovery
-  is keeping up. Tapping it opens Training Load.
-- **Last Workouts** — up to six recent sessions as tiles (duration, date, avg HR, kcal).
-- **Data Sources** — a footer showing whether WHOOP and Apple Health data are present, with day/
-  session counts.
-
----
-
-## Energy
-
-**Reached via the ENERGY card in Control Center / Today (all three presentations) · works from
-imported and strap data, no live connection needed.**
-
-`EnergyCard.swift` / `EnergyDetailView`. One card, not several tiles — basal and active energy
-would otherwise become two more Key Metric tiles that only ever move together.
-
-- **The card** — total burned so far, and (once ≥10% of today has elapsed) a `~`-prefixed
-  *projected* total extrapolated from the day's rate so far. Basal and active render as **shares of
-  the total** (a bar each) once something has actually measured the day; with nothing measured yet,
-  the card falls back to plain figures and a caption explaining that the basal number is your
-  estimated resting rate, not a measurement. A quality caption appears whenever the day is only
-  partly or mostly modelled — it stays silent on a solidly measured day so people don't learn to
-  ignore it.
-- **Everyday movement counts, not just workouts.** A walk sits well below the heart-rate threshold
-  that used to be the only thing NOOP looked at, so an ordinary half-hour walk contributed *nothing*
-  to your active energy. NOOP now also reads the strap's own step counter and its walk/run
-  classification, and takes whichever reading is higher — so walking, stairs and errands show up,
-  while a quiet-wrist effort like cycling or lifting still scores on heart rate as before. (Requires a
-  WHOOP 5/MG, the only generation whose records carry a step counter; a 4.0 is unchanged.)
-- **Where the number comes from — one source, never summed.** NOOP's own WHOOP-first estimate is
-  canonical whenever it exists, topped up only with modelled basal for the hours the strap wasn't
-  worn (never a full day's BMR, which would double-count worn time). Without a WHOOP estimate, it
-  falls back to Apple Health's active+basal split, then Apple active energy with a modelled basal
-  half, then a steps × body-weight estimate, and finally — with no measurement at all — your
-  estimated basal rate alone. Two devices measuring the same body are **never added together**.
-- **Energy detail screen** (tap the card) — the same card, plus:
-  - **Data quality** — a terse lead-in ("WHOOP · 87 % captured · ±8 %") on a day with a real
-    coverage figure to report, then the full breakdown: source, energy coverage % of the elapsed
-    day, hours-with-movement %, estimated basal rate, the raw WHOOP model figure and its
-    approximate uncertainty (±%), and calibration status.
-  - **Calibration** — an **off-by-default** toggle. When enabled, NOOP compares your WHOOP estimate
-    against time-aligned Apple Watch energy (Apple Watch only — never an iPhone or third-party app)
-    and, once there is enough stable overlap (about a week of high-quality five-minute buckets),
-    learns a small, bounded correction factor (×0.80–×1.20) applied to your **active** energy — your
-    resting rate is never rescaled by it. WHOOP stays the measurement; Apple is a reference. Status
-    reads **Off / Learning / Active / Paused**, with a **Reset** to discard a learned fit and start over.
-  - **Adaptive expenditure** — a separate, retrospective average-kcal/day range computed from your
-    imported calorie logs and weight trend (shown only once you have several weeks of reasonably
-    complete intake logging and enough weigh-ins). This is explicitly **not** today's measurement
-    and never calibrates or replaces the WHOOP figure — it's a second, independent way to sanity-check
-    maintenance calories over time.
-  - **Nutrition input without a food diary** — daily calorie, protein, carbohydrate and fat totals
-    are read automatically from Apple Health when another nutrition app writes them there. NOOP
-    never adds two Health writers together: one app supplies all four fields for a day, with a source
-    picker when several apps overlap. A manual daily total (calories required, macros optional) or CSV
-    import remains available as fallback. Precedence is per field: **manual → CSV → Apple Health**, so
-    correcting calories does not discard imported macros. Blank means unknown; **No intake this day**
-    is an explicit zero. Manual saves are read back before success is shown and can be removed to reveal
-    the imported value again. Sync covers the latest 30 days on open, foreground and manual refresh;
-    full Health history import covers older days. Health query failures retain the last complete data.
-    Calories remain authoritative when their total and the macros disagree.
-  - **Daily burn chart** — last 30 days of completed-day totals (today is excluded — it's still
-    "so far", not a finished number).
-- **Coach** — `get_energy_balance` (see [docs/fork/COACH.md](fork/COACH.md)) reports the same
-  figures, including the adaptive comparison when available, and is explicitly told never to turn
-  either number into diet or intake advice — NOOP holds no nutrition-recommendation logic.
-- **Widget** — the iOS energy widget also carries the raw pre-calibration WHOOP figure, its
-  uncertainty %, and the calibration factor, so the same honesty travels to the home screen.
-- **Privacy** — the Apple Watch reference data used for calibration is a bounded, on-device,
-  five-minute aggregate (kcal/HR/steps/distance/stride/workout flag per source) — never raw
-  HealthKit samples, and never anything that leaves the device.
-
-**Analysis migration required: no.** Nutrition totals and the adaptive expenditure range are resolved
-at read time; no persisted Charge, Effort, Rest or other derived score can become stale. The next
-successful Health sync transactionally replaces the affected imported nutrition window, including
-source corrections and deletions, while raw Health data and manual entries remain intact.
-
----
-
-## Today (iOS)
-
-**Tab bar: Today (first tab) · works from imported data; live status/battery in the header.**
-
-iOS uses a bottom tab bar (`RootTabView.swift`: Today, Trends, Training, Sleep, More) instead of macOS's
-sidebar. The Today tab hosts one of three interchangeable home-screen presentations, picked under
-**Settings → Today & Trends → Dashboard**:
-
-- **Liquid Today** (default, `LiquidTodayView.swift`) — a sky-gradient page led by one hero of three
-  organic waveform rings for Charge / Effort / Rest (`OrganicScoreRing`, pure model in
-  `OrganicScoreVisualModel`): a luminous band of crossing filaments with bloom, twinkling particles
-  that fill the circle more the higher the value, small wandering local swells and a slow breath.
-  Fixed geometry parameters are prepared once per particle seed and common frame calculations are
-  reused across contour points. Full-quality contours use 256 points for finer edges at the same size.
-  Charge takes its band colour; Effort glows and breathes deeper from Moderate up. The rings react
-  to device tilt and movement (Settings → Appearance → "Motion effect", default on), and stand still
-  under Reduce Motion, NOOP's quiet-motion switch, Low Power Mode or when off screen. Light mode
-  shows a light hero card, Dark an optical chamber. Below it: readiness pills, Momentum, Goals,
-  Key Metrics (two columns and no empty automatic tiles on a fresh layout), a compact Energy
-  summary, one Last Workouts card of five, live heart rate only while a strap streams, and Your
-  Cards (Stress, Fitness Age, Vitality by default). Recovery Vitals is available but starts hidden;
-  Data Sources lives in Settings. Saved layouts are never rewritten. Cards rest on their fill
-  without the slate rim. Spec: [`fork/LIQUID_TODAY_REDESIGN.md`](fork/LIQUID_TODAY_REDESIGN.md).
-- **Classic Today** (`TodayView.swift`) — the same screen macOS shows as Control Center (tight
-  tile grid, no hero animation), reused verbatim as an iOS fallback. As of 2026-07-25 it has full
-  functional parity with Liquid Today (design stays its own): reorderable/hideable sections over a
-  shared saved order, a live heart-rate badge over the HR trend chart with a one-tap **Full day**
-  link into the Deep Timeline, and Recovery Vitals as its own movable section instead of being fixed
-  inside Synthesis.
-- **Customize Today** (`TodayCustomizationSheet.swift`) — one editor behind every Today layout
-  affordance on both Today screens, replacing the separate Arrange / Key Metrics / Your Cards sheets
-  (upstream #940, adopted 2026-07-31). A **Shown / Hidden** list with drag-to-reorder, Cancel/Save
-  over a draft so nothing is half-applied, and "Edit" rows that deep-link to the Key Metrics and
-  Your Cards child pages. Every section is a row, the Coach banner included — drag it anywhere or
-  move it to Hidden. The Key Metrics page also carries **Tiles per row** (2 or 3), **Detailed
-  tiles**, and the trend window.
-- **Heute** (`StrandiOS/Redesign/HeuteRedesignView.swift` and friends) — a from-scratch redesign on
-  its own fixed green/blue/violet token set (`HeuteRedesignPalette`, independent of the selected
-  chart style). **Its Settings toggle was removed (2026-07-25)** — the prototype never got past
-  off-by-default/untested-on-a-real-strap, so `RootTabView` no longer reads its flag at all and the
-  screen is unreachable. The code is left in place, not deleted, in case it's revisited later:
-  - **Header** — a greeting + tappable date (opens day navigation; swiping the screen
-    left/right also changes the day) and three status chips: **Activity status** (Active / Sick /
-    Injured / On break, each with a duration — Today / 3 days / This week / Custom date / Until
-    changed), strap **battery**, and **coach** entry.
-  - **Rings** — Charge / Effort / Rest as three glow rings. **Charge is tappable** — even while
-    calibrating or empty — and opens a breakdown sheet naming which drivers (HRV, resting HR,
-    respiration, sleep quality, skin temperature) pulled the score up or down versus your personal
-    baseline, with the same confidence tier (Calibrating / Est. / Reliable) the ring itself shows.
-    Effort and Rest stay display-only.
-  - **Card zone** — a fixed base card (today's readiness statement, or the current activity-status
-    exception) behind a swipeable stack of the coach's real pending training-plan proposals; a
-    swipe hides a card locally without declining the proposal, tapping one opens the full
-    accept/modify/decline sheet.
-  - **Vitals grid** — HRV, resting heart rate, blood oxygen, respiratory rate, Fitness Age, steps,
-    and the day's workout as a tappable tile.
-  - **Heart rate** — a live beat-by-beat trace (when connected) over the day's banked 5-minute
-    trace, scrubbable by dragging along it.
-  - **Journal reminder + Data Sources footer** — shown only on today, not on a navigated past day.
-
-All three presentations read the SAME carry-over rules: an unscored today shows the last scored
-night's Charge (labelled whose it is), a mid-calibration baseline shows "Learning your baseline,
-N of 4 nights" instead of a stale number, and each vital falls back per-field to the freshest
-prior reading independent of whether that night scored a Charge — so switching between the three
-never changes what number you see for the same day.
-
----
-
-## Updates inbox
-
-**The bell, top of Today (Classic and Liquid alike) · `UpdateStore.swift` / `UpdatesInboxView.swift`.**
-
-A calm, newest-first log of what's new — tap the bell (badged with the unread count) to open it. Three
-kinds of row, each behaving differently rather than all looking like the same generic notification:
-
-- **Needs a decision** — a session the coach proposed (see [docs/fork/COACH.md](fork/COACH.md) §11a), with
-  **Accept / Change / Decline** right there. Once it's decided elsewhere (e.g. from the Today card
-  first), the row shows the outcome instead of stale buttons.
-- **A hint, nothing to decide** — release notes, "new data arrived" readings, and the coach's proactive
-  nudges (a body signal worth knowing about, a small win) — tap to mark read, nothing else expected of
-  you. Proactive hints used to be chat-only; they now show up here too, without needing to open Coach.
-- **Status & reminders** — a Today info-card you swiped away, restorable with one tap ("Restore to
-  Today"); everything else in this bucket is read-only history.
-
-Old rows are deduped and capped so a background recompute loop can't spam the same "new data" row; items
-still awaiting a decision sort to the top of their unread/read section. Everything here is local —
-nothing about the bell's contents leaves the device.
-
----
-
-## Live
-
-**Sidebar: Live · needs a bonded strap for HR; the hardware-test surface.**
-
-`LiveView.swift` is the real-time heart-rate screen and the pairing/diagnostics surface:
-
-- A large **smoothed heart rate** (BPM) — NOOP shows a spike-filtered median over a ~10 s
-  window, not the raw per-beat value, so it's stable. Recent **R-R intervals** (ms) are listed
-  beneath.
-- **Status grid** — battery %, last decoded frame type, last decoded event.
-- **Controls**:
-  - **Scan & Connect / Re-scan** — start or restart BLE scanning.
-  - **Buzz strap** — fire a test haptic buzz (requires a **bonded** connection).
-  - **Disconnect** — drop the connection.
-- A scrolling **BLE log** of frames, events and actions — useful for confirming the strap is
-  streaming.
-
-Opening Live starts the realtime HR stream and requests a fresh battery reading; leaving it
-stops the realtime stream (the lightweight standard HR keeps recording).
-
----
-
-## Breathe
-
-**Sidebar: Breathe · works visually without a strap; needs a bonded strap for haptic cues.**
-
-`BreathingView.swift` / `BreatheScreen.kt` / `WatchBreatheView.swift` — an **HRV haptic breathing
-biofeedback** trainer (NOOP's flagship novel feature), now also a **content-driven protocol
-catalog**. Because the strap both *measures* HRV (from R-R intervals) and *buzzes*, NOOP can pace
-your breath with a felt cue and watch your HRV respond in real time.
-
-- **Pick a pace** from the in-place pill row:
-  - Built-in: Relax 4-6, Coherence 5.5, plus a **catalog** of ANS protocols (Deep, Box 4-4-4-4 with
-    holds, Diaphragmatic, Alternate Nostril, 4-7-8, Buteyko, Tummo, Ujjayi, Bhastrika, Qi Gong,
-    Soma, Coherent 6-6, …) and **Presence Process** tempos (Regular / Mid / Punching Through —
-    consciously connected breathing, no holds).
-  - **Guided** entries (Kapalabhati, Holotropic, Wim Hof, Shamanic) give education + a session timer
-    without an aggressive auto-pacer.
-  - Locked **Resonance** pill still appears after a Resonance sweep.
-- **Session length**: Open (until Stop) or **5 / 10 / 15 min** with auto-stop; defaults follow each
-  protocol's recommended duration (e.g. Presence → 15 min).
-- **ⓘ Protocol info** — background, session hint, and cautions (localized; non-clinical). Presence
-  paces include a short Presence Process / CCB intro.
-- **Start a session** — liquid vessel fills on inhale, holds steady on hold, drains on exhale; live
-  BPM in the centre. Bonded strap: **one pulse on inhale, two on exhale** (holds are silent).
-  Without a strap it's visual-only ("Visual only" pill).
-- **Live readouts**: heart rate, rolling **HRV (RMSSD)**, and stage timing.
-- **Coherence estimate** and **pre/post RMSSD outcome** unchanged (estimates, not clinical).
-- Modes **Resonance** and **Calm me** stay on the existing mode strip.
-
-Pure schedule math lives in `Packages/StrandAnalytics` (`BreathProtocol` / `BreathProtocolCatalog` /
-`BreathProtocolPlayer`) with a Kotlin twin under `com.noop.analytics` — golden-vector tested.
-
-Technique list and timing hints are inspired by publicly documented ANS breath protocols (including
-[Ultrahuman's ANS breath protocols blog](https://www.ultrahuman.com/blog/harness-the-power-of-breath-protocols-for-your-autonomic-nervous-system/));
-NOOP is not affiliated with Ultrahuman. Education copy is original. Presence tempos were measured
-from public Presence Process guide audio.
-
-A "Test buzz" button fires a single pulse (bonded only).
-
----
-
-## Intervals
-
-**Sidebar: Intervals · works visually without a strap; needs a bonded strap for haptic cues.**
-
-`IntervalTimerView.swift` — a **silent haptic HIIT interval timer**. Train hands-free: the strap
-buzzes every transition so you never look at the screen.
-
-- **Configure** Work seconds (5–600), Rest seconds (5–600) and Rounds (1–30).
-- A big glanceable **stage face**: WORK / REST / DONE, the current round, a countdown ring, and a
-  total-session progress bar (elapsed / planned).
-- **Haptic cues** (bonded strap): a strong triple-buzz into each WORK block, a short single buzz
-  into REST, a 3-2-1 tick on the last seconds of each phase, and a long 5-loop buzz when the
-  session finishes.
-- **Start / Pause / Restart** and **Reset**.
-
-With no strap bonded it still works as a large visual timer (without haptics), prompting you to
-bond on the Live screen.
-
----
-
-## Intelligence
-
-**Sidebar: Intelligence · works from raw strap streams — live-collected or backfilled, no cloud.**
-
-`IntelligenceView.swift` — NOOP's own Charge/Effort/Rest, computed on-device from the strap's raw
-HR/HRV/motion streams using the WHOOP model shape, independent of WHOOP's own cloud scoring. Works
-for any day NOOP holds raw streams for, not just days WHOOP itself scored.
-
-- **Tomorrow's Charge** (evening only) — an *estimate*, not a measurement, from today's effort,
-  your typical sleep, and your recovery baseline: "You'll likely wake around N ± band Charge if you
-  sleep about H tonight." Explicitly labelled as a forecast; your real Charge is still scored from
-  tomorrow's HRV when you wake.
-- **How this works** — a plain explanation of the Charge weighting (HRV ~55%, resting HR ~20%, rest
-  quality ~15%, respiration ~5%, skin-temperature deviation ~5%), Effort as a 0–100 (or 0–21)
-  cardiovascular load in which each minute of heart rate counts for more the closer it sits to your
-  maximum, and Rest staged from motion + heart rate.
-- **Effort curve** (from 13.0.0 (testing), recipe AI-32; `StrainScorer`) — Effort no longer sums
-  Edwards' zones on a log scale. Each minute weighs more the closer it sits to your maximum, measured on
-  your heart-rate reserve between resting and maximum heart rate, and the day's load maps onto the scale with a soft cap near
-  the top; the constants are fitted on WHOOP Strain for 3,760 shared workouts. Outside a recorded,
-  imported or detected workout, heart rate below 50 % of the reserve adds nothing. Stored and live
-  Effort read the same workout list. The update rescores the whole history once.
-- **By Day** — a lazily-rendered list of every recomputed day in the selected window, so an 800+
-  day imported history stays responsive.
-
----
-
-## Explore (Metric Explorer)
-
-**Sidebar: Explore · works from imported data.**
-
-`MetricExplorerView.swift` — a catalog of every signal, one tap deep. The root is a grouped list
-(by `MetricCatalog` category); a faint trailing dot marks metrics with no recorded data. Tapping a
-metric opens its **detail dossier**:
-
-- A **W / M / 3M / 6M / 1Y / ALL** range control.
-- A hero **trend chart** with the latest value and "as of *date*".
-- A uniform stat row: **Average, Min, Max, Latest, and Δ vs the previous equal-length window**
-  (tinted by whether the change is the "good" direction for that metric).
-- **What correlates** — a cross-catalog Pearson scan over the visible window (|r| ≥ 0.30,
-  n ≥ 10), top 6, each with an r-bar.
-
-Sparse metrics (weight, body fat) auto-widen the window when the selected range holds no points,
-and flag that they did, so you always see real data instead of an empty state.
-
----
-
-## Compare
-
-**Sidebar: Compare · works from imported data.**
-
-`CompareView.swift` — overlay **2–4 metrics** from the catalog and read how they move together:
-
-- Pick metrics from a grouped menu; selected metrics show as removable colored chips.
-- A **W / M / 3M / 6M / 1Y / ALL** range control.
-- A **normalized overlay chart** — each line min–max scaled to 0–1 within the window so different
-  units share an axis. Hovering shows a crosshair and a tooltip with every series' **real** value
-  on the nearest day; the legend lists each series' true min–max range.
-- **How They Move Together** — every selected pair gets a live **Pearson r** with a plain-English
-  conclusion ("When weight rises, Charge tends to fall — a moderate negative link.").
-
-Sparse series auto-widen so they still overlay against dense ones.
-
----
-
-## Insights
-
-**Sidebar: Insights · works from imported data (needs WHOOP journal answers for behaviour effects).**
-
-`InsightsView.swift` — "interrogate what affects what", in two halves:
-
-1. **Behaviour Effects** — splits your logged WHOOP **journal** answers (Alcohol, Caffeine, Late
-   meal, Meditation…) into days each behaviour *was* vs *was not* logged, then compares a chosen
-   outcome (Charge / HRV / Rest / RHR) between the two groups. Each effect card shows a
-   plain-English sentence, the with/without means and group counts, a **SIGNIFICANT / EXPLORATORY**
-   pill, and an effect size (**Cohen's d**) with a magnitude word. Tint is sign-aware: a behaviour
-   that moves the outcome the "good" way reads positive/green, the "bad" way reads red. Without
-   journal data, NOOP explains how to start logging.
-2. **Metric Relationships** — a curated set of **Pearson** correlations: Rest ↔
-   Charge, HRV ↔ Charge, Resting HR ↔ Charge, and Charge → next-day Charge (1-day lag).
-   Each is a one-line insight with r, a significance pill, an r-bar, and a strength/direction reading.
-
----
-
-## What Moves You
-
-**Sidebar: What Moves You (`insightsHub`) · works from imported data + your own journal/mood log.**
-
-`InsightsHubView.swift` — the more advanced, personal sibling of [Insights](#insights): pure
-association on *your own* logged days, explicitly never advice, diagnosis, or cause.
-
-- **What moves your Charge / HRV / Rest / RHR** — a unified, **lag-aware** effect feed. For each
-  logged behaviour it keeps the strongest honest lag (same day, +1, or +2 days), so a card reads
-  "shows up the next morning" instead of pretending everything is same-day. Each card carries a
-  sign-aware sentence, with/without means, a lead/lag chip, an effect-size word, and a **Solid /
-  Building / Calibrating** confidence pill — never a bare "significant" stamp.
-- **Dose-response** — a personal alcohol/caffeine curve (per drink/dose → Δ next-day Charge) that
-  **shrinks toward a documented population prior** until enough of your own nights accrue, so it
-  never overclaims from a handful of logged nights. States the current per-unit effect plainly
-  (honest whether it's still prior-dominated or your own data has taken over), plus an evening
-  "damage forecast" preview ("a 2nd drink tonight ≈ −N Charge tomorrow").
-
----
-
-## Coach
-
-**Sidebar: Coach · needs a configured AI provider (own API key or local model); everything else it
-reads stays on-device. Fork-only — see [docs/fork/COACH.md](fork/COACH.md) for the full design.**
-
-A chat coach that can see your NOOP data through a bounded set of read tools (biometrics, sleep,
-workouts, stress, energy, goals…) and propose — never silently apply — training sessions and goal
-setups for you to accept, change, or decline. Runs against a provider you configure yourself
-(cloud API key or a fully local model); nothing about your data leaves the device unless you've
-pointed the coach at a cloud provider and it's actively answering you. Persona/voice, memory,
-safety gates around goal pacing, and the full tool list are documented in `fork/COACH.md`.
-
----
-
-## Goals
-
-**Sidebar: Goals (under Today) · iPhone: Today's goals section, the Today menu, More, the training hub,
-the app icon's quick actions, Siri · works from your own logged data. Fork-only — design in
-`docs/fork/COACH.md` §4/§6 for the long-term goals; weekly and monthly goals below.**
-
-Goals come on four levels that can serve each other: **daily goals** (steps, sleep, a workout, a box to
-tick, or a box the journal ticks; ticked automatically where NOOP can measure it, and a box NOOP could not
-see done is asked about the next day for up to three days), **weekly** and **monthly goals** (recurring, or
-"only this week/month"), and **long-term goals** with a date and a route (the Journey page). Weekly and
-monthly goals measure workouts, training minutes, distance, step days, nights of enough sleep, average
-sleep, zone 2+ minutes, working sets, active energy (an estimate), rest days, hydration days and journal
-habits — each offered only once its data source has delivered.
-
-Each period goal is read against a **pace**: the target spread over the period's planned days (rest
-days from the training settings are left out), with a mark where the plan stands today. States are a
-word and a symbol, never colour alone: achieved, ahead, on track, close, behind (only while still
-reachable), out of reach (only when proven, and neutral), protected (paused or ill), starting, no data.
-A finished period ends as achieved, almost (80 %, keeps the series), missed, protected or no data, and
-is frozen once a sync after its end has arrived. A goal set up mid-week is pro-rated.
-
-New goals: the first is set up step by step, with three levels read from your own last weeks (easy,
-recommended a little above your usual, ambitious) and how often each would have been reached; later
-"+" offers one-tap suggestions and start packs. The detail shows what counted, with "doesn't count" /
-"counts" corrections, the history, the plan to the period's end and its settings. Up to 5 long-term
-(max 10) and 6 weekly/monthly goals (max 12), adjustable. Today shows the first three weekly goals in
-your order, the month, long-term goals that need a look or are pinned, and today's daily goals.
-
-Long-term goals include **More steps a day** (mean daily steps over four weeks) and **Lower sleeping heart
-rate** (the whole-night mean AgeLess reads, not the resting heart rate), **Sleep more regularly** (sleep
-consistency by timing over four weeks), and three weekly rhythms that measure what AgeLess measures:
-**Strength activity**, **Moderate** and **Vigorous activity every week** (the last two only while AgeLess
-is on, from the minutes it banks). The **VO₂max** goal follows the
-VO₂max AgeLess uses: an entered lab value, else Apple Watch's readings; the estimate from walks is not used. With AgeLess on, a lever on the AgeLess screen can be **set as a goal** on the same number,
-and such a goal's page says what reaching it would take off the AgeLess age.
-
-Long-term goals keep the honest Journey: **no invented percentages**, milestones are **facts, not a
-streak counter**. The weekly series counts achieved and "almost" periods and is protected by pauses;
-there are no trophies or flames. Hints arrive through Momentum (at most one goal check-in), the weekly
-digest (a goals block), the updates inbox and the existing reminders; system notifications are off by
-default. Goals travel in the `.noopbak` backup. A configurable home/lock-screen widget, a watch
-complication and Siri ("How are my goals") read the same published snapshot.
-
----
-
-## Lab Book
-
-**Sidebar: Lab Book · your own manually entered readings; works fully offline.**
-
-`LabBookView.swift` — a private logbook for the numbers you already get from a doctor or pharmacy
-(bloods, blood pressure, body measurements), kept next to your wearable signals on this device.
-
-- Add a reading by hand, or locally extract recognizable text from a selected PDF or photo of a lab
-  report — extraction runs on-device.
-- **Trend** — your own readings over time for a marker.
-- **Compare with a signal** — the same restrained Pearson idiom as [Compare](#compare), showing the
-  marker beside a NOOP signal in the days before each reading.
-- **History** — every reading you've entered, editable.
-
-**Explicitly non-clinical.** NOOP never asserts a clinical judgement — it never labels a reading
-"abnormal/high/low/normal" itself; any reference range shown is exactly what you typed from your
-own report, and correlation copy says "association, not a medical finding." A full disclaimer is on
-the screen itself.
-
----
-
-## Rhythm
-
-**Sidebar: Rhythm · works from your most recent banked night; experimental, off by default.**
-
-`RhythmView.swift` / `RhythmHost` — an experimental beat-to-beat visualization of your R-R
-intervals during still, resting windows from your last banked night. Gated behind an explicit,
-un-pre-checked consent screen naming exactly what it is before it shows anything.
-
-**Explicitly not a medical device.** The standing, non-dismissible disclaimer on the screen itself:
-*"Experimental wellness visualization: not a diagnosis, not an ECG, and not a medical device. It
-cannot detect any heart condition. Beat-to-beat variation has many ordinary, benign causes."* Every
-window is windowed into ~5-minute still, resting slices and scored descriptively — never as a
-verdict — and the disclaimer points anyone worried toward a qualified professional, or emergency
-services for an emergency. Everything is computed on-device.
-
----
+| Measures (26) | Charge, Rest, sleep duration, sleep debt, Effort, steps, active energy, heart-rate zone minutes (two tiles), HRV, resting heart rate, SpO₂, breathing rate, VO₂max estimate, stress, weight, body fat, lean mass, skin temperature, Fitness Age, Vitality, Body Age, calories in, protein, mood. Each shows the latest value with a change chip; some have a wide 30-day form. |
+| Cards | Training load, Goals, Energy, Nutrition, Latest workout, AgeLess *(Settings › Lab)*, Last night, This week's plan, Way to your goal, Coach note, Tonight, Next session, What changed, What works, Breathe, Strap, Cycle *(optional)*, Momentum, Hydration, Live heart rate, Heart rate through the day, Stress through the day. |
+
+**Heart rate through the day** shows the whole day's heart rate with last night's sleep band and a sport symbol
+per workout, and opens the Deep Timeline. It was adopted from `DX23876/noop#58` by @sondrealf.
+
+**Strap tile and battery page.** Battery, charging or off-wrist state and the last sync; the battery page adds
+estimated runtime, Refresh battery and Manage devices. (iPhone, Mac; Android shows the battery in its header
+and the Strap tile.)
+
+**Momentum.** A ranked feed of what is worth saying right now: a missed planned workout, sessions still owed
+this week, milestones, a needed rest day, recovery read, step goal, sleep catch-up, streak, HRV trend, health
+alert, bedtime target, a strap battery that will not last the night, cycle phase and goal check-ins. It
+appears as a tile, a hint and its own page.
+
+**Updates inbox.** A bell on Today opens a calm, newest-first log of release notes, "new data arrived"
+readings, strap heads-ups, activity-detection suggestions and dismissed cards you can restore.
+
+**Search.** The Sleep and Health headers search across screens (workouts, plan, goals, stress, ECG, weight,
+energy, journal and more).
+
+**Look of Today.** Settings › Appearance sets the scene motif (Alps, Coast, Meadow), an optional time-of-day
+sky, a custom background photo kept on the device, and how see-through cards and Today's tiles are. See
+[Settings](#settings-lab-and-experimental).
+
+### Today on Mac and Android differences
+
+- **Mac** has four Today layouts, chosen in Settings › Appearance: Liquid (default), Classic, Trends Dashboard
+  (four configurable metric slots and an Arrange dashboard editor) and Overview Dashboard. It also has the
+  classic Customize Today sheet (section order and visibility), Key Metrics, Your Cards, a journal reminder
+  strip and hosted cards (Sleep marks, Consistency, Sleep-debt ledger).
+- **Android** adds a day header with a date picker and horizontal swipe to browse earlier days. The iPhone
+  Forge Today shows today only.
+
+## Training
+
+The Training tab holds everything about exercise: this week's sessions, buttons to start or add a workout,
+today's planned session, your routines, recent activities, key figures and the deeper pages (Strength,
+Cardio, Training load, All workouts, Goals, Interval timer, This week's plan). The Mac has the same content as
+a classic hub.
+
+### Starting and recording
+
+**One start screen.** Today's plan, a freestyle strength session, a routine or any activity starts from the
+same screen: search, recent sports, a Strength section and about 107 activities (running, walking, hiking,
+cycling, swimming, rowing, strength, HIIT, yoga, pilates, team and racket sports, snow sports, climbing, golf,
+CrossFit, rucking, meditation, wheelchair and more). Distance sports default to recording a route; indoor
+ones never ask for location. A Home Screen quick action also starts a workout (iPhone).
+
+**Resume banner.** A running session survives closing the screen; the Training tab and a bar on other tabs
+take you back.
+
+**Planned today.** Shows the routine planned for today with Start, "Shorter, please" and "Other routine".
+With the coach on, chips ask the coach to plan today or build a routine.
+
+**Add workout and Log past workout.** Add a workout by hand with sport, start and end or duration, optional
+distance, average heart rate and calories. Strength sessions can also be logged after the fact with a date,
+optional routine and heart-rate source. (Android has the manual workout; a separate past-strength entry was
+not found.)
+
+**Heart-rate source.** A strap, an Apple Watch, an external tracker or none can be the heart-rate provider
+for a workout; trackers are never averaged. (iPhone, Mac)
+
+**Live workout screen.** Time, heart rate, Effort, distance, current and average pace, with pages for
+Metrics, Zones, Elevation and Sections; pause, resume and end with confirmation. Recordings under a minute
+offer save or discard. Android has fewer pages.
+
+**Guided training** *(Settings › Training, Beta)*. A silent-guardian session: the strap buzzes only when your
+heart rate leaves your range.
+
+**Haptic zone coach.** Pick a target heart-rate zone before starting; the strap buzzes "faster" or "slower"
+when you stay outside it.
+
+**Interval timer.** A hands-free HIIT timer with presets (Tabata 20/10, 4 x 4 min, EMOM 10, 30/30 x 10) and
+custom work, rest and rounds. The strap buzzes at every change: triple buzz to work, single to rest, 3-2-1
+ticks, a long buzz at the end. It also works as a visual timer without a strap. The Watch has its own version.
+
+### GPS and distance activities
+
+| Feature | What it does |
+| --- | --- |
+| Route recording | Outdoor activities record a GPS route, drawn live and afterwards. A card with Open Settings appears if location is denied. |
+| Honest GPS filter | Distance counts only when the phone is sure you move; weak or jumpy points are dropped and a signal gap shows as a gap, so it may record slightly too little, never too much. |
+| Voice feedback *(optional)* | Spoken updates every 0.5, 1 or 2 km (or miles), or every 5, 10 or 15 minutes, with split pace and heart rate; offline, in the app language, through headphones by default. |
+| Target-zone warnings *(optional)* | Phone and strap tell you when you stay outside your chosen zone. |
+| Pace or speed warnings *(optional)* | A range for running pace or cycling speed; warns after ten seconds outside it, at most once a minute. |
+| Auto-pause *(optional)* | GPS running and cycling pause after five seconds stopped and resume after three moving. |
+| Run plan with phases *(optional)* | Warm-up, work, recovery and cool-down by time or distance; templates; skip or edit upcoming phases. (iPhone, Mac) |
+| Pacer *(optional)* | A goal time for a distance with ahead or behind shown. (iPhone, Mac) |
+| Laps and splits | Mark a lap by hand; GPS adds distance splits with pace, gaps, flat-equivalent pace and heart rate. (iPhone, Mac) |
+| Elevation | Climbed, descended, steepest grade and an on-the-flat pace from the iPhone barometer, Apple Health or an imported file; without a barometer the app shows none rather than guessing. (iPhone; Mac reads stored elevation; Android no) |
+| Sensor readout | A connected footpod, cycling speed and cadence or power sensor shows on the live screen. (iPhone, Mac) |
+| New best split | After saving, the app says when you ran your fastest split of that distance so far. (iPhone, Mac) |
+| Unsaved recording protection | If saving fails, the recording stays on the device and "Try saving again" appears. (iPhone, Mac) |
+
+Cadence warnings are not offered.
+
+### Strength logging
+
+A native in-gym logger: each exercise with last time's numbers beside each set, number-pad entry, a set tick
+that copies last session's values, time, volume, sets done, and live heart rate and Effort. It works offline.
+
+- **Layouts:** One exercise, All exercises or Compact.
+- **Measurement types:** weight and reps, bodyweight reps, added weight, assisted bodyweight, reps only,
+  duration, distance and duration, weight and duration, distance and weight. Timed sets have a start button
+  (iPhone, Mac).
+- **Rest timer:** ticking a set starts a countdown with -15 s, +15 s and Skip; a notification, sound,
+  vibration and a triple strap buzz five seconds early announce the end.
+- **Lock Screen and Dynamic Island controls:** next set, rest countdown, -15, +15, Skip and a Set done button;
+  cardio workouts get Pause and End. (iPhone only)
+- **Strap double-tap** *(optional)* logs the next prepared set; one buzz confirms.
+- **Plate calculator** shows plates per side for a target weight, with equipment profiles.
+- **Supersets, warm-up sets** (added by hand or suggested as a ramp, kept out of volume and records), **set
+  types** (working, warm-up, drop, rest-pause, AMRAP, to failure) and **one-arm or one-leg exercises** with
+  left and right logged separately.
+- **Set effort** *(optional)*: rate each set by RIR or RPE, or switch off.
+- **Progression hints:** each exercise shows last time and a hint for today. Policies per routine or exercise:
+  Off, Linear, Double progression, Greyskull LP, Time progression.
+- **Session rating** *(optional)*: rate the whole session 1 to 10; NOOP multiplies by duration for a separate
+  session load.
+- **In-session options:** move, swap, remove, skip remaining sets, history, notes, add exercise or a whole
+  routine.
+- **Summary:** volume, warm-up count, muscles trained, new records and "Update your routine".
+- **Keep this session as a routine** turns what you did into a routine.
+- **Training settings** *(Settings › Training)*: weight unit (kg or lb, display only), weight step, available
+  equipment, sets for a new exercise, exercise media size, keep screen on, rest weekdays, week start.
+
+Android has the logger, rest timer, plate calculator, warm-ups, set effort, progression and left-right sets.
+Timed sets and creating supersets mid-session were not found there.
+
+### Routines, plans and programs
+
+- **Routines:** saved workouts with exercises, sets, repetitions, rests, weights and notes; scheduled
+  weekdays; estimated duration.
+- **Weekly schedule and day override:** choose which routine falls on which weekday and change a single date.
+- **This week's plan:** a day-by-day view of done and planned sessions with Effort per day.
+- **Build a plan:** a generator from your answers (sessions per week 2 to 6, minutes, experience, lean,
+  your equipment, optional fixed block). Works offline, no coach needed.
+- **Ready-made plans:** Full body (3 days), Upper and lower (4), Push-pull-legs (6), Body weight only (3),
+  5x5 and Greyskull LP.
+- **Following a plan:** Strength, Conditioning or Mobility plans; one strength plan at a time plus one other
+  kind. Plans can run in blocks with a lighter week and a block report, and a plan review lists findings
+  about balance and load.
+- **Share and export a plan** as a file or PDF, and import it back (iPhone, Mac).
+- **Spreadsheet import** of a program from a template (.xlsx or CSV) (iPhone, Mac).
+
+### Exercise library
+
+1,324 exercises searchable by name, muscle or equipment, with favourites, "Done before", filters by body
+region, muscle and type, descriptions, your own records and history. **Find by muscle** uses a body picture.
+**Create your own exercise** stays on the device. Each exercise shows an estimated one-rep max (labelled a
+projection) and best volume.
+
+**Exercise media pack** *(optional download)* adds exercise animations from an external source, with a
+disclosure of source, size and rights. It is stored privately, left out of backups, and can be deleted,
+disabled or downloaded again. Everything works without it. An advanced option loads exercises from your own
+ExerciseDB-style provider key, or imports a licensed catalogue file.
+
+### Detected workouts
+
+**Detect activities** *(Settings › Training, Beta, off by default)* looks after a sync for walks and stretches
+of raised heart rate and asks what they were; nothing is saved until you answer. Options: Detect walks (from
+the step track, not available on WHOOP 4.0, which sends no steps), How often to ask (Detect more, Balanced,
+Only clear ones) and Notify me (at most two a day, never at night). Candidates appear on Today and in the
+Updates inbox with "Other kind", "Not training" and "Later".
+
+**Workouts list.** Strap-detected, imported and your own workouts in one list with a menu: Edit details,
+Dismiss, Duplicate as manual, Delete. Edited averages are marked and the graph stays from the recording.
+
+**Help teach the app** *(optional)* records short raw motion stretches during chosen sports so a sport
+detector can be built; nothing is ticked by default and sending is a separate step. See
+[Privacy](#privacy-relevant-network-features).
+
+### History and analytics
+
+| Page | What it shows |
+| --- | --- |
+| All workouts | All sessions with scope picker, typical Effort, a 13-week active-calorie heatmap, activity breakdown, zone share and heart-rate recovery trend. |
+| Workout detail | Heart-rate graph, zones, Effort contribution, route, elevation, splits, first-minute heart-rate recovery, session rating, export and edit. |
+| Strength | Planned today, tonnes lifted per week, working sets per muscle against your usual, exercise progress, recent personal records and sessions. |
+| Muscle map | One body (front and back) showing balance, fatigue and strength trend per muscle, with a "right now" and a weekly view and a four-option recovery answer (iPhone, Mac). |
+| Cardio | The week's cardio load, time in zones, per-sport progress, your bests per distance band and session lists. |
+| Training Load | Strength and cardio in two lanes against your own history, with "Room today", the shape of the week, an overload note, recovery of the last seven nights and an eight-week status history. |
+| Training history | Strength, Cardio and Session load over 3 months to all time with a Jump to date picker, e1RM lines and a VO₂max line. |
+| Consistency grid | A year of training days as darker squares by time logged. |
+| Same session | When strap and watch recorded the same activity, the app asks to Merge or Keep separate. |
+
+**Today's advice, Enough this week, Focus.** Advice cards come from Charge, load and plan. "Enough this week"
+counts active minutes and strength days against a weekly target. The Training Load settings set a focus
+(Automatic, Lose weight, Fitness, Strength, Health), a switch for pulse-altering medication or a pacemaker
+(minutes then count by duration and rating), an optional Morning advice notification and *(optional, off by
+default)* new fitness markers: pulse at your usual walking pace, pulse drop after hard sessions, pulse at
+your usual pace on flat ground.
+
+**VO₂max.** A weekly estimate from profile and resting heart rate, an entered value or an Apple Watch reading
+(counted for six months), used for workout calories. **Training-based VO₂max** *(Settings › Lab)* estimates it
+from runs and walks with distance and heart rate and is shown on Training Load only.
+
+### Training imports and Hevy
+
+- **Hevy API sync** *(optional)*: your own Hevy API key brings sets, reps, weight, RPE and exercises, with
+  optional automatic sync (6 h, 12 h or daily) and Remove data. Lifting volume never becomes cardio Effort.
+- **Import Hevy routines**, **Hevy CSV and Liftosaur JSON history**.
+- **FitNotes and Strong CSV history** and **OpenGym plan import** (iPhone, Mac; not on Android).
+- **Coach drafts to Hevy:** the coach can draft a routine or workout; nothing is written to your Hevy account
+  until you review it and press the send button.
+
+## Nutrition
+
+The Nutrition tab (iPhone) and Food page (Android: More › Health and body › Food) log what you eat. There is
+no Food page on the Mac.
+
+**Day view.** A plate figure with the day's calories and macronutrients, day arrows and a calendar, a
+sentence for what is left, meals grouped by meal and a week strip.
+
+**Add food.** Search with recents, favourites and a cart: add several foods, choose meal and time, add all
+at once. A warning appears when a losing day would clearly go over its goal.
+
+**Food database.** The German Bundeslebensmittelschlüssel 4.0 plus your own foods, always offline.
+
+**Branded products** *(optional, nothing goes online until you choose)*. First-run choice: Off, Search online
+(words and barcodes go to Open Food Facts, no account) or Download for offline (public country files from the
+project's GitHub release, searched on the device). An extra switch looks up unknown barcodes online.
+
+| Way to add | How it works |
+| --- | --- |
+| Barcode scan | Camera or typed number; an unknown product can be entered from its label. |
+| Label reading | Photograph a nutrition label; it is read on the device and shown for checking before saving as your own food. |
+| Quick calories | Calories only, optionally protein, carbs and fat. |
+| Describe *(needs the coach)* | Write or photograph a meal; the coach's model names foods and amounts, and every nutrient comes from the database, shown as a list to check. The text or photo goes to your coach provider. |
+| Copy and repeat | Copy a meal to chosen days or every ticked weekday up to a date. |
+| Favourites, saved meals, recipes | Star foods, keep a meal, build a meal, turn a logged meal into a recipe. |
+| As usual | A meal eaten on several recent days is offered again at its usual time. |
+
+**Portions and entries.** Pick grams, ml or a portion; edit amount, time and meal; correct a product's values
+and save the correction as your own food.
+
+**Complete day.** Mark a day as completely logged; only complete days count when the app works out your real
+burn from food and weight.
+
+**Nutrients.** A nutrient card and a full Nutrients page with day and 7-day views, recommended amounts
+(protein, fibre, fats, salt, vitamins, minerals), the foods each came from, and hold-to-pin.
+
+**Nutrition score.** A 0 to 100 score for how healthy the week's eating was, with day, week and month notes
+and a trend. No score below five logged days of seven; nothing is stored.
+
+**Badges and streak.** For staying with logging and eating well, with a streak that bridges one missed day a
+week. It never rewards weight loss or a larger deficit.
+
+**Food goals.** Calories and macros come from the diet plan; Android also offers a fixed calorie and macro
+goal. Training and rest days differ.
+
+**Reminders** *(optional)*. A morning look back, an evening reminder only when one meal can still close a gap,
+and a warning while logging.
+
+**Meal pictures** *(optional, default on)*: your photo or a drawing of the main food. **Fill in missing
+nutrients** *(optional)*: the coach finds the most similar database food and marks the values as estimated.
+
+**Write meals to Apple Health or Health Connect** *(optional)*. Each meal goes with its nutrients; NOOP does
+not read its own meals back. Health Connect nutrition is also imported on Android.
+
+**Nutrition widget** and Today tile show calories left with protein, carbs and fat.
+
+### Diet plan
+
+A planner inside Nutrition that sets calories and macros and adjusts them weekly. Simple asks a few questions;
+Advanced exposes every dial. Goals: lose, maintain, gain or recomposition, with a goal weight (floored at the
+lowest healthy weight for your height), a pace (gentle, normal, ambitious) and a pregnancy or nursing check.
+
+- **Twelve ways of eating:** balanced, Mediterranean, DASH, high protein, flexitarian, low fat, low carb,
+  keto, 16:8, 5:2, alternate day, alternate day full fast. Keto and fasting forms are Advanced only. Foods
+  that suit the plan carry a small leaf; nothing is forbidden.
+- **Weekly steering, diet breaks and phases:** the goal follows the weight trend each week with an Adjust
+  prompt, or calories only, or only you.
+- **More on active days** *(optional)*: more carbohydrate on training days and half of the extra strap-measured
+  burn added on active days.
+- **Forecast chart:** where the weight is heading, "a band, not a promise".
+- **Protein helper** (iPhone): last week's average against the goal and everyday portions that would close
+  the gap.
+- **Hide weight and numbers** and a **burn source** choice (strap or scale) *(optional)*.
+- **Ask the coach** about the plan; the coach can propose a change for you to accept.
 
 ## Sleep
 
-**Sidebar: Sleep · works from imported WHOOP data.**
+The Sleep tab shows one night at a time. The Mac has the classic Sleep page with an Arrange sheet; the iPhone
+Sleep tab has a fixed card order.
 
-`SleepView.swift` — last night, read in two seconds — and **browse back through past nights**, not
-just the most recent (step through earlier nights to compare):
+**Night navigator and cards.** Step through nights. The night card shows bed and wake times, the stage bar
+(Deep, REM, Light, Awake), time in bed and efficiency, with a note when stages are approximate. The chart
+style is Classic, Filled or Ribbon (Settings › Appearance). While last night is not in yet, a card says why
+(syncing, failed sync, no night found).
 
-- **Stage breakdown hero** — a **hypnogram** (reconstructed from stage durations) or, if intervals
-  can't be reconstructed, a proportional stacked stage bar. Footer shows REM / Deep / Light / Awake
-  each as "Xh Ym · NN%", with time-in-bed, efficiency, and onset–wake times.
-- **Night detail** — a uniform tile grid, each with a sparkline and a "vs typical" caption: Sleep
-  Performance, Efficiency, Consistency, Hours vs Needed, Restorative (deep + REM share),
-  Respiratory, and Sleep Debt. Debt is 55% of the current unmet personalized need, carried into the
-  next night's target; values below 10 minutes read as balanced instead of stacking into an
-  unrepayable 14-night hours bank.
-- **Stages vs typical** — Deep / REM / Light as horizontal bars, last-night minutes with a marker
-  at your personal mean, so highs and lows pop.
-- **Asleep duration** — a trailing-30-night hours trend with avg / min / max.
-- **Delete a nap** (from 13.0.0 (testing)) — each nap row has a menu with **Delete nap** for one that
-  was detected wrongly, confirmed first and with the same short undo as a night; the main night keeps
-  its numbers.
-- **SleepStager V3 (default)** — short leading rest bouts separated by movement do not extend a later
-  sleep run that already clears the normal session-duration floor. Interruptions within an established
-  night and the rescue for a night made entirely of short fragments remain available. This can omit a
-  genuine short initial sleep; it adds no fixed bedtime or wake-time rule. V2 remains selectable with
-  the previous detector, and V1 retains the classic phase method. Changing the method recomputes recent
-  nights while preserving corrected bounds; the explicit selection travels in backups.
+**Stages against your typical night.** Deep, REM, Light and Awake minutes with a mark for your usual from the
+last 30 nights.
 
-If no sleep sessions are imported, NOOP points you to Data Sources.
+**What shaped the night.** Rings for hours against need, efficiency, steadiness, restorative sleep and
+breathing rate, each against usual. **This night: signals** lists wake-ups, night resting heart rate, HRV,
+skin temperature and breaths per minute.
 
----
+**Sleep need and debt.** The need that Rest and the debt are measured against comes from your own history and
+age. The debt ledger estimates sleep owed over the last fortnight with per-night bars; small debts read as
+balanced.
 
-## Trends
+**History and highlights.** Hours asleep per night over a week, month or year with the need line, and a
+highlights carousel of what stood out.
 
-**Sidebar: Trends · works from imported WHOOP data.**
+**Body clock dial.** A 24-hour dial comparing when you slept with when your body clock wanted the night,
+from your nightly temperature.
 
-`TrendsView.swift` — the longitudinal view ("the thread of you over time"):
+**Tonight.** The planned bedtime for a full night from your need and wake time.
 
-- A **W / M / 3M / 6M / 1Y / ALL** range control (default 3M).
-- A hero **Charge** chart with avg / peak / low / day-count.
-- **Daily signals** — small multiples for **HRV**, **Resting HR** and **Effort**, each with
-  mean / min / max.
-- A **Charge year heat-strip** — a calendar of Charge scores across the past year (or all
-  history on ALL), with a depleted→peaked legend.
+### Editing
 
-Windows are taken relative to your latest recorded day and auto-widen on sparse data.
+- **Edit a night's times** with the pencil; the day is re-scored and sleep outside the new times is removed.
+  A short Undo strip follows every change.
+- **Delete a night or a nap.** The app stops re-detecting a deleted window. **Deleted nights** lists them with
+  Recompute and Hide.
+- **Add a sleep by hand** for a night the strap missed or a nap; it refuses overlap and warns when the strap
+  recorded nothing for those hours.
+- **Naps** are listed under the night. **Sleep marks** ("Going to sleep", "I'm awake") log a timestamp without
+  changing detected sleep.
 
----
+### Alarms
 
-## Workouts
-
-**Sidebar: Workouts · works from imported WHOOP and Apple Health data.**
-
-`WorkoutsView.swift` — the activity log, threaded together:
-
-- A **7D / 30D / 90D / 1Y / All** range control (auto-picks the tightest range with ≥2 sessions).
-- **Summary tiles** — Total Workouts, Total Time, Total Calories, Total Distance, Most Active sport.
-- **Activity Breakdown** — per-sport cards (sessions, time, kcal, avg per session), sport-specific
-  icons.
-- **All Sessions** — a uniform table: date/time, sport, duration, avg HR, kcal, distance, and a
-  **source badge** (WHOOP or Apple) per row.
-
----
-
-## Health Monitor
-
-**Sidebar: Health · live HR needs a bonded strap; vitals come from imported WHOOP data.**
-
-`HealthView.swift` — live vitals:
-
-- **Live heart rate hero** — a streaming HR sparkline tinted by zone, with a zone pill, "% Max",
-  your Max HR (from Settings) and a streaming/idle state. When the strap reports HR as 0, NOOP
-  derives it from the latest R-R interval and notes "from R-R".
-- **Vital Signs** — a tile grid from your most recent imported day: Respiratory Rate, Blood O₂,
-  Resting HR, HRV and Skin Temp, each colored by whether it sits in a healthy range ("In range" /
-  "Out of range").
-
-With no live HR and no imported day, NOOP prompts you to connect or import.
-
-- **Recovery contributors** — HRV, resting HR, sleep and respiratory rate as segmented bars that fill to
-  each one's strength against your own baseline, a marker at the reading, the value and its word beside it.
-- **AgeLess** (fork, Settings → Lab, default off; takes Body Age's place while on) — an age built
-  from six months of nine measures of sleep, activity and fitness, each tied to a large mortality study,
-  shown on a half-circle gauge around your actual age with **Aging speed** beside it. Its screen ranks the
-  biggest levers (each one can be set as a goal), shows every measure on a ticked bar with a 30-day trend arrow and a line saying what it
-  stands on (flagged when the data is thin), and an **About AgeLess**
-  sheet links each study. Method, sources and limits: [`AGELESS.md`](AGELESS.md).
-  From 13.0.0 (testing) its steps come from the app's one step resolver (strap count, then Apple
-  Health, then the motion estimate), so a WHOOP 4.0 wearer gets an age too, and a week without an age
-  names what is missing.
-- **Daily rhythm** (fork, 12.1.0, Settings → Lab, default off, WHOOP 5.0 and MG) — a rhythm age from
-  how your day moves, after the CosinorAge study, on the same gauge as AgeLess: the last seven days as 24
-  hourly bars against the study's typical day, your busiest hours and where movement is missing. It is
-  scored once a day on the device and needs three days worn day and night.
-
----
-
-## Stress
-
-**Sidebar: Stress · works from imported WHOOP data.**
-
-`StressView.swift` — a clear, single-number **Stress Monitor** (0–3) with a LOW / MEDIUM / HIGH
-band and one plain-English line on *why*:
-
-- Today's value is your **recorded daily stress score** if one exists; otherwise NOOP **derives**
-  it transparently — comparing today's resting HR and HRV to your own 30-day baseline (higher RHR
-  and lower HRV both push stress up), combining two z-scores and squashing onto 0–3 with a logistic
-  curve (0 calm · 1.5 baseline · 3 high).
-- A semicircular **gauge** (its own blue → mint → amber ramp, deliberately not the Charge traffic
-  light), the band, and an explanation tuned to your RHR/HRV shifts.
-- **Today's markers** — the stress value (with sparkline), Resting HR and HRV vs baseline (tinted
-  toward stress or Charge), and "Calm time" (share of recent days in the LOW band).
-- A multi-range **trend** chart.
-- A **"How this is computed"** card laying out the exact method and band legend.
-
----
-
-## Mind
-
-**Sidebar: Mind · works from imported data; logs your own daily check-in.**
-
-A quick **daily mood check-in** and a place to see how it tracks against your body's signals over
-time:
-
-- **Daily mood check-in** — log how you feel each day in a few taps. Stored on-device alongside
-  the rest of your history.
-- **Correlations** — once you've logged enough days, NOOP lines your mood up against your own
-  **Charge, Rest, HRV** and other metrics, so you can see what actually moves it (e.g. "lower
-  HRV days tend to read lower mood").
-- **Non-clinical by design** — this is a personal self-reflection log, **not** a mental-health
-  assessment, diagnosis or therapy. It never leaves your device.
-
----
-
-## Devices
-
-**Sidebar: Devices · pairing itself needs Bluetooth; the screen and paired-device list work without one.**
-
-`DevicesView.swift` — pair and manage the bands NOOP reads from. **WHOOP-first**: the WHOOP is the
-primary, fully-supported device; generic heart-rate straps (Polar / Wahoo / Coospo / Garmin HRM…)
-are an early, in-development addition that streams live heart rate and HRV but not WHOOP's deeper
-sleep/recovery data.
-
-- **Add / manage devices** — an add-device wizard, and — with more than one paired band — a picker
-  for which one supplies live data. Removing a device deletes its recorded data locally; re-pairing
-  a strap pulls its recent history back.
-- **Replacing a WHOOP** — pairing a new WHOOP asks whether it replaces the previous strap. If it does,
-  the new strap takes over the one WHOOP entry and its whole history, so the list keeps one WHOOP; if
-  not (a second person's strap) it gets its own entry. An install that already lists several WHOOP
-  entries is offered **Combine** or **Keep separate**; nothing is combined without that choice, all
-  readings are kept, and the newest strap stays connected. The card shows the model the strap reports
-  itself as, **MG** or **5.0**.
-- **Oura ring** (experimental, see [docs/OURA_PROTOCOL.md](OURA_PROTOCOL.md)) — paired locally; NOOP
-  owns the ring while it holds the pairing key, and re-setting it up in the official Oura app hands
-  ownership back.
-- **WHOOP MG ECG reading** — an explicit wrist-to-finger measurement saves the accepted waveform
-  and the band's result locally. Detail views estimate heart rate, variability and waveform intervals
-  from the saved 100 Hz samples. R-peak timing is refined between neighbouring samples to reduce
-  artificial variability from the 10 ms grid; this does not increase the recording's bandwidth or
-  establish clinical precision. Gaps remain separate. These detail estimates are recomputed on open
-  and do not feed nightly HRV or recovery; the latter use the band's separately recorded RR values.
-- **Protocol-research probes** (advanced, WHOOP only) — read-only, user-triggered diagnostics for
-  reverse-engineering unconfirmed BLE opcodes: an extended-battery-info probe, a body-location probe,
-  a feature-flag lister, a device-config-value reader, a reboot-frame test (4.0 only, non-destructive),
-  and an MG ECG-subsystem capture. Every probe sends nothing but the documented read-only command and
-  logs the strap's raw reply; the reboot probe never risks data loss. **The ECG capture is explicit
-  unvalidated instrumentation, not a medical measurement or a diagnosis** — the screen says so before
-  it runs. See [docs/PROTOCOL.md](PROTOCOL.md) and [docs/BLE_REVERSE_ENGINEERING.md](BLE_REVERSE_ENGINEERING.md)
-  for what each probe is investigating.
-
----
-
-## NOOP Limitations
-
-**Sidebar: NOOP Limitations · static reference, no data or connection needed.**
-
-`NoopLimitationsView.swift` — a plain, honest capability grid: every metric NOOP surfaces, and
-whether it's read **live** off a WHOOP 4.0 vs a 5.0/MG (full / partial-estimate-or-experimental /
-not available). For example, skin temperature and steps are full on 5.0/MG but only a partial
-estimate on 4.0; SpO₂% and blood pressure aren't available live on either generation. A legend
-carries the three-state meaning so the table doesn't need per-row prose.
-
----
-
-## Apple Health
-
-**Sidebar: Apple Health · works from imported Apple Health data.**
-
-`AppleHealthView.swift` — the per-source page for everything imported from the `apple-health`
-source, read locally on this Mac:
-
-- A **W / M / 3M / 6M / 1Y / ALL** range control.
-- **Tiles**: Steps, Resting HR, HRV, VO₂ Max, Weight, Body Fat, Lean Mass, Asleep avg, Workouts.
-- **Chart sections** — Heart & Vitals (resting HR, HRV, blood oxygen, respiratory rate), Activity
-  & Energy (steps, active energy), Body Composition (weight, body fat, lean mass, BMI), and Sleep
-  (asleep). Each chart has an avg / min / max / point-count footer.
-
-Sparse weekly series (weight, body fat) auto-widen to all history so a short window is never empty;
-a single reading is shown as a "Latest reading" value rather than an empty chart.
-
-From 13.0.0 (testing), body fat and lean mass that a scale writes to Apple Health also reach AgeLess,
-the Katch-McArdle basal rate, the Energy plan, the Body page, body goals and the coach.
-
-On iPhone, the same page also controls the live two-way HealthKit bridge. NOOP writes the strap's
-24/7 heart rate as one measured minute mean per sample, associates those saved samples with matching
-NOOP-authored workouts, and writes sleep stages plus nightly vitals. Apple Health's HRV type is
-**SDNN**, so the bridge computes a separately cleaned/trust-gated SDNN from the night's R-R stream;
-NOOP's own HRV tiles and Charge continue to use RMSSD. An on-device export diagnostic reports each
-category's authorization, count and last result. Its reversible A/B check can compare 60-second HR
-intervals with point-in-time minute samples on a physical iPhone when Apple's merged graph omits a
-source even though Health's raw-data list contains it. The selected representation is applied to the
-latest 14 days immediately and older exported history is migrated in resumable 14-day chunks on later
-syncs. The diagnostic never changes source priority, which HealthKit does not expose to apps.
-
-**Water and caffeine import themselves** (upstream #949, adopted 2026-07-31). A drink logged in
-Apple Health — by a hydration app, a smart bottle, or by hand — lands in NOOP's hydration and
-caffeine logs without being typed in twice. Both are **read-only**: imported entries keep their own
-row and never overwrite what you entered yourself, and NOOP never writes either back. iPhone asks
-permission once for the two new data types, including for users who granted Health access before
-this version existed. The Coach's own `log_caffeine` tool writes through the same store, so a
-chat-logged intake and an imported one appear side by side.
-
----
-
-## Mi Band
-
-**Sidebar: Mi Band · works from an imported Mi Fitness export.**
-
-`XiaomiBandView.swift` — the per-source page for everything imported from the `xiaomi-band`
-source, mirroring [Apple Health](#apple-health)'s layout: a range control, a tile grid, and chart
-sections (including a last-sleep hypnogram), all windowed client-side against the newest imported
-point rather than "now." See the import mechanics under [Data Sources](#data-sources) below and
-[docs/DEVICE_SUPPORT_ROADMAP.md](DEVICE_SUPPORT_ROADMAP.md) for how the export is read (no
-Bluetooth, no Xiaomi account, no cloud — NOOP reads the Mi Fitness iOS app's own on-device export).
-
----
-
-## Data Sources
-
-**Sidebar: Data Sources · the import hub. Everything stays on this Mac.**
-
-`DataSourcesView.swift` — bring your history in once, then it's yours:
-
-### WHOOP Export (CSV)
-Import your full WHOOP history — recovery, strain, sleep, workouts — from a WHOOP data export
-(`.zip` or unzipped folder). Works for WHOOP 4.0, 5.0 and MG. Get one from
-*app.whoop.com → Data Management*. NOOP reports the records imported and the date span, and shows
-how many days and sleeps are stored.
-
-### Apple Health
-Import an Apple Health export (`export.zip`) from *Health app → profile → Export All Health Data*.
-NOOP **streams and aggregates** it locally — years of HR, HRV, sleep, SpO₂, steps, body
-composition and more. Large exports take a minute or two.
-
-### Nutrition (CSV)
-Import a daily-nutrition CSV exported from **Cronometer** or **MacroFactor** to bring calories and
-macros onto the same timeline as your Charge, Rest and HRV — so you can explore and correlate
-food against how you feel. Parsed locally; nothing is uploaded.
-
-### Xiaomi Smart Band (CSV)
-Import a Mi Band's full history — no Bluetooth, no Xiaomi account, no cloud — by bringing NOOP a
-zipped copy of the **Mi Fitness iOS app's own on-device export** (*Files → On My iPhone → Mi
-Fitness → compress → share to NOOP*). Lands under its own `xiaomi-band` source, viewable on the
-[Mi Band](#mi-band) page above. See [docs/DEVICE_SUPPORT_ROADMAP.md](DEVICE_SUPPORT_ROADMAP.md) for
-what's decoded and the (researched, not yet built) live-BLE path.
-
-### WHOOP Strap (Live BLE)
-Shows whether the strap is bonded and streaming. Pairs directly over Bluetooth — no WHOOP app,
-no cloud. Open **Live** to pair if it isn't connected.
-
-All imports run on-device; nothing is uploaded. WHOOP data is stored under the `my-whoop` source
-and Apple Health under `apple-health`, so per-source pages and cross-source consensus stay distinct.
-
----
-
-## Backup & Sync
-
-**Sidebar: Backup & Sync · works from a folder you choose; no in-app cloud account, ever.**
-
-`BackupSyncView.swift` — the Apple mirror of Android's own backup screen: back up NOOP's whole
-on-device database to a **folder you pick**, and restore from a snapshot in that folder. Point the
-folder at an already-syncing Google Drive / iCloud Drive / Dropbox location for off-device sync
-with zero in-app account. Backups are the existing `.noopbak` whole-database snapshot format.
-
-- **Choose a folder**, or (iOS-only fallback, #52 — for the rare device where the system folder
-  picker's Select button won't respond) use NOOP's own Files-visible folder instead.
-- **Daily auto-backup** — runs on next launch (there's no background daemon), keeps a configurable
-  number of the newest snapshots, prunes older ones, and warns if it hasn't run in a few days (a
-  moved or disconnected cloud folder stops it silently otherwise).
-- **Restore** — pick a snapshot from the folder (newest first) and confirm an explicit, destructive
-  "Replace all data" prompt before anything is overwritten.
-- **Honest about the format**: the screen states plainly that `.noopbak` snapshots are an
-  **unencrypted** ZIP — if the chosen folder syncs to a cloud service, that readable file goes there
-  too, so only point it at a service you trust.
-
----
-
-## Your Data, Fused
-
-**Sidebar: Your Data, Fused (`fusedRecord`) · works from whatever sources you already have; read-only.**
-
-`FusedRecordView.swift` — the day's best-sourced value for each core metric, one screen. For every
-metric it shows which source NOOP is using, a plain published reason ("counts directly" / "best
-stager" — the same `MetricArbitrationPolicy` every screen already uses), and whether every
-contributing source agrees, shows a minor delta, or conflicts. On a real disagreement, a
-conflict-compare sheet lists **every** source's value side by side and which one NOOP picked and
-why — **NOOP never silently merges or averages** two sources' readings for the same metric. With
-only one contributing source, the screen shows a plain record with no provenance clutter. Wellness
-framing throughout: a source is "higher-trust for this metric," never "correct" or "accurate."
-
----
-
-## Notifications
-
-**Sidebar: Notifications · needs a bonded strap to buzz; settings save without one.**
-
-`NotificationSettingsView.swift` — choose which Mac apps tap your wrist, and how. Everything runs
-on this Mac.
-
-- **Wrist alerts** master switch (opt-in, **off** by default). A test buzz fires immediately
-  (bonded only). Strap status mirrors the connection state.
-- **Per-app control** — NOOP discovers installed, notification-capable apps via macOS
-  (LaunchServices) and groups them: **Email** (Outlook, Mail), **Messaging** (WhatsApp, Messenger,
-  Messages, Discord, Slack, Telegram, Signal), **Meetings & Calls** (Teams, Zoom, FaceTime), and
-  **Calendar & Reminders**. Each app shows its real icon, an on/off switch, and a **buzz pattern**
-  picker — **Single / Double / Triple / Long** — with a per-app test button.
-- **Behaviour** — "Only buzz when worn", and **Quiet hours** (mute wrist alerts overnight, with
-  a from/to time picker; default 22:00–07:00).
-
-> Wrist *delivery* of macOS notifications is not live yet — it needs a small on-device watcher
-> (coming in an update). Your per-app choices and patterns are saved now and apply automatically
-> once delivery ships. Everything stays on this Mac.
-
----
-
-## Automations
-
-**Sidebar: Automations · needs a bonded strap to act/buzz; settings save without one.**
-
-`AutomationsView.swift` — turn the strap's physical inputs and live biometrics into Mac actions
-and haptic coaching, all on-device.
-
-### Double-tap → Mac action
-Double-tap the strap to trigger an action on this Mac. Pick one of:
-
-| Action | What it does |
+| Feature | Description |
 | --- | --- |
-| Nothing | No action |
-| Lock the Mac | Locks the screen immediately (falls back to a "Lock Screen" Shortcut) |
-| Buzz back (confirm) | Fires a confirming wrist buzz |
-| Mark a moment | Records a timestamped "moment" (with a confirming buzz) |
-| Run a Shortcut… | Runs any macOS Shortcut by name |
+| Strap wake alarm *(off until armed)* | Arms the strap's own silent alarm at your wake time so it buzzes even with the app closed. Needs a bonded strap; works on many 5.0 and MG straps, not certain yet. A "Check what the strap has stored" read-back and reset guidance are included. |
+| Different wake time per day *(optional)* | Weekday overrides move both the strap alarm and the evening reminder. |
+| Wind-down reminder *(optional, off by default)* | A calm evening reminder timed back from your wake time and sleep need. |
+| Next alarm countdown | Shown only when something will actually fire. |
+| Phone smart alarm *(optional, Android only)* | An earliest wake time and a window; if a lighter sleep phase is seen inside it the phone wakes you then, with an exact alarm at the end of the window. |
 
-A **Test action** button runs it without the strap. Recent moments are listed and can be cleared.
+The iPhone app is sideloaded and cannot sound a dependable loud alarm. It says so on the Alarms page and
+schedules a backup notification at wake time. Alarms: Sleep tab rows, More, or the Mac sidebar.
 
-### Wear & presence
-React when the strap comes off or goes on:
+**Coach and goals on Sleep.** A button sends a prepared question about last night to the coach *(needs the
+coach)*; a goals card shows sleep goals.
 
-- **Lock the Mac when I take the strap off** — fires the moment the strap leaves your wrist.
-- **Run a Shortcut when taken off** — presence automation (set a Focus, pause media, set away…).
-- **Run a Shortcut when put back on** — reverse it when you return.
+**Customize Sleep** reorders or hides cards (Mac, Android).
 
-> macOS reserves true auto-*unlock* for Apple Watch, so this can **lock**, not unlock.
+## Health
 
-### Haptic coaching
-- **Heart-rate ceiling** — choose either the highest allowed profile zone or a fixed bpm value, then
-  monitor always while worn or only during a workout NOOP records. Profile-zone mode uses the exact
-  automatic / custom-percent / custom-bpm bands entered under Settings, and shows the resolved bpm
-  boundary before it is armed. The first smoothed sample at or above the boundary buzzes immediately;
-  continuing breaches can use bounded standard reminders or one buzz every two seconds, and recovery is
-  confirmed after a stable drop below it.
-  It needs current live HR and a bonded, worn strap; it is a training aid, not medical monitoring.
-- **Target-zone coach** — optionally choose Zone 1–5 when starting a recorded workout or Live Session.
-  The picker shows the exact current profile BPM band. After eight stable seconds, one tap confirms the
-  target, two light taps ask for more intensity, and three heavy taps ask you to ease off; outside reminders
-  are capped at one every 30 seconds. The last selection is proposed next time, while new installs default
-  to no coach. A configured heart-rate ceiling always has haptic priority.
-- **Stress check-ins (haptic)** — offer a guided breathing check-in after a fresh HRV dip while
-  you are still. Off by default, with optional auto-nudges, quiet hours, and your resonance pace.
+On iPhone the Health tab is the hub for vitals, focus areas and long-term patterns; the Mac has a classic
+Health page (Vital Signs, Heart Rate, Skin temperature, Fitness Age, Vitality, Contributors).
 
-### Smart alarm
-Wake to a wrist buzz and an evening wind-down reminder — moved into its own **Alarms** sidebar
-destination (#766) so it's one tap away instead of buried in this list. See [Alarms](#alarms) below.
+### Vitals and focus areas
 
----
+**In range.** A hero shows "N of M in range" for last night's vitals (HRV, resting heart rate, SpO₂,
+breathing, skin temperature). An out-of-range vital gets a card with one sentence and coach chips.
 
-## Alarms
+**Vitals tiles.** Up to nine editable tiles (HRV, resting HR, blood oxygen, breathing rate, skin temperature,
+SpO₂ estimate, AgeLess, VO₂ Max, weight, stress, steps). Hold to edit; two or three per row. Badges say In
+range, Estimated or off.
 
-**Sidebar: Alarms (`smartAlarm`, screen titled "Alarms") · the wake-alarm needs a bonded strap; the
-wind-down nudge is a local notification and doesn't.**
+**Focus areas.** Six hubs: Fitness, Sleep, Heart and vitals, Body and nutrition, Mind and stress, More. Each
+lists its tiles and a list of pages in that area.
 
-`SmartAlarmView.swift` — one surface for both the strap's silent wake-buzz and an evening wind-down
-reminder, after user reports conflated the two when they lived apart (#766).
+**Long term and patterns.** Rows to the Weekly report, Trends, What works and All metrics, plus "Your week in
+rings".
 
-- **Wake time** — one wake schedule that both features below read: a usual wake time plus optional
-  per-day times (a weekend lie-in, say). It is always editable, so the wind-down reminder works without
-  the strap alarm, and the card says plainly that the time only wakes you when the strap alarm is on.
-  Older builds kept a separate reminder wake time; the first visit merges the two once (the reminder's
-  time when only the reminder was on, otherwise the alarm's, so an armed alarm is never re-timed).
-  Deselecting an alarm weekday keeps that day's own time, because the reminder still uses it.
-- **Strap wake-alarm** — arms the strap's own firmware alarm to buzz your wrist at your wake time
-  (with a Monday-first weekday picker), even if your phone is asleep or NOOP is closed. Sends the
-  exact command the official WHOOP app sends; confirmed buzzing on a real WHOOP 4.0 (community wire
-  capture + on-device test, #535). On a WHOOP 5/MG it only arms with **Experimental mode** on
-  (Settings), and even then a strap-driven wake on 5/MG is unconfirmed — the screen says so plainly
-  rather than promising a wake it can't yet confirm.
-- **Honesty card** — states up front that this is a **silent wrist buzz, not a sound**: a sideloaded
-  build has no critical-alert entitlement, so it can't guarantee a loud wake — Focus or silent mode
-  can still mute the backup notification NOOP also schedules. Keep your phone's own Clock alarm as a
-  real backup; phone-based smart wake with light-sleep detection is an Android-only capability
-  (the Android app is in testing).
-- **Strap-rejected warning** — appears only if the strap keeps reporting back a different alarm time
-  than NOOP sent (usually a strap whose clock/alarm register has reset), with a concrete fix (reset
-  in the official WHOOP app, or fully charge and reconnect).
-- **Next alarm on Today** — while the strap alarm is on and will be armed, Today's header names its
-  next fire in a small line under the date (Liquid) or under the header bar (classic): "tomorrow 06:00", "today
-  15:00", or the weekday further out. It is display only, reads to VoiceOver as "Next alarm …", and on
-  a tight header steps down one text size, then to the bare time. Nothing shows when the alarm is off or
-  a WHOOP 5/MG will not take it. Today and this screen resolve the moment through one gated resolver
-  (`NextStrapAlarm`), and every time on both follows the Clock setting (12 or 24 hours).
-- **Wind-down nudge** — a calm evening notification timed from your wake time and usual sleep need
-  ("a suggestion, not an alarm"); the screen shows the next reminder, per-day time included. If notifications are denied at the OS level, NOOP reverts the
-  toggle instead of silently scheduling something that can never fire, and offers a direct link to
-  Settings.
+**Metric pages.** Resting heart rate, HRV, breathing and skin temperature each show the value, a trend range
+from a week to all time, delta, readings and "What correlates". Skin temperature shows the deviation from
+your baseline in your unit. **SpO₂** is an on-device estimate always shown and marked "Estimated".
 
----
+**Explore** lists about 55 measures across Heart, Charge, Rest, Effort, Health, Nutrition and Mind from WHOOP,
+Apple Health, Mi Band and logged sources. **Deep Timeline** is a zoomable whole-day line for one metric down
+to the raw per-second signal, with the sleep band and a symbol at each workout.
 
-## Power saving
+**HRV snapshot.** A 60-second seated capture from live beat-to-beat intervals shows RMSSD, SDNN, mean heart
+rate and beats used, and can be saved beside other HRV sources. It needs a connected strap.
 
-**Sidebar: Battery & Recording (iPhone: Settings → Battery & Recording) · levers a connected strap's own sync cadence; the screen itself needs no live connection.**
+**Fitness Age, Vitality, Body Age.** Weekly figures as tiles and pages. Fitness Age compares your cardio
+fitness with typical people of other ages (a fitness comparison, not a biological age).
 
-`PowerSavingView.swift` — lifted out of Settings into its own destination (#477) and, since the 2026-10
-Settings reorganisation, the Settings page "Battery & Recording", with Continuous HRV on top: the biggest
-steady drain on the strap and the biggest saving belong on one page. Controls and behavior are unchanged.
-The strap keeps recording regardless — these settings only change how often NOOP talks to it.
+**Health records.** A private notebook for blood tests, blood pressure, body numbers, imaging and notes, with
+a trend per marker. The app never judges a value as normal, high or low. Add readings by hand, import a
+markers CSV, or read a lab report from a PDF or photo (text is read on the device and shown for review;
+nothing is uploaded; not on Android). A marker can be compared with resting heart rate, HRV, sleep, Charge
+or weight over the 7, 14 or 30 days before each reading.
 
-- **Power saving mode** (master toggle) — slows background strap-sync from every 15 minutes to every
-  45 while the strap's battery is low (10–35%, adjustable). No data loss: the strap banks everything
-  and sync just batches into larger, less frequent pulls.
-- **Pause HRV capture** (sub-option, on by default once the master is on) — stops the always-on
-  background HRV stream, the strap's single biggest continuous drain, while its battery is low. Live
-  screen HR keeps working; HRV re-arms automatically once the strap is charged.
-- **Low refresh** (sub-option, applies at *any* charge level) — background-syncs hourly instead of
-  every 15 minutes. The single biggest saving on a WHOOP 4.0, since reconnections cost more than the
-  sync itself. Pull-to-sync and live heart rate are unaffected.
+### Stress and mind
 
----
+**Stress.** A page with today's 0 to 3 stress (Low, Medium, High) and a one-line reason, the day by the hour
+(waking hours only; hours with too little heart rate are masked; activity is masked rather than scored), a
+Calm, Moderate and High totals bar, a 30-day trend and markers. A long high run shows a warning with a
+Breathe button. **Advanced HRV** adds extra measures on request and does not change the stress score.
 
-## Illness early-warning
+**Personal stress baseline** *(Settings › Lab)* scores hourly stress against how your days usually run. It
+never feeds Charge or illness.
 
-NOOP watches for the classic early-illness/strain signature on-device. It compares your last ~2
-days against a ~28-day baseline (ending 3 days ago) for resting HR, HRV, skin-temperature
-deviation and respiration. When **two or more** anomalies appear — e.g. resting HR up ≥5 bpm,
-HRV down ≥20%, skin temp up ≥0.6 °C, respiration up — a banner appears on **Control Center**:
-*"Your body looks strained — … Consider taking it easy."*
+**Stress check-in** *(optional, off by default, Settings › Strap actions)*. After a fresh HRV dip while you
+are still, a one-minute breathing offer with a confirming buzz. Options: auto-nudge, respect quiet hours, use
+my resonance pace.
 
-On a banner transition from clear to raised, NOOP also posts a **system notification** (at most
-once per local day) so the warning reaches you when the window is closed. The toggle lives in
-**Automations → Illness early-warning**. It is opt-in; enabling it can trigger the platform's
-notification-permission prompt. It needs at least 14 days of history. On-device and approximate —
-informational only, **not** a diagnosis.
+**Mood.** Five faces for today (editable for the day); after seven check-ins, up to three lines about what
+tracks your mood. Self-tracking, not clinical.
 
----
+**Breathe.** Guided haptic breathing with 22 patterns and Open, 5, 10 or 15 minute sessions. A bonded strap
+buzzes once on inhale and twice on exhale; without a strap it is visual only. It shows live heart rate and
+HRV, audio cues and a before and after HRV outcome.
 
-## Settings
+| Group | Patterns |
+| --- | --- |
+| Everyday | Relax 4-6, Coherence 5.5, Box, Deep, Diaphragmatic, Coherent 6-6, Presence tempos |
+| Traditional | Alternate Nostril, 4-7-8, Buteyko, Tummo, Ujjayi, Bhastrika, Qi Gong, Soma |
+| Guided only | Kapalabhati, Holotropic, Wim Hof, Shamanic |
 
-**Sidebar: Settings · always available.**
+**Find your resonance pace.** A quick (about 7 minutes) or full (about 13 minutes) sweep measures your heart
+response and locks your personal breathing pace. **Calm me** is a three-minute felt rhythm on the wrist just
+below your heart rate; it never paces below a safe rate and is not cardiac control.
 
-`SettingsView.swift` (cards), `SettingsSearchCatalog.swift` (pages, sections, search) and
-`SettingsPageDestination` (one router for every way a page opens). On iPhone the landing page is a
-searchable list of 17 pages in six groups, sorted by what a person wants to get done (2026-10
-reorganisation). Every control has exactly one page; other screens link to it instead of repeating it.
-On macOS the card pages run as one scrolling column and the six screen pages stay sidebar items.
+### Trends, insights and journal
 
-- **You** — **Profile** (photo, date of birth, sex, weight, height, waist, body measurements, max heart
-  rate with where the value in use comes from, VO₂max, activity level, heart-rate zones) and **Goals** (number
-  of goals, rest days, goal notifications, motivation and streak, the daily step goal Momentum counts
-  down to).
-- **Strap & Devices** — **Strap** (connection, rename on a 4.0, keep screen on while syncing, step
-  correction and the 4.0 step estimate, and **Heart rate sharing**: via iPhone, which shares while that
-  screen is open, and via the strap on a 5/MG), **Battery & Recording** (Continuous HRV and Power
-  saving) and **Strap Actions** (double-tap, in-session buzzes, wear and presence, heart-rate ceiling).
-- **Training & Everyday** — **Training** (sets, rest timers and their signals, weights, workout view,
-  exercise media, equipment, guided training, workout suggestions), **Today & Trends** (dashboard
-  style and layout, water and journal cards), **Notifications** (live notifications, wrist alerts,
-  inactivity, illness, battery and sync reminders, strain target, training load alert, cycle
-  awareness), **AI Coach** and **Siri & Shortcuts** (iOS).
-- **Display** — **Language & Units** (language, clock, week start, body, distance and temperature
-  units, Effort scale) and **Appearance** (design, background, charts, motion).
-- **Data** — **Calculations** ("How NOOP calculates": day start, HRV window, sleep stage method, wake
-  check; every switch here can recompute past days; and "If scores look wrong": refresh
-  today, recalculate 21 days, reset the Charge baseline) and **Data & Backup** (backup and restore,
-  folder backup, Apple Health, Data Sources, Shortcuts export, storage).
-- **Help** — **Help & Diagnostics** (guides, what each strap can do, Test Centre, raw sensor export,
-  device details), **Lab** (personal stress baseline, training-based VO₂max, Strength in Effort,
-  AgeLess, daily rhythm, blood oxygen estimate, Oura all-day heart rate, and the WHOOP 5/MG developer probes) and
-  **About** (version, what's new, updates, source, acknowledgements, medical disclaimer).
+**Trends.** Range from a week to all, a Charge chart, daily signals (HRV, resting HR, Effort), a Charge year
+heat strip and a weekly digest with week-over-week changes. **Export trends report** makes a one-page PDF on
+the device. **Weekly report** (Health › Weekly report) shows the week in figures against last week,
+highlights, Charge per day, sleep against need, load and goals, plus the coach's weekly review if the coach
+is on.
 
-Details:
+**Compare.** Overlay up to four metrics, each on its own scale, with "How they move together".
 
-- **Max heart rate** (from 13.0.0 (testing); `MaxHeartRate` in StrandAnalytics) — a value you enter
-  always wins. Otherwise NOOP uses the level you held for five consecutive seconds in workouts on two days
-  of the last 90, when it lies above the Gellish estimate from age (192 − 0.007 × age²); a peak more than
-  25 bpm above the estimate counts as an artefact. Without such a level it uses the estimate. The row
-  says where the value comes from ("Measured in your workouts, confirmed …", "Estimated from your age",
-  "Manual override"). Effort, live Effort, heart-rate zones, AgeLess, energy and the coach read the same
-  number. 12.x instead offered a 30-second peak as a suggestion; that offer is gone.
-- **Strength in Effort** (from 13.0.0 (testing), Settings → Lab, off by default) — a strength session
-  you rate after training adds to that day's Effort beyond its heart rate, more for a harder rating and a
-  longer session; unrated sessions add nothing. Turning it on or off rescores the history, reusing
-  unchanged days.
-- **Heart-rate zones** — set where each of your five zones starts, instead of accepting the standard
-  50/60/70/80/90 % of maximum. Two ways to say it: **% of max**, which moves with your maximum when
-  it is re-estimated, or **beats**, the absolute heart rates a threshold or lactate test gives you,
-  which stay put. Both keep whatever you typed in the other, so trying one costs nothing.
-  Your bands change what you see — the live zone readout, a workout's zone split, the haptic "ease
-  off" buzz — and the zones your coach prescribes in. They do **not** change your Effort score, which
-  is measured against your heart-rate reserve on a published method with its own fixed thresholds, so
-  your history stays comparable; nor zone bars that arrived inside a WHOOP export, which carry
-  WHOOP's own bands.
-- **Siri & Shortcuts (iOS)** — a **Sync Strap** action ("Sync my NOOP strap") starts the same on-demand
-  history sync as the Sync now button, from Siri, Spotlight, the Shortcuts app, a Back Tap or an
-  automation, **without opening NOOP**. If the strap link is already up (NOOP in the background) the
-  sync starts at once and the reply says so. If NOOP had to be launched for the shortcut and is still
-  connecting, the request is parked and runs the moment the connect handshake settles, and the reply
-  says NOOP is connecting and will sync when ready.
-- **Strap-sync Live Activity (iOS)** — while history syncs, the Lock Screen and Dynamic Island show
-  the same read-out as the Today sync control: Connecting… / Syncing… with the chunk count, the elapsed
-  time, and the strap's connect-time backlog when it reported one; then "Synced · N chunks" or "Sync
-  interrupted" for a few seconds. No progress bar, because the strap never says how much is pending. A
-  sync started from the app or the Sync Strap shortcut shows it; an automatic background sync can only
-  update one that is already showing (iOS does not let a background app start a Live Activity). Its own
-  switch in Settings → Notifications ("Strap sync", default on), independent of the live
-  heart rate one.
-- **Export for Shortcuts (iOS)** — a **HealthKit-free** path that hands your NOOP metrics to Apple
-  Health via the Shortcuts app, so an anonymous build (with no HealthKit entitlement) can still get
-  data into Health on your terms.
+**What works.** A ranked, lag-aware list of which logged habits move your Charge, with with and without
+averages, an effect size in words, and dose response for alcohol and caffeine timing. It needs journal
+history. **What changed** compares this week with last in a word.
 
-The More tab keeps what you look at or use: Analysis, Health & Body and Tools, with Settings and Alarms
-on its first level. Its search still finds every Settings page and opens it directly.
+**Journal.** Yes/no and numeric habit questions in groups (Nutrition, Supplements, Lifestyle, Health,
+Behaviour, Other), your own questions, rename, regroup, reorder, hide, and a duplicate finder *(needs the
+coach)*. Imported WHOOP journal history joins the same questions. Also on the Journal screen: behaviour
+effects, metric relationships, the personal recovery cost of tagged activities, and a personal experiment.
 
----
+**Caffeine window.** Log a coffee, tea or energy drink; a rough "still active" estimate from a 5 to 6 hour
+half-life; an optional warning when logged too close to bedtime *(optional)*.
 
-## Menu-bar item
+**Values by source.** The best-sourced value per core metric with a note when several sources report it.
 
-NOOP lives in the macOS menu bar (`MenuBarContent.swift`). The label is a zone-tinted heart dot
-plus the live HR (or "—" when not streaming). Clicking it opens a compact popover: a Charge
-ring, the live heart rate, battery / resting HR / HRV, and quick actions to start/stop the live
-feed, refresh battery, scan/reconnect, or disconnect.
+### ECG and heart rhythm
 
----
+**ECG with WHOOP MG** *(Experimental)*. Sit still and hold the clasp indents for about 40 seconds. You see the
+trace on a paper-style grid, an average beat with intervals and irregular beats, and can save it. Needs a
+WHOOP MG and the ECG switch under Settings › Experimental WHOOP 5/MG. It is not a medical device and is not
+clinically validated. **Apple Watch ECG comparison** reads Apple Watch ECGs from Apple Health beside the
+nearest strap reading (iPhone, read-only).
 
-## Support
+**Heart rhythm** *(Experimental, off by default)*. A scatter picture of last night's beat timing with neutral
+wording and descriptive numbers; you must read and accept an experimental notice. It is not a screening.
 
-**Sidebar: Support · always available. NOOP is free and always will be.**
+### Cycle awareness
 
-`SupportView.swift`:
+*(optional, off by default; only offered to profiles it applies to)*. Log period starts, symptoms and mood;
+NOOP reads the nightly temperature rise to show the phase (Period, Follicular, Mid-cycle shift, Luteal), the
+cycle day, a next-period window, a skin-temperature chart and a calendar. Short cards per phase (Mind,
+Exercise, Body) name their sources. **Likely fertile days** shows a rough window after three cycles with a
+clear rise or a positive ovulation test, with an optional reminder and a discreet Lock Screen mode. **Learn
+from my training** compares how sessions felt per phase *(optional)*. It is awareness only, not contraception.
 
-- **Built on** — credit to the community interoperability projects NOOP stands on.
-- A reminder: **not affiliated with WHOOP; interoperability software for your own device and
-  data; not a medical device.**
+### Healthspan ages (Settings › Lab)
 
----
+- **AgeLess** *(Settings › Lab, beta)*. A health age from nine measures over six months with an aging speed, a
+  six-month projection and the steps that would help most. Needs 30 nights; replaces Body Age; a lever can
+  become a goal. Not a medical age.
+- **Daily rhythm** *(Settings › Lab, beta)*. A rhythm age from how your day's movement over a week compares
+  with a large study. Needs a WHOOP 5.0 or MG worn day and night for three days.
 
-## Privacy & data ownership
+## Body and energy
 
-- **Offline by design.** NOOP talks to your strap directly over Bluetooth Low Energy — there is
-  no server in the middle. No account, no sync, no cloud.
-- **On-device storage.** All history (imported and live-captured) is stored locally in SQLite
-  via GRDB.
-- **Your data is yours.** Imports happen once and stay on this Mac; nothing is uploaded.
+### Body
 
-- Liquid Today: profile beside the outer plus; “Customize home” in its menu; an unfilled Momentum link
-  after dismissing every message; metric navigation follows card opacity. Effort loads independently,
-  retains the selected day in detail, and waits with a faint orange ring and the same "–" every empty ring shows.
-  Analysis migration required: no.
+One page for weight, body fat and tape measurements, each with its date and source so a DEXA scan and a tape
+estimate never share a line. (iPhone, Mac, Android)
 
-### Live workout recording — stage 1 (2026-10-06)
+- **Measure.** One sheet records any mix of body fat and 15 tape sites (neck, shoulders, chest, waist,
+  abdomen, hips, thigh, calf, biceps, forearm); only filled fields are saved.
+- **Measured body fat with its source:** DEXA, caliper, BIA scale or InBody.
+- **Tape body-fat estimate** with the Navy equations, on its own line with an error band.
+- **What changed** compares each site now with 3 weeks, 6 weeks or 3 months ago, counting only changes larger
+  than your own tape scatter; **change since the first reading** draws weight, waist and body fat as percent
+  change.
+- **Per-site history** with edit and delete, and **how to measure it** guides.
+- **Progress photos:** front, side and back, one per pose per day, compared then and now. Photos stay on the
+  device, are not written to the photo library and are not in a backup. The iPhone uses the camera with a
+  placement frame; Android uses the photo picker; the Mac shows stored photos.
+- **Reminders** *(optional)*: a weekly measurement and a daily weigh-in.
 
-- Current pace/speed uses up to 30 seconds of fresh GPS; the workout average is separate.
-- The live number retains the last computed pace/speed until another valid measurement can replace it,
-  including across signal gaps and pause/resume. No updating label or temporary dash replaces a known
-  number. Before the first valid calculation it remains unavailable; a new workout clears the held value.
-  This in-memory display value never supplies pace warnings, speech, distance or saved workout evidence;
-  those continue to require their existing fresh measurements.
-- GPS pauses, missing capture and relaunches start separate route segments, without connecting their endpoints.
-- On iPhone, live route admission requires trustworthy motion evidence and at most 25 m positional
-  uncertainty; coordinate changes alone never count as movement, even at reported good accuracy.
-  The macOS positioning fallback permits at most 10 m for coordinate-only evidence. Coarse positions without movement evidence never become
-  a starting anchor or distance. Explicit unavailable/approximate Core Location updates are not ingested.
-  An interrupted or rejected-quality signal freezes retained distance; the next usable fix only sets a
-  new segment anchor, never adds a recovery jump. Measured speed also constrains plausible position jumps.
-  These are conservative app heuristics, not Apple-mandated thresholds; weak reception can under-record.
-- New recordings retain distance splits (including a final partial section), independent manual laps,
-  original zone bounds, measured zone durations and pause history. Historical sections are not fabricated.
-- The completion summary distinguishes saving, saved and retryable failure. A local recovery file precedes
-  stopping capture; short recordings offer explicit save/discard choices.
-- New recording evidence lives beside its workout in SQLite, survives database backup and merge/rekey,
-  and is removed with workout deletion. The legacy 400-route defaults store is not used for new recordings.
-- Recorded GPX exports retain real point times and separate track segments; recorded FIT exports carry
-  real times and active duration. Display of gaps by third-party apps is not guaranteed.
-- Stage 1 iOS and macOS integration builds passed; physical iPhone behavior checks, visual verification,
-  legacy-route backup migration and storage controls remain pending.
+### Weight
 
-Analysis migration required: no — prospective capture and additive evidence only. Existing scores, raw
-samples, corrections, historical routes and analysis recipe versions are not rewritten.
+A weight tracker that shows the trend behind daily ups and downs. Overview: latest weigh-in, trend, goal
+progress as a route of stops, forecast and change figures. History: dots for the scale and a line for the
+trend with a table. Reports: months or years with lowest, average, trend change and per-week change.
 
-### GPS elevation, grade and grade-adjusted pace (2026-10-13)
+- **Log, edit and delete** weigh-ins. An optional **water mark** (creatine, period, salty food or a party,
+  new medicine) leaves a weigh-in out of the scale-based burn estimate. Weigh-ins from Apple Health or Health
+  Connect appear too.
+- **Forecast and plan rate:** when the trend reaches the goal at the current, overall or plan rate, with
+  honest messages when data is too thin or the goal is over three years away.
+- **Weight dates:** add a date such as a holiday; the app shows the expected weight, counts down and compares
+  afterwards.
+- **Settings:** trend basis, rate mode and window, plan rate, and a weigh-in reminder that stays quiet on a day
+  already weighed.
+- **Widgets:** four tracker widgets (trend, this month, figures, on a date) and a simple Weight widget.
 
-- A GPS workout on iPhone reads the barometer beside the route. Elevation gain and loss are counted with
-  OpenTracks' method, ported unchanged (Apache 2.0): pressure smoothed 0.3 against the previous reading,
-  a change counted only from 3 m and then in 3 m steps. Paused time counts nothing; after a pause the next
-  reading is a new baseline. Without a barometer (every Mac) no elevation is shown, never GPS altitude.
-- Each route point keeps Apple's absolute altitude (barometer and GPS fusion) with its stated accuracy and
-  the barometric height; the crash journal carries them across a relaunch.
-- The live screen has an Elevation page: gain, loss, current elevation, the grade over the last 50 m and
-  the profile so far. Kilometre or mile splits and manual laps carry their own climb.
-- The workout detail shows an elevation profile over distance (labelled height and distance axes, a finger
-  reads out distance, height and grade; the line warms to the Effort colour on climbs of 3 % and 8 %),
-  climbed, descended, the steepest grade and, for walks and runs, the pace the effort equals on the flat.
-- Grade follows gpx.studio (MIT): per point, the height difference over a window reaching 50 m either side.
-  Grade-adjusted pace follows Minetti et al. 2002 (J Appl Physiol 93:1039): each leg counts its length
-  times Cr(i)/Cr(0) for runs or Cw(i)/Cw(0) for walks, the fits held at their measured ±45 %.
-- The climb is stored beside the workout (`workoutElevation`, v78) and resolved through one function for
-  every reader: NOOP's barometer, Apple Health's `HKMetadataKeyElevationAscended`/`Descended`, or an
-  imported GPX/TCX/FIT file's ascent. Workouts already imported from Apple Health are read once more for
-  their climb. Edits and merges of a recorded workout carry the climb onto the new key.
-- Apple Health exports now carry each point's altitude (vertical accuracy −1 where unknown) and the
-  workout's climb; GPX exports write `<ele>`, FIT exports the record altitude.
-- The training-based VO₂max includes a measured climb through the ACSM uphill term (metres climbed per
-  minute times 1.8 walking or 0.9 running); descents count as level, and a session without a measured climb
-  keeps the flat assumption. Training Load says per week how many sessions carried their climb.
+The Mac compiles the weight page but a Mac entry point was not found.
 
-Analysis migration required: yes — AI-25. AgeLess weeks read the training-based VO₂max, which now
-includes measured climbs, so every AgeLess week is deleted once and the next pass rebuilds it; zone minutes
-are kept, no daily row is re-scored, no workout row or raw sample is touched. When the one-time Apple Health
-elevation read finishes and found any climb, it clears the AgeLess weeks once more.
+### Energy
 
-### Live workout guidance — stages 2 and 3 (2026-10-06)
+**Energy page.** Today's energy by tonight as a range, split into resting, everyday (sitting, standing,
+digesting), daily movement, training and eaten, with a day picker, a 30-day chart switchable between Burned,
+Eaten and Balance and a usual-day reference. Read the balance over a week.
 
-Extends the existing recording flow; does not introduce a second recorder or change workout scoring.
+- **Three estimates of daily burn,** never averaged: what a formula predicts from height, weight and age, what
+  the strap measured, and what food and scale imply. The spread is printed rather than one number.
+- **Burn rate through the day** in kilocalories per minute, compared with the previous day or the median of
+  the last 7 or 30 days.
+- **Basal formula:** Mifflin-St Jeor (default), revised Harris-Benedict, Katch-McArdle (needs a body-fat
+  reading) or a measured resting rate you enter.
+- **Activity level and onboarding,** and a target rate (hold, lose or gain per week) with an energy density
+  tuned to the body.
+- **Food and scale balance check:** maintenance from logged intake and weigh-ins after about two weeks of
+  logs, with a warning that most people under-log.
+- **Digestion:** about a tenth of what you eat, shown against food.
+- **Your scale:** after about six weeks of fully logged days the app proposes a correction of the strap's burn
+  to agree with the scale; it is never applied without your Adjust (iPhone, Android).
+- **Apple Watch calibration** *(optional)*: a bounded factor (0.80 to 1.20) corrects the strap's active
+  energy against time-aligned Apple Watch energy. Apple stays a reference (iPhone, Mac).
+- **Data quality and calculation page** explains how the day was calculated. On Android it is reduced.
+- **Calories in without a diary:** type a day or let Apple Health nutrition supply it; a typed day wins over
+  Food meals, and Food meals win over Apple Health.
+- **Energy widget** with total, active and basal calories.
 
-- Three focused pages: metrics, recorded heart-rate zones and sections. iPhone supports swiping;
-  the page picker and persistent pause/end controls also work on macOS. The centered timer adapts to
-  available width and Dynamic Type, with spoken elapsed time for VoiceOver.
-- Opt-in offline iPhone announcements in the app language: distance intervals of 0.5/1/2 km or miles,
-  or time-only intervals of 5/10/15 minutes. Missing fresh GPS uses time feedback, never estimated pace.
-  Matching recorded splits speak their actual split pace/speed and measured average heart rate;
-  other intervals identify current pace/speed. Music ducking is released after each utterance.
-  Headphones are the default; speaker output requires explicit opt-in, and a disconnected output
-  cancels the current utterance. Speech is not provided by the macOS implementation.
-- Optional target-zone and GPS pace/speed warnings require
-  ten seconds of fresh out-of-range evidence and are limited to one phone warning per minute.
-  Pauses, stale readings and configuration changes reset the dwell. The existing HR ceiling coach
-  outranks increase-intensity advice, and target-zone strap coaching does not add a duplicate phone buzz.
-  Minimized visual notifications are separately opt-in and subject to OS authorization/delivery.
-- Cadence warnings are removed from settings and disabled even for an earlier opt-in. Their decoder,
-  range engine and saved choices remain for later work; independent cadence sensor pairing and
-  simultaneous WHOOP/sensor operation are not supported by this feature yet.
-- Optional GPS running/cycling auto-pause waits five seconds of trustworthy stopped evidence and
-  resumes only after three seconds of trustworthy movement. Auto-paused capture retains motion
-  observation without recording paused distance. A manual pause or restored paused session never
-  auto-resumes; disabling auto-pause leaves the paused session under manual control.
-- Local warm-up/work/recovery/cool-down plans support active-time or measured-distance goals,
-  named templates and editing only future phases during a workout. Race-guarded edits preserve
-  the current phase and recorded history. Missing GPS stalls distance phases, and completing a plan
-  does not end recording. The same measured/skipped phase history appears live and in summary/detail.
-  Plan/template data participates in settings backup; restoring it does not enable speech or auto-pause.
-- A separate optional pacer compares measured GPS distance with a goal time, excluding pause time.
-  It is not combined with an interval plan and becomes unavailable after an unknown route gap.
-- Completion can identify a faster full recorded 1 km/1 mile split against the earlier, retained NOOP
-  recording history of the same sport and split length. Paused/gapped workouts, partial splits, imported
-  averages, first baselines and displayed-second ties are excluded. No all-time cross-app record is claimed.
-- Existing consent-gated Apple Health writeback uses unchanged original recording evidence for exact
-  start/end times, pause/resume/lap/interval-segment events and one real-sport workout activity.
-  Edited/merged envelopes do not inherit a fabricated event clock. SQLite recording routes can be
-  exported; Apple Fitness presentation of event/route gaps still needs physical-device verification.
+## Goals
 
-Final iOS (signed) and macOS integration builds passed, and the update installed and launched on the
-physical iPhone. Visual/device behavior checks remain pending; launch is not evidence that GPS,
-background execution, audio routing, Health export or notification delivery works correctly.
+**Goals hub.** Overview of daily, weekly and monthly, long-term, paused and ended goals, with a filter, "How
+goals work" and Goal settings. Found in the Training tab and More, with goal cards on Today, Training and
+Sleep.
 
-Analysis migration required: no — prospective capture, additive local guidance/evidence and presentation
-only. No historical scoring, source precedence, analysis windows, baselines or recipe version changes.
+- **Daily goals** (steps, active calories, sleep, workout, tick box, journal habit): up to three show as
+  rings on Today; schedules by day or weekday; some tick themselves from steps, sleep or workouts.
+- **"Done yesterday?"** asks the next day for boxes the app cannot see; "Still open from the last days" lists
+  unanswered ones.
+- **Weekly and monthly goals:** set up in steps with easy, recommended and ambitious levels from your own last
+  weeks. Metrics: workouts, training minutes, distance, step days, nights of enough sleep, average sleep,
+  zone 2+ minutes, working sets, active energy, rest days, hydration days, habit days, strength minutes,
+  moderate and vigorous minutes.
+- **Fair pace:** weekly targets are spread over planned training days with rest days left out, with a marker
+  for where you should be today.
+- **States in words:** Reached, Ahead, On track, Close, Behind, Out of reach, Protected.
+- **Pause and protection:** pause a goal with a reason (Illness, Pain, Travel, Life, Other); paused weeks are
+  protected.
+- **Correct what counted** (iPhone, Mac).
+- **Long-term goals** from about 30 templates: endurance, strength, heart and fitness, everyday, body, sleep
+  and recovery, habits. Each is drawn in its own shape. The page has milestones, "Extend the date" and weekly
+  step-ups. **Start packs** are ready-made bundles (iPhone, Mac).
+- **Safety and realism checks:** weight-rate warnings (never block), feasibility from your own history,
+  combined-volume warnings and conflict notes.
+- **Streaks, badges and records** *(optional)*, a **looking back** review and an **archive** of ended goals.
+- **Goal notifications** *(optional, off by default)*: at most two a day, never after 21:00 or during a
+  workout. Android adds Tick off and Remind me in 1 hour actions.
+- **Goal widgets and complication, Siri.** See [Widgets](#widgets-live-activities-siri-and-shortcuts) and
+  [Apple Watch](#apple-watch).
 
-### Apple Health reconciliation (2026-10-06)
+## Coach
 
-Health import preserves historical activity/vitals when fetching older body measurements, chooses
-one sleep source per night, and reconciles deleted Health workouts by their UUID. Failed reads retain
-previous values and retry without advancing the Health anchor. Read-only integration resumes after
-restart.
+An optional assistant that talks about your own data. It is **off by default**; you turn it on in Settings › AI
+Coach and connect a provider with your own key. Nothing leaves the device until you ask a question, and a
+"Before you talk to your coach" sheet explains what is sent.
 
-Health export uses stable sync identifiers and persistent versions for quantities, sleep stages and
-workouts. Changes and deletions remain pending across restarts, including late HR offloads and Undo.
-Workouts include retained WHOOP devices, captured pause events, active energy, distance and routes;
-unchanged exports are skipped. Replacement saves precede legacy cleanup.
+**Providers.** OpenAI, Anthropic, Google Gemini and OpenRouter, plus Custom (any OpenAI-compatible server,
+local or self-hosted). iPhone and Mac offer all five. **Android has four: OpenAI, Anthropic, Gemini and
+Custom; it has no OpenRouter and no model search.** A model can be picked or typed; Disconnect keeps the key
+and Forget deletes it. Custom sends the pre-assembled context rather than offering tools. The app counts
+tokens on the device and shows approximate cost.
 
-Analysis migration required: **yes**, recipe **AI-19**. Historical Apple projections are repaired from
-retained values in resumable batches; Health history is refreshed in 31-day windows. No raw samples
-or manual sleep/workout corrections are removed. Real-device validation is still required for
-HealthKit authorization, background delivery, Fitness rendering and route associations.
+**Chat.** Streaming replies with Markdown, an evidence line (tools used and local context read), copy, share,
+edit and ask again, regenerate, trend charts and metric or workout cards drawn inline, voice input (iPhone,
+Android), and conversation history with search, pin, rename, archive and delete. Optional past-chat
+summaries send the chat to your provider.
+
+**40 data tools and 10 data purposes.** A model that supports tools may use 40 tools: read tools for biometrics,
+sleep, workouts, strength, training load, stress, energy, body, metric history and the food log; write tools
+for caffeine, journal, lab markers and weight; proposals that never commit alone (plan, goal setup, diet
+change, Hevy routine and workout); memory tools; and chart and card tools. A master switch "Let the coach use
+my data" and ten purposes decide which are offered: Core biometrics, Long-term trend, Workouts, Planning,
+Stress, Food, Logging, Sensitive journal, Memory tools and Patterns. Four simple levels (Essentials, Personal,
+Deep insights, Expert) set them together. A tool whose purpose is off is not offered to the model. The
+sensitive journal always needs its own choice. Food is on with the coach by default.
+
+**Memory.** Durable facts by category (Goal, Injury, Preference, Physiology, Schedule, Other) with importance,
+source, expiry and a health marker; edit, add, forget one or forget all. A memory receipt under a reply shows
+what was saved, with undo. On iPhone an embedding model bundled in the app finds related saved text without
+uploading it. **Android has no on-device memory model**, so it uses keyword retrieval; the Mac is
+expected to fall back the same way.
+
+**Identity and style.** Name and picture (two ready-made coaches, a symbol or your photo, which stays on the
+device), a tone (Warm, Grounded, Neutral), a persona (Guardian, Friend, Commander), reply length, emoji,
+proactive level and three quick presets. Replies use the app's language. Coach instructions can be edited.
+
+**On Today and in notifications** *(each optional)*. A coach card, a movable floating button and an unseen dot;
+the morning suggestion; a **morning brief** at a time you choose; a **daily check-in**; **plan reminders and
+nudges** with a budget of three coach-started messages a day, quiet hours and a "why am I seeing this?" sheet
+with a switch for that kind. **Log with the coach** accepts writing, speaking or a photo. **Ask coach** on a
+metric page sends a short card read.
+
+**Plans and goals.** The **plan book** collects every session the coach suggests for your yes first: move,
+swap, "Didn't happen" with a reason, rate the effect. The coach can draft goals and routines for review
+and Hevy routine or workout drafts; nothing is committed until you send it.
+
+**Backup.** Coach identity, facts, plan book and consents travel in an optional entry of a `.noopbak`.
+
+## Devices and the strap
+
+**Supported devices.** WHOOP 4.0 and WHOOP 5.0/MG give live heart rate, beat-to-beat intervals, battery,
+history sync, buzz and alarm over Bluetooth. A model picker is on the Live screen, onboarding and the Strap
+page. A 5.0/MG pairs with one host at a time. Other sources: any Bluetooth heart-rate strap (Polar, Wahoo,
+Coospo, Garmin HRM and similar), gym equipment (treadmill, bike, rower, cross-trainer through Bluetooth
+FTMS), and an Apple Watch as an Apple Health source. *(Experimental)* tier: Oura ring local take-over (beta,
+with an irreversible-consent tick), Amazfit/Zepp and Xiaomi Mi Band best-effort heart rate, Garmin watch via
+Broadcast Heart Rate.
+
+**Add a device.** A four-step wizard (type, get-ready checklist, scan and pick, name and confirm). **Devices**
+lists every device with Make active, Rename, Remove (data kept), Delete this device's data, Forget device,
+Stop sync, Restart strap and ECG reading (MG). Cards show battery, charging, last seen, firmware, clock drift
+and pairing notices. **Merge WHOOP entries** joins entries piled up from replaced straps, after a typed
+confirmation and a full backup.
+
+**Standard HR mode.** When a 5.0/MG will not complete the full bond, NOOP still reads live heart rate through
+the standard service and says that buzz, alarm, battery and history need a full sync.
+
+**Strap sync.** History is offloaded every 15 minutes while connected, on connect, when the app comes to the
+foreground, on manual Sync now and as automatic continuation of a deep backlog. Automatic triggers back off
+after empty syncs. *Keep screen on while syncing* is optional (iPhone).
+
+**Live screen.** Live heart rate, zone, rolling RMSSD, battery, strap log, Start workout, HRV reading, Buzz
+strap, Reconnect and Disconnect. The strap log is kept across restarts (about 2 MB) and exported with earlier
+runs.
+
+**Strap actions** (Settings › Strap actions):
+
+| Feature | What it does |
+| --- | --- |
+| Double-tap action *(optional)* | Nothing, Buzz back, Mark a moment, Log a sleep mark, Buzz the time, Run a Shortcut (Apple), Lock Mac (Mac). In a strength session the double-tap logs the next set. |
+| Wear and presence *(optional)* | Run a Shortcut when the strap is taken off or put on; on Mac, lock the Mac when you take it off. Not on Android. |
+| Haptics toggles | Choose which cues buzz the wrist: breathing pacer, interval timer, Live session cues, workout start and end. |
+| Heart-rate ceiling *(optional)* | Buzzes when smoothed heart rate reaches a ceiling (profile zone or fixed BPM), always or only during workouts. A training aid, not medical monitoring. |
+| Inactivity reminder *(optional)* | Wrist buzz when seated too long, from strap motion at each sync. |
+| Wrist alerts master switch | The gate for every wrist buzz. |
+| Stress check-ins *(optional)* | See [Stress](#stress-and-mind). |
+
+**Wrist alerts for other apps** *(optional, Android)*. Chosen apps' notifications, phone and VoIP calls and
+native timers buzz the strap with a per-app pattern; it reads which app posted, never the content. The Mac
+screen exists but says delivery is not live yet.
+
+**Heart rate sharing** *(optional)*. Re-broadcasts live heart rate to Garmin, Zwift, treadmills and bike
+computers: "Via this phone" while the screen is open, and "Via strap" (a reversible flag on a 5.0/MG that
+keeps working without the app). A Mac cannot write the strap flag.
+
+**Battery.** Low (15%) and charged notifications once per charge cycle, a predictive "recharge tonight"
+heads-up and a stale-battery check *(optional, default on)*. **Battery and Recording** *(optional)* offers
+power saving with a threshold, Pause HRV capture while low, Low refresh (hourly background sync) and
+Continuous HRV with a Nights only choice.
+
+**Strap rename** changes the Bluetooth name of a WHOOP 4.0 (Android also an experimental 5.0/MG rename).
+
+**Android keep-alive** *(optional)*: Keep connected in the background (foreground service), Faster history sync
+and Faster Bluetooth link (both Experimental), Keep NOOP alive overnight and an auto-start hint for some
+phone makers. Android also has *(Experimental)* bond experiments for stubborn straps.
+
+**Help.** A pairing-reset guide on Live and Devices, a strap choice prompt, and a "What each strap can do"
+comparison of WHOOP 4.0 and 5.0/MG.
+
+## Widgets, Live Activities, Siri and Shortcuts
+
+### Home and Lock Screen widgets
+
+All widgets read stored data only and are added by you. iPhone has them for Home Screen and Lock Screen. Mac
+has no widgets. Android has Glance widgets for most of the same content (30 receivers).
+
+| Widget | Shows | Sizes (iPhone) |
+| --- | --- | --- |
+| NOOP | Charge, Effort, Rest rings plus live heart rate and strap battery | small, medium, large, Lock Screen circular, inline, rectangular |
+| NOOP Rings | Three rings like Today | small, medium |
+| Forge Today | Rings with the coach's latest line | small, medium, large, rectangular |
+| NOOP Energy | Total, active and basal calories with a projection | small, medium, inline, rectangular |
+| NOOP Nutrition | Calories left, protein, carbs, fat | small, medium, inline, rectangular |
+| Heart Rate | Live heart rate with the last three hours | medium |
+| Stress | Today's stress curve | medium |
+| Coach Brief | Today's coach brief; tap opens the coach | small, inline, rectangular |
+| NOOP Goals (configurable) | Goals each drawn in its shape | small, medium, large, circular, rectangular, inline |
+| Fitness set (10) | Sleep, HRV, Resting HR, Charge week, Effort week, Steps, Weight, Training week, Consistency, Vitals | small, medium, rectangular, inline |
+| Weight set (4, configurable) | Weight trend, this month, figures, on a date | small, medium, rectangular |
+
+### Live Activities and Dynamic Island (iPhone only)
+
+- **Workout and live heart rate:** a Lock Screen banner and Dynamic Island with heart rate, zone and elapsed
+  time. A cardio workout offers Pause, Resume and End (End opens the app to confirm). A strength workout shows
+  the next set with Set done and a rest timer with -15, +15 and Skip. A stale banner drops the number when
+  readings stop.
+- **Strap sync:** one line with the sync phase and elapsed time while history is pulled.
+
+Both are switched under Settings › Alerts and reminders › Live notifications *(default on)*. Android shows an
+ongoing foreground notification instead.
+
+### Siri, Shortcuts and quick actions
+
+| Item | What it does |
+| --- | --- |
+| App shortcuts (iPhone) | Sync Strap, Mark a Moment, Log Sleep Mark, Buzz Strap, Recovery Status ("What's my Charge"), Goals Status, Open Goals, Ask Coach, Back Up NOOP Data. |
+| Export Workout Route (iPhone) | Returns the most recent GPS route as GPX or FIT for Strava, Garmin Connect or any app. Available in Shortcuts. |
+| Shortcuts Export *(optional, iPhone)* | Rewrites a text file each time you leave the app, one line per 15 minutes of heart rate, HRV and steps, so a Shortcut can move strap data into Apple Health on installs without the Health entitlement. |
+| Siri and Shortcuts page | Lists the ready-made actions with phrases and a link to build your own. |
+| Home Screen quick actions (iPhone) | Long-press the icon: Live HR, Start workout, Log journal, Goals. |
+| Mac intents | Buzz Strap, Mark a Moment and Back Up NOOP Data, while NOOP is running. |
+| Android quick actions | A "+" menu in the app for log, breathe, live HR and workout. |
+
+There are no Control Center controls.
+
+## Apple Watch
+
+The Watch app is a companion: the phone computes scores and the watch measures its own heart rate and runs
+its own sessions. It is dark-only and a vertical page deck.
+
+- **Today glance:** Charge, Effort and Rest as rings with a legend, live heart rate from the watch, the
+  phone's one-line sleep summary and "as of" age. A score still calibrating shows a dash, never an invented
+  number.
+- **Breathe:** haptic breathing with patterns (Relax, Coherence, Box, Deep, 4-7-8, 6-6 and more).
+- **Workout:** a functional strength workout with live heart rate, zone and energy; it mirrors the phone's
+  strength session and sends telemetry back. Needs Health access.
+- **Intervals:** silent haptic HIIT, fixed at 30 s work, 15 s rest and 8 rounds.
+- **Complications:** "NOOP Charge" (circular, corner, inline, rectangular) and "NOOP Goal" for your most
+  important weekly goal.
+
+NOOP can also run on a watch alone: a watch that fed Health data in the last 14 days is registered as a
+device with Charge, Rest, Effort and Fitness Age from the metrics that arrived.
+
+## Mac
+
+The Mac app is the classic design with a sidebar (Today, Momentum, Intelligence, What works, Coach, Goals,
+Live, Breathe, Intervals, Explore, Compare, Journal, Sleep, Trends, Workouts, Training, Strength, Cardio,
+Training Load, Body, Energy, Health, Stress, Health records, Heart rhythm, Saved ECGs, Apple Health, Mi Band,
+Data Sources, Backup and Sync, Values by source, Devices, Limitations, Notifications, Automations, Alarms,
+Battery and Recording, Project, Settings, Test Centre).
+
+- **Menu-bar item.** A heart tinted by heart-rate zone with the live number; the popover shows the Charge
+  ring, connection state, strap battery, last sync and buttons to start or stop the live feed, refresh
+  battery, scan and disconnect.
+- **Shortcuts.** Command-3 opens Goals; Command-N starts a goal on that page.
+- **Lock the Mac** as a double-tap action and when you take the strap off.
+- **Pairing.** A Mac can be the only device and pairs with the strap itself.
+- **Not on Mac:** widgets, Live Activities, the Siri Shortcuts page and quick actions, a live Apple Health
+  link (import from an export file only), Apple Watch pages, the Forge screens (Nutrition tab, Food, cycle
+  pages), Shortcuts Export, wrist delivery of Mac notifications and Keep screen on while syncing.
+
+## Android
+
+Android runs the shared Swift core with Forge screens in Compose, follows the iPhone feature by feature and
+stores in the same database format. What differs:
+
+**Only on Android:** phone smart alarm with wake window; wrist alerts for other apps, calls and timers;
+Health Connect import and write-back; self-hosted push *(Experimental)*; keep-alive options and bond
+experiments; nap detection *(optional)*; daily report notifications (Morning recap, Post-workout summary,
+Optimal strain reached); backup time picker; a Name field and weight from Health Connect in Profile; the
+"Classic screens" row; Android Test Centre probes; past days on Today; a "NOOP Forge Demo" flavor.
+
+**Missing on Android compared with the iPhone:** Live Activities and Dynamic Island, Siri and Shortcuts,
+Apple Health, Apple Watch and Wear OS apps, Strong, FitNotes and OpenGym import and plan share files,
+live elevation, run plans, the pacer, laps and the best-split banner, the battery detail page, semantic coach
+memory, OpenRouter in the coach, lab report PDF and photo reading, Coast and Meadow scenery, Motion effect,
+swipe between tabs, coloured icons, wear and presence automations and the sync reminder.
+
+Some items could not be confirmed on Android and may exist under other names: past-strength logging, timed
+sets, mid-session supersets, plan sharing and PDF export, and start packs.
+
+## Data in and out
+
+### Imports
+
+Where: Settings › Data and backup › Data Sources (and Apple Health, Training, Health records).
+
+| Importer | What it brings | Platforms |
+| --- | --- | --- |
+| WHOOP export (zip or folder) | Recovery, strain, sleep, workouts and biomarkers history | all |
+| Apple Health export | Streamed locally with an import-depth choice | iPhone, Mac, Android |
+| Xiaomi Smart Band / Mi Fitness | Steps, heart rate, sleep stages, SpO₂, stress, sleep score | all |
+| Oura, Fitbit and Garmin exports | Sleep, resting HR, HRV, steps from your own data export | all |
+| Nutrition CSV (Cronometer, MacroFactor, others) | Daily calories and macros | all |
+| Workout file (GPX, TCX, FIT) | One workout from any brand with route, heart rate, calories | all |
+| Hevy API sync, Hevy CSV, Liftosaur JSON | Lifting history | all |
+| Strong and FitNotes CSV, OpenGym plan, training plan file | Training history and plans | iPhone, Mac |
+| Program spreadsheet (.xlsx, CSV) | Routines | iPhone, Mac |
+| Health records (markers CSV, lab report PDF or photo) | Lab values with a review screen | iPhone, Mac (CSV also Android) |
+| Oura history (cloud, Experimental) | One-time backfill with your own credentials; only in builds compiled for it | not in released builds |
+
+Imported WHOOP journal history joins your journal questions. **Remove imported data** deletes Apple Health
+imports or Hevy-synced sessions after a confirmation.
+
+### Apple Health (iPhone)
+
+*(optional)* Enable, Sync now, import history (choose months), Rebuild HRV history, Refresh permissions and
+Diagnostics, with per-metric charts. Live observers deliver HRV, resting heart rate, active energy, heart
+rate, VO₂max, sleep and workouts in the background. **Reads:** heart rate, resting HR, HRV, SpO₂, breathing,
+body temperature, steps, energy, distance, VO₂max, weight, body fat, lean mass, BMI, waist, water and
+nutrition, caffeine, sleep, workouts, routes, heartbeat series. **Writes** after authorisation: resting HR,
+HRV, SpO₂, breathing, continuous heart rate, sleep with stages, workouts with route, energy, distance, weight,
+waist *(optional)*, heartbeat series, and the full nutrient set for logged food. Only changed records are
+rewritten. On the Mac there is no live link; use an export file.
+
+### Health Connect (Android)
+
+*(optional)* Import by type, grouped as Recovery, Steps, Training, Calories and Body composition, plus
+nutrition and exercise routes. **Write-back** *(optional, off by default)* sends resting HR, HRV, SpO₂,
+breathing, heart rate, sleep, exercise with route, VO₂max, weight and nutrition, only for computed days.
+
+### Exports and backups
+
+| Export | Description |
+| --- | --- |
+| Full backup (`.noopbak`) | Everything in one file, a plain ZIP that the app warns is unencrypted. Includes whitelisted profile and display settings. Old backups still import. |
+| Backup and Sync to a folder *(optional)* | Pick a folder (for example in a cloud drive), daily auto-backup, keep last N, Back up now, Restore, stale-backup warning. On Apple platforms the daily backup is a catch-up when you open the app; on Android it runs around 1 a.m. |
+| Back Up NOOP Data intent | Returns a `.noopbak` for a Shortcuts Save File step (iPhone, Mac). |
+| CSV (WHOOP-format zip) | Re-imports on Mac and Android. |
+| Raw sensor CSV | Decoded streams: heart rate, R-R, motion, steps, SpO₂, skin temperature, breathing, events. |
+| Workout route | GPX or FIT (TCX is import only); also through the Export Workout Route intent. |
+| PDF | Trends report and a training plan. |
+| Other shares | Coach conversation as Markdown, Heart rhythm export, Raw Data Collector bundle. |
+
+**Migration.** A database made by upstream NOOP opens in this fork, and Android adopts an old database or an
+Android backup into the shared core. **Storage** shows a space breakdown with a one-tap clean-up.
+
+## Settings, Lab and Experimental
+
+Settings has 18 pages (with a search field on iPhone): Project, Profile, Goals, Strap, Battery and Recording,
+Strap actions, Training, Today and Trends, Alerts and reminders, AI Coach, Siri and Shortcuts, Language and
+units, Appearance, Calculations, Data and backup, Help and diagnostics, Lab and About.
+
+| Page | What you can set |
+| --- | --- |
+| Profile | Photo (stays on the device), date of birth, sex, weight, height, waist, max heart rate, VO₂max (entered or measured), activity level, heart-rate zones. |
+| Goals | Number of goals, rest days, daily step goal, goal notifications, motivation. |
+| Training | Set effort, session rating, weight unit and step, rest-timer cues, workout view, exercise media, equipment, Guided training, Detect activities, Help teach the app. |
+| Today and Trends | Water card, Journal card; on Mac the dashboard style and Arrange dashboard; Customize Today. |
+| Alerts and reminders | Live notifications (iPhone), illness early-warning, cycle and rhythm options, sync reminder, Strain target, Training load alert, Morning advice, other reminders, Android daily reports. |
+| AI Coach | See [Coach](#coach). |
+| Language and units | Language (System, English, German, Spanish, French, Italian, Portuguese, Polish, Russian, Simplified and Traditional Chinese), clock, week start, units for body, distance, temperature and the Effort scale (0 to 100 or WHOOP 0 to 21; display only). |
+| Appearance | Preset, theme (System, Light, Dark), accent, app icon (Default or Navy), colour profile (Colorful, Stone, Slate, Sage), tab bar options, background and scenery, chart colours, sleep and trend chart styles, motion and Score rings (Living or Classic). |
+| Calculations | Day start, HRV window (whole night or deep sleep only), sleep stage method (V3, V2, V1), wake check. Changes recompute recent nights. **If scores look wrong** offers Refresh today, Recalculate the last 21 days and Reset Charge baseline. |
+| Data and backup | Backup and restore, Backup and Sync, Apple Health, Data Sources, Storage, self-hosted push (Android). |
+| Help and diagnostics | Guides (How NOOP works, How your scores work, What each strap can do), This iPhone diagnostics, raw sensor export, Test Centre. |
+| About | Version, What's new, Acknowledgements, Check for updates, project home, Support the project, medical disclaimer. |
+
+### Settings › Lab
+
+Early features, off by default: **Personal stress baseline**, **Training-based VO₂max**, **Strength in Effort**
+(rated strength sessions add to Effort beyond heart rate), **Sleep stages (test)**, **AgeLess** and **Daily
+rhythm**. A Today tile board for every tile size is in debug builds only.
+
+### Experimental
+
+- **WHOOP 5/MG card** *(5.0/MG only)*: protocol probes, deep data unlock (writes persistent strap flags, with a
+  switch to turn it back off), the ECG raw-data gate and ECG capture, and a puffin frames recorder for the
+  optical experiment.
+- **Oura all-day heart rate** *(Oura only)*.
+- **Heart rhythm** and the **Oura, Amazfit/Zepp, Mi Band and Garmin** device tier.
+- **Self-hosted push** (Android only) and Android's faster sync and link options.
+
+### Test Centre
+
+*(Settings › Help and diagnostics › Test Centre)*. Each test logs extra detail for one area (Sleep and Rest,
+Connection and Sync, Workouts and GPS, Display and Performance, Import, Steps, Notifications and Alarm,
+Battery, Recovery, HRV, Sources, Stress and Illness, Longevity, Circadian, or Log Everything), then bundles
+it for a bug report. **Report a bug with my log** builds a redacted ZIP, shows what it contains and opens a
+prefilled GitHub issue in the browser; you attach the file yourself. Also: scheduled strap-log export,
+protocol probes for the 5.0/MG, read-only WHOOP device probes, maintenance tools (recalibrate the Charge
+baseline, backfill skin temperature), and Raw Data Collector for bounded motion sessions on a 5.0/MG.
+
+### First run
+
+A terms screen appears before anything else until every statement is ticked. A 12-step onboarding wizard
+follows (welcome, Bluetooth, find your strap, profile, optional history import, wrist-alert primer, look).
+Only a strap is needed to finish. A What's New sheet shows once after an update, and demo data is not
+available to users on Apple platforms. Android has a separate Demo flavor ("NOOP Forge Demo") preloaded with
+120 days of synthetic data.
+
+## Privacy-relevant network features
+
+NOOP has no account and no server that processes your scores. Everything that can leave the device is
+optional or one request with nothing about you in it: a daily update check (on by default, switchable), the
+project's roadmap feed, wishes, votes and problem reports (sent only when you act; one master switch stops
+them), the optional coach, optional food data lookups and packs, exercise media downloads, and on Android the
+self-hosted push you configure. The full list, with what each sends and what it does not, is in
+[PRIVACY_SECURITY.md](PRIVACY_SECURITY.md); the scope limits are in [SCOPE.md](SCOPE.md).
+
+## For developers
+
+The code layout, the shared Swift packages and how Android reaches them are described in
+[ARCHITECTURE.md](ARCHITECTURE.md). Building is covered in [BUILD.md](BUILD.md), the iOS target in
+[IOS.md](IOS.md) and the Android app in [ANDROID.md](ANDROID.md).

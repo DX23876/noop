@@ -20,8 +20,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/DX23876/noop/releases/tag/v12.2.1-dx"><img alt="Release 12.2.1" src="https://img.shields.io/badge/release-12.2.1-C8902F?style=for-the-badge"></a>
-  <a href="https://github.com/DX23876/noop/releases/tag/testing-latest"><img alt="Testing build 13.0.0" src="https://img.shields.io/badge/testing-13.0.0-8A6A2F?style=for-the-badge"></a>
+  <a href="https://github.com/DX23876/noop_forge/releases/latest"><img alt="Release 13.0" src="https://img.shields.io/badge/release-13.0-C8902F?style=for-the-badge"></a>
   <img alt="iPhone, iPad, Mac, Apple Watch and Android" src="https://img.shields.io/badge/iPhone%20%C2%B7%20iPad%20%C2%B7%20Mac%20%C2%B7%20Watch%20%C2%B7%20Android-234F9E?style=for-the-badge">
   <a href="LICENSE"><img alt="License: PolyForm Noncommercial 1.0.0" src="https://img.shields.io/badge/license-PolyForm%20NC-6B737B?style=for-the-badge"></a>
   <a href="https://discord.com/invite/wKgyqVdjrP"><img alt="Discord: Noop Community" src="https://img.shields.io/badge/Discord-Noop%20Community-5865F2?style=for-the-badge&logo=discord&logoColor=white"></a>
@@ -30,7 +29,7 @@
 <p align="center">
   <img src="docs/assets/screenshots/v13.0.0/hero.webp" width="940" alt="Four screens of NOOP Forge in demo mode: Today with the Charge, Effort and Rest rings over a mountain photograph, the Health tab with last night's vitals, Today in dark mode and the muscle map">
 </p>
-<p align="center"><sub>The 13.0 testing build in demo mode, with made up numbers.</sub></p>
+<p align="center"><sub>NOOP Forge 13.0 in demo mode, with made up numbers.</sub></p>
 
 > [!WARNING]
 > **Keep your strap away from the official WHOOP app.** It installs firmware updates by itself. On WHOOP
@@ -44,20 +43,27 @@ NOOP Forge reads your WHOOP strap over Bluetooth and works everything out on you
 you recovered, how hard your day was, how you slept and how your training is going. Your data never has
 to leave your phone and there is nothing to subscribe to.
 
-- **Charge, Effort and Rest** every morning, each with its factors, your own range and what it did to
-  the score.
-- **Sleep** in stages against your typical night, sleep debt, a bedtime for full recovery, silent strap
-  alarms.
-- **Training:** a full gym log, GPS runs with spoken splits, a muscle map for balance, fatigue and
-  strength, training load split into strength and cardio.
-- **Goals** from daily to long term with a fair pace, streaks that survive a bad week, widgets, Watch
-  and Siri.
-- **Body, energy and food:** weight trend, tape measurements, a barcode food log, a diet plan and three
-  independent estimates of what you burn.
-- **ECG on the WHOOP MG:** 30 second readings with analysis.
-- **An optional AI coach** on your own key or your own server that looks up your real data.
+More than 500 features, checked against the code. The main areas:
 
-Every feature, with pictures: [dx23876.github.io/forge/features](https://dx23876.github.io/forge/features/).
+| Area | What you get |
+|---|---|
+| **Today** | Living Charge, Effort and Rest rings, a board of 26 measure and about 20 card tiles you arrange yourself, a timeline of the day, one Log sheet for everything |
+| **Scores** | Every factor with your own range and its effect, a scoring guide, history pages, the whole history rescored once when a formula changes |
+| **Sleep** | Stages against your typical night, sleep debt, a bedtime for full recovery, editing and adding nights, a silent strap alarm per weekday, a wind-down reminder; a phone smart alarm on Android |
+| **Health** | Vitals in your own range, six focus areas, about 55 metrics in Explore, a per-second Deep Timeline, a 60-second HRV reading, Trends, Compare, a weekly report |
+| **Stress and mind** | Hourly stress, stress check-ins with a buzz, 22 breathing patterns, resonance pace, journal, What works, mood, caffeine, water, cycle awareness |
+| **Training** | Strength logger with last time's sets and progression hints, rest timer on the Lock Screen, supersets, plate calculator, 1,324 exercises, routines, plans and plan builder |
+| **Running and cycling** | GPS with honest distance, voice feedback, zone and pace warnings, auto-pause, interval plans, pacer, elevation, GPX and FIT export |
+| **Muscles and load** | A muscle map for balance, fatigue and strength, strength and cardio load kept apart, room today, daily advice, VO₂max |
+| **Goals** | Daily to long-term goals with fair pace, protection for bad weeks, badges and records, widgets, Watch and Siri |
+| **Body, energy, nutrition** | Weight trend and forecast, tape and body fat, progress photos, three estimates of what you burn, a food log with barcode and label reading, a nutrition score, a diet plan with twelve ways of eating |
+| **ECG** | 30-second readings on the WHOOP MG with analysis and an Apple Watch comparison |
+| **AI coach** | Optional, your own key or server, 40 data tools, morning brief, plan book, memory you control, ten data permissions |
+| **Everywhere** | Home and Lock Screen widgets, Live Activities, Siri, an Apple Watch app, a Mac app with a menu bar, Android with Health Connect |
+| **Your data** | Imports from WHOOP, Apple Health, Health Connect, Hevy, Strong, FitNotes, Liftosaur, Oura, Fitbit, Garmin, Mi Fitness and workout files; one backup file, saved daily to a folder you choose |
+
+Every area explained, with pictures: [dx23876.github.io/forge/features](https://dx23876.github.io/forge/features/).
+The full reference: [Feature guide](docs/FEATURES.md).
 
 ## Why Forge
 
@@ -67,8 +73,8 @@ OpenStrap Edge and NOOP Forge. Forge is the one to pick if you want:
 - **every Apple device and Android on one core**, so each device shows the same numbers;
 - **the deepest training tools**, from the gym notebook to the muscle map;
 - **every number explained**, with formula changes applied to your whole history in one controlled step;
-- **open and checkable releases**, built by GitHub from this public code and signed where they were built;
-- **NOOP's improvements too**, because Forge merges the original project regularly.
+- **the complete source in the open**, and releases built by GitHub from it with a SHA-256 checksum and a signed provenance record for every file;
+- **NOOP carried forward**: every change of the original project is merged, and Forge keeps building while the original has been quiet since 26 October 2026.
 
 The others are ahead in places, and the comparison says where:
 [four apps side by side](https://dx23876.github.io/forge/compare/).
@@ -77,10 +83,10 @@ The others are ahead in places, and the comparison says where:
 
 | Device | How |
 |---|---|
-| **iPhone and iPad** (iOS 17+) | Add `https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json` in [AltStore](https://altstore.io) or [SideStore](https://sidestore.io), then install NOOP Forge |
-| **Mac** (macOS 13+) | Download the zip from the [release page](https://github.com/DX23876/noop/releases/tag/v12.2.1-dx), move NOOP to Applications, right click and Open |
+| **iPhone and iPad** (iOS 17+) | Add `https://raw.githubusercontent.com/DX23876/noop_forge/main/altstore-source.json` in [AltStore](https://altstore.io) or [SideStore](https://sidestore.io), then install NOOP Forge |
+| **Mac** (macOS 13+) | Download the zip from the [latest release](https://github.com/DX23876/noop_forge/releases/latest), move NOOP to Applications, right click and Open |
 | **Apple Watch** | The `full` IPA from the release page, signed with the [Forge Signer](https://dx23876.github.io/forge/sign/) |
-| **Android** (8+) | The APK from the [testing release](https://github.com/DX23876/noop/releases/tag/testing-latest). Testing until Bluetooth is confirmed on real phones |
+| **Android** (8+) | The APK from the [latest release](https://github.com/DX23876/noop_forge/releases/latest) |
 
 Step by step, Feather and Apple Health, checking a download and moving from another app:
 [install guide](https://dx23876.github.io/forge/install/). Backups from ryanbr/noop open in Forge.
@@ -88,8 +94,10 @@ Step by step, Feather and Apple Health, checking a download and moving from anot
 ## Privacy
 
 Everything stays on your device. There is no NOOP server and no account, and nobody, the developer
-included, can see your data. The app only goes online when you turn something on: the AI coach, an
-update check, Hevy sync, a food lookup or an exercise media download. No ads, no tracking, no analytics.
+included, can see your data. The app goes online only for a short daily update check (on by default, can
+be switched off) and for what you turn on or press yourself: the AI coach, Hevy sync, food lookups,
+exercise media, and votes, wishes or problem reports on the project page. No ads, no tracking, no
+analytics.
 Details: [Privacy and security](docs/PRIVACY_SECURITY.md).
 
 ## For the technically curious
@@ -135,9 +143,9 @@ from it for transmission errors.
 
 ## Taking part
 
-- **Ideas and votes:** [Discussions](https://github.com/DX23876/noop/discussions/categories/ideas), one
+- **Ideas and votes:** [Discussions](https://github.com/DX23876/noop_forge/discussions/categories/ideas), one
   idea per thread; press the upvote arrow on the ones you want.
-- **Bugs:** an [issue](https://github.com/DX23876/noop/issues/new/choose) with a strap log.
+- **Bugs:** an [issue](https://github.com/DX23876/noop_forge/issues/new/choose) with a strap log.
 - **Questions and setup help:** the [Noop Community Discord](https://discord.com/invite/wKgyqVdjrP), the
   shared NOOP community, so say which app you run.
 - **Code:** welcome, but open an idea or an issue first and wait for a yes. The scope rules are in

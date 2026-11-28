@@ -64,28 +64,41 @@ single `DatabaseQueue` and applies these PRAGMAs before any query runs:
 | `busyMode` | `.timeout(5)` | 5-second busy timeout under write contention. |
 
 `WhoopStore` is an `actor`: all GRDB calls run on the actor's serial executor (off the main
-thread) through the `syncRead` / `syncWrite` helpers. `WhoopStore.schemaVersion` is a
-separate, manually-maintained constant (currently `26`) that has lagged the real migration
-history and must not be read as the schema's true version. The migrator itself (`makeMigrator()`,
-below) is the source of truth for what tables/columns exist and currently runs through
-**`v85-single-active-device`**.
+thread) through the `syncRead` / `syncWrite` helpers. `WhoopStoreInfo.schemaVersion` is a
+separate, manually-maintained constant (currently `26`) that only labels backup manifests and has lagged
+the real migration history; it must not be read as the schema's true version. The migrator itself
+(`makeMigrator()`, below) is the source of truth for what tables/columns exist and currently runs through
+**`v94-weight-water-mark`**.
+
+Stored values come in two kinds. **Inputs** are the decoded strap streams, imports and everything the wearer
+entered; they are never recomputed. **Derived values** (daily metrics, sleep sessions, metric series, energy
+rows, training load, …) are computed from the inputs. Which meaning the derived rows carry is recorded by the
+fork's analysis recipe (see [Analysis recipe](#analysis-recipe)).
 
 ---
 
 ## Schema at a glance
 
-The schema falls into the groups below. The migration table is intentionally a selected history;
-`Database.swift` remains authoritative for every intermediate migration.
+The schema falls into the groups below. The full migration list follows; `Database.swift` remains
+authoritative for every migration's exact SQL.
 
 | Group | Tables | Origin |
 | --- | --- | --- |
-| **Device registry** | `device` | BLE pairing |
-| **Decoded streams** (durable) | `hrSample`, `rrInterval`, `event`, `battery`, `spo2Sample`, `skinTempSample`, `respSample`, `gravitySample`, `ppgWaveformSample` (v27, unconsumed instrumentation) | Decoded from strap frames on-device |
+| **Device registry** | `device`, `pairedDevice`, `dayOwnership` | BLE pairing; which device's scores a day shows |
+| **Decoded streams** (durable) | `hrSample`, `rrInterval`, `event`, `battery`, `spo2Sample`, `skinTempSample`, `respSample`, `gravitySample`, `stepSample` (v10), `ppgHrSample` (v12), `sleepStateSample` (v21), `v18AuxSample` (v31), `ppgWaveformSample` (v27, unconsumed instrumentation), `ecgWaveformSample` (v81, unconsumed instrumentation) | Decoded from strap frames on-device |
 | **Raw outbox** (transient) | `rawBatch` | Compressed raw BLE frames, prunable |
-| **Bookkeeping** | `cursors`, `analysisInputRevision`, `analysisDeviceRevision`, `dayScanFingerprint` | Highwater marks and exact analysis-cache invalidation |
-| **Metric caches** | `sleepSession`, `dailyMetric`, `journal`, `workout`, `appleDaily`, `appleStepHour` (v41), `bodyWeightEntry` (v43), `metricSeries`, `scoreInputProvenance` | Derived metrics + their input-provider provenance + CSV / Apple-Health imports |
-| **Energy model** (v45–v49) | `healthEnergyBucket`, `whoopDailyEnergy`, `whoopEnergyHourly`, `energyCalibrationModel` | WHOOP-first daily energy, its evidence/context mix, the hourly profile behind the personal day curve, and an opt-in Apple Watch reference calibration — see below |
+| **Bookkeeping** | `cursors`, `analysisInputRevision`, `analysisDeviceRevision`, `dayScanFingerprint` | Highwater marks, the analysis recipe cursors, and exact analysis-cache invalidation |
+| **Metric caches** | `sleepSession`, `dailyMetric`, `journal`, `workout`, `appleDaily`, `appleStepHour` (v41), `bodyWeightEntry` (v43), `labMarker` (v17), `liveSession` (v22), `metricSeries`, `scoreInputProvenance` | Derived metrics + their input-provider provenance + CSV / Apple-Health imports + the wearer's own entries |
+| **Energy model** (v45–v50, v71, v93) | `healthEnergyBucket`, `whoopDailyEnergy`, `whoopEnergyHourly`, `whoopEnergyBucket`, `energyCalibrationModel` | WHOOP-first daily energy, its evidence/context mix, the hourly profile and five-minute timeline behind the personal day curve, and an opt-in Apple Watch reference calibration — see below |
+| **Workout side tables** | `workoutRecording` (v75), `workoutElevation` (v78), `workoutEnergySource` (v72), `workoutHeartRateFill` (v73), `workoutSourceMetadata` / `workoutHeartRateBucket` (v60), `activityCandidate` (v83), `activitySuggestionAnswer` (v82) | Evidence, provenance and fills kept beside `workout` rows, whose own columns belong to their source |
+| **Training fusion and native training** (v60–v67, v70, v90) | `trainingSessionLink`, `trainingSessionPairDecision`, `trainingSessionPreference`, `trainingExerciseDefinition`, `trainingRoutineNative`, `trainingRoutineExercise`, `trainingRoutineSetPlan`, `trainingWorkoutNative`, `trainingWorkoutExercise`, `trainingWorkoutSet`, `trainingWorkoutDraft`, `trainingSchedule`, `trainingDayOverride`, `trainingSessionRating`, `trainingExerciseAnatomyAlias`, `trainingSessionLoad`, `trainingProgram`, `trainingBlockRun` | The native strength-training log, plans and programs, session fusion decisions and session load |
+| **Strength sources** (v54–v56, v69) | `hevyWorkout`, `hevyExercise`, `hevySet`, `hevyExerciseTemplate`, `hevyRoutine`, `strengthExerciseMapping`, `muscleRecoveryFeedback`, `liftExercise`, `liftProgram`, `liftProgramItem`, `liftSession`, `liftSet` | Hevy sync lane, offline strength imports, and the lift log |
+| **Food** (v86–v92) | `foodCustom`, `foodLogEntry`, `foodRecipe`, `foodRecipeItem`, `foodFavourite`, `foodMeal`, `foodMealItem`, `foodDayComplete` | The wearer's food log and own foods (wearer input) |
+| **ECG** (v77, v81) | `ecgReading`, `ecgReadingPacket`, `ecgWaveformSample` | Saved WHOOP MG ECG readings and the verbatim flash-banked records |
+| **Health export tracking** (v76) | `healthExportChange`, `healthExportVersion` | Which Health-writeback kinds changed since the last committed export |
+| **Fork state** (v79, v80, v84) | `goalPreferenceState`, `hostInputOwnership`, `dismissedWorkout`, `dismissedSleep`, `coachMessage` | Android goal-store image, one-time legacy-input ownership marks, and the three tables only Android's former Room store had (empty on Apple) |
 | **Oura raw archive** (durable, v25) | `ouraRaw` | Verbatim Oura API payloads behind the opt-in cloud import — see below |
+| **Removed** | `rawImuSample` (v28, dropped by `v52-drop-raw-imu-sample`) | Raw IMU samples; no longer stored |
 
 All timestamp columns named `ts`, `startTs`, `endTs`, `capturedAt`, etc. are **unix seconds**
 (integers). Day-keyed cache tables use a `day` text column in `YYYY-MM-DD` form and compare it
@@ -109,9 +122,29 @@ Migrations are registered in `Packages/WhoopStore/Sources/WhoopStore/Database.sw
 | **v7** | Adds in-sleep signal aggregates to `dailyMetric`: `spo2Pct`, `skinTempDevC`, `respRateBpm` (all nullable). |
 | **v8** | Adds `journal`, `workout`, and `appleDaily` (Apple-Health daily aggregates). |
 | **v9** | Adds the generic long-format `metricSeries` table and its `(deviceId, key, day)` index. |
+| **v10** | Adds `stepSample` — the strap's step counter per second. |
+| **v11** | Adds nullable `dailyMetric.steps` and `dailyMetric.activeKcalEst` (the whole-day calorie estimate). |
+| **v12** | Adds `ppgHrSample` — the derived per-second heart-rate estimate from the 5.0 optical waveform, with its confidence. |
+| **v13**, **v14** | `sleepSession.userEdited` (the wearer corrected the night) and nullable `startTsAdjusted`. |
+| **v15-device-registry** | Adds `pairedDevice` (the device registry; seeds the existing WHOOP as `my-whoop`) and `dayOwnership` (which device owns a local day's displayed scores). |
+| **v16-paired-device-peripheral** | Adds `pairedDevice.peripheralId` (the OS peripheral identifier). |
+| **v17-lab-book** | Adds `labMarker` — dated lab and body markers entered or imported by the wearer. |
+| **v18-sleep-motion-state** | Adds `sleepSession.motionJSON` and `sleepStateJSON`. |
+| **v19-step-activity-class**, **v20-journal-numeric** | `stepSample.activityClass`; `journal.numericValue`. |
+| **v21-sleep-state-sample** | Adds `sleepStateSample` — the band's banked per-second sleep state. |
+| **v22-live-session** | Adds `liveSession` — live coaching sessions (band, floor and ceiling, time in and out of band). |
+| **v23-daily-spo2-raw** | Adds nullable `dailyMetric.spo2Red` and `spo2Ir`. |
 | **v24-rr-seq** | Rebuilds the `rrInterval` primary key as `(deviceId, ts, rrMs, seq)`, so an identical interval recurring within one second is no longer dropped. |
+| **v25-oura-raw** | Adds `ouraRaw`, the verbatim Oura API page archive (see below). |
+| **v26-efficiency-heal** | Data repair: efficiency values stored as percentages (above 1.5) are divided by 100 in `sleepSession` and `dailyMetric`. |
+| **v27-ppg-waveform**, **v28-raw-imu** | Adds `ppgWaveformSample` (raw optical waveform, newest-N retention) and `rawImuSample`; the latter is dropped again by v52. |
 | **v29-score-input-provenance** | Adds metric-level `scoreInputProvenance` for NOOP-computed headline scores. It does not change `dayOwnership` or score precedence. |
 | **v30-rr-ord** | Adds the nullable `rrInterval.ord` column — emission order within a `ts` — and makes it lead the read sort (#823/#830). Additive; pre-existing rows keep `ord` NULL. |
+| **v31-deep-capture-channels** | Adds `gravitySample.dynAccel`, `sleepStateSample.rawByte`, `skinTempSample.aux1Raw` / `aux2Raw`, and the `v18AuxSample` table. |
+| **v32-rr-src-channel**, **v35-rr-future-quarantine** | `rrInterval.srcChannel` (which channel delivered the beat) and `rrInterval.tsSuspect` (a marked, never deleted, future-stamped beat). |
+| **v33-workout-steps**, **v34-sleep-staging-sparse** | `workout.steps`; `sleepSession.stagingSparse`. |
+| **v36-whoop-caps-no-spo2** | Data repair: strips the SpO₂ token from WHOOP rows' stored capabilities in `pairedDevice`. |
+| **v37-daily-avg-sdnn** | Adds nullable `dailyMetric.avgSdnn` — the nightly 5-minute SDNN index. |
 | **v38-day-scan-fingerprint** | Adds per-local-day analysis fingerprints so unchanged raw windows can reuse their persisted computed rows. |
 | **v39-day-scan-traits** | Adds nullable learned-trait carry values to the fingerprint. Missing values deliberately make a legacy fingerprint stale. |
 | **v40-analysis-input-revision** | Adds UTC-day input revisions, per-device revisions, and nullable scoring/semantic fingerprint fields. All additions are backward-compatible; derived output writes do not advance the input revision. |
@@ -124,16 +157,38 @@ Migrations are registered in `Packages/WhoopStore/Sources/WhoopStore/Database.sw
 | **v47-energy-calibration-model** | Adds `energyCalibrationModel` — the opt-in, per-device Apple Watch calibration fit (bounded factor, sample size, fit quality). Row absence means disabled; an explicit `enabled` flag lets a user pause without discarding a hard-won fit. |
 | **v48-whoop-energy-hourly** | Adds `whoopEnergyHourly` — one day's ACTIVE energy at hourly resolution, written by the same bucket pass as `whoopDailyEnergy`. The substrate for the personal time-of-day activity curve that replaced the linear day forecast. Additive, no existing row touched. |
 | **v49-whoop-energy-context** | Adds `representedSeconds`, `physiologicalSeconds`, and `contextJSON` to `whoopDailyEnergy`. v4 can keep HR evidence distinct from quiet-HR physiology while giving `EnergyEngine` the exact wall-time denominator whose basal share is already inside the total. Defaults preserve old rows, which version filtering ignores until the atomic 120-day recompute replaces them. |
+| **v50-whoop-energy-buckets** | Adds `whoopEnergyBucket` — the auditable five-minute output behind the current-day cumulative chart. |
+| **v51-daily-skin-temp-absolute** | Adds nullable `dailyMetric.skinTempC` (the night's absolute skin temperature). |
+| **v52-drop-raw-imu-sample** | Drops `rawImuSample`. |
+| **v53-daily-sleep-hr-only** | Adds nullable `dailyMetric.sleepHrOnly` (every sleep session that day was staged from heart rate alone, #1801). Renumbered from upstream's `v42-daily-sleep-hr-only`. |
+| **v54-hevy-strength**, **v55-muscle-recovery-feedback**, **v56-strength-sources** | The Hevy lane's own tables (`hevyWorkout`, `hevyExercise`, `hevySet`, `hevyExerciseTemplate`, `hevyRoutine`); the wearer's per-muscle-group recovery feedback; `hevyWorkout.source` and `strengthExerciseMapping` so offline strength imports share the tables. |
+| **v57-ppg-waveform-base-code**, **v58-rr-transport** | `ppgWaveformSample.baseCode`; `rrInterval.transport` (which transport delivered the beat, so the two copies of a heartbeat are not scored together). |
 | **v59-reattribute-archived-strap-samples** | Data repair, no schema change. Moves per-sample stream rows (`hrSample`, `rrInterval`, `gravitySample`, the other Type-47 and 5/MG streams, `event`, `battery`, and `rawBatch`) that were filed under an **archived** WHOOP registry row after its `lastSeenAt` onto the **active** WHOOP with the same `peripheralId`. These are the samples the pre-fix `SourceIdentity.resolve` misattributed to a re-added strap's old row (#1881 follow-up). `UPDATE OR IGNORE`: a sample whose key already exists under the active id stays where it was, and nothing is deleted. Marks the moved UTC days in `analysisInputRevision` for both ids, so exactly those days re-score. |
-| **Training and workouts** (selected, v60–v75) | `v60-training-session-fusion` and `v61-native-training` with its follow-ups (`v62`…`v67`) build the native strength-training tables; `v69-lift-log`, `v70-training-session-load`, `v72-workout-energy-source`, `v73-workout-heart-rate-fill` and `v75-workout-recording` add workout-side tables. See `Database.swift` for each identifier and for the stream migrations in between (`v68-rr-source-index`, `v71-whoop-energy-fitness`, `v74-rr-whoop5-fill`). |
-| **v77-ecg-reading**, **v81-ecg-waveform** | Saved WHOOP MG ECG readings, and `ecgWaveformSample` — the flash-banked MG ECG records stored verbatim (upstream's v48, renumbered after the fork's v80). Nothing reads the waveform rows yet. |
+| **v60-training-session-fusion** | Adds `workoutSourceMetadata`, `workoutHeartRateBucket`, `trainingSessionLink`, `trainingSessionPairDecision` and `trainingSessionPreference` — the tables that fuse several recordings of one session. |
+| **v61-native-training** … **v67** | The native strength-training log: exercise definitions, routines (with exercises and set plans), workouts (with exercises and sets), drafts, the weekly schedule and day overrides (v61); `trainingSessionRating` (v62); `trainingExerciseAnatomyAlias` (v63); load semantics, intensifiers, clusters (v64); the physiology lifecycle link (v65); `pauseIntervalsJSON` (v66); canonical exercise identity (v67). Details below. |
+| **v68-rr-source-index** | Adds the `rrInterval_source_suspect` index on `(srcChannel, tsSuspect)`. |
+| **v69-lift-log** | Adds the lift log: `liftExercise`, `liftProgram`, `liftProgramItem`, `liftSession`, `liftSet`. |
+| **v70-training-session-load** | Adds `trainingSessionLoad` — per-session load (TRIMP and effort) keyed by method and method version, with its input fingerprint. Derived. |
+| **v71-whoop-energy-fitness** | Adds fitness-evidence columns to `whoopDailyEnergy` (`aerobicSeconds`, `hadLightActivity`, `peakMET`, `peakMETSource`, `peakMETSourceDay`, `measuredVO2max`, `measuredWeightKg`, `activityLevel`). Replaced by the next 120-day recompute. |
+| **v72-workout-energy-source**, **v73-workout-heart-rate-fill** | Whether a workout's stored energy was computed by NOOP or entered by the wearer; the heart rate NOOP filled into a workout (`workoutHeartRateFill`, plus `workoutSourceMetadata.steps`). |
+| **v74-rr-whoop5-fill** | Data only: marks the WHOOP 5 500 ms fill beats already stored with `tsSuspect = 1` (never deleted). |
+| **v75-workout-recording** | Adds `workoutRecording` — the live recording evidence of a workout. |
+| **v76-health-sync-state** | Adds `healthExportChange` and `healthExportVersion` with triggers that record which kinds of rows (workouts, sleep, vitals, weight, waist) changed since the last committed Health export. |
+| **v77-ecg-reading**, **v81-ecg-waveform** | Saved WHOOP MG ECG readings (`ecgReading`, `ecgReadingPacket`), and `ecgWaveformSample` — the flash-banked MG ECG records stored verbatim (upstream's v48, renumbered after the fork's v80). Nothing reads the waveform rows yet. |
 | **v78-workout-elevation** | Adds `workoutElevation` — ascent/descent for a workout, from NOOP's barometer or the workout's source. Additive. |
+| **v79-goal-preference-state**, **v80-host-input-ownership** | Fork: `goalPreferenceState` (one row holding the shared goal stores' property-list image) and `hostInputOwnership` (one-time legacy-input ownership marks). |
 | **v82-activity-suggestion-answer**, **v83-activity-candidate** | The wearer's answers to activity-detection suggestions (wearer input, carried in the `.noopbak` copy) and the daily pass's rolling suggestion window. Additive. |
 | **v84-android-only-tables** | Fork: `dismissedWorkout`, `dismissedSleep` and `coachMessage`, the three tables only Android's former Room store had, so Android keeps them in the core's store. Empty on Apple. |
 | **v85-single-active-device** | Fork: registry repair that keeps one active device when a store holds two (for example an Android backup converted on top of the seeded `my-whoop`). No derived value changes. |
+| **v86-food-log** … **v88-food-day-complete** | Fork: the food log (`foodCustom`, `foodLogEntry`, `foodRecipe`, `foodRecipeItem`, `foodFavourite`); `foodLogEntry.photoId`; `foodDayComplete` (days the wearer marked as completely logged). Wearer input, carried in the `.noopbak` copy. |
+| **v89-workout-route** | Adds nullable `workout.routePolyline` (Android's GPS route; Apple keeps routes in files and leaves it null). |
+| **v90-training-program** | Fork: `trainingProgram` and `trainingBlockRun`; `trainingRoutineNative.programId`; `trainingSchedule` rebuilt keyed by `(programId, weekday, idx)`. Existing routines and the week move into one active strength plan. |
+| **v91-food-saved-meal**, **v92-food-package** | Saved meals (`foodMeal`, `foodMealItem`); `foodCustom.liquid`, `packageAmount`, `packageCount`. |
+| **v93-energy-everyday** | Fork: `whoopEnergyBucket.everydayKcal` and `whoopDailyEnergy.everydaySeconds`, `sleepWindowStartMinute`, `sleepWindowEndMinute` (the everyday allowance of energy model `whoop-bucket-v10`). Recomputed by the model's own 120-day pass. |
+| **v94-weight-water-mark** | Fork: nullable `bodyWeightEntry.waterMark` (the wearer's note that a weigh-in is water-affected). |
 
-> This table is a selection, not the full list — it covers the migrations the tables above refer to.
-> The registered set is the authority. Migrations are keyed by their **identifier string**, not by
+> This list summarises each migration; the registered set in `Database.swift` is the authority for the
+> exact schema. Some migrations call helpers in the store's own files (for example `createFoodLogTables`). Migrations are keyed by their **identifier string**, not by
 > the number in it, so renaming one re-runs it against an already-migrated database. Cite the
 > identifier in full — `v30-rr-ord`, not "v30".
 
@@ -208,6 +263,9 @@ stuck-strap watchdog.
 | `rrMs` | INTEGER NOT NULL | Beat-to-beat interval, milliseconds. Part of PK. |
 | `seq` | INTEGER NOT NULL DEFAULT 0 | *(v24)* Repeat counter for an **identical** beat. Part of PK. |
 | `ord` | INTEGER | *(v30)* Emission order within `ts`. Nullable; **not** in the PK. |
+| `srcChannel` | INTEGER | *(v32)* Nullable. Which channel delivered the beat. Indexed with `tsSuspect` by `rrInterval_source_suspect` (v68). |
+| `tsSuspect` | INTEGER | *(v35)* Nullable. `1` marks a beat that is quarantined (future-stamped, v35, or a WHOOP 5 500 ms fill beat, v74); scoring reads filter it, and the row is never deleted. |
+| `transport` | INTEGER | *(v58)* Nullable. Which transport delivered the beat (historical packet or standard `0x2A37` notification), so the two copies of one heartbeat are not scored together. |
 | `synced` | INTEGER NOT NULL DEFAULT 0 | *(v5, vestigial)* |
 
 **Primary key:** `(deviceId, ts, rrMs, seq)` — `rrMs` is in the key because multiple R-R intervals can
@@ -407,7 +465,7 @@ CSV / Apple-Health data arrives through `StrandImport`. Every cache table follow
 contract: a `Codable` struct, an idempotent `ON CONFLICT(...) DO UPDATE` upsert keyed by its
 natural key (latest value wins), and range-read accessors that run off-main.
 
-### `sleepSession` *(v4)*
+### `sleepSession` *(v4, + v13/v14/v18/v34 columns)*
 
 One row per sleep session (`MetricsCache.swift`, `struct CachedSleepSession`).
 
@@ -420,10 +478,14 @@ One row per sleep session (`MetricsCache.swift`, `struct CachedSleepSession`).
 | `restingHr` | INTEGER | Resting HR, nullable. |
 | `avgHrv` | DOUBLE | Average HRV, nullable. |
 | `stagesJSON` | TEXT | Verbatim JSON array of stage segments (`[{start,end,stage}]`), nullable — stored as a string so the cache stays schema-agnostic about staging shape. |
+| `userEdited` | BOOLEAN NOT NULL DEFAULT false | *(v13)* The wearer fixed this night's bounds by hand; the post-sync recompute keeps them instead of re-upserting the detected session. |
+| `startTsAdjusted` | INTEGER | *(v14)* Nullable hand-set bedtime; `NULL` means use `startTs`, which stays the immutable detected key. |
+| `motionJSON`, `sleepStateJSON` | TEXT | *(v18)* Nullable per-night motion and band sleep-state series. |
+| `stagingSparse` | INTEGER | *(v34)* Nullable flag: the night was staged on sparse motion coverage (so the Sleep tab can caption it). `NULL` means unknown. |
 
 **Primary key:** `(deviceId, startTs)`. Read by `startTs` range, oldest first.
 
-### `dailyMetric` *(v4, +v7 columns)*
+### `dailyMetric` *(v4, +v7 columns and later)*
 
 One row per calendar day (`MetricsCache.swift`, `struct DailyMetric`). This is the central
 per-day rollup behind the dashboard. **Natural key `(deviceId, day)`** where `day` is
@@ -448,6 +510,12 @@ per-day rollup behind the dashboard. **Natural key `(deviceId, day)`** where `da
 | `skinTempDevC` | DOUBLE | v7 | Skin-temperature deviation (°C) from baseline. |
 | `respRateBpm` | DOUBLE | v7 | Mean respiration rate (breaths/min) during sleep. |
 | `energyCoverageSeconds` | INTEGER | v44 | Distinct HR seconds behind `activeKcalEst` — lets `EnergyEngine` tell a fully-covered day from a short intense one. |
+| `steps` | INTEGER | v11 | On-device daily step total. |
+| `activeKcalEst` | DOUBLE | v11 | Whole-day calorie estimate. |
+| `spo2Red`, `spo2Ir` | INTEGER | v23 | Raw nightly SpO₂ ADC aggregates. |
+| `avgSdnn` | DOUBLE | v37 | Nightly 5-minute SDNN index. |
+| `skinTempC` | DOUBLE | v51 | Absolute nightly skin temperature (°C). |
+| `sleepHrOnly` | BOOLEAN | v53 | Every sleep session that day was staged from heart rate alone. |
 
 **Primary key:** `(deviceId, day)`. Read by lexicographic `day` range, oldest first. The
 `DailyMetric` struct's `init` defaults the three v7 fields to `nil` so older callers stay
@@ -464,6 +532,7 @@ One user-answered daily prompt (`JournalWorkoutAppleCache.swift`, `struct Journa
 | `question` | TEXT NOT NULL | Prompt text. Part of PK. |
 | `answeredYes` | INTEGER NOT NULL | `0`/`1`, mapped to/from `Bool`. |
 | `notes` | TEXT | Free-text note, nullable. |
+| `numericValue` | DOUBLE | *(v20)* Nullable numeric reading (for example caffeine mg) logged alongside the yes/no answer; `NULL` means a plain yes/no row. |
 
 **Primary key:** `(deviceId, day, question)`. Read by `day` range, ordered `day ASC, question
 ASC`.
@@ -487,6 +556,8 @@ One workout (`JournalWorkoutAppleCache.swift`, `struct WorkoutRow`). All metric 
 | `distanceM` | DOUBLE | Distance, meters. |
 | `zonesJSON` | TEXT | Verbatim JSON of HR-zone percentages — stored as a string so the cache stays schema-agnostic about zone shape. |
 | `notes` | TEXT | Free-text note. |
+| `steps` | INTEGER | *(v33)* Nullable step count. |
+| `routePolyline` | TEXT | *(v89)* Nullable encoded GPS route (Android; Apple keeps routes in files). |
 
 **Primary key:** `(deviceId, startTs, sport)`. Read by `startTs` range, oldest first.
 
@@ -668,7 +739,7 @@ legacy scores without a row have unknown provenance and the UI omits their provi
 ## Energy model tables
 
 The Energy card (`Strand/Screens/EnergyCard.swift`) and `EnergyEngine` (`docs/ANALYTICS.md` §Daily
-energy) read `dailyMetric`/`appleDaily` above plus these four tables. All four are additive and
+energy) read `dailyMetric`/`appleDaily` above plus these five tables. All five are additive and
 keep WHOOP-derived and Apple-Health-derived energy data in separate rows — none of them is ever
 folded into `dailyMetric`, so importing or recomputing one cannot silently change another.
 
@@ -713,7 +784,7 @@ WhoopDailyEnergyRow`) — `WhoopEnergyModel`'s output with its evidence mix, kep
 | `deviceId` | TEXT NOT NULL | Part of PK. |
 | `day` | TEXT NOT NULL | `YYYY-MM-DD`. Part of PK. |
 | `rawTotalKcal` | DOUBLE NOT NULL | Model output **before** Watch calibration/basal top-up. |
-| `modelVersion` | TEXT NOT NULL | Currently `"whoop-bucket-v6"` (`WhoopDailyEnergyEstimate.modelVersion`). Reads filter on it, so a superseded row is ignored rather than mixed into a trend. |
+| `modelVersion` | TEXT NOT NULL | Currently `"whoop-bucket-v10"` (`WhoopDailyEnergyEstimate.modelVersion`). Reads filter on it, so a superseded row is ignored rather than mixed into a trend. |
 | `observedSeconds` | INTEGER NOT NULL | Seconds backed by a valid HR sample. |
 | `inferredSeconds` | INTEGER NOT NULL | Seconds backed by movement without HR. |
 | `modeledSeconds` | INTEGER NOT NULL | Seconds that are pure basal fill (off-wrist/sleep/no signal). |
@@ -723,6 +794,8 @@ WhoopDailyEnergyRow`) — `WhoopEnergyModel`'s output with its evidence mix, kep
 | `representedSeconds` | INTEGER NOT NULL | Added v49, default `0`. Wall-clock seconds whose basal share is already inside `rawTotalKcal`; this, not HR coverage, is the denominator for the unrepresented-day basal top-up. |
 | `physiologicalSeconds` | INTEGER NOT NULL | Added v49, default `0`. HR-backed seconds whose above-basal energy was bounded because no independent activity context existed. |
 | `contextJSON` | TEXT NOT NULL | Added v49, default `{}`. Stable object keyed by `EnergyContext` raw values with per-context seconds; keeps WhoopStore independent of StrandAnalytics enums. |
+| `aerobicSeconds`, `hadLightActivity`, `peakMET`, `peakMETSource`, `peakMETSourceDay`, `measuredVO2max`, `measuredWeightKg`, `activityLevel` | mixed | Added v71. The fitness evidence the day's activity category was resolved from (neutral defaults; nullable where unknown). |
+| `everydaySeconds`, `sleepWindowStartMinute`, `sleepWindowEndMinute` | INTEGER | Added v93. Awake still seconds priced at the everyday allowance, and the usual sleep window the day was resolved against (the minutes are nullable). |
 
 **Primary key:** `(deviceId, day)`. **Index:** `idx_whoopDailyEnergy_device_day` on
 `(deviceId, day)`. Upserts are conditional (`WHERE ... IS NOT excluded....`) so a re-run that
@@ -827,6 +900,85 @@ too, not left behind.
 
 ---
 
+## Further tables
+
+These tables were added after the ones documented column by column above. Each is additive; the migration
+list gives the version and `Database.swift` (or the named store file under
+`Packages/WhoopStore/Sources/WhoopStore/`) the exact columns. Wearer inputs are never recomputed;
+derived tables are rebuilt by the analysis recipe (below).
+
+| Table | Migration | Primary key | Holds |
+| --- | --- | --- | --- |
+| `pairedDevice` | v15 (+v16) | `id` | Device registry: brand, model, nickname, source kind, capabilities, status (one `active`), peripheral id. |
+| `dayOwnership` | v15 | `day` | Which device owns a local day's displayed scores; `locked` marks an explicit choice. |
+| `stepSample` | v10 (+v19) | `(deviceId, ts)` | Strap step counter and activity class per second. |
+| `ppgHrSample` | v12 | `(deviceId, ts)` | Derived per-second heart-rate estimate (`bpm`, `conf`) from the optical waveform. |
+| `labMarker` | v17 | `id` | Lab and body markers entered or imported by the wearer. |
+| `sleepStateSample` | v21 | `(deviceId, ts)` | Band-banked per-second sleep state (+ `rawByte`, v31). |
+| `liveSession` | v22 | `(deviceId, startTs)` | Live coaching sessions: HR band, time in/below/above band, pushes and eases, HR source. |
+| `v18AuxSample` | v31 | `(deviceId, ts)` | Auxiliary channels of the v18 record layout, newest-N retention. |
+| `workoutSourceMetadata`, `workoutHeartRateBucket` | v60 (+v73) | `componentKey`; `(componentKey, bucketStart)` | Per-recording source metadata and heart-rate buckets used to fuse recordings. |
+| `trainingSessionLink`, `trainingSessionPairDecision`, `trainingSessionPreference` | v60 | `componentKey`; `(leftKey, rightKey)`; `sessionId` | How recordings group into one training session and which one leads. |
+| `trainingExerciseDefinition`, `trainingRoutineNative`, `trainingRoutineExercise`, `trainingRoutineSetPlan` | v61 (+v64, v67, v90) | `id` | Native exercise definitions, routines and set plans. |
+| `trainingWorkoutNative`, `trainingWorkoutExercise`, `trainingWorkoutSet`, `trainingWorkoutDraft` | v61 (+v64–v66) | `id` | The native strength workout log and its in-progress draft. |
+| `trainingSchedule`, `trainingDayOverride` | v61, v90 | `(programId, weekday, idx)`; `(day, idx)` | The weekly schedule per program and one-off day overrides. |
+| `trainingProgram`, `trainingBlockRun` | v90 | `id` | Training programs (kind, targets, active flag) and their block runs. |
+| `trainingSessionRating`, `trainingExerciseAnatomyAlias` | v62, v63 | `id`; `key` | Whole-session RPE answers; provider/title mappings to the anatomy catalogue (documented above). |
+| `trainingSessionLoad` | v70 | `(sessionId, method, methodVersion)` | Derived per-session load (TRIMP, effort) with its input fingerprint and HR source. |
+| `hevyWorkout`, `hevyExercise`, `hevySet`, `hevyExerciseTemplate`, `hevyRoutine` | v54 (+v56) | Hevy ids | The Hevy lane and offline strength imports (`source` column). |
+| `strengthExerciseMapping`, `muscleRecoveryFeedback` | v56, v55 | `normalizedTitle`; `(muscleGroup, ts)` | Wearer-assigned muscle groups for unknown imported exercises; per-muscle recovery feedback. |
+| `liftExercise`, `liftProgram`, `liftProgramItem`, `liftSession`, `liftSet` | v69 | `id` | The lift log: exercises, programs, sessions and sets. |
+| `workoutEnergySource`, `workoutHeartRateFill`, `workoutElevation`, `workoutRecording` | v72, v73, v78, v75 | `(deviceId, startTs, sport)` | Per-workout side tables: energy provenance, filled heart rate, ascent and descent, live recording evidence. |
+| `healthExportChange`, `healthExportVersion` | v76 | `kind`; `id` | Health-writeback bookkeeping fed by triggers on the exported tables. |
+| `ecgReading`, `ecgReadingPacket` | v77 | `id`; `(readingId, position)` | Saved WHOOP MG ECG readings and their accepted waveform windows. |
+| `ecgWaveformSample` | v81 | `(deviceId, ts, sequence)` | Verbatim flash-banked ECG records, newest-N retention; no reader yet. |
+| `goalPreferenceState` | v79 | `id` (always 1) | The shared goal stores' property-list image. |
+| `hostInputOwnership` | v80 | `key` | One-time legacy-input ownership marks for inputs adopted from Android's former store. |
+| `activitySuggestionAnswer`, `activityCandidate` | v82, v83 | `(track, candidateStartTs)`; `(deviceId, track, startTs)` | The wearer's answers to activity suggestions; the daily pass's rolling suggestion window. |
+| `dismissedWorkout`, `dismissedSleep`, `coachMessage` | v84 | `(deviceId, startTs)`; `(deviceId, startTs)`; `id` | Tombstones and coach history for Android (empty on Apple). |
+| `foodCustom`, `foodLogEntry`, `foodRecipe`, `foodRecipeItem`, `foodFavourite`, `foodMeal`, `foodMealItem`, `foodDayComplete` | v86–v92 | `id` (items by position; `foodDayComplete` by `day`) | The wearer's own foods, meals, recipes, favourites and the days marked completely logged. |
+| `trainingWorkoutNative.*` lifecycle columns | v64–v66 | — | See *Native workout semantics*, *physiology lifecycle* and *summary pauses* above. |
+
+`DeviceRegistryStore.deviceScopedTables` lists the tables a per-device wipe empties; `ouraRaw` is deliberately
+not among them (see its section).
+
+---
+
+## Analysis recipe
+
+Derived rows (`dailyMetric` scores, `sleepSession` stages, `metricSeries` computed keys, `whoopDailyEnergy`,
+`trainingSessionLoad`, and the like) are computed from the inputs above, so a change to scoring can make
+stored rows mean something the code no longer produces. The fork tracks that with an **analysis recipe**:
+
+- `AnalysisRecipe.currentVersion` (`Packages/StrandCore/Sources/StrandCore/AnalysisRecipe.swift`, currently
+  `39`, numbered AI-n) is the version of the *meaning* of the persisted derived values. It is unrelated to
+  `MARKETING_VERSION`, build numbers or the Xcode version.
+- The `cursors` row `noopai:analysisRecipeVersion` records the recipe the stored rows were computed under.
+  `AnalysisRecipe.decision(storedVersion:openedFromUpstream:)` answers `anchorCurrent` (an existing install
+  without a cursor adopts the current recipe without a historical rescore), `upToDate`, or
+  `migrate(from:to:)`. A store created by upstream NOOP migrates from `0`, because upstream rows were not
+  scored by this fork.
+- Every migration runs the same rebuild (`AnalysisRecipe.RebuildStep`, in order: `legacyRepairs`,
+  `healthspanReset`, `workoutPeaks`, `dailyHistory`, `weeklyScores`, `stressProxy`, `rhythmDays`,
+  `workoutHeartRate`, `cardioLoad`, `energyHistory`, `publish`): every day with raw strap data is scored
+  again and each derived table is rebuilt from its stored inputs. Progress is kept in the cursor
+  `noopai:analysisRebuildPosition` (`target * 100 + next step`), so an interrupted rebuild resumes at the
+  step it was in, and the recipe cursor is written only after the last step.
+- The rebuild never erases raw samples and never replaces a value an import or the wearer supplied: a
+  corrected night keeps its bed and wake times and only its derived stages are recomputed.
+- Repairs of stored *inputs* (for example re-pricing rows the wearer did not enter) are idempotent repairs,
+  not derivations; the ones an older store still owes are applied by the `legacyRepairs` step
+  (`AnalysisRecipe.legacyRepairs(from:)`) or guarded by their own cursor. Data-repair migrations such as
+  `v59-reattribute-archived-strap-samples` mark the days they touch in `analysisInputRevision` so exactly
+  those days score again.
+
+Migrations in this document say when a derived table's own recompute (for example the energy model's 120-day
+pass) or the recipe rebuild replaces its rows. The rules for when a change must bump the recipe are in
+[`fork/AGENT_RULES.md`](fork/AGENT_RULES.md). The manual 21-day reanalysis in Settings is a diagnostic and
+does not advance the recipe version.
+
+---
+
 ## Index summary
 
 | Index | Table | Columns | Purpose |
@@ -835,7 +987,9 @@ too, not left behind.
 | `idx_metricSeries_device_key_day` | `metricSeries` | `deviceId, key, day` | Index-only per-metric range reads. |
 | `idx_ouraRaw_device_endpoint_day` | `ouraRaw` | `deviceId, endpoint, day` | Index-only per-endpoint range reads. |
 
-Every other table relies on its primary-key index; the decoded-stream and date-range reads are all
+The tables in *Further tables* add their own secondary indexes (named `idx_<table>_…`, created beside the
+table in `Database.swift`), for example `idx_bodyWeightEntry_device_takenAt`, `idx_labMarker_*`,
+`idx_trainingWorkoutNative_*` and `idx_liftSet_*`. Every other table relies on its primary-key index; the decoded-stream and date-range reads are all
 served by the `(deviceId, ts)` / `(deviceId, day)` / `(deviceId, startTs)` primary keys.
 
 ---

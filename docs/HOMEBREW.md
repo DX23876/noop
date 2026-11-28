@@ -4,10 +4,11 @@
 > `noopapp/noop` tap referenced by older releases is gone — the upstream `noopapp` GitHub org (and its
 > `homebrew-noop` repo) no longer exists (#1069), so `brew tap noopapp/noop` fails outright.
 >
-> **Install NOOP on macOS by downloading `NOOP-macos-v12.2.1-dx.zip` from the
-> [12.2.1 release](https://github.com/DX23876/noop/releases/tag/v12.2.1-dx)** (or the newest build on the
-> [latest release](https://github.com/DX23876/noop/releases/latest) page). It is universal for
-> Apple Silicon and Intel; unzip it and drag the app to Applications.
+> **Install NOOP on macOS by downloading `NOOP-macos-v<version>-dx.zip` from the
+> [latest release](https://github.com/DX23876/noop_forge/releases/latest)** (for 13.0.0 that is
+> `NOOP-macos-v13.0.0-dx.zip`). It is universal for Apple Silicon and Intel; unzip it and drag the app to
+> Applications. The [install guide](https://dx23876.github.io/forge/install/) on the project website covers
+> every platform.
 > See **Mac** under [Install](../README.md#install) in the README for the one-time first-launch step
 > (NOOP ships anonymously and isn't notarized, so macOS blocks a plain double-click the first time;
 > right-click → Open clears it).
@@ -29,10 +30,10 @@ brew upgrade --cask noop   # later updates
 To bring that back, a public `homebrew-noop` tap repo must be created under this fork's org (e.g.
 `DX23876/homebrew-noop`), holding `Casks/noop.rb` pointing at the macOS `.zip` attached to each release.
 `Tools/update-homebrew-cask.sh` still automates the cask refresh, but it defaults to the dead `NoopApp`
-tap — point it at the new repo via the `FORGE_ORG` / `FORGE_REPO` environment variables:
+tap — point it at the new repo via the `FORGE_ORG` / `FORGE_REPO` environment variables (the repository is now `DX23876/noop_forge`):
 
 ```bash
-FORGE_ORG=DX23876 Tools/update-homebrew-cask.sh <version> <zip>
+FORGE_ORG=DX23876 FORGE_REPO=noop_forge Tools/update-homebrew-cask.sh <version> <zip>
 ```
 
 The script still uses upstream's tag and asset names (`v<version>` / `NOOP-v<version>-macos.zip`, both

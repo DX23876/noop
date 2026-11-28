@@ -5,6 +5,25 @@ work was distributed, how much recent training stimulus may remain, and where su
 a clear strength trend. The three views share anatomy and input data, but their values are not added or
 treated as interchangeable scores.
 
+## Where it appears
+
+The muscle analytics surface (`MuscleAnalyticsSurface`) is the **Muscles** page of the Strength page
+(iPhone: Training › Strength › Muscles; the Mac shows it on its Strength page; Android has the same three
+modes in `ForgeTrainingMuscles.kt`, with the shared figure). A control switches between **Balance**,
+**Fatigue** and **Strength**, another between the front and the back of the body, and the figure can be
+male or female (`training.bodyFigure`). Tapping a muscle opens its detail with the sessions and exercises
+behind the value. The body geometry comes from the MIT-licensed MuscleMap package (credited on the page).
+It needs no network, and the routine cards show small figures of the muscles a routine trains.
+
+Beside it the Strength page keeps a separate load map over Hevy-style muscle groups with its own switch,
+**Right now** (the default; what may still be on you) and **This week** (the calendar week against your
+usual week). Tapping a group there lets the wearer say how recovered it feels, in four coarse answers;
+that feeling can fit the personal decay time used by Muscle Fatigue. The feeling answer was not found on
+Android. For exercises an import could not map, the Strength page lets the wearer choose primary and
+secondary muscles once; the choice is kept as a mapping and never rewrites the original sets.
+
+The older Lift Log screens are not reachable and are not part of this analysis.
+
 ## Shared input and coverage
 
 All views read `resolvedStrengthHistory`, NOOP's de-duplicated strength history. It chooses one detailed

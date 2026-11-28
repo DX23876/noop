@@ -19,7 +19,7 @@ Strand/AI/
 │                                presets or fully custom
 ├── CoachPersona.swift         Guardian / Friend / Commander — coaching STYLE only; the name lives
 │                                in CoachIdentity now
-├── CoachTools.swift           The 38 tools: schemas + dispatch
+├── CoachTools.swift           The 40 tools: schemas + dispatch
 ├── CoachDataCatalog.swift     Metadata-only local metric discovery + safe source labels
 ├── CoachLocalContextPlanner.swift  On-device, question-specific context-category selection for tool-less providers
 ├── CoachMetricHistory.swift   Bounded local long-range trend aggregation + source selection
@@ -85,13 +85,17 @@ Strand/Screens/
 `.environmentObject(model.coach)`. It owns the conversation list, the active conversation, streaming
 state, and every setting.
 
-**Android (in testing) runs the same engine.** `Packages/NoopCoreJNI/Sources/NoopCore/Shared` links the
+**Android runs the same engine.** `Packages/NoopCoreJNI/Sources/NoopCore/Shared` links the
 `Strand/AI/` sources into the shared core, and the Android chat calls it through `coach.configure`,
 `coach.send` and `coach.state` (`android/…/core/CoreCoach.kt`): Kotlin hands in the settings and the key
 from its encrypted store, the core keeps the key in memory only, and the conversation history and plan
 book come from the same `CoachPlanStore`. Streaming goes through `streamedBytes(for:)` in `StrandCore`,
-because Android's Foundation has no `URLSession.bytes(for:)`. Not on Android yet: the semantic Coach
-memory (Nomic on llama.cpp, see the iOS Nomic runtime below). Running state: [`android/STATUS.md`](android/STATUS.md).
+because Android's Foundation has no `URLSession.bytes(for:)`. Android offers chat, conversation history,
+the plan book, goal and routine drafts, and Hevy drafts, through the Forge Compose screens
+(`ForgeCoach*.kt`, `ForgePlans.kt`). Its provider list is Anthropic, OpenAI, Google Gemini and a custom
+OpenAI-compatible server; **OpenRouter is not offered on Android**. There is no semantic Coach memory
+there: the on-device Nomic model ships in the iPhone app only (see the iOS Nomic runtime below), and
+Android retrieves by keyword. Running state: [`android/STATUS.md`](android/STATUS.md).
 
 ### The request path
 
@@ -139,13 +143,14 @@ Three deliberate choices in there:
 
 ---
 
-## 2. The 38 tools
+## 2. The 40 tools
 
 Declared in `CoachTools.swift` as `CoachTool`, offered to the model as JSON Schema, dispatched in
 `runCoachTool(_:input:)`. **All of them are gated behind `dataConsent`** — without it the dispatcher
 returns a polite "no data access" string and the model coaches generally. Underneath that master switch,
-each tool ALSO belongs to one of nine `CoachPurpose` groups (`ToolConsent.swift`) — core biometrics,
-long-term history, workouts, planning, stress, logging, sensitive logs, memory, patterns — that the user grants independently in Settings →
+each tool ALSO belongs to one of ten `CoachPurpose` groups (`ToolConsent.swift`) — core biometrics
+(`coreBiometrics`), long-term history (`longHistory`), workouts, planning, stress, logging (`logs`),
+sensitive logs (`sensitiveLogs`), memory, patterns and food (`food`) — that the user grants independently in Settings →
 Privacy & data → Data access. A tool whose purpose isn't granted is left out of the list offered to the
 model entirely (`coachTools`), with a defensive re-check in `runCoachTool` for a stale in-flight round.
 `get_personal_patterns` and `get_training_preferences` share the `patterns` group, which doubles as the
@@ -154,7 +159,7 @@ values remain separately protected by the `logs` group even though their chart p
 lives beside ordinary metrics.
 
 Tool-calling engages for every provider that conforms to `ToolCallingClient` — Anthropic, OpenAI,
-OpenRouter (per selected model, gated on `supported_parameters`) and Gemini. **Custom is the only one
+OpenRouter (iPhone and Mac only; per selected model, gated on `supported_parameters`) and Gemini. **Custom is the only one
 left out, deliberately**: tool support on a local server depends on both the server and the model, and
 many local models fail silently or return malformed JSON instead of a clean error. That path still
 falls back to the pre-baked context, which is why Readiness, Charge drivers, the active plan and its
@@ -188,6 +193,7 @@ breakpoint, and a per-request clock would invalidate the prefix cache every turn
 | `get_session_outlook` | `sport`, optional `swap_from` | What a session costs *this user*, from their own history: typical next-morning Charge cost, bounce-back days, tomorrow's projection. Pass `swap_from` to compare two activities side by side. |
 | `simulate_day` | `effort`, `sleep_hours` | Projects tomorrow-morning Charge for a hypothetical ("hard session + 7h sleep tonight → how do I look tomorrow?"). Returns nothing rather than a guess when there's too little history to project honestly. |
 | `get_plan_adherence` | `days` | What was agreed vs. what actually happened, including *why* a session was skipped when the user told the coach. Days still calibrating carry no verdict at all — never treated as adherence data. |
+| `get_food_log` | optional `from`, `to` (yyyy-MM-dd; default the last 7 days), `entries` | The food log as the Food page reads it: one line per day (calories, protein, carbs, fat, fibre, the day's food note out of 10, and whether the day kept the calorie and protein goal), the single entries with times for spans of at most 14 days, the 7- and 28-day notes with their parts, nutrient gaps over 28 days against EFSA references, the logging streak and badges. For links to sleep, HRV or weight the model combines it with other tools and calls any pattern an observation. Purpose: food (granted with the Coach by default; one switch turns it off). |
 | `get_personal_patterns` | — | Top n-of-1 correlations (`EffectRanker`, significant only) + Lab Book roll-up. **Second opt-in required** (`includeOnDeviceSignals`) |
 | `get_my_logs` | `kind` (caffeine/journal/lab/hydration/mood), `days` 1–90 | Reads back what the user LOGGED, so "is my coffee hurting my sleep?" is answered from their real entries rather than a guess. The write tools below are how these get there. |
 | `get_sensitive_logs` | `days` 1–90 | Reads only locally flagged sexual, relationship, illness or cannabis journal fields after a separate sensitive-logs grant. It is offered only for an explicit related question. |
@@ -198,12 +204,14 @@ breakpoint, and a per-request clock would invalidate the prefix cache every turn
 ### Propose (never commits anything by itself)
 
 The four Hevy tools ride the planning purpose and are only useful once Hevy is connected in Settings.
+`propose_diet_change` rides planning too.
 
 | Tool | Params | Effect |
 |---|---|---|
 | `propose_plan` | `day`, `sport`, `intent`, `rationale`, optional `zone`, `duration_min`, `target_effort`, `goal_ids` (legacy `goal_id`) | Creates a `PlanProposal` in status `.proposed`. Every ID must be an exact active-goal UUID supplied in context; invalid IDs are rejected, one unambiguous active goal is linked automatically, and otherwise the session stays General. The accept sheet still asks the user to confirm the multi-selection. **Not a schedule** — the user must accept, decline, reschedule or swap it in the app. The model is told to never describe a proposal as settled. With `zone` + `duration_min` the app **computes** `target_effort` and overrides an unreachable one (see below). |
 | `propose_goal_setup` | optional `goal`, up to five `routines`, `rationale` | Stores a review-only create/update bundle. Exact IDs are required for edits; one routine may link to several goals. `use_current_baseline` resolves a consented local measurement and labels its source. Goal/action stores remain untouched until the user edits the bundle, selects individual routines and confirms it in Coach or Goal & Journey. Nutrition, medication, dosage and treatment routines are rejected. |
 | `find_hevy_exercises` | optional `query`, `muscle_group`, `equipment`, `limit` 1–40 | Searches the synced Hevy exercise catalogue and returns `exercise_template_id`s. The model must copy ids from here and never invent one. |
+| `propose_diet_change` | optional `goal`, `pace_percent`, `form`, `diet_break_every_weeks`, `day_shift_percent`, `break_week_now`; required `rationale` | Stores a review-only change to the diet plan (goal, pace in percent of body weight a week, way of eating, diet breaks, share of calories moved to training days, a break week from today). Nothing is applied until the user confirms it on the plan page under Nutrition, which works out every number and keeps its safety lines. Without an existing diet plan nothing is drafted. Purpose: planning. |
 | `get_hevy_routines` | — | Lists saved Hevy routines with their ids and exercises, required before proposing a change to an existing routine. |
 | `propose_hevy_routine` | `operation` create/update, optional `routine_id`, exercises with sets and rep ranges, `rationale` | Drafts a routine for review in the app. Nothing reaches Hevy until the user opens the draft and sends it. Hevy replaces a whole routine on update, so an update must list every exercise it keeps. |
 | `propose_hevy_workout` | workout and exercise ids from `get_strength_history` | Drafts a completed Hevy workout or a full correction for review. Writes nothing until the user accepts the preview and never creates a future workout as completed. |
@@ -773,7 +781,7 @@ source of new facts.
 |---|---|---|---|---|---|
 | Anthropic | ✅ | ✅ SSE | ✅ | ✅ explicit breakpoint | ✅ |
 | OpenAI | ✅ | ✅ SSE | ✅ | automatic (provider-side) | ✅ |
-| OpenRouter | ✅ | ✅ SSE | ✅ per model | passthrough | ✅ |
+| OpenRouter (iPhone and Mac only) | ✅ | ✅ SSE | ✅ per model | passthrough | ✅ |
 | Gemini | ✅ | ✅ SSE | ✅ | — | — |
 | Custom (OpenAI-compatible) | ✅ | ✅ SSE | **deliberately not** | — | ✅ |
 
@@ -786,7 +794,7 @@ tools on Custom just to get streaming.
 
 **Gemini's schema is a subset.** `CoachTool.geminiSchema` strips every JSON-Schema keyword Gemini's
 own `Schema` type doesn't model (`minimum`/`maximum` appear in several of ours). This is not tidiness:
-an unsupported keyword rejects the **entire request**, so one stray bound costs all 38 tools at once
+an unsupported keyword rejects the **entire request**, so one stray bound costs all 40 tools at once
 rather than degrading one. A test reduces every real schema and asserts nothing unsupported survives.
 
 **Reasoning tokens are tracked, never rendered.** OpenRouter's `delta.reasoning` (and the
@@ -794,7 +802,8 @@ rather than degrading one. A test reduces every real schema and asserts nothing 
 would be misleading. But a model that spends its whole output budget thinking and never reaches an
 answer now says so, instead of an unexplained "(no reply)" for a request the user paid for.
 
-**Custom** points at any OpenAI-compatible base URL — Ollama (`http://localhost:11434/v1`), LM
+**Android** offers Anthropic, OpenAI, Google Gemini and Custom; OpenRouter and its model search are not
+ported. **Custom** points at any OpenAI-compatible base URL — Ollama (`http://localhost:11434/v1`), LM
 Studio, llama.cpp, or a hosted gateway. Keyless for a local server, so a fully local coach means
 *nothing* leaves your network at all. **OpenRouter** is now a provider of its own (`AIProvider.openRouter`,
 `https://openrouter.ai/api/v1`), with tools per model and a searchable model sheet
@@ -824,17 +833,21 @@ and tool-calling for OpenAI/Gemini remain open — see "Contributing / hacking o
 
 ## 10. The privacy model
 
-The app is offline-first and stays that way; the coach is the *only* thing that ever opens a socket.
+The app is offline-first and stays that way; the coach is the only network path that can carry health
+summaries. The other outbound paths (update check, roadmap writes, food and exercise downloads, Hevy, the
+Android-only self-hosted push) are listed with their payloads in
+[`PRIVACY_SECURITY.md`](../PRIVACY_SECURITY.md).
 
-**Consent is a master switch plus purpose controls, all off by default:**
+**Consent is a master switch plus purpose controls, off by default (the Food purpose is the one exception, see below):**
 
 1. **`dataConsent`** — without it, no metrics are included in any request and every tool returns
    "no data access". If the separately enabled Coach is connected, it can still answer generally; it
    just doesn't know you.
 2. **Purpose controls** — once the master switch is on, the user separately grants core biometrics,
-   long-term history, workouts, planning, stress, logging, sensitive logs, memory and patterns. The
+   long-term history, workouts, planning, stress, logging, sensitive logs, memory, patterns and food. The
    normal interface starts with Essentials, Personal and Deep insights presets; Expert mode reveals the
-   individual choices. Long-term history is
+   individual choices. The food purpose is granted together with the Coach whenever the master switch is on
+   (a decision of 2026-11-21, applied once to consents saved earlier); turning it off afterwards sticks. Long-term history is
    off by default, including for a migrated legacy consent: a request for months or years is not part of
    normal day-to-day coaching. `includeOnDeviceSignals` remains the
    compatibility toggle for the patterns purpose, which includes n-of-1 signals and conservative
@@ -927,7 +940,8 @@ existing, consent-gated summaries.
 ranker, while Nomic adds paraphrase/synonym retrieval over the same allowed textual sources. Deep metric
 discovery continues to use the inspectable alias vocabulary (`weight`/`Gewicht`,
 `ferritin`/`iron`/`Eisen`, `sleep`/`Schlaf`, …) and aggregate queries, never vectors over measurements.
-macOS and Android retain keyword retrieval at this stage. Nomic improves finding context; it does not
+macOS links the package but does not bundle the model or runtime (they are build inputs of the iOS target
+only), so it answers by keyword; Android has no embedding model and does the same. Nomic improves finding context; it does not
 replace consent, statistics, the provider's reasoning or the aggregate-only data boundary.
 
 ### iOS Nomic runtime
@@ -1166,8 +1180,9 @@ is available before connection setup as well as after it — see §11 for what e
 
 ## 13. Contributing / hacking on it
 
-The whole coach is app-target Swift, which means **no default CI validates it**
-(`swift-packages.yml` only builds `Packages/**`, and `app-build.yml` is disabled). So:
+The whole coach is app-target Swift, which means **no push CI validates it**
+(`swift-packages.yml` only builds `Packages/**`, and `app-build.yml` has no push trigger: dispatch it for a
+direct commit to `main`, see [`AGENT_RULES.md`](AGENT_RULES.md)). So:
 
 ```bash
 xcodegen generate

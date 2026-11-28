@@ -26,23 +26,34 @@ local SQLite — has no network layer at all: no phone-home, no analytics, no ac
 no login, no cloud sync, and no telemetry. Everything NOOP computes about you lives in a
 single SQLite file on your own device.
 
-There are seven user-controlled network paths: the **AI Coach** (§1.1a), the source-built **Oura
-history import** (§1.1b), the metadata-only **update check** (§1.1c), the **Hevy strength sync**
-(§1.1d), two training downloads, the optional **exercise media pack** and a personal **ExerciseDB
-source** (§1.1e), and the **Roadmap page**, which reads two public files from this repository while it
-is open (§1.1f). The AI Coach is off
-until you turn it on with your own API key; when you
-ask it a question it sends a short text summary of your recent metrics to the provider you
-choose. The Oura history import is **not even compiled into a default build** — the code
-only exists in your binary if you build from source with your own Oura developer app's
-credentials (§1.1b); instead of sending data out, it pulls your own Oura data **in** over
-OAuth, once, and never sends any of your existing NOOP data out. The update check reads public
-release metadata from GitHub only when you tap it. Raw biometric streams never leave the device
-through any of these paths.
+Every network path is listed here, with when it happens and what it carries. Nothing on the list sends the
+biometric streams, and none of it needs an account:
 
-Data enters NOOP three ways. It leaves the app only when **you** deliberately use the optional AI
-Coach, export it to another store on the **same device**, or launch the separate read-only local
-access CLI:
+- **AI Coach** (§1.1a): off until you connect your own provider; sends a text summary and your question.
+- **Update check** (§1.1c): **on by default** and switchable off; one GET to GitHub's public releases API,
+  at most once a day.
+- **Project page** (§1.1f): reading two public files while the page is open, and the writes behind the
+  **Send things from this device** switch (on by default; nothing is sent until you act): roadmap votes,
+  wishes, problem reports and the raw-motion donation (§1.1g).
+- **Food data** (§1.1h): Open Food Facts lookups and country food packs, only if you choose them.
+- **Exercise media pack and ExerciseDB source** (§1.1e): only when you start them.
+- **Hevy** (§1.1d): reads with your own key; writes a routine or workout only after you press a send button
+  on a draft.
+- **Oura history import** (§1.1b): not compiled into a default build.
+- **Self-hosted push** (§1.5, Android only, Experimental): off by default, to an HTTPS endpoint you own.
+- **Apple Health and Health Connect** (§1.3): on-device hand-offs, not network paths.
+
+The AI Coach is off until you turn it on with your own API key; when you ask it a question it sends a
+short text summary of your recent metrics to the provider you choose. The Oura history import is **not even
+compiled into a default build** — the code only exists in your binary if you build from source with your own
+Oura developer app's credentials (§1.1b); instead of sending data out, it pulls your own Oura data **in**
+over OAuth, once. The update check reads public release metadata from GitHub. Raw biometric streams never
+leave the device through any of these paths; the raw-motion donation (§1.1g) is the one place where raw
+sensor windows can leave, and only on a separate press for a recording you ticked a sport for.
+
+Data enters NOOP three ways. Health data leaves the app only when **you** deliberately use the optional AI
+Coach, press a send button (a report, a wish, a donation, a Hevy draft), export it to another store on the
+**same device**, or launch the separate read-only local access CLI:
 
 | Path | Transport | Direction |
 |------|-----------|-----------|
@@ -50,18 +61,21 @@ access CLI:
 | File import (Apple Health, WHOOP CSV, nutrition CSV) | User-selected files on disk | Read-only from disk |
 | Oura history import (opt-in build flag, §1.1b) | HTTPS OAuth + REST, `api.ouraring.com` → device | Read-only from your own Oura account |
 | Apple Health export, incl. iOS "Export for Shortcuts" | On-device, user-initiated | NOOP → your Apple Health, on your device only (§1.3) |
-| Check for updates (§1.1c) | HTTPS GET to GitHub's public Releases API | Public version metadata → device; no health payload |
-| Roadmap page (§1.1f) | HTTPS GET to two public files in this repository | Public roadmap and issue titles → device, when you open the page; no health payload |
-| Hevy strength sync (opt-in, §1.1d) | HTTPS REST, `api.hevyapp.com` → device | Your own Hevy workouts, exercises and routines in; one confirmed routine write out |
+| Check for updates (§1.1c, on by default) | HTTPS GET to GitHub's public Releases API | Public version metadata → device, at most once a day; no health payload |
+| Roadmap page reads (§1.1f) | HTTPS GET to two public files in this repository | Public roadmap and issue titles → device, when you open the page; no health payload |
+| Votes, wishes, problem reports, raw-motion donation (§1.1g; master switch on by default) | HTTPS POST to the service address the roadmap feed names | Only what you wrote or pressed send on; nothing without a press; no address in the feed means no request |
+| Open Food Facts and food packs (opt-in, §1.1h) | HTTPS GET to `world.openfoodfacts.org` or the fork's `food-packs` GitHub release | Barcode or country pack request; nothing about you |
+| Hevy (opt-in, §1.1d) | HTTPS REST, `api.hevyapp.com` | Your own Hevy workouts, exercises and routines in; a routine or workout draft out only after you press send on it |
+| Self-hosted push (Android only, Experimental, §1.5) | HTTPS to an endpoint you configure | One-way export of the record kinds you enabled; Wi-Fi only by default |
+| Health Connect (Android, §1.3) | On-device | Android's Health Connect store ↔ NOOP, on the phone only |
 | Exercise media pack and ExerciseDB source (on request, §1.1e) | HTTPS download / GET | Public media archive or exercise definitions → device; no health payload |
 | Optional local access CLI (§1.4) | Local MCP over standard input/output | Bounded, read-only summaries from SQLite → the local client you launch |
 
-The only **network** paths are the opt-in AI Coach, the compile-time-optional Oura history import,
-the public release check, the opt-in Hevy strength sync and the two training downloads; the
-biometric pipeline produces no network traffic of any kind. The Apple Health export above is
-an **on-device** hand-off, not a network upload — see §1.3.
+The **network** paths are exactly those in the list at the top of this section; the biometric pipeline
+produces no network traffic of any kind. The Apple Health export and Health Connect are **on-device**
+hand-offs, not network uploads — see §1.3.
 
-### 1.1 Network code: seven controlled paths
+### 1.1 Network code: the controlled paths
 
 The biometric pipeline and reusable Swift packages
 (`WhoopProtocol`, `WhoopStore`, `StrandAnalytics`, `StrandImport`, `StrandDesign`, `OuraProtocol`,
@@ -72,15 +86,18 @@ and REST calls live entirely in the app target, `Strand/Oura/`, and `StrandImpor
 gained only pure, network-free parsers for Oura's payload shapes. The released macOS and iOS apps
 share these implementations. App-target networking is isolated to the AI Coach (`Strand/AI/`), the
 compile-time Oura cloud lane (`Strand/Oura/`), the Hevy strength lane (`Strand/Hevy/`), the exercise
-media download (`Strand/Data/ExerciseMediaDownloader.swift`), and the release reader
+media download (`Strand/Data/ExerciseMediaDownloader.swift`), the food pack download on iPhone
+(`StrandiOS/Forge/Food/FoodPacksModel.swift`), and the release reader
 (`Strand/System/UpdateChecker.swift` and `Strand/System/UpdateAvailability.swift`). The Roadmap page's
-two reads are the one exception to that list: they sit in `StrandCore` (`ProjectFeed.swift`), because
-Android reads the same two files through the same code rather than reimplementing the parsing. The Hevy lane
+reads and writes are the exception to that list: they sit in `StrandCore` (`ProjectFeed.swift`,
+`ProjectService.swift`, `ProjectReport.swift`, `RawDonation.swift`), because Android runs the same code
+rather than reimplementing it. The Hevy lane
 follows the same split as Oura: its HTTP lives in the app target, and `StrandImport` gained only a pure,
 network-free parser for Hevy's payload shapes.
 Two packages that the list above leaves out do hold network code, both shared with the Android app:
 `StrandCore` has the ExerciseDB request client (`ExerciseDBProviderClient`), the Roadmap page's file
-reader (`ProjectPageStore`) and `streamedBytes(for:)`, the
+reader (`ProjectPageStore`) and writer (`ProjectService`), the Open Food Facts client (`FoodOnline.swift`)
+and `streamedBytes(for:)`, the
 data-task stand-in the Coach providers stream through on Android; `NoopCoreJNI` has Android's read-only
 Hevy client (`CoreHevyClient`) and compiles the `Strand/AI/` Coach sources for Android.
 The package manifests reference dependency *download* URLs that Swift Package Manager
@@ -101,7 +118,8 @@ feature and operates only on your terms:
 
 - **Off until you enable it.** You enter your own API key for the provider you choose
   (Anthropic, OpenAI, Google Gemini, OpenRouter, or a local / self-hosted OpenAI-compatible LLM
-  such as Ollama or LM Studio). No key, no network calls, ever.
+  such as Ollama or LM Studio; Android offers the same list without OpenRouter). No key, no network
+  calls, ever.
 - **What is sent.** When you ask a question, NOOP builds a compact **text** summary of
   your recent metrics (Charge, Effort, Rest, HRV, resting HR over ~14 days, plus
   30-day averages and recent workouts) and sends it, with your question, directly to
@@ -110,9 +128,15 @@ feature and operates only on your terms:
   your own machine and the request never leaves it.
 - **What is NOT sent.** No raw biometric streams, no Bluetooth data, no account or
   device identifiers — only the summary text and your question.
-- **Local semantic memory on iOS.** The bundled Nomic embedding model can search only
+- **What the Coach may read is yours to narrow.** The master switch **Let the coach use my data** sits
+  above ten data-access purposes (core biometrics, long-term history, workouts, planning, stress, logging,
+  sensitive logs, memory, patterns and food). A tool whose purpose is off is not offered to the model at
+  all. The food purpose is granted with the Coach by default; the others are off until chosen
+  (`Strand/AI/ToolConsent.swift`).
+- **Local semantic memory on iPhone only.** The bundled Nomic embedding model can search only
   text categories you have allowed (for example remembered facts, your own chat turns
-  and approved journal notes). It runs on-device, does not make an API call, and never
+  and approved journal notes). It runs on-device, does not make an API call (the model ships in the iPhone app only; the Mac and Android
+  use keyword retrieval), and never
   embeds raw sensors, numerical health histories, lab-value tables or provider replies.
   Its separate `coach-semantic.sqlite` file is derived, excluded from `.noopbak`, and
   can be deleted or rebuilt from Settings. Revoking a category deletes that category's
@@ -122,10 +146,11 @@ feature and operates only on your terms:
   provider you picked, under your own account. NOOP runs no server in between and keeps
   no copy.
 
-If you never enable the AI Coach, never build the Oura import, never connect Hevy, never request the
-exercise media pack or an ExerciseDB source, and disable automatic update checks, NOOP makes no network
-request. The manual update button remains user-initiated. In a
-default build, the Oura cloud code is not in the binary.
+If you never enable the AI Coach, never build the Oura import, never connect Hevy, never choose an online
+food source or pack, never request the exercise media pack or an ExerciseDB source, switch **Check
+automatically** off and switch **Send things from this device** off, NOOP makes no network request except
+the Roadmap page's two public reads while that page is open, the manual update button and, on Android, a
+push you configured. In a default build, the Oura cloud code is not in the binary.
 
 ### 1.1b The Oura history import (compiled out by default, bring your own OAuth app)
 
@@ -168,15 +193,17 @@ API — a one-time, foreground backfill you trigger yourself, not an ongoing bac
 
 If you never build the lane in, your binary cannot call `ouraring.com` — the code is not there.
 
-### 1.1c Check for updates (metadata only)
+### 1.1c Check for updates (metadata only, on by default)
 
 `Strand/System/UpdateChecker.swift` performs an unauthenticated HTTPS GET to
-`https://api.github.com/repos/DX23876/noop/releases/latest`. The same reader backs the manual
-**Check for updates** button and, when **Check automatically** is enabled, an at-most-daily check after
-onboarding. It sends no health data, database content, device identifier, NOOP account identifier
-(none exists), or telemetry. It reads the public tag, notes, and release URL needed to tell you whether
-a newer release exists. It never downloads or installs an update. Turning the automatic toggle off
-removes the background request; the manual button remains available.
+`https://api.github.com/repos/DX23876/noop/releases/latest` (Android: `com.noop.update.UpdateCheck`, the
+releases list on the same repository). The same reader backs the manual **Check for updates** button and
+the **Check automatically** switch under Settings › About, which is **on by default** (`UpdateAvailability.defaultEnabled`)
+and runs at most once a day after onboarding and the terms screen. It sends no health data, database
+content, device identifier, NOOP account identifier (none exists), or telemetry; GitHub sees an ordinary
+request from your network. It reads the public tag, notes, and release URL needed to tell you whether a
+newer release exists, and never downloads or installs an update. Switching the automatic check off removes
+the background request; the manual button stays available.
 
 ### 1.1d The Hevy strength sync (optional, off by default, bring your own key)
 
@@ -185,17 +212,18 @@ paste themselves. It is **off until connected** — no key, no requests — and 
 Keychain under `com.noop.hevy`, `ThisDeviceOnly`, so it neither syncs to another device nor rides along
 in a `.noopbak`.
 
-**The direction is inbound.** NOOP reads workouts, the exercise catalogue and saved routines; no health
-data, database content, device identifier or telemetry is ever sent. The requests carry the key and
-nothing else.
+**The sync direction is inbound.** NOOP reads workouts, the exercise catalogue and saved routines; the
+sync sends no health data, database content, device identifier or telemetry. The requests carry the key
+and nothing else. An optional automatic import (every 6 h, 12 h or daily) runs the same reads.
 
-**The one exception, and how it is gated.** The coach can DRAFT a training routine, and sending that
-draft is the only outbound write in the app. It is not automatic and cannot be made automatic: the
-coach's tool creates a proposal, a review screen shows every exercise and set — including which
-exercises an update would REMOVE, since Hevy's `PUT` replaces the whole routine — and only a button in
-that screen calls `HevyRoutineWriter`, the single type in the program that performs a `POST` or `PUT`.
-There is no code path from a model reply to a write. NOOP never creates or edits a *workout* in Hevy;
-`POST /v1/workouts` is not wired up at all.
+**The exceptions, and how they are gated.** The coach can DRAFT a training routine or a completed workout
+(or a correction), and sending such a draft is the only outbound write to Hevy. It is not automatic and
+cannot be made automatic: the coach's tool (`propose_hevy_routine`, `propose_hevy_workout`) creates a
+proposal, a review screen shows every exercise and set — including which exercises an update would
+REMOVE, since Hevy's `PUT` replaces the whole routine — and only the send button on that screen calls
+`HevyRoutineWriter` or `HevyWorkoutWriter`, the two types in the program that perform a `POST` or `PUT`
+(on Android the same types run in the shared core, `CoreCoachDrafts`). There is no code path from a model
+reply to a write. The data sent is the draft the wearer reviewed.
 
 Steady-state cost is one request: after the first backfill the sync reads
 `GET /v1/workouts/events?since=`, which usually returns nothing.
@@ -243,6 +271,41 @@ be read by other people. The parsing, clamping and sanitising live once in
 `Packages/StrandCore/ProjectFeed.swift` for both platforms, and the app re-clamps what it reads rather
 than trusting a file written by a later version of the generator.
 
+### 1.1g Roadmap writes and the raw-motion donation (one master switch)
+
+The Roadmap page can also send things out: a thumb on a roadmap item, a wish (up to 500 characters), a
+problem report and, from the **Help teach the app** page, a raw-motion donation. All of it goes to one
+service whose address is read from `docs/app-feed.json` (`ProjectService`, `ProjectReport`,
+`RawDonation` in `StrandCore`; the same code on both platforms):
+
+- **Nothing without an address.** A feed with no service address hides voting, wishes and reporting and
+  makes every write impossible, in every installed copy, without an update. That is the kill switch.
+- **One master switch: Send things from this device.** It is **on by default** (`ProjectSharing`, read in
+  exactly one place, `ProjectService.endpoint`) and stops every write above, the donation included. Nothing
+  is sent until you act: a vote, a wish, a report or a donation each needs its own press.
+- **What a write carries.** The text you wrote; a random 128-bit device key (no name, no account, no device
+  detail) sent only so a second vote can be refused; the app language. A problem report can add a
+  redacted log bundle (up to 4 MB) that you review first, and a picture, or be sent with no thread code so
+  there is no way back and nothing stored. Reports and votes can be withdrawn.
+- **Answers to your reports.** If you reported a problem, NOOP looks for movement on your own reports when
+  the app comes forward, at most every six hours (`ProjectReportWatcher`); switch it off under Alerts
+  (**Answers to my reports**, default on). No push service and no other polling.
+- **Raw-motion donation.** Nothing is ticked by default. When you tick a sport, short windows of raw wrist
+  motion are recorded during that workout; a finished recording waits until you review it and press send.
+  The package carries sport, strap family, firmware, app version, sample rate, offsets from the start and a
+  withdrawal code, never a device id, location, heart data or a clock finer than a date.
+
+Reading the Roadmap (§1.1f) is not gated by this switch because it sends nothing about the reader.
+
+### 1.1h Food data (Open Food Facts and food packs, optional)
+
+In the food setup you choose a product data source: **none** (the default), **online lookups** on
+`world.openfoodfacts.org` (with a country filter, and only for barcodes that are not already known
+locally), or **country packs** downloaded from the fork's public `food-packs` GitHub release and checked
+against a SHA-256 before use (`StrandCore/Food/FoodOnline.swift`, `StrandiOS/Forge/Food/`; Android in
+`ForgeFood.kt`). The requests carry a barcode or a pack name and nothing about the wearer; the food log
+itself stays in the local database. Food data is not available on the Mac.
+
 ### 1.2 The macOS sandbox (and what it means for the controlled network paths)
 
 On macOS the App Sandbox is the backstop. The app ships with a minimal entitlement set
@@ -267,13 +330,14 @@ That is the entire entitlement file. Four keys:
   explicitly picks (and write the database in its own container).
 - **`network.client`** — outbound socket access. Added for the AI Coach on a
   signed/sandboxed build, where the sandbox otherwise refuses any socket the app tries
-  to open (#128); the Oura history import (§1.1b) and manual update check (§1.1c) rely on the same
+  to open (#128); the Oura history import (§1.1b), the update check (§1.1c) and the Roadmap page (§1.1f, §1.1g) rely on the same
   entitlement. The
   ad-hoc distributed build applies **no** entitlements at all (unsigned build + ad-hoc
   re-sign), so this key only matters for a signed/sandboxed build. The entitlement only
   permits the socket the sandbox would otherwise refuse — it does not initiate traffic. Requests
   happen only when you use the Coach, connect Oura or Hevy, request the exercise media pack or an
-ExerciseDB source, or check for updates.
+ExerciseDB source, check for updates (the automatic check is on by default), open the Roadmap page or send
+something from it.
 
 Notably **absent**:
 
@@ -297,20 +361,29 @@ property is enforced by the OS, not merely by convention.
 On iOS NOOP can hand your metrics to **Apple Health**. This is the one path where data leaves
 NOOP's own store — but it never leaves your **device**, and never touches the network.
 
-- **You initiate it; NOOP writes only what you enable.** Nothing is exported automatically. You
-  choose which metrics to push, and NOOP writes only those, only when you trigger the export. There
-  is no background sync.
+- **You switch it on; NOOP writes only what you permit.** Apple Health stays off until you enable it on the
+  Apple Health page and grant access per data type in the system sheet. Once it is on, NOOP writes new
+  records after a strap offload and through a best-effort hourly background task (`HealthWritebackBackgroundScheduler`),
+  and rewrites only what changed. Waist is a separate opt-in. Without the permission nothing is written, and
+  the background task is then a no-op.
 - **On-device, not a network upload.** The export is a local hand-off to Apple Health on the same
   phone. No NOOP server, no cloud, no telemetry is involved — consistent with §1.
-- **HealthKit-free option.** The **"Export for Shortcuts"** path produces data for the Apple
-  Shortcuts app rather than writing through HealthKit directly, so you can route it with a Shortcut
-  you control. Where it does write to Apple Health, it does so through Apple's permission-gated APIs:
+- **HealthKit-free option.** The **"Export for Shortcuts"** path rewrites a plain-text file in NOOP's
+  On My iPhone folder each time you leave the app, for the Apple Shortcuts app to pick up, rather than
+  writing through HealthKit directly, so you can route it with a Shortcut you control. Where it does write to Apple Health, it does so through Apple's permission-gated APIs:
   you grant access per data type, and you can revoke it in iOS Settings at any time.
 - **Once it's in Apple Health, it's yours and Apple's, not NOOP's.** NOOP cannot read back, manage,
   or delete what you exported; that store, its backups (e.g. iCloud Health if *you* enabled it), and
   its sharing settings are governed by Apple and by your choices. **You are responsible for the data
   you push into Apple Health and for anything you or your Shortcuts then do with it.** See
   `DISCLAIMER.md` §5.3 and `TERMS.md` §5.
+
+**Android: Health Connect.** The Android app reads from and writes to Health Connect, Android's on-device
+health store, behind per-type permissions you grant in the system dialog (the manifest lists them, among them
+read access to older history for the one-time import and nutrition write-back from the Food page). Writing to Health Connect is a separate option, off by default,
+and records are written once and only re-sent when they change. Like Apple
+Health this is a hand-off on the same phone, not a network path, and NOOP cannot manage what other apps do
+with the data once it is there.
 
 ### 1.4 Optional local access CLI — read-only, local process
 
@@ -328,17 +401,18 @@ the CLI with a client you trust.
 
 NOOP Forge for Android holds the `INTERNET` permission for the paths below and opens no other connection. The
 Forge screens and the shared Swift core they read (`Packages/NoopCoreJNI`, `Packages/StrandCore`) talk to the
-strap over Bluetooth and to the store on the phone; the core's only network code is the Coach, Hevy and
-ExerciseDB requests listed here.
+strap over Bluetooth and to the store on the phone; the core's network code is the Coach, Hevy, ExerciseDB, Roadmap and food requests listed here.
 
 | Path | When | What leaves the phone |
 |---|---|---|
 | Check for updates (`com.noop.update.UpdateCheck`) | Settings button, and at most once a day after onboarding while **Check automatically** is on (the default; switching it off stops the request) | An unauthenticated HTTPS GET to `https://api.github.com/repos/DX23876/noop/releases?per_page=30`; nothing about the wearer. It reads public release metadata and never downloads or installs anything |
-| AI Coach (`com.noop.core.CoreCoach`, the shared core's coach compiled from `Strand/AI/`; ryanbr's Kotlin `com.noop.ai.AiCoach` remains as a fallback for the classic screens and the daily brief) | Only after the wearer saved their own API key and asked a question | A compact text summary of their metrics plus the question, to the provider they picked (OpenAI, Anthropic, Gemini, or an OpenAI-compatible endpoint they enter); no raw samples, no identifiers. Kotlin keeps the key in encrypted storage and hands it to the core, which holds it in memory only |
-| Hevy import (`com.noop.core.CoreHevyImport`, `CoreHevyClient` in the core) | Only after the wearer saved their own Hevy API key | Read-only HTTPS GETs to `https://api.hevyapp.com/v1` carrying the key; no health data |
+| AI Coach (`com.noop.core.CoreCoach`, the shared core's coach compiled from `Strand/AI/`; ryanbr's Kotlin `com.noop.ai.AiCoach` remains as a fallback for the classic screens and the daily brief) | Only after the wearer saved their own API key and asked a question | A compact text summary of their metrics plus the question, to the provider they picked (Anthropic, OpenAI, Google Gemini, or an OpenAI-compatible endpoint they enter; no OpenRouter on Android); no raw samples, no identifiers. Kotlin keeps the key in encrypted storage and hands it to the core, which holds it in memory only |
+| Hevy (`com.noop.core.CoreHevyImport`, `CoreHevyClient`, `CoreCoachDrafts` in the core) | Only after the wearer saved their own Hevy API key; optional automatic import | HTTPS GETs to `https://api.hevyapp.com/v1` carrying the key; no health data. A coach routine or workout draft is written to Hevy only after the wearer presses send on its review screen |
+| Roadmap and project writes (§1.1f, §1.1g) | Reads while the page is open; writes only after a press, and only while **Send things from this device** is on (the default) | Public files in; the vote, wish, report or raw-motion donation the wearer sent out |
+| Food data (§1.1h) | Only if the wearer chose online lookups or a country pack | An Open Food Facts barcode request or a pack download; nothing about the wearer |
 | Exercise media pack (`com.noop.core.CoreExerciseMedia`) | Only when the wearer starts the download | The system `DownloadManager` fetches the pinned public archive (§1.1e) over HTTPS; nothing about the wearer |
 | ExerciseDB source (`com.noop.core.CoreExerciseProvider`) | Only when the wearer loads exercises from an endpoint they entered | One HTTPS GET with their optional key (§1.1e); no workout or health data |
-| Self-hosted push (`com.noop.push`, Experimental) | Off by default; only to an HTTPS endpoint the wearer owns and configures (#1314) | One-way export of the configured records; nothing is read back |
+| Self-hosted push (`com.noop.push`, Experimental) | Off by default; only to an HTTPS endpoint the wearer owns and configures (#1314), on Wi-Fi only unless the wearer allows other networks | One-way export of the record kinds the wearer enabled (heart-rate and R-R samples, events, battery, SpO₂, skin temperature, respiration, gravity, daily metrics, sleep sessions, workouts, journal) with a bearer token held in encrypted storage; nothing is read back and no receiver ships in this repository |
 
 Data at rest stays in the app's private storage: the shared core's store (`files/core/noop-core.sqlite`) and the
 strap log (`files/strap-log`). Since the core-only change (`docs/fork/android/CORE-ONLY-PLAN.md`) the app keeps
@@ -625,7 +699,8 @@ dedicated source id `nutrition-csv`, alongside your other metrics and entirely o
   Keychain.
 - **No telemetry / analytics / crash reporting.** No third-party SDKs of that kind.
 - **No cloud, no sync, no remote backup of NOOP's own data.** Your NOOP data never
-  leaves the machine via NOOP. The Oura history import (§1.1b) is the one path that
+  leaves the machine via NOOP, except what you press send on (a report, a wish, a donation, a Hevy
+  draft) and the Android self-hosted push you configure yourself. The Oura history import (§1.1b) is the one path that
   reaches a cloud service, and it is **inbound only** — it pulls your own Oura data in;
   it does not sync or back up any NOOP data out.
 - **No advertising identifiers, no tracking.**
@@ -639,7 +714,7 @@ dedicated source id `nutrition-csv`, alongside your other metrics and entirely o
 
 | Surface | Risk | Mitigation | Where |
 |---------|------|------------|-------|
-| Process | Data exfiltration / network egress | Network paths are isolated and user-controlled: Coach text to the configured provider (§1.1a), source-built inbound Oura import (§1.1b), a metadata-only manual GitHub release check (§1.1c), and the inbound Hevy strength sync (§1.1d), whose only outbound write is a routine the user reviewed and sent by hand. Raw streams are never payloads. | `Strand/AI/`, `Strand/Oura/`, `Strand/Hevy/`, `Strand/System/UpdateChecker.swift` |
+| Process | Data exfiltration / network egress | Network paths are isolated and user-controlled: Coach text to the configured provider (§1.1a), source-built inbound Oura import (§1.1b), a metadata-only GitHub release check (§1.1c, default on, switchable off), a master switch over roadmap writes and the raw-motion donation (§1.1g), optional food lookups (§1.1h), and the inbound Hevy strength sync (§1.1d), whose only outbound writes are routine and workout drafts the user reviewed and sent by hand. Raw streams are never payloads. | `Strand/AI/`, `Strand/Oura/`, `Strand/Hevy/`, `Strand/System/UpdateChecker.swift` |
 | Local access | Unintended disclosure to a local client | Separate user-launched CLI; SQLite opened read-only; bounded tools over standard input/output; no network listener. The user controls the downstream client (§1.4). | `Packages/NoopLocalAccess/` |
 | Oura history import | OAuth token / scope leakage, cross-account data mixing | Compiled out by default (`OURA_CLOUD_IMPORT`, §1.1b); tokens Keychain-only (`kSecAttrAccessibleAfterFirstUnlock`, never UserDefaults/plist); fixed OAuth scopes set at build time; raw + normalized rows partitioned under `deviceId = "oura-api"`; Oura's own scores kept reference-only (`ref_*`/`oura_*` metricSeries keys, never NOOP's Charge/Effort/Rest); `.cloudImport` is structurally priority-2 so it never seizes a WHOOP day; Forget Oura access purges tokens + every `oura-api` row incl. the raw archive | `Strand/Oura/OuraTokenStore.swift`, `Strand/Oura/OuraConnectModel.swift`, `Packages/WhoopStore/Sources/WhoopStore/OuraRawStore.swift` |
 | Filesystem | Broad disk access | Only `files.user-selected.read-write`; data stays in the sandbox container | `Strand.entitlements`, `Strand/Collect/StorePaths.swift` |

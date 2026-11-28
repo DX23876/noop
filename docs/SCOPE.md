@@ -15,25 +15,35 @@ user-controlled exceptions are narrow: Coach requests go directly to the configu
 source-built Oura lane imports data from the user's own account, an opt-in Hevy lane imports the user's
 own strength training from theirs, an explicit download fetches the optional exercise media pack or
 exercise definitions from a source the user picks, the update checker reads public GitHub release
-metadata manually or, when enabled, at most once per day, and the in-app Roadmap page reads two public
-files from this repository while it is open (`docs/roadmap.json`, `docs/app-feed.json`). The Android app (in testing) adds the
-default-off Experimental self-hosted push from #1314. These are hard boundaries, not permission to add
-general cloud features. The food log adds one more, default off: after the wearer chooses, branded products
-come either from Open Food Facts' public search (search words and barcodes only, no account) or from country
-packs downloaded as public files from this repository's `food-packs` release; with no choice nothing leaves the
-phone (decision 2026-11-08).
+metadata manually or, when enabled, at most once per day, and the in-app Project page (Roadmap, Problems,
+Wishes) reads two public files from this repository while it is open (`docs/roadmap.json`, `docs/app-feed.json`). The Android
+app (released with 13.0) adds the default-off Experimental self-hosted push from #1314; it exists on
+Android only, there is no such export on iPhone, iPad or Mac. These are hard boundaries, not permission to
+add general cloud features. The food log adds one more, default off: after the wearer chooses, branded
+products come either from Open Food Facts' public search (search words and barcodes only, no account) or
+from country packs downloaded as public files from this repository's `food-packs` release; with no choice
+nothing leaves the phone (decision 2026-11-08).
+
+**Sending things from this device.** The Project page can also send, but only when the person acts: a vote
+on a roadmap item, a wish, a problem report (optionally with a redacted log they review first) and, from
+Help build it, a short recording of raw wrist motion for a sport detector. Nothing is sent at install, in
+the background or by default, the project hosts no account for it (a random device key with no identity
+only stops a second vote), and the one switch **Send things from this device** turns every one of these
+off, the donation included. This is a feedback channel, not health-data sync: apart from a motion recording the person chose to
+donate, it carries no scores, sleep or database. It exists on every platform, and the strap log of a problem report leaves only
+after the person has seen what it contains.
 
 Each exception shares one shape, which is what makes it an exception rather than a precedent: the
-user's own account, their own credential, data moving IN, nothing hosted by this project, and default
-off. The media pack and the update check need no account, but keep the rest: inbound only, no health
-data sent, nothing hosted here. The self-hosted push is the one outbound stream, one way to an
-endpoint the user owns. The Hevy lane adds the only outbound write in the app — a training routine the coach drafted — and
-it is gated the same way every irreversible action here is: a review screen showing exactly what would
-change, and a button the person has to press.
+user's own account or an explicit action, their own credential, no hosted copy of the user's health data, and default off or not sent until the user acts. The media pack, the project feed
+and the update check need no account, but keep the rest: inbound only, no health data sent. The
+self-hosted push is the one continuous outbound stream, one way to an endpoint the user owns and
+configures, Android only and Experimental. The Hevy lane adds an outbound write in the app, a training
+routine the coach drafted, and it is gated the same way every irreversible action here is: a review screen
+showing exactly what would change, and a button the person has to press.
 
 ## Out of scope
 
-These map to features visible in WHOOP-app reverse-engineering, but they conflict with the constraints
+These are features of the WHOOP app that conflict with the constraints
 above. They are out of scope **unless the project deliberately changes its scope** in a tracked issue.
 
 | Feature (WHOOP parity) | Why it's out of scope | Ref |

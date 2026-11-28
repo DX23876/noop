@@ -1,10 +1,10 @@
 # NOOP — System Architecture
 
-NOOP is an **offline-first** companion app for WHOOP straps (4.0 and 5.0/MG). It talks directly to
+NOOP (this fork: NOOP Forge) is an **offline-first** companion app for WHOOP straps (4.0 and 5.0/MG). It talks directly to
 the strap over Bluetooth Low Energy, stores everything on-device in GRDB/SQLite, and computes
-Charge, Effort, Rest, HRV, and sleep locally. There is no NOOP cloud or account. Explicit optional
-network paths are isolated to the Coach, a source-built Oura history import, and the manual public
-release check; see [privacy and security](PRIVACY_SECURITY.md).
+Charge, Effort, Rest, HRV, and sleep locally. There is no NOOP cloud or account. Every optional,
+user-initiated network path (for example the Coach and the Oura history import) is listed in the
+[privacy and security](PRIVACY_SECURITY.md) inventory.
 
 > **Not affiliated with WHOOP.** NOOP is an independent, interoperability project built on
 > community reverse-engineering of the strap's Bluetooth protocol. It is **not a medical device**
@@ -60,70 +60,110 @@ through `Repository`.
 ## 2. Repository layout
 
 ```
-Strand/                         macOS SwiftUI app target (the reference implementation)
-├── App/                        Composition root + window/scene
-│   ├── StrandApp.swift         @main App scene; owns AppModel, wires environment objects
+project.yml                     XcodeGen source of truth (Strand.xcodeproj is generated, never committed)
+Config/                         BundleId.xcconfig (BUNDLE_ID_PREFIX), BundleIdSecrets.example.xcconfig
+Vendor/Nomic/                   gitignored; llama.xcframework + embedding model, fetched by Tools/bootstrap-nomic.sh
+
+Strand/                         macOS app target (scheme Strand); most of it is also compiled into NOOPiOS
+├── App/                        Composition root, window/scene, navigation, workout sessions
+│   ├── StrandApp.swift         @main App scene (macOS only); owns AppModel, wires environment objects
 │   ├── AppModel.swift          @MainActor root state — owns BLE, Repository, profiles
-│   ├── RootView.swift          NavigationSplitView shell + NavItem routing
-│   └── ContentView.swift
-├── BLE/                        CoreBluetooth + the live/decode seam
+│   ├── RootView.swift          NavigationSplitView shell + NavItem routing (macOS only)
+│   └── ContentView.swift       macOS shell gates (excluded from iOS)
+├── BLE/                        CoreBluetooth transport and the live/decode seam
 │   ├── BLEManager.swift        CBCentral/CBPeripheral delegate, scan→bond→stream
 │   ├── FrameRouter.swift       pure decode→LiveState router (no CoreBluetooth)
 │   ├── LiveState.swift         @MainActor observable connection/biometric snapshot
 │   ├── Commands.swift          WhoopCommand enum (command bytes + frame builders)
-│   ├── StandardHeartRate.swift 0x2A37 BLE-standard HR/RR parser (pure)
-│   ├── BackfillPolicy.swift    rate-limiter for historical offload triggers
-│   └── StuckStrapDetector.swift safety-net liveness watchdog
+│   ├── StandardHeartRate.swift, BackfillPolicy.swift, StuckStrapDetector.swift, …
+│   └── Oura*/Huami*/FTMS*/…    sources for the other supported device kinds
 ├── Collect/                    App-side persistence glue (BLE → store)
 │   ├── BackfillDrain.swift     ordered offload-frame queue drained into the Backfiller
-│   └── StorePaths.swift        on-disk SQLite location (App Support/OpenWhoop)
-│                               (fork: Collector, Backfiller, ClockCorrelation, ClockPolicy,
-│                               PrunePolicy and RawCaptureWindow now live in Packages/StrandCore)
-├── Data/                       Read model + import glue
-│   ├── Repository.swift        @MainActor read model over WhoopStore
-│   ├── WhoopImporter.swift     CSV result → store rows
-│   ├── AppleHealthImport.swift Apple Health result → store rows
-│   ├── Profile.swift           user profile (age/sex/body/HRmax)
-│   └── BehaviorStore.swift     toggles for automations/coaching
-├── Screens/                    SwiftUI feature screens (Today, Live, Sleep, Trends…)
-├── MenuBar/                    glanceable menu-bar extra
-└── System/                     macOS integrations (lock screen, Shortcuts)
+│   ├── StorePaths.swift        on-disk SQLite location (App Support/OpenWhoop)
+│   └── Raw*/Imu*               raw-data session capture and donation recorders
+│                               (Collector, Backfiller, ClockCorrelation, ClockPolicy, PrunePolicy and
+│                               RawCaptureWindow live in Packages/StrandCore)
+├── Data/                       Read model + import glue (Repository, importers, Profile, stores)
+├── AI/                         Coach, goals, plan tools, Hevy proposals, memory
+├── Forge/, Liquid/             Forge look (today, timeline, notes) and the Liquid Today dashboard
+├── Health/, Hevy/, Oura/       Health export merge; Hevy sync coordinator; Oura cloud-import lane
+├── Onboarding/, MenuBar/       onboarding wizard; macOS menu-bar extra
+├── Screens/                    SwiftUI feature screens (Today, Live, Sleep, Trends, …)
+├── System/                     Notifiers, schedulers, diagnostics, macOS integrations (lock screen, Shortcuts)
+└── Resources/                  Info.plist, entitlements, assets, Localizable.xcstrings
 
-Packages/                       Reusable Swift packages
-├── WhoopProtocol/              BLE frame parsing, CRC, command/event/packet decode
-├── WhoopStore/                 GRDB/SQLite persistence (actor)
-├── StrandAnalytics/            HRV/recovery/strain/sleep/correlation math
-├── StrandImport/               WHOOP CSV + Apple Health importers
-├── StrandDesign/               SwiftUI design system (palette, components, charts)
-├── OuraProtocol/               Oura BLE protocol/decode
-├── PolarProtocol/              Polar protocol/decode
-├── StrandTraining/             training catalogue, plans, routines, workout engine (pure)
-├── StrandCore/                 fork: platform-neutral app core shared by Apple and Android
-│                               (daily analysis host, AnalysisRecipe, collector/backfiller,
-│                               backup archive, metric resolver, energy, Hevy sync, …)
-├── NoopCoreJNI/                fork: Android bridge — `NoopCore` shared library + `CJNI` (JNI)
-├── MuscleMap/                  SwiftUI muscle-map rendering (third-party, MIT)
-├── SemanticMemory/             local Coach memory index
-└── NoopLocalAccess/            optional read-only macOS local-access CLI/core
+StrandiOS/                      iOS-only sources for NOOPiOS (scheme NOOPiOS, iOS 17+)
+├── App/                        StrandiOSApp (@main), RootTabView (tab shell), More catalog, Siri/Shortcuts settings
+├── Forge/                      Forge screens: Today, Sleep, Health, Energy, Cycle, Training, Strength,
+│   │                           Settings hubs, Search, weekly report, tile board, widgets on Today
+│   └── Food/                   food log views
+├── Health/                     HealthKit bridge, sample writer, writeback scheduler, phone workout session
+├── AI/                         Nomic embedding provider, semantic-memory background task
+├── Widgets/                    publishers and controllers for widgets and Live Activities
+├── System/                     App Intents, background schedulers, quick actions, MetricKit log
+└── Resources/                  Info.plist, NOOP.entitlements, asset catalog, alternate icons
 
-android/                        fork: Android app (Kotlin/Compose shell over the shared core)
-└── swift-core/                 builds libNoopCore.so from Packages/NoopCoreJNI for the APK
+StrandiOSShared/                snapshots and attributes shared by the app, the widgets and (partly) macOS:
+                                widget snapshots, Live Activity attributes, HR/stress traces
+StrandiOSWidgets/               NOOPiOSWidgets extension: Today/rings/energy/food/goal/heart-rate/stress/weight
+                                widgets, Fitness widgets, Live Activities, workout controls
+NOOPWatch/                      NOOPWatch app (watchOS 10): glance, live HR, workout, breathe, interval views
+NOOPWatchComplications/         NOOPWatchComplications extension (watch complications)
+StrandTests/, StrandiOSTests/   unit tests for the macOS and iOS app targets
 
-Tools/Backfill/                 CLI offload/replay tool
+Packages/                       Swift packages (section 3)
+
+android/                        Kotlin/Compose shell over the shared Swift core (section 2.1)
+Tools/                          Python and shell tooling (local-tests.sh, gen_core_dao.py, i18n_audit.py, …)
+                                and Swift tools: Backfill, SleepBench, SleepPSG, EnergyBench, ActivityBench, …
+docs/                           documentation; docs/fork/ holds fork-only guides, decisions and release notes
 ```
 
-The app target (`Strand/`) is the **macOS reference implementation**. The released iOS/iPadOS app
-uses `StrandiOS/`, shared `Strand/` sources, and the same package implementations; widgets, Live
-Activity and the optional Watch companion are defined by `project.yml`. Package manifests declare
-their real platform floors individually.
+### 2.1 Targets from `project.yml`
 
-**Android in this fork** (restored 2026-10-25, in testing) is a Kotlin shell around the same Swift
-core, not an independent reimplementation: `android/swift-core/build-swift-core.sh` cross-compiles
-`Packages/NoopCoreJNI` (with `StrandCore` and the packages below it) into `libNoopCore.so` using the
-Swift SDK for Android, and the app calls it through JNI. Since 2026-11-01 Android stores only in the
-core's GRDB database (Room is gone from the app). Kotlin keeps the Bluetooth transport and its frame
-decoding, Android services, the Compose UI and presentation helpers; scoring, analytics, import and
-backup run in the core. See [`fork/android/STATUS.md`](fork/android/STATUS.md) and
+| Target | Kind | Platform | Sources |
+|---|---|---|---|
+| `Strand` | application (product `NOOP Staging.app`, display name NOOP Forge, id `$(BUNDLE_ID_PREFIX).noop.staging`) | macOS 13 | `Strand/` |
+| `StrandTests` | unit tests | macOS | `StrandTests/` |
+| `NOOPiOS` | application (id `$(BUNDLE_ID_PREFIX).noopai`) | iOS 17 | `Strand/` minus the macOS-only files, `StrandiOS/`, `StrandiOSShared/`, `Vendor/Nomic/Resources` |
+| `NOOPiOSTests` | unit tests | iOS | `StrandiOSTests/` |
+| `NOOPiOSWidgets` | app extension (WidgetKit, Live Activities) | iOS 17 | `StrandiOSWidgets/`, `StrandiOSShared/` |
+| `NOOPWatch` | application | watchOS 10 | `NOOPWatch/` |
+| `NOOPWatchComplications` | app extension | watchOS 10 | `NOOPWatchComplications/` |
+
+Schemes: `Strand`, `NOOPiOS`, `NOOPWatch`. `BUNDLE_ID_PREFIX` defaults to `com.noopapp` in
+`Config/BundleId.xcconfig` and is overridden in the gitignored `Config/BundleIdSecrets.xcconfig`.
+The app targets link the local packages `WhoopProtocol`, `WhoopStore`, `StrandAnalytics`, `StrandCore`,
+`StrandTraining`, `MuscleMap`, `StrandImport`, `StrandDesign`, `SemanticMemory`, `OuraProtocol` and
+`PolarProtocol`, plus the exact-pinned `MarkdownUI` and `ZIPFoundation`. `NoopLocalAccess` and
+`NoopCoreJNI` are not linked into any Apple app target.
+
+The released iOS/iPadOS app is `NOOPiOS` with its widget extension and the optional Watch companion. Package
+manifests declare their real platform floors individually.
+
+### 2.2 Android
+
+Android in this fork is a Kotlin shell around the same Swift core, not an independent reimplementation.
+`android/swift-core/build-swift-core.sh` cross-compiles `Packages/NoopCoreJNI` (with `StrandCore` and
+the packages below it) into `libNoopCore.so` using the Swift SDK for Android, and the app calls it
+through JNI (`com.noop.core`: `SwiftCore.kt` and the `Core*` facades).
+
+- **Storage.** Android stores only in the core's GRDB database
+  (`<filesDir>/core/noop-core.sqlite`), through `com.noop.data.CoreWhoopDao`, which
+  `Tools/gen_core_dao.py` generates from the annotated DAO declarations (`WhoopDao.kt`,
+  `DeviceRegistryDao.kt`). The `@Entity`/`@Dao` annotations in `DaoAnnotations.kt` are the app's own and
+  are read only by that script; there are no Room entities, DAOs or migrations. Room remains only as a
+  transitive dependency of WorkManager. A schema change is a `WhoopStore` migration that both platforms run.
+- **What stays in Kotlin.** The Bluetooth transport and its frame decoding, Android services (alarms,
+  notifications, widgets, location, push), the Compose UI (`com.noop.ui`, with the Forge screens in
+  `com.noop.ui.forge`) and presentation helpers. Scoring, analytics, import, backup and any other
+  computation belong in the packages and reach Android through `NoopCoreJNI`.
+- **Kotlin source layout** (`android/app/src/main/java/com/noop/`): `ble`, `core` (the JNI facades),
+  `data`, `ingest`, `analytics`, `protocol`, `ui`, `widget`, `alarm`, `notif`, `location`, `oura`, `polar`,
+  `push`, `ai`, `testcentre`, `update`. The directory names say where code sits, not which of it still
+  computes in Kotlin; [`fork/android/STATUS.md`](fork/android/STATUS.md) records what moved into the core.
+
+See [`fork/android/STATUS.md`](fork/android/STATUS.md) and
 [`fork/android/CORE-ONLY-PLAN.md`](fork/android/CORE-ONLY-PLAN.md).
 
 ---
@@ -131,36 +171,39 @@ backup run in the core. See [`fork/android/STATUS.md`](fork/android/STATUS.md) a
 ## 3. Package responsibilities and boundaries
 
 Each package has a narrow contract. The dependency graph is acyclic and the leaf packages are
-**platform-pure** (no CoreBluetooth, no UIKit/AppKit) so they run in CLI tools and tests:
+**platform-pure** (no CoreBluetooth, no UIKit/AppKit) so they run in CLI tools and tests. The arrows below
+are the `path:` dependencies in each `Package.swift`:
 
 ```
-StrandDesign        (no deps — pure SwiftUI)
+StrandDesign        (no deps; SwiftUI)        MuscleMap   (no deps; SwiftUI)
+OuraProtocol        (no deps)                 PolarProtocol (no deps)
+StrandTraining      (no deps)                 WhoopProtocol (no deps)
+SemanticMemory      ──▶ GRDB.swift            NoopLocalAccess ──▶ GRDB.swift (standalone, macOS only)
 
-WhoopProtocol       (no deps)
+WhoopStore ─────────▶ WhoopProtocol + OuraProtocol + StrandTraining + GRDB.swift
    ▲
-   │
-WhoopStore ─────────▶ GRDB.swift
-   ▲
-   │
 StrandAnalytics ────▶ WhoopProtocol + WhoopStore
-StrandImport ───────▶ WhoopProtocol + WhoopStore + ZIPFoundation
+StrandImport ───────▶ WhoopProtocol + WhoopStore + ZIPFoundation + GRDB.swift
    ▲
-   │
 StrandCore ─────────▶ WhoopProtocol + WhoopStore + StrandAnalytics + StrandTraining + StrandImport
-   ▲                  (+ GRDB, ZIPFoundation, swift-crypto)
+   ▲                  (+ GRDB.swift, ZIPFoundation, swift-crypto)
    │
-NoopCoreJNI ────────▶ StrandCore + SemanticMemory (+ the packages above); Android only at runtime
+NoopCoreJNI ────────▶ StrandCore + SemanticMemory (+ the packages above); dynamic library `NoopCore`
 ```
-
-(`WhoopStore` also depends on `OuraProtocol` and `StrandTraining`.)
 
 | Package | Responsibility | Key types / functions | Notable boundary |
 |---|---|---|---|
-| **WhoopProtocol** | The reverse-engineering core: turn raw BLE bytes into typed rows. Framing, CRC, fragment reassembly, schema-driven field decode, stream extraction, historical-chunk classification. | `Reassembler`, `verifyFrame`, `parseFrame` → `ParsedFrame`, `extractStreams`, `extractHistoricalStreams`, `classifyHistoricalMeta`, `Streams`, `DeviceFamily`, `crc8`/`crc16Modbus`/`crc32` | **No CoreBluetooth.** Exposes GATT UUIDs as `String`; the app wraps them in `CBUUID`. |
-| **WhoopStore** | Durable on-device persistence built on GRDB/SQLite. Migrations, decoded streams, metric caches, generic metric series, raw outbox, cursors. | `actor WhoopStore`, `makeMigrator()`, `insert(_:deviceId:)`, `dailyMetrics`, `sleepSessions`, `metricSeries`, `pruneRaw`, `ClockRef`, `RawBatchMeta` | An **`actor`** — all writes/reads run off the main thread on its serial executor. |
-| **StrandAnalytics** | All physiological math, as pure functions over inputs. HRV, recovery, strain, sleep staging, workout detection, baselines, HR zones, correlation/comparison. | `AnalyticsEngine.analyzeDay(...)` → `DayResult`, `HRVAnalyzer`, `RecoveryScorer`, `StrainScorer`, `SleepStager`, `WorkoutDetector`, `Baselines`, `CorrelationEngine` | **Pure** — never touches the database. Produces `DailyMetric`/`CachedSleepSession` shapes for the store. |
-| **StrandImport** | Parse data the user already owns: WHOOP CSV exports and Apple Health exports (`export.xml`, streaming). | `ImportCoordinator.detectAndImport`, `WhoopExportImporter`, `AppleHealthImporter`, `AppleHealthAggregator` | **Parsing only** — returns normalized model arrays; the app maps them into the store. |
-| **StrandDesign** | The SwiftUI design system: palette, typography, motion, charts, components. | `StrandPalette`, `StrandCard`, `RecoveryRing`, `StrainGauge`, `Hypnogram`, `TrendChart`, `Sparkline`, `YearHeatStrip` | No data or protocol deps — pure presentation. |
+| **WhoopProtocol** | The reverse-engineering core: turn raw BLE bytes into typed rows. Framing, CRC, fragment reassembly, schema-driven field decode, stream extraction, historical-chunk classification. Also builds the `whoop-decode`, `whoop-optical-experiment` and `whoop-re` CLIs. | `Reassembler`, `verifyFrame`, `parseFrame` → `ParsedFrame`, `extractStreams`, `extractHistoricalStreams`, `classifyHistoricalMeta`, `Streams`, `DeviceFamily`, `crc8`/`crc16Modbus`/`crc32` | **No CoreBluetooth.** Exposes GATT UUIDs as `String`; the app wraps them in `CBUUID`. |
+| **OuraProtocol** | Clean-room Oura ring BLE protocol and decode (experimental support), with the `oura-decode` CLI. | `OuraProtocol` library, `oura-decode` | No CoreBluetooth; `WhoopStore` depends on it for the Oura raw-dump mappings. |
+| **PolarProtocol** | Clean-room Polar model identification and Measurement Data (PMD) decoder and control-point builder. | `PmdDecoder`, `PmdControl`, `PolarModel` | Decode and identification only; no BLE wiring. |
+| **WhoopStore** | Durable on-device persistence built on GRDB/SQLite. Migrations, decoded streams, metric caches, generic metric series, raw outbox, cursors, device registry, and the stores for food, training, lift log, Hevy, ECG and energy. | `actor WhoopStore`, `makeMigrator()`, `insert(_:deviceId:)`, `dailyMetrics`, `sleepSessions`, `metricSeries`, `pruneRaw`, `ClockRef`, `RawBatchMeta` | An **`actor`** — all writes/reads run off the main thread on its serial executor. |
+| **StrandAnalytics** | All physiological math, as pure functions over inputs. HRV, recovery, strain, sleep staging, workout detection, baselines, HR zones, correlation/comparison, energy models. | `AnalyticsEngine.analyzeDay(...)` → `DayResult`, `HRVAnalyzer`, `RecoveryScorer`, `StrainScorer`, `SleepStager`, `WorkoutDetector`, `Baselines`, `CorrelationEngine`, `WhoopEnergyModel` | **Pure** — never touches the database. Produces `DailyMetric`/`CachedSleepSession` shapes for the store. |
+| **StrandImport** | Parse data the user already owns: WHOOP CSV, Apple Health, Oura, Fitbit, Garmin, Xiaomi exports; FIT/GPX/TCX activity files; lab, nutrition and lifting sheets; the Hevy API payloads. | `ImportCoordinator.detectAndImport`, `WhoopExportImporter`, `AppleHealthImporter`, `AppleHealthAggregator`, `ActivityFileImporter` | **Parsing only** — returns normalized model arrays; the app (or `StrandCore`) maps them into the store. |
+| **StrandDesign** | The SwiftUI design system: palette, typography, motion, charts, components. Also builds for watchOS. | `StrandPalette`, `StrandCard`, `RecoveryRing`, `StrainGauge`, `Hypnogram`, `TrendChart`, `Sparkline`, `YearHeatStrip` | No data or protocol deps — pure presentation. |
+| **StrandTraining** | Training catalogue and workout engine: bundled exercise catalogue and anatomy, plans, programs and blocks, routines and routine import, progression, plate calculator, warm-up planner, set flow and timers. | `WorkoutEngine`, `ProgressionEngine`, `PlanBuilder`, `TrainingCatalog`, `BundledExerciseCatalog`, `TrainingProgram` | Pure; no dependencies. `WhoopStore` depends on it for the native-training tables. |
+| **MuscleMap** | SwiftUI muscle-map rendering for training views (third-party, MIT). | `MuscleMap` library | Presentation only; linked by the Apple app targets, not by the core. |
+| **SemanticMemory** | The local Coach memory index: stored embeddings, ranking and the index store. | `SemanticIndexStore`, `SemanticRanking` | Depends on GRDB only. The embedding provider (Nomic) lives in the iOS app target. |
+| **NoopLocalAccess** | `noop-local-access`: bounded, read-only access to NOOP health data over MCP (stdio) or one-shot JSON queries. | `NoopLocalAccessCore`, `noop-local-access` | macOS only; GRDB only; no network or write path; no NOOP package dependencies. |
 | **StrandCore** (fork) | The platform-neutral app core shared by the Apple apps and Android: the daily analysis pass and its host, `AnalysisRecipe` (the rebuild lineage), raw collection and backfill, backup archive, metric resolver, energy, Hevy sync, exercise media, score provenance. | `AnalysisHost`, `DailyAnalysis`, `AnalysisRecipe`, `Collector`, `Backfiller`, `BackupArchive`, `MetricResolver` | No SwiftUI, Combine or StrandDesign: everything must also build for Android. |
 | **NoopCoreJNI** (fork) | Android's door into the core: a dynamic `NoopCore` library whose JNI entry points call plain Swift functions in `Bridge.swift`; `Sources/NoopCore/Shared` links app sources Android needs unchanged. | `Bridge.swift`, `JNIExports.swift`, `CoreCall`, `Core*` facades | `CJNI` (jni.h) is used only on Android; the bridge functions are tested on macOS. |
 
@@ -336,20 +379,29 @@ shell doesn't re-render on every beat.
 
 ## 7. Storage model (WhoopStore / SQLite)
 
-GRDB drives a migrator (`WhoopStore.schemaVersion`, currently `21`). The schema groups into five
-concerns:
+GRDB drives a migrator (`makeMigrator()` in `Packages/WhoopStore/Sources/WhoopStore/Database.swift`) that
+currently runs through `v94-weight-water-mark`. Migrations are keyed by identifier string. The separate
+`WhoopStoreInfo.schemaVersion` constant (currently `26`) is only the marker written into the backup manifest
+and is not the migrator's version; [`DATA_MODEL.md`](DATA_MODEL.md) lists every table and migration. The
+schema groups into these concerns:
+
+**Device registry** — `device`, `pairedDevice` (one active device), `dayOwnership` (which device's scores a
+day shows).
 
 **Durable decoded streams** — natural key `(deviceId, ts)`, one row per sample:
 `hrSample`, `rrInterval`, `event`, `battery`, plus the type-47 biometrics `spo2Sample`,
-`skinTempSample`, `respSample`, `gravitySample`.
+`skinTempSample`, `respSample`, `gravitySample`, and the further per-second streams `stepSample`,
+`ppgHrSample`, `sleepStateSample`, `v18AuxSample`, `ppgWaveformSample` and `ecgWaveformSample`.
 
 **Metric caches** — the rolled-up shapes the screens read:
 - `dailyMetric` — one row per `(deviceId, day)`: `recovery`, `strain`, sleep stage minutes,
-  `restingHr`, `avgHrv`, `spo2Pct`, `skinTempDevC`, `respRateBpm`, `exerciseCount`.
+  `restingHr`, `avgHrv`, `spo2Pct`, `skinTempDevC`, `respRateBpm`, `exerciseCount`, and later columns.
 - `sleepSession` — one row per `(deviceId, startTs)` with `efficiency`, `restingHr`, `avgHrv`, and
   a JSON `stagesJSON` hypnogram.
-- `journal`, `workout`, `appleDaily` — imported journal answers, workouts (WHOOP + Apple Health),
-  and Apple-Health daily aggregates.
+- `journal`, `workout`, `appleDaily`, `appleStepHour`, `bodyWeightEntry`, `labMarker`, `liveSession`,
+  `scoreInputProvenance` — imported journal answers, workouts (WHOOP, Apple Health and others),
+  Apple-Health daily aggregates, the wearer's weigh-ins and lab markers, live coaching sessions, and the
+  provenance of computed headline scores.
 
 **Generic metric series** — `metricSeries(deviceId, day, key, value REAL)`: a tall, long-format
 table so *any* scalar metric from *any* source can be queried/compared uniformly (the substrate for
@@ -358,14 +410,37 @@ the Metric Explorer and correlations), indexed by `(deviceId, key, day)`.
 **Raw outbox** — `rawBatch`: the compressed, **transient, prunable** record of original frames,
 captured only when the research toggle is on. Decoded data is always committed *before* raw is queued,
 so pruning raw (`PrunePolicy`: 24h window / 50MB cap) can never lose a metric. `cursors` holds durable
-watermarks such as `strap_trim`.
+watermarks such as `strap_trim` and the analysis recipe cursors (below). The analysis caches
+(`analysisInputRevision`, `analysisDeviceRevision`, `dayScanFingerprint`) record which inputs changed so an
+unchanged day is not scored again.
 
-**Energy model** (v45–v49) — `healthEnergyBucket` (a bounded five-minute Apple Health reference
+**Energy model** (v45–v50, v71, v93) — `healthEnergyBucket` (a bounded five-minute Apple Health reference
 stream, Apple Watch buckets only eligible), `whoopDailyEnergy` (the derived WHOOP-first daily total
-and its evidence/context mix), `whoopEnergyHourly` (the hourly active-energy shape), and
-`energyCalibrationModel` (the opt-in, bounded Apple-Watch-reference calibration fit). Kept deliberately separate from `dailyMetric`/`appleDaily` so no import or refit
+and its evidence/context mix), `whoopEnergyHourly` (the hourly active-energy shape), `whoopEnergyBucket`
+(the auditable five-minute output) and `energyCalibrationModel` (the opt-in, bounded Apple-Watch-reference
+calibration fit). Kept deliberately separate from `dailyMetric`/`appleDaily` so no import or refit
 can silently change another table's number — see `docs/DATA_MODEL.md` §Energy model tables and
 `docs/ANALYTICS.md` §Daily energy.
+
+**Training, strength and food** — the native training tables (`trainingWorkoutNative`, routines, programs,
+schedules, session load and ratings), the Hevy tables (`hevy*`), the lift log (`lift*`), workout side tables
+(`workoutSourceMetadata`, `workoutHeartRateFill`, `workoutElevation`, …), and the food log (`food*`). These
+are the wearer's own inputs plus fusion and load tables derived from them.
+
+**Other** — `ouraRaw` (verbatim Oura API pages), `ecgReading` and `ecgReadingPacket` (saved MG ECG readings),
+the Health-export change tracking tables, and the fork's `goalPreferenceState`, `hostInputOwnership`,
+`dismissedWorkout`, `dismissedSleep` and `coachMessage` (the last three are used by Android and stay empty on
+Apple).
+
+**Analysis recipe.** Derived values carry a lineage: `AnalysisRecipe.currentVersion` (in
+`Packages/StrandCore`, currently `39`, numbered AI-n) names the meaning of the stored derived values. The
+recipe cursor (`noopai:analysisRecipeVersion` in `cursors`) records which recipe the stored rows were
+computed under. When the code's recipe is newer, one rebuild (`AnalysisRecipe.RebuildStep`: legacy input
+repairs, AgeLess reset, workout peaks, daily history, weekly scores, stress proxy, rhythm days, workout
+heart rate, cardio load, energy history, publish) scores every day with raw strap data again and rebuilds the
+derived tables from the stored inputs, resuming at the step it was in and writing the recipe cursor only
+after the last one. Raw samples and values an import or the wearer supplied are never replaced. The rules for
+when to bump it are in [`fork/AGENT_RULES.md`](fork/AGENT_RULES.md).
 
 `deviceId` is the per-source partition key. The app uses `"my-whoop"` for the strap and
 `"apple-health"` for imported Apple Health, so per-source pages and cross-source "consensus" views
@@ -375,7 +450,9 @@ read the same tables filtered by source.
 
 ## 8. Imports (StrandImport)
 
-Imports converge on the *same* store as the BLE paths, so history lights up instantly:
+Imports converge on the *same* store as the BLE paths, so history lights up instantly. The diagram shows
+the two oldest lanes; `StrandImport` also parses Oura, Fitbit, Garmin and Xiaomi exports, FIT/GPX/TCX
+activity files, lab and nutrition files and lifting sheets:
 
 ```
 URL (export.zip / *.csv / export.xml / folder)
@@ -415,11 +492,17 @@ reader so multi-hundred-MB files don't blow up memory.
 Because the engine never touches the database, the same code runs over live-collected streams,
 backfilled streams, or imported data interchangeably. **All derived values are approximate.**
 
+The analyzers are driven by the daily analysis pass in `StrandCore` (`AnalysisHost`, `DailyAnalysis`), which
+reads the stored inputs, scores each day, writes the derived rows back and publishes the screens' snapshot.
+That pass runs identically on the Apple apps and, through `NoopCoreJNI`, on Android. When a change makes
+existing derived values stale it bumps `AnalysisRecipe.currentVersion`, and the next launch rebuilds them
+from the stored inputs (section 7).
+
 ---
 
 ## 10. Presentation (Strand app + StrandDesign)
 
-`StrandApp` (`@main`) builds a single `AppModel`, injects it plus `LiveState`, `Repository`,
+On macOS, `StrandApp` (`@main`) builds a single `AppModel`, injects it plus `LiveState`, `Repository`,
 `ProfileStore`, and `BehaviorStore` into the environment, and presents a `WindowGroup` (dark, hidden
 title bar) alongside a glanceable `MenuBarExtra`. `RootView` is a `NavigationSplitView` whose sidebar
 is the `NavItem` enum (`Strand/App/RootView.swift`), organized into five collapsible `NavGroup`s
@@ -427,11 +510,15 @@ rather than one flat list:
 
 | Group | Items |
 | --- | --- |
-| **Today** | Today |
+| **Today** | Today, Goal & Journey |
 | **Sleep** | Sleep |
-| **Body** | Workouts, Live, Health, Stress, Intervals, Breathe |
-| **Insights** | Intelligence, What Moves You (`insightsHub`), Coach, Goal & Journey, Explore, Compare, Insights, Lab Book, Rhythm, Trends |
-| **Data & App** | Devices, NOOP Limitations, Data Sources, Apple Health, Mi Band, Backup & Sync, Your Data, Fused (`fusedRecord`), Notifications, Automations, Smart Alarm, Power saving, Settings, Test Centre |
+| **Body** | Training, Workouts, Strength, Cardio, Training Load, Body, Energy (`energyPlan`), Live, Health, Stress, Intervals, Breathe |
+| **Insights** | Momentum, Intelligence, What Moves You (`insightsHub`), Coach, Explore, Compare, Insights (the journal), Lab Book, Rhythm, Saved ECGs, Trends |
+| **Data & App** | Devices, NOOP Limitations, Data Sources, Apple Health, Mi Band, Backup & Sync, Your Data, Fused (`fusedRecord`), Notifications, Automations, Smart Alarm, Power saving, Project (`roadmap`), Settings, Test Centre |
+
+The macOS shell above is `RootView`. On iOS the shell is `RootTabView` (`StrandiOS/App/`), whose tabs host
+the Forge screens (`StrandiOS/Forge/`); the destinations are the same features reached through a tab bar and
+a More catalogue (`MoreCatalog.swift`).
 
 `NavGroup.group(containing:)` auto-expands the group that owns the current destination on launch/
 routing. See `docs/FEATURES.md` for what each destination does; several (Coach, Goal & Journey) are

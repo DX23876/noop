@@ -1,6 +1,10 @@
 # Fitness Age
 
-**Status:** shipped. A weekly number you can read at a glance.
+**Status:** shipped, on by default. A weekly number you can read at a glance. It sits on the **Health**
+page (iPhone: More › Health & body › Health, or the Health tab; Mac: the Health sidebar item; Android:
+Health) and as a Today tile. **Vitality** sits on the same page. AgeLess and Daily rhythm are separate
+beta features behind Settings › Lab switches (off by default); see [`AGELESS.md`](AGELESS.md). While
+AgeLess is on it takes Body Age's place beside Vitality, and Fitness Age stays.
 
 ## What it is
 
@@ -23,7 +27,7 @@ Men:    VO₂max = 100.27 − 0.296·age + 0.226·PA − 0.369·waist(cm) − 0.
 Women:  VO₂max =  74.74 − 0.247·age + 0.198·PA − 0.259·waist(cm) − 0.114·RHR     SEE 5.14
 ```
 
-- **RHR** is resting heart rate (a rolling 7-day median from the strap).
+- **RHR** is resting heart rate (the median of the last seven days' resting heart rate).
 - **PA** is a physical-activity index (see below).
 - **waist** is waist circumference in cm, from the profile if the user enters it.
 - **SEE** is the model's standard error of estimate — roughly ±5.7 (men) / ±5.1 (women) ml/kg/min on the
@@ -37,8 +41,9 @@ corroborated by the **CERG/NTNU** group that authored the original work.
 The Nes model takes a **physical-activity index** that, in HUNT, came from the **HUNT1 PA-Q**
 questionnaire (Kurtze 2008) — a short self-report of weekly exercise frequency, duration and intensity
 mapped onto a 0–7.5 scale. NOOP doesn't ask the user to fill that in. Instead it **reconstructs the
-PA-index on-device** from the measured training signal it already records (workout frequency, duration
-and strain/intensity over the rolling window), mapping it onto the same scale the questionnaire produced.
+PA-index on-device** from the measured training signal it already records (the number of active days in
+the week and their mean strain, `FitnessAgeEngine.physicalActivityIndexFromStrain`), mapping it onto the
+same scale the questionnaire produced.
 This keeps the input honest — it's derived from what you actually did, not what you'd claim on a survey.
 
 ### The Fitness Age itself needs no body measurement
@@ -50,9 +55,10 @@ fixed reference body term, the **body/waist term cancels out** of the comparison
 headline Fitness Age is driven by your **resting HR and reconstructed activity** alone, and is shown
 **without requiring any weight, height or waist entry**.
 
-Weight, height and waist circumference are only ever used to **unlock the explicit VO₂max estimate**
-(the ml/kg/min figure). They never sharpen, gate, or change the Fitness Age number — the readiness UI
-groups them under *"Unlocks your VO₂max"*, never under the age itself.
+Only a **waist** measurement changes the explicit VO₂max estimate (the ml/kg/min figure): with it the app uses
+the Nes waist-based value, without it the Uth fallback. Height and weight do not enter the estimate. Neither
+sharpens, gates or changes the Fitness Age number — the readiness checklist groups them under *"Sharpens
+your VO₂max"*, never under the age itself.
 
 ## Cadence and gating
 
@@ -70,7 +76,7 @@ The weekly results are stored in `metricSeries` under two keys, written to the c
 | Key            | Unit       | Meaning                                              |
 |----------------|------------|-----------------------------------------------------|
 | `fitness_age`  | years      | the headline number (drives the UI)                 |
-| `vo2max_est`   | ml/kg/min  | the explicit VO₂max estimate (only when waist given) |
+| `vo2max_est`   | ml/kg/min  | the explicit VO₂max estimate: the Nes waist-based value when a waist is set, otherwise the rougher Uth heart-rate-ratio estimate (15.3 · HRmax / RHR), labelled "Estimated" |
 
 The UI reads the **latest** `fitness_age` value.
 
