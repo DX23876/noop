@@ -5020,5 +5020,6 @@
   "New week tomorrow": "Domani nuova settimana",
   "New month tomorrow": "Domani nuovo mese",
   "%lld days left · then a new week": "Ancora %lld giorni · poi nuova settimana",
-  "%lld days left · then a new month": "Ancora %lld giorni · poi nuovo mese"
+  "%lld days left · then a new month": "Ancora %lld giorni · poi nuovo mese",
+  "No heart rate from today yet. It appears once your strap syncs.": "Ancora nessun battito di oggi. Compare appena la tua fascia si sincronizza."
 }

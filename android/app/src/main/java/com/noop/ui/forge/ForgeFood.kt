@@ -504,7 +504,8 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
             summary?.otherKcal?.let { kcal -> FoodOtherIntakeNote(kcal, summary?.otherSource ?: "") }
             q?.let { FoodNoteCard(it, isToday = day == LocalDate.now()) { showScore = true } }
             week?.let { w ->
-                FoodSectionHeader(stringResource(R.string.food_week))
+                // The seven days up to the shown one, not Training's calendar week, as iOS (critique 2026-11-28).
+                FoodSectionHeader(stringResource(R.string.food_span_week))
                 FoodWeekStrip(w.days, day.toString(), goals) { day = LocalDate.parse(it) }
                 q?.let { FoodBadgesStrip(it) { showBadges = true } }
                 if (!invited && q?.day != null) {
@@ -565,7 +566,7 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
                 ForgeCard(Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.food_empty_title), style = Forge.type.headline, color = Forge.colors.text)
                     Text(stringResource(R.string.food_empty_body), style = Forge.type.body, color = Forge.colors.textSecondary)
-                    TextButton(onClick = { adding = true }) { Text(stringResource(R.string.food_add), color = Forge.colors.accent) }
+                    TextButton(onClick = { adding = true }) { Text(stringResource(R.string.food_add), color = Forge.colors.nutritionInk) }
                 }
             }
             if (asTab) {
@@ -1615,14 +1616,16 @@ private fun GoalStepper(title: String, value: String, minus: () -> Unit, plus: (
 /** Adding, right under the plate it fills, as iOS's `addButton`: in reach without scrolling to the meals. */
 @Composable
 private fun FoodAddButton(onClick: () -> Unit) {
-    val colors = Forge.colors
+    // Nutrition's sand, as iOS (owner, 2026-11-28: the app's blue read as foreign on the page).
+    val fill = Forge.colors.nutritionAccent
+    val ink = Forge.colors.onNutritionAccent
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        Row(Modifier.heightIn(min = 48.dp).clip(CircleShape).background(colors.accent)
+        Row(Modifier.heightIn(min = 48.dp).clip(CircleShape).background(fill)
                 .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
                 .padding(horizontal = 24.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Icon(Icons.Rounded.Add, null, tint = colors.onAccent, modifier = Modifier.size(20.dp))
-            Text(stringResource(R.string.food_add), style = Forge.type.headline, color = colors.onAccent)
+            Icon(Icons.Rounded.Add, null, tint = ink, modifier = Modifier.size(20.dp))
+            Text(stringResource(R.string.food_add), style = Forge.type.headline, color = ink)
         }
     }
 }

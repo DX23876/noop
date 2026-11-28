@@ -5027,5 +5027,6 @@
   "New week tomorrow": "明天开始新的一周",
   "New month tomorrow": "明天开始新的一月",
   "%lld days left · then a new week": "还剩 %lld 天 · 然后开始新的一周",
-  "%lld days left · then a new month": "还剩 %lld 天 · 然后开始新的一月"
+  "%lld days left · then a new month": "还剩 %lld 天 · 然后开始新的一月",
+  "No heart rate from today yet. It appears once your strap syncs.": "今天还没有心率。手环同步后会显示在这里。"
 }

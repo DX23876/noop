@@ -231,12 +231,13 @@ internal fun TrainingRecentList(workouts: List<WorkoutRow>, viewModel: com.noop.
                 }
                 Spacer(Modifier.width(ForgeMetrics.space3))
                 Column(Modifier.weight(1f)) {
+                    // Two lines each, as iOS, so a long name or a distance is not cut (design critique 2026-11-28).
                     Text(sessionName(row, titles), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
-                         color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                         color = colors.text, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     val distance = row.distanceM?.takeIf { it > 0 }?.let { " · " + com.noop.ui.UnitFormatter.distanceFromMeters(it, distanceSystem) }.orEmpty()
                     Text(stringResource(R.string.forge_lw_when, start.format(dayFormat), start.format(clock),
                                         stringResource(R.string.forge_tw_min, minutes)) + distance,
-                         style = Forge.type.caption, color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                         style = Forge.type.caption, color = colors.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 }
                 row.strain?.let { e ->
                     Spacer(Modifier.width(ForgeMetrics.space2))
@@ -262,18 +263,8 @@ internal fun TrainingRecentList(workouts: List<WorkoutRow>, viewModel: com.noop.
 internal fun TrainingGroupRow(icon: ImageVector, tint: Color, title: String, subtitle: String, divider: Boolean, onClick: () -> Unit) {
     val colors = Forge.colors
     if (divider) Box(Modifier.padding(start = 56.dp).fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider))
-    Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).padding(horizontal = ForgeMetrics.space4, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(28.dp).background(tint, RoundedCornerShape(7.dp)), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-        }
-        Spacer(Modifier.width(ForgeMetrics.space3))
-        Column(Modifier.weight(1f)) {
-            Text(title, style = Forge.type.body, color = colors.text)
-            Text(subtitle, style = Forge.type.caption, color = colors.textSecondary, maxLines = 2)
-        }
-        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))
-    }
+    // The symbol alone in its colour, as the Health and Sleep rows and iOS's `ForgeRow(plainMark:)` (critique 2026-11-28).
+    HealthLinkRow(icon, tint, title, subtitle, onClick)
 }
 
 /** The four analysis rows under Key metrics, as iOS's `analysis` group. */

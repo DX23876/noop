@@ -5525,7 +5525,6 @@
     <string name="food_lab">Labor</string>
     <string name="food_score_title">Ernährungs-Score</string>
     <string name="food_score_note">Ein Score für die letzten sieben Tage nach einem verbreiteten Index für gesunde Ernährung: Gemüse, Obst, Vollkorn, Nüsse und Hülsenfrüchte, Fisch, Fette, Salz, süße Getränke, rotes Fleisch und Alkohol. Er braucht fünf erfasste Tage von sieben. Er beschreibt Gewohnheiten, keinen einzelnen Tag.</string>
-    <string name="food_week">Woche</string>
     <string name="food_nothing_logged">nichts erfasst</string>
     <string name="food_score_week">%1$s · letzte 7 Tage</string>
     <string name="food_score_after">Erscheint ab 5 erfassten Tagen · bisher %1$d von 7</string>
@@ -5803,7 +5802,6 @@
     <string name="forge_hf_mind_sub">Stress, Atmen, was wirkt</string>
     <string name="forge_hf_more">Mehr</string>
     <string name="forge_hf_more_sub">Trends, alle Messwerte, vergleichen</string>
-    <string name="forge_hf_week_rings">Deine Woche in Ringen</string>
     <string name="forge_hint_show_less">Weniger zeigen</string>
     <string name="forge_hint_more">%1$d weitere</string>
     <string name="forge_hint_dismiss">Schließen</string>
@@ -6325,7 +6323,7 @@
     <string name="forge_g_live_wide_sub">Breit · dein Puls als Verlauf</string>
     <string name="forge_day_heart_title">Herzfrequenz im Tagesverlauf</string>
     <string name="forge_g_day_heart_sub">Breit · der ganze Tag mit Schlaf und Training</string>
-    <string name="forge_day_heart_empty">Für heute sind noch keine Herzfrequenzdaten gespeichert</string>
+    <string name="forge_day_heart_empty">Noch kein Puls von heute. Er erscheint, sobald dein Strap synchronisiert.</string>
     <string name="forge_g_add">Widget hinzufügen</string>
     <string name="forge_g_done">Fertig</string>
     <string name="forge_tile_usually">üblich %1$s</string>

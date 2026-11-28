@@ -585,7 +585,8 @@ internal fun DietBurnModelNote(plan: CoreDietPlan.Plan, onDismiss: () -> Unit) {
                  color = colors.textSecondary)
             Text(stringResource(if (note > 0) R.string.diet_burn_note_up else R.string.diet_burn_note_down, amount),
                  style = Forge.type.body, color = colors.text)
-            OutlinedButton(onClick = onDismiss) { Text(stringResource(R.string.diet_burn_note_ok)) }
+            // In the page's sand, as iOS's tinted "Got it" (design critique 2026-11-28).
+            OutlinedButton(onClick = onDismiss) { Text(stringResource(R.string.diet_burn_note_ok), color = colors.nutritionInk) }
         }
     }
 }

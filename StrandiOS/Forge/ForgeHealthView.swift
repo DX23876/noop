@@ -215,12 +215,13 @@ struct ForgeHealthView: View {
         }
     }
 
-    /// "Your week in rings": the last seven days' Charge, Effort and Rest as small stacked rings.
+    /// The last seven days' Charge, Effort and Rest as small stacked rings, titled "Last 7 days": "Your week" read
+    /// as the calendar week Training means by it (design critique 2026-11-28).
     private var weekInRings: some View {
         let days = Array(repo.days.suffix(7))
         return NavigationLink(value: TabRoute.trends) {
             VStack(alignment: .leading, spacing: 10) {
-                Text("Your week in rings").font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
+                Text("Last 7 days").font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.secondary)
                 HStack(spacing: 0) {
                     ForEach(days, id: \.day) { d in
                         VStack(spacing: 4) {

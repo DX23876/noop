@@ -5572,7 +5572,6 @@
     <string name="food_lab">Lab</string>
     <string name="food_score_title">Nutrition score</string>
     <string name="food_score_note">A score for the last seven days from a widely used healthy eating index: vegetables, fruit, whole grains, nuts and pulses, fish, fats, salt, sweet drinks, red meat and alcohol. It needs five logged days of seven. It describes habits, not a single day.</string>
-    <string name="food_week">Week</string>
     <string name="food_nothing_logged">nothing logged</string>
     <string name="food_score_week">%1$s · last 7 days</string>
     <string name="food_score_after">Shows after 5 logged days · %1$d of 7 so far</string>
@@ -5851,7 +5850,6 @@
     <string name="forge_hf_mind_sub">Stress, breathing, what works</string>
     <string name="forge_hf_more">More</string>
     <string name="forge_hf_more_sub">Trends, all metrics, compare</string>
-    <string name="forge_hf_week_rings">Your week in rings</string>
     <string name="forge_hint_show_less">Show less</string>
     <string name="forge_hint_more">%1$d more</string>
     <string name="forge_hint_dismiss">Dismiss</string>
@@ -6373,7 +6371,7 @@
     <string name="forge_g_live_wide_sub">Wide · your heart rate as a curve</string>
     <string name="forge_day_heart_title">Heart rate through the day</string>
     <string name="forge_g_day_heart_sub">Wide · the whole day, with sleep and workouts</string>
-    <string name="forge_day_heart_empty">No heart rate stored for today yet</string>
+    <string name="forge_day_heart_empty">No heart rate from today yet. It appears once your strap syncs.</string>
     <string name="forge_g_add">Add a widget</string>
     <string name="forge_g_done">Done</string>
     <string name="forge_tile_usually">usually %1$s</string>

@@ -4927,5 +4927,6 @@
   "New week tomorrow": "Ab morgen neue Woche",
   "New month tomorrow": "Ab morgen neuer Monat",
   "%lld days left · then a new week": "Noch %lld Tage · dann neue Woche",
-  "%lld days left · then a new month": "Noch %lld Tage · dann neuer Monat"
+  "%lld days left · then a new month": "Noch %lld Tage · dann neuer Monat",
+  "No heart rate from today yet. It appears once your strap syncs.": "Noch kein Puls von heute. Er erscheint, sobald dein Strap synchronisiert."
 }

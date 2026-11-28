@@ -2162,16 +2162,31 @@ struct SleepMarkCard: View {
     /// two buttons. Drives the SwiftUI haptic landing too. LOGGING-ONLY: a mark never feeds the sleep
     /// detector — it's persisted to the metric series + strap log. (#461)
     @State private var lastMark: SleepMark?
+    /// How a mark works sits behind the info button beside the title: open above the two buttons it was a
+    /// paragraph read once and scrolled past every night after (design critique 2026-11-28).
+    @State private var showsHow = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("Sleep marks", overline: "Tap to log")
+            HStack(alignment: .lastTextBaseline) {
+                SectionHeader("Sleep marks", overline: "Tap to log")
+                Button { withAnimation(.snappy) { showsHow.toggle() } } label: {
+                    Image(systemName: showsHow ? "info.circle.fill" : "info.circle")
+                        .font(.body).foregroundStyle(StrandPalette.textSecondary)
+                        .frame(minWidth: 44, minHeight: 44, alignment: .trailing)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text("What this means"))
+            }
             NoopCard(tint: StrandPalette.restColor) {
                 VStack(alignment: .leading, spacing: NoopMetrics.cardInnerSpacing) {
-                    Text("Tap when you're heading to bed or when you wake. Each tap is logged with the time. It doesn't change tonight's detected sleep.")
-                        .font(StrandFont.footnote)
-                        .foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if showsHow {
+                        Text("Tap when you're heading to bed or when you wake. Each tap is logged with the time. It doesn't change tonight's detected sleep.")
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     // Routed through the unified NoopButton system so the two marks sit identically
                     // (sentence-case label, leading icon at 8pt, controlHeight=48, no glow). Side by side where
                     // both labels fit on one line, else one above the other: "Schlafen gehen" broke over two

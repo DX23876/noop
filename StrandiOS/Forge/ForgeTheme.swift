@@ -39,6 +39,13 @@ enum ForgeColor {
     static let trainingAccent = dyn(0x248A3D, 0x30D158)
     /// Text on the training accent: white on the darker light-mode green, black on the bright dark-mode one.
     static let onTrainingAccent = dyn(0xFFFFFF, 0x000000)
+    /// Nutrition's action colour, a warm sand like the oats and almonds of its picture: the app's blue read as
+    /// foreign on the page, and yellow is the fat ring's (owner, 2026-11-28). Text on it is dark in both
+    /// appearances. Android's Forge palette (`FoodInk.actionSand`) carries the same values.
+    static let nutritionAccent = dyn(0xE6D5B8, 0xE3CFA8)
+    static let onNutritionAccent = dyn(0x3A2A14, 0x2A1E0C)
+    /// The same sand as text or tint on a card, dark enough to read on white.
+    static let nutritionInk = dyn(0x7A5A2A, 0xE3CFA8)
     /// Training's data colour beside the green: OpenGym's teal for strength (volume, muscles, routines).
     /// Controls stay green; data and pictures take their own matched colours, Effort and energy orange.
     static let trainingData = dyn(0x0E8AA3, 0x40C8E0)

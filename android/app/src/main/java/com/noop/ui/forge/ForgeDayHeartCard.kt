@@ -2,13 +2,11 @@ package com.noop.ui.forge
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Favorite
@@ -142,10 +140,9 @@ internal fun DayHeartWideCard(viewModel: AppViewModel) {
                     DayHeartStat(maxLabel, hi)
                 }
             } else {
-                Box(Modifier.fillMaxWidth().heightIn(min = 60.dp), contentAlignment = Alignment.Center) {
-                    Text(stringResource(R.string.forge_day_heart_empty), style = Forge.type.caption,
-                         color = colors.textTertiary)
-                }
+                // When the curve comes, in one line under the title, as iOS (design critique 2026-11-28).
+                Text(stringResource(R.string.forge_day_heart_empty), style = Forge.type.caption,
+                     color = colors.textSecondary, modifier = Modifier.fillMaxWidth())
             }
         }
     }

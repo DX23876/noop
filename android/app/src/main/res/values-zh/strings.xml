@@ -5468,7 +5468,6 @@
     <string name="food_lab">实验室</string>
     <string name="food_score_title">营养评分</string>
     <string name="food_score_note">根据常用的健康饮食指数给出的最近七天评分：蔬菜、水果、全谷物、坚果和豆类、鱼、脂肪、盐、甜饮料、红肉和酒精。需要七天中记录五天。它描述的是习惯，不是某一天。</string>
-    <string name="food_week">周</string>
     <string name="food_nothing_logged">没有记录</string>
     <string name="food_score_week">%1$s · 最近 7 天</string>
     <string name="food_score_after">记录满 5 天后显示 · 目前 %1$d/7</string>
@@ -5745,7 +5744,6 @@
     <string name="forge_hf_mind_sub">压力、呼吸、什么有效</string>
     <string name="forge_hf_more">更多</string>
     <string name="forge_hf_more_sub">趋势、全部指标、比较</string>
-    <string name="forge_hf_week_rings">你这一周的圆环</string>
     <string name="forge_hint_show_less">收起</string>
     <string name="forge_hint_more">还有 %1$d 个</string>
     <string name="forge_hint_dismiss">忽略</string>
@@ -6267,7 +6265,7 @@
     <string name="forge_g_live_wide_sub">宽 · 以曲线显示心率</string>
     <string name="forge_day_heart_title">全天心率</string>
     <string name="forge_g_day_heart_sub">宽 · 全天，含睡眠和锻炼</string>
-    <string name="forge_day_heart_empty">今天尚未保存心率数据</string>
+    <string name="forge_day_heart_empty">今天还没有心率。手环同步后会显示在这里。</string>
     <string name="forge_g_add">添加小组件</string>
     <string name="forge_g_done">完成</string>
     <string name="forge_tile_usually">通常 %1$s</string>

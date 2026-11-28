@@ -4903,5 +4903,6 @@
   "New week tomorrow": "Завтра новая неделя",
   "New month tomorrow": "Завтра новый месяц",
   "%lld days left · then a new week": "Ещё %lld дней · потом новая неделя",
-  "%lld days left · then a new month": "Ещё %lld дней · потом новый месяц"
+  "%lld days left · then a new month": "Ещё %lld дней · потом новый месяц",
+  "No heart rate from today yet. It appears once your strap syncs.": "Пульса за сегодня пока нет. Он появится после синхронизации браслета."
 }

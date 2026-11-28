@@ -5508,7 +5508,6 @@
     <string name="food_lab">Labo</string>
     <string name="food_score_title">Score nutritionnel</string>
     <string name="food_score_note">Un score des sept derniers jours d\'après un indice d\'alimentation saine très utilisé : légumes, fruits, céréales complètes, noix et légumineuses, poisson, graisses, sel, boissons sucrées, viande rouge et alcool. Il faut cinq jours enregistrés sur sept. Il décrit des habitudes, pas une seule journée.</string>
-    <string name="food_week">Semaine</string>
     <string name="food_nothing_logged">rien d\'enregistré</string>
     <string name="food_score_week">%1$s · 7 derniers jours</string>
     <string name="food_score_after">Apparaît après 5 jours enregistrés · %1$d sur 7 pour l\'instant</string>
@@ -5785,7 +5784,6 @@
     <string name="forge_hf_mind_sub">Stress, respiration, ce qui marche</string>
     <string name="forge_hf_more">Plus</string>
     <string name="forge_hf_more_sub">Tendances, toutes les mesures, comparer</string>
-    <string name="forge_hf_week_rings">Ta semaine en anneaux</string>
     <string name="forge_hint_show_less">Afficher moins</string>
     <string name="forge_hint_more">%1$d de plus</string>
     <string name="forge_hint_dismiss">Ignorer</string>
@@ -6307,7 +6305,7 @@
     <string name="forge_g_live_wide_sub">Large · votre pouls en courbe</string>
     <string name="forge_day_heart_title">Fréquence cardiaque au fil de la journée</string>
     <string name="forge_g_day_heart_sub">Large · toute la journée, avec sommeil et entraînements</string>
-    <string name="forge_day_heart_empty">Aucune fréquence cardiaque enregistrée pour aujourd’hui</string>
+    <string name="forge_day_heart_empty">Pas encore de pouls aujourd\'hui. Il apparaît dès que ton bracelet se synchronise.</string>
     <string name="forge_g_add">Ajouter un widget</string>
     <string name="forge_g_done">Terminé</string>
     <string name="forge_tile_usually">d\'habitude %1$s</string>

@@ -291,8 +291,10 @@ struct ForgeSleepView: View {
                     .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
                 // The same editor the full Sleep screen opens, here in place.
                 Button { editor.edit(night) } label: {
-                    Image(systemName: edited ? "pencil.circle.fill" : "pencil.circle")
-                        .font(.title3)
+                    // The plain pencil, as Android draws it: the outlined circle at this size read as a no-entry
+                    // sign (design critique 2026-11-28). An edited night keeps the filled badge.
+                    Image(systemName: edited ? "pencil.circle.fill" : "pencil")
+                        .font(edited ? .title3 : .system(.body, weight: .semibold))
                         .foregroundStyle(ForgeColor.restInk)
                         .frame(width: 44, height: 44)
                         .contentShape(Rectangle())

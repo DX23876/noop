@@ -264,7 +264,9 @@ struct DietBurnModelNote: View {
                      : String(localized: "Your burn is estimated more closely now. Your goal falls by about \(FoodText.kcal(-note)) kcal."))
                     .font(.body)
                     .fixedSize(horizontal: false, vertical: true)
-                Button("Got it") { model.dismissBurnModelNote() }.buttonStyle(.bordered)
+                // An acknowledgement in the page's sand: the inherited Nutrition tint drew it red, which read as a
+                // warning (design critique 2026-11-28).
+                Button("Got it") { model.dismissBurnModelNote() }.buttonStyle(.bordered).tint(ForgeColor.nutritionInk)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .forgeCard(padding: 14)

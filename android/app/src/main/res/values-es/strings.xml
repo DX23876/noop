@@ -5512,7 +5512,6 @@
     <string name="food_lab">Laboratorio</string>
     <string name="food_score_title">Puntuación nutricional</string>
     <string name="food_score_note">Una puntuación de los últimos siete días según un índice de alimentación sana muy usado: verduras, fruta, cereales integrales, frutos secos y legumbres, pescado, grasas, sal, bebidas azucaradas, carne roja y alcohol. Necesita cinco días registrados de siete. Describe hábitos, no un solo día.</string>
-    <string name="food_week">Semana</string>
     <string name="food_nothing_logged">nada registrado</string>
     <string name="food_score_week">%1$s · últimos 7 días</string>
     <string name="food_score_after">Aparece tras 5 días registrados · %1$d de 7 por ahora</string>
@@ -5789,7 +5788,6 @@
     <string name="forge_hf_mind_sub">Estrés, respiración, qué funciona</string>
     <string name="forge_hf_more">Más</string>
     <string name="forge_hf_more_sub">Tendencias, todas las métricas, comparar</string>
-    <string name="forge_hf_week_rings">Tu semana en anillos</string>
     <string name="forge_hint_show_less">Mostrar menos</string>
     <string name="forge_hint_more">%1$d más</string>
     <string name="forge_hint_dismiss">Descartar</string>
@@ -6311,7 +6309,7 @@
     <string name="forge_g_live_wide_sub">Ancho · tu pulso como curva</string>
     <string name="forge_day_heart_title">Frecuencia cardíaca a lo largo del día</string>
     <string name="forge_g_day_heart_sub">Ancho · todo el día, con sueño y entrenamientos</string>
-    <string name="forge_day_heart_empty">Aún no hay frecuencia cardíaca guardada para hoy</string>
+    <string name="forge_day_heart_empty">Aún no hay pulso de hoy. Aparece cuando tu pulsera se sincroniza.</string>
     <string name="forge_g_add">Añadir un widget</string>
     <string name="forge_g_done">Listo</string>
     <string name="forge_tile_usually">normalmente %1$s</string>

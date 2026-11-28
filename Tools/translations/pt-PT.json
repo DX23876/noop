@@ -4925,5 +4925,6 @@
   "New week tomorrow": "Amanhã começa nova semana",
   "New month tomorrow": "Amanhã começa novo mês",
   "%lld days left · then a new week": "Restam %lld dias · depois nova semana",
-  "%lld days left · then a new month": "Restam %lld dias · depois novo mês"
+  "%lld days left · then a new month": "Restam %lld dias · depois novo mês",
+  "No heart rate from today yet. It appears once your strap syncs.": "Ainda sem pulsação de hoje. Aparece quando a tua alça sincronizar."
 }

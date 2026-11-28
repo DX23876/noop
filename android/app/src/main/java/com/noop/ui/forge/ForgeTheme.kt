@@ -49,6 +49,8 @@ data class ForgeColors(
     val heart: Color,
     // The food log's colours, the values of iOS `ForgeColor.food`/`protein`/`carbs`/`fat`.
     val food: Color, val protein: Color, val carbs: Color, val fat: Color,
+    // Nutrition's action sand, the values of iOS `ForgeColor.nutritionAccent`/`onNutritionAccent`/`nutritionInk`.
+    val nutritionAccent: Color, val onNutritionAccent: Color, val nutritionInk: Color,
     // The cycle page's phase colours, the values of iOS `ForgeColor.cyclePeriod`/`cycleFollicular`/`cycleShift`/`cycleFertile`.
     val cyclePeriod: Color, val cycleFollicular: Color, val cycleShift: Color, val cycleFertile: Color,
     /** Text and icons on an accent fill (iOS `forgeOnAccent`): white, or the calm profile's own dark ink. */
@@ -180,6 +182,8 @@ fun forgeColors(dark: Boolean, newDesign: Boolean = ForgeDesign.preview,
     heart = P.liquidHeart.pick(dark),
     food = FoodInk.food.pick(dark), protein = FoodInk.protein.pick(dark), carbs = FoodInk.carbs.pick(dark),
     fat = FoodInk.fat.pick(dark),
+    nutritionAccent = FoodInk.actionSand.pick(dark), onNutritionAccent = FoodInk.onActionSand.pick(dark),
+    nutritionInk = FoodInk.sandInk.pick(dark),
     cyclePeriod = CycleInk.period.pick(dark), cycleFollicular = CycleInk.follicular.pick(dark),
     cycleShift = CycleInk.shift.pick(dark), cycleFertile = CycleInk.fertile.pick(dark),
     onAccent = c.onAccent?.takeIf { newDesign }?.pick(dark) ?: Color.White,
@@ -200,6 +204,11 @@ private object FoodInk {
     val protein = ForgeColor(light = 0xFF7C3AED, dark = 0xFFB173FF)
     val carbs = ForgeColor(light = 0xFF0A6FD1, dark = 0xFF3DB8FF)
     val fat = ForgeColor(light = 0xFFB58900, dark = 0xFFFFD60A)
+    // Nutrition's action colour (iOS `ForgeColor.nutritionAccent`, owner 2026-11-28): a warm sand like the oats and
+    // almonds of its picture, dark text on it; the ink is the same sand dark enough to read on a light card.
+    val actionSand = ForgeColor(light = 0xFFE6D5B8, dark = 0xFFE3CFA8)
+    val onActionSand = ForgeColor(light = 0xFF3A2A14, dark = 0xFF2A1E0C)
+    val sandInk = ForgeColor(light = 0xFF7A5A2A, dark = 0xFFE3CFA8)
     // Nutrient marks (iOS `ForgeColor.nutrient…`): each nutrient its own hue by what it is found in or known for.
     val sea = ForgeColor(light = 0xFF0E7490, dark = 0xFF22D3EE)
     val olive = ForgeColor(light = 0xFF4D7C0F, dark = 0xFFA3E635)

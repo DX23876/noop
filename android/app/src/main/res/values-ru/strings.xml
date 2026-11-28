@@ -5493,7 +5493,6 @@
     <string name="food_lab">Лаборатория</string>
     <string name="food_score_title">Балл питания</string>
     <string name="food_score_note">Балл за последние семь дней по распространённому индексу здорового питания: овощи, фрукты, цельные злаки, орехи и бобовые, рыба, жиры, соль, сладкие напитки, красное мясо и алкоголь. Нужно пять записанных дней из семи. Он описывает привычки, а не один день.</string>
-    <string name="food_week">Неделя</string>
     <string name="food_nothing_logged">ничего не записано</string>
     <string name="food_score_week">%1$s · последние 7 дней</string>
     <string name="food_score_after">Появится после 5 записанных дней · пока %1$d из 7</string>
@@ -5770,7 +5769,6 @@
     <string name="forge_hf_mind_sub">Стресс, дыхание, что работает</string>
     <string name="forge_hf_more">Ещё</string>
     <string name="forge_hf_more_sub">Тренды, все показатели, сравнение</string>
-    <string name="forge_hf_week_rings">Твоя неделя в кольцах</string>
     <string name="forge_hint_show_less">Показать меньше</string>
     <string name="forge_hint_more">ещё %1$d</string>
     <string name="forge_hint_dismiss">Закрыть</string>
@@ -6292,7 +6290,7 @@
     <string name="forge_g_live_wide_sub">Широкий · пульс в виде кривой</string>
     <string name="forge_day_heart_title">Пульс в течение дня</string>
     <string name="forge_g_day_heart_sub">Широкий · весь день со сном и тренировками</string>
-    <string name="forge_day_heart_empty">За сегодня пульс ещё не сохранён</string>
+    <string name="forge_day_heart_empty">Пульса за сегодня пока нет. Он появится после синхронизации браслета.</string>
     <string name="forge_g_add">Добавить виджет</string>
     <string name="forge_g_done">Готово</string>
     <string name="forge_tile_usually">обычно %1$s</string>

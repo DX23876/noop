@@ -407,9 +407,11 @@ struct ForgeTrainingView: View {
                 .frame(width: 38, height: 38)
                 .background(Circle().fill(tint.opacity(ForgeOpacity.wash)))
             VStack(alignment: .leading, spacing: 1) {
+                // Two lines each, so a long name or a distance is not cut ("Funktionelles Krafttraini…",
+                // "10,1…"), design critique 2026-11-28.
                 Text(Repository.sessionName(row, titles: repo.sessionTitles))
-                    .font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text).lineLimit(1)
-                Text(detail(row)).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary).lineLimit(1)
+                    .font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text).lineLimit(2)
+                Text(detail(row)).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary).lineLimit(2)
             }
             Spacer(minLength: 8)
             if let strain = row.strain {
@@ -469,25 +471,26 @@ struct ForgeTrainingView: View {
                 }
             }
             .buttonStyle(LiquidPressStyle())
+            // The symbols alone in their colours, as the Health and Sleep rows (design critique 2026-11-28).
             ForgeGroup {
                 NavigationLink(value: TabRoute.trainingLoad) {
                     ForgeRow(systemImage: "chart.bar.fill", tint: .red, title: String(localized: "Training load"),
-                             subtitle: String(localized: "Both lanes against your usual"))
+                             subtitle: String(localized: "Both lanes against your usual"), plainMark: true)
                 }
-                ForgeRowDivider()
+                ForgeRowDivider(inset: 56)
                 NavigationLink(value: ForgeRoute.strength) {
                     ForgeRow(systemImage: "dumbbell.fill", tint: .orange, title: String(localized: "Strength"),
-                             subtitle: String(localized: "Exercises, volume and muscle groups"))
+                             subtitle: String(localized: "Exercises, volume and muscle groups"), plainMark: true)
                 }
-                ForgeRowDivider()
+                ForgeRowDivider(inset: 56)
                 NavigationLink(value: TabRoute.cardio) {
                     ForgeRow(systemImage: "figure.run", tint: .green, title: String(localized: "Cardio"),
-                             subtitle: String(localized: "Runs, rides, swims and rows"))
+                             subtitle: String(localized: "Runs, rides, swims and rows"), plainMark: true)
                 }
-                ForgeRowDivider()
+                ForgeRowDivider(inset: 56)
                 NavigationLink(value: TabRoute.goals) {
                     ForgeRow(systemImage: "flag.fill", tint: .blue, title: String(localized: "Goals"),
-                             subtitle: String(localized: "This week, this month, long term"))
+                             subtitle: String(localized: "This week, this month, long term"), plainMark: true)
                 }
             }
             .buttonStyle(.plain)
@@ -500,22 +503,22 @@ struct ForgeTrainingView: View {
             ForgeGroup {
                 NavigationLink(value: ForgeRoute.weekPlan) {
                     ForgeRow(systemImage: "calendar.day.timeline.left", tint: ForgeColor.trainingAccent, title: String(localized: "This week's plan"),
-                             subtitle: String(localized: "Done and planned, day by day"))
+                             subtitle: String(localized: "Done and planned, day by day"), plainMark: true)
                 }
-                ForgeRowDivider()
+                ForgeRowDivider(inset: 56)
                 NavigationLink(value: MoreDestination.training) {
                     ForgeRow(systemImage: "calendar", tint: ForgeColor.trainingAccent, title: String(localized: "Plan and library"),
-                             subtitle: String(localized: "Schedule, routines, imports, past sessions"))
+                             subtitle: String(localized: "Schedule, routines, imports, past sessions"), plainMark: true)
                 }
-                ForgeRowDivider()
+                ForgeRowDivider(inset: 56)
                 NavigationLink(value: MoreDestination.intervals) {
                     ForgeRow(systemImage: "timer", tint: .orange, title: String(localized: "Interval timer"),
-                             subtitle: String(localized: "Rounds and breaks"))
+                             subtitle: String(localized: "Rounds and breaks"), plainMark: true)
                 }
-                ForgeRowDivider()
+                ForgeRowDivider(inset: 56)
                 NavigationLink(value: MoreDestination.breathe) {
                     ForgeRow(systemImage: "wind", tint: .teal, title: String(localized: "Breathe"),
-                             subtitle: String(localized: "Guided breathing"))
+                             subtitle: String(localized: "Guided breathing"), plainMark: true)
                 }
             }
             .buttonStyle(.plain)

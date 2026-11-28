@@ -21,6 +21,8 @@ struct ForgeFoodView: View {
     /// Set once the arrival sheet has been shown, so coming back from a subpage does not open it again.
     @State private var openedAdd = false
     @State private var scrolledPast = false
+    /// Whether the page has scrolled under the status bar, which then gets the tabs' backdrop.
+    @State private var underClock = false
     /// The calendar day the page last knew as today. As the Nutrition tab the page lives as long as the app, so
     /// past midnight it would still show yesterday; a page left on today moves on with the date (`followToday`).
     @State private var knownToday = Repository.localDayKey(.now)
@@ -60,6 +62,9 @@ struct ForgeFoodView: View {
                         ForgeSearchButton()
                     }
                     .padding(.horizontal, -16)
+                    // Once the page scrolls, the status bar gets the tabs' backdrop; at rest the picture keeps the
+                    // top to itself (design critique 2026-11-28: text ran under the clock here only).
+                    .onGeometryChange(for: Bool.self) { $0.frame(in: .scrollView).minY < 0 } action: { underClock = $0 }
                     // A tab hides its bar, so Add food is the button under the plate and Food data the row at the
                     // end of the page. As a second icon row here they made three header rows before the plate
                     // (design critique 2026-11-28).
@@ -81,7 +86,9 @@ struct ForgeFoodView: View {
                                  isToday: model.isToday, streakDays: model.badges?.streakDays ?? 0, open: openScore)
                 }
                 if !model.week.isEmpty {
-                    FoodSectionHeader(title: String(localized: "Week"))
+                    // The strip shows the seven days up to the one shown, not the calendar week Training's
+                    // "This week" means; one word for both read as one thing (design critique 2026-11-28).
+                    FoodSectionHeader(title: String(localized: "Last 7 days"))
                         .padding(.top, 16)
                     FoodWeekStrip(week: model.week, shownDay: model.day, calorieGoal: { model.calories(for: $0)?.kcal },
                                   macroGoals: { model.macroGoals(for: $0) }, select: showDay)
@@ -124,7 +131,8 @@ struct ForgeFoodView: View {
                     } description: {
                         Text("Search for a food, scan a barcode or just enter the calories.")
                     } actions: {
-                        Button("Add food", action: openAdd).buttonStyle(.borderedProminent).tint(ForgeColor.accent)
+                        Button("Add food", action: openAdd).buttonStyle(.borderedProminent).tint(ForgeColor.nutritionAccent)
+                            .foregroundStyle(ForgeColor.onNutritionAccent)
                     }
                     .forgeCard()
                 }
@@ -152,6 +160,12 @@ struct ForgeFoodView: View {
             .background(alignment: .top) { FoodHeroPicture().padding(.top, -120) }
         }
         .background(ForgeBackground(tab: .nutrition))
+        .overlay {
+            if onProfile != nil && underClock {
+                ForgeStatusBarScrim(tab: .nutrition).transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: underClock)
         .forgeDetailBar(title: String(localized: "Nutrition"), showsTitle: scrolledPast)
         .toolbar {
             // Adding sits in the bar, always in reach, instead of a button floating over the meals.
@@ -265,10 +279,10 @@ struct ForgeFoodView: View {
         Button(action: openAdd) {
             Label("Add food", systemImage: "plus")
                 .font(.system(.headline))
-                .foregroundStyle(ForgeColor.onAccent)
+                .foregroundStyle(ForgeColor.onNutritionAccent)
                 .padding(.horizontal, 24)
                 .frame(minHeight: 48)
-                .background(Capsule().fill(ForgeColor.accent))
+                .background(Capsule().fill(ForgeColor.nutritionAccent))
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)

@@ -311,7 +311,7 @@ internal fun HealthWeekInRings(days: List<DailyMetric>, onOpen: () -> Unit) {
     if (week.isEmpty()) return
     val locale = Locale.getDefault()
     ForgeCard(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpen)) {
-        Text(stringResource(R.string.forge_hf_week_rings), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+        Text(stringResource(R.string.food_span_week), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
              color = colors.textSecondary)
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth().clearAndSetSemantics { }) {

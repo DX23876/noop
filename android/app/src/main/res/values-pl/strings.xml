@@ -5534,7 +5534,6 @@
     <string name="food_lab">Laboratorium</string>
     <string name="food_score_title">Wynik żywieniowy</string>
     <string name="food_score_note">Wynik z ostatnich siedmiu dni według popularnego indeksu zdrowego odżywiania: warzywa, owoce, produkty pełnoziarniste, orzechy i strączki, ryby, tłuszcze, sól, słodkie napoje, czerwone mięso i alkohol. Wymaga pięciu zapisanych dni z siedmiu. Opisuje nawyki, nie pojedynczy dzień.</string>
-    <string name="food_week">Tydzień</string>
     <string name="food_nothing_logged">nic nie zapisano</string>
     <string name="food_score_week">%1$s · ostatnie 7 dni</string>
     <string name="food_score_after">Pojawi się po 5 zapisanych dniach · na razie %1$d z 7</string>
@@ -5811,7 +5810,6 @@
     <string name="forge_hf_mind_sub">Stres, oddech, co działa</string>
     <string name="forge_hf_more">Więcej</string>
     <string name="forge_hf_more_sub">Trendy, wszystkie wskaźniki, porównanie</string>
-    <string name="forge_hf_week_rings">Twój tydzień w pierścieniach</string>
     <string name="forge_hint_show_less">Pokaż mniej</string>
     <string name="forge_hint_more">jeszcze %1$d</string>
     <string name="forge_hint_dismiss">Odrzucać</string>
@@ -6333,7 +6331,7 @@
     <string name="forge_g_live_wide_sub">Szeroki · puls jako krzywa</string>
     <string name="forge_day_heart_title">Tętno w ciągu dnia</string>
     <string name="forge_g_day_heart_sub">Szeroki · cały dzień ze snem i treningami</string>
-    <string name="forge_day_heart_empty">Na dziś nie zapisano jeszcze tętna</string>
+    <string name="forge_day_heart_empty">Brak jeszcze tętna z dzisiaj. Pojawi się, gdy pasek się zsynchronizuje.</string>
     <string name="forge_g_add">Dodaj widżet</string>
     <string name="forge_g_done">Gotowe</string>
     <string name="forge_tile_usually">zwykle %1$s</string>

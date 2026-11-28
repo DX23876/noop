@@ -701720,6 +701720,70 @@
           }
         }
       }
+    },
+    "No heart rate from today yet. It appears once your strap syncs." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Noch kein Puls von heute. Er erscheint, sobald dein Strap synchronisiert."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No heart rate from today yet. It appears once your strap syncs."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay pulso de hoy. Aparece cuando tu pulsera se sincroniza."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas encore de pouls aujourd'hui. Il apparaît dès que ton bracelet se synchronise."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ancora nessun battito di oggi. Compare appena la tua fascia si sincronizza."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak jeszcze tętna z dzisiaj. Pojawi się, gdy pasek się zsynchronizuje."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ainda sem pulsação de hoje. Aparece quando a tua alça sincronizar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пульса за сегодня пока нет. Он появится после синхронизации браслета."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天还没有心率。手环同步后会显示在这里。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天還沒有心率。手環同步後會顯示在這裡。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

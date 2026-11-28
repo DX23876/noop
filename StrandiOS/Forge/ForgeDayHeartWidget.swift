@@ -70,10 +70,12 @@ struct ForgeDayHeartWidget: View {
                         stat(String(localized: "Max"), values.max())
                     }
                 } else {
-                    Text("No heart rate stored for today yet")
+                    // Says when the curve comes, in one line under the title: an empty card that only said
+                    // "nothing stored" held a whole slot and left the next step to guessing (critique 2026-11-28).
+                    Text("No heart rate from today yet. It appears once your strap syncs.")
                         .font(ForgeFont.caption)
-                        .foregroundStyle(ForgeColor.tertiary)
-                        .frame(maxWidth: .infinity, minHeight: 60, alignment: .center)
+                        .foregroundStyle(ForgeColor.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

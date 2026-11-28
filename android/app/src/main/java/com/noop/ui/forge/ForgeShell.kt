@@ -219,14 +219,24 @@ private fun TabItem(tab: ForgeTab, selected: Boolean, modifier: Modifier, onClic
  */
 @Composable
 private fun TabLabel(label: String, tint: Color) {
-    val base = Forge.type.caption.copy(fontWeight = FontWeight.Medium)
+    Box(Modifier.fillMaxWidth().padding(horizontal = 6.dp), contentAlignment = Alignment.Center) {
+        ForgeFitText(label, Forge.type.caption.copy(fontWeight = FontWeight.Medium), tint)
+    }
+}
+
+/**
+ * One line of text that shrinks to [minScale] of its size before it is cut, as SwiftUI's
+ * `.lineLimit(1).minimumScaleFactor(_:)`: the tab labels and the night's signal tiles use it on iOS.
+ */
+@Composable
+internal fun ForgeFitText(text: String, style: androidx.compose.ui.text.TextStyle, color: Color,
+                          modifier: Modifier = Modifier, minScale: Float = 0.8f) {
     val measurer = androidx.compose.ui.text.rememberTextMeasurer()
-    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 6.dp),
-                                                          contentAlignment = Alignment.Center) {
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier) {
         val room = constraints.maxWidth
-        val needed = remember(label, base) { measurer.measure(label, base, maxLines = 1).size.width }
-        val style = if (needed > room && needed > 0) base.copy(fontSize = base.fontSize * (room.toFloat() / needed).coerceAtLeast(0.8f))
-                    else base
-        Text(label, style = style, color = tint, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        val needed = remember(text, style) { measurer.measure(text, style, maxLines = 1).size.width }
+        val fitted = if (needed > room && needed > 0) style.copy(fontSize = style.fontSize * (room.toFloat() / needed).coerceAtLeast(minScale))
+                     else style
+        Text(text, style = fitted, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

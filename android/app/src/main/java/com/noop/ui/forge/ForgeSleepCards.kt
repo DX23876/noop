@@ -17,6 +17,8 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
@@ -25,6 +27,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.rounded.Bedtime
 import androidx.compose.material.icons.rounded.WbSunny
 import kotlinx.coroutines.launch
@@ -192,19 +196,30 @@ internal fun ForgeSleepMarkCard(viewModel: com.noop.ui.AppViewModel) {
         scope.launch { runCatching { viewModel.repo.upsertMetricSeries(listOf(mark.metricPoint("my-whoop"), mark.instantRow("my-whoop"))) } }
         android.widget.Toast.makeText(context, mark.confirmation(), android.widget.Toast.LENGTH_SHORT).show()
     }
+    // How a mark works sits behind the info button beside the title, as iOS (design critique 2026-11-28).
+    var showsHow by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
-        Column {
-            // The new design titles the card alone, as iOS's Sleep tab; the shipped design keeps its "Tap to log" line.
-            if (!ForgeDesign.preview) {
-                Text(stringResource(R.string.forge_sl_tap_to_log).uppercase(), style = Forge.type.overline, color = colors.textSecondary)
+        Row(verticalAlignment = Alignment.Bottom) {
+            Column(Modifier.weight(1f)) {
+                // The new design titles the card alone, as iOS's Sleep tab; the shipped design keeps its "Tap to log" line.
+                if (!ForgeDesign.preview) {
+                    Text(stringResource(R.string.forge_sl_tap_to_log).uppercase(), style = Forge.type.overline, color = colors.textSecondary)
+                }
+                Text(stringResource(R.string.l10n_sleep_screen_sleep_marks_8e9b86f0), style = Forge.type.title2, color = colors.text,
+                     modifier = if (ForgeDesign.preview) Modifier.padding(horizontal = ForgeMetrics.space1) else Modifier)
             }
-            Text(stringResource(R.string.l10n_sleep_screen_sleep_marks_8e9b86f0), style = Forge.type.title2, color = colors.text,
-                 modifier = if (ForgeDesign.preview) Modifier.padding(horizontal = ForgeMetrics.space1) else Modifier)
+            androidx.compose.material3.IconButton(onClick = { showsHow = !showsHow }) {
+                androidx.compose.material3.Icon(
+                    if (showsHow) androidx.compose.material.icons.Icons.Filled.Info else androidx.compose.material.icons.Icons.Outlined.Info,
+                    contentDescription = stringResource(R.string.forge_ex_what_this_means), tint = colors.textSecondary)
+            }
         }
         ForgeCard(Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.l10n_sleep_screen_tap_when_you_re_heading_to_1f401690), style = Forge.type.footnote,
-                 color = colors.textTertiary)
-            Spacer(Modifier.height(ForgeMetrics.space3))
+            if (showsHow) {
+                Text(stringResource(R.string.l10n_sleep_screen_tap_when_you_re_heading_to_1f401690), style = Forge.type.footnote,
+                     color = colors.textTertiary)
+                Spacer(Modifier.height(ForgeMetrics.space3))
+            }
             // iOS's `SleepMarkCard`: side by side where both labels fit on one line, else one above the other, so
             // "Schlafen gehen" never breaks over two lines in a half-width button (owner, 2026-11-28).
             val marks = listOf(Triple(com.noop.analytics.SleepMarkType.BEDTIME, androidx.compose.material.icons.Icons.Rounded.Bedtime,

@@ -559,8 +559,9 @@ private fun SignalTile(s: Signal, highlightLast: Boolean, modifier: Modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(s.icon, contentDescription = null, tint = colors.textSecondary, modifier = Modifier.size(14.dp))
             Spacer(Modifier.width(4.dp))
-            Text(s.label, style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold), color = colors.textSecondary,
-                 maxLines = 1, overflow = TextOverflow.Ellipsis)
+            // Shrinks to 80 % before it is cut, as iOS's `minimumScaleFactor(0.8)`: "Ruhepuls in der Na…" (critique 2026-11-28).
+            ForgeFitText(s.label, Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold), colors.textSecondary,
+                         Modifier.weight(1f))
         }
         Spacer(Modifier.height(ForgeMetrics.space2))
         Row(verticalAlignment = Alignment.Bottom) {

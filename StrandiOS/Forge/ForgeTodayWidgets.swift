@@ -1019,8 +1019,10 @@ struct ForgeMomentumWidget: View {
                         Text(first.headline).font(.system(.headline)).foregroundStyle(ForgeColor.text)
                             .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                         if !first.detail.isEmpty {
+                            // Three lines: at two the sentence broke off mid-word ("Die Charge ist st…"), which read
+                            // as a fault rather than as more to read (design critique 2026-11-28).
                             Text(first.detail).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
-                                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                                .lineLimit(3).fixedSize(horizontal: false, vertical: true)
                         }
                     }
                     Spacer(minLength: 0)
