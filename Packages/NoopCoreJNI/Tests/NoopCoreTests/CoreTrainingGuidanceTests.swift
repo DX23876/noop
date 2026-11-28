@@ -47,6 +47,18 @@ final class CoreTrainingGuidanceTests: XCTestCase {
         XCTAssertEqual(out.weeks.first?.targetLow, 250)
     }
 
+    /// Q17, Q27: a hard planned session on a held-back day can be moved to tomorrow; on a steady day it stays.
+    func testAHardPlanOnAnEasyDayIsOfferedToMove() {
+        var o = TrainingGuidanceReader.Options(maxHR: 190, sex: "male")
+        o.plannedProposalId = UUID()
+        o.plannedTitle = "Intervals"
+        o.plannedHard = true
+        let easy = MorningAdvice.resolve(.init(charge: 20, night: .scored, plannedToday: true))
+        XCTAssertEqual(TrainingGuidanceReader.movable(options: o, advice: easy, today: "2026-11-28")?.tomorrow, "2026-11-29")
+        let steady = MorningAdvice.resolve(.init(charge: 80, night: .scored, plannedToday: true))
+        XCTAssertNil(TrainingGuidanceReader.movable(options: o, advice: steady, today: "2026-11-28"))
+    }
+
     func testTheActiveMinutesSeriesFillsTheWeek() async throws {
         let store = try await WhoopStore.inMemory()
         let today = StoreReader.localDayKey(Date())

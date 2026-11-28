@@ -21,15 +21,16 @@ import StrandAnalytics
 // — each behind an availability gate with a plain fallback, because the app still ships macOS 13.
 
 extension TrainingStatus {
-    /// The verdict in one word. Only ever shown where `LaneEngine.verdict` had the evidence for it.
+    /// The verdict in everyday words (Training Load plan, phase 2, Q2). Only ever shown where `LaneEngine.verdict` had
+    /// the evidence for it.
     var label: String {
         switch self {
-        case .detraining:   return String(localized: "Detraining")
-        case .recovering:   return String(localized: "Recovering")
-        case .maintaining:  return String(localized: "Maintaining")
-        case .productive:   return String(localized: "Productive")
-        case .unproductive: return String(localized: "Unproductive")
-        case .overreaching: return String(localized: "Overreaching")
+        case .detraining:   return String(localized: "Form is slipping")
+        case .recovering:   return String(localized: "Recovery phase")
+        case .maintaining:  return String(localized: "Holding your level")
+        case .productive:   return String(localized: "Making progress")
+        case .unproductive: return String(localized: "No visible progress")
+        case .overreaching: return String(localized: "Too much over time")
         }
     }
 

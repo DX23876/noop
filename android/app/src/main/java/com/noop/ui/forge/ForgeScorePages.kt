@@ -216,7 +216,7 @@ internal fun ForgeEffortPage(viewModel: AppViewModel, effortStored: Double?, cha
     val max = if (scale == EffortScale.WHOOP) 21.0 else 100.0
     fun shown(v: Double) = UnitFormatter.effortValue(v, scale)
     fun whole(v: Double) = shown(v).roundToInt().toString()
-    val target = effortTargetStored(charge)
+    val target = todayEffortTarget(charge)
     val workouts by viewModel.workouts.collectAsState()
     var openWorkout by remember { mutableStateOf<com.noop.data.WorkoutRow?>(null) }
     openWorkout?.let { row -> com.noop.ui.WorkoutDetailSheet(vm = viewModel, row = row, onDismiss = { openWorkout = null }) }
@@ -417,7 +417,8 @@ internal fun ForgeChargePage(viewModel: AppViewModel, onBack: () -> Unit, onHist
         ScorePageHead(stringResource(R.string.forge_charge), overline, onBack)
         ScoreHero(pct, colors.charge, OrganicMetric.Charge, bandWord, stringResource(R.string.forge_charge), null)
         // Only today's own Charge sets today's target; a carried one names its night above instead.
-        if (!carried) effortTargetStored(pct)?.let { t ->
+        val todayTarget = todayEffortTarget(pct)
+        if (!carried) todayTarget?.let { t ->
             Text(stringResource(R.string.forge_ch_target, whole(t.start), whole(t.endInclusive)),
                  style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = colors.effort,
                  textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth())

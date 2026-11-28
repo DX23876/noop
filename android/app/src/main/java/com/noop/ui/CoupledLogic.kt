@@ -40,6 +40,17 @@ internal fun strainBandWord(fraction: Double): String = when {
 
 internal data class OptimalStrainRange(val low: Int, val high: Int)
 
+/**
+ * Today's band as the core's morning advice capped it (Training Load plan, Q14), set by `TrainingGuidanceHolder`
+ * whenever the guidance is read. The today readouts below prefer it, so the ring, the coupled view and the target
+ * notification name the band the advice gives; Charge's own band is the fallback before the advice exists.
+ */
+@Volatile internal var todayBandOverride: OptimalStrainRange? = null
+
+/** Today's optimal band: the advice's capped band, else Charge's. */
+internal fun todayOptimalStrainRange(recovery: Double?): OptimalStrainRange? =
+    if (recovery == null) null else todayBandOverride ?: optimalStrainRange(recovery)
+
 /** The pure recovery->optimal-strain band, or null when recovery is unknown. */
 internal fun optimalStrainRange(recovery: Double?): OptimalStrainRange? {
     val r = recovery ?: return null
@@ -59,7 +70,7 @@ internal fun optimalStrainRange(recovery: Double?): OptimalStrainRange? {
  * printed above it.
  */
 internal fun optimalUpperFraction(recovery: Double?): Double {
-    val band = optimalStrainRange(recovery) ?: return 0.0
+    val band = todayOptimalStrainRange(recovery) ?: return 0.0
     return (band.high.toDouble() / 21.0).coerceIn(0.0, 1.0)
 }
 
@@ -71,7 +82,7 @@ internal fun optimalUpperFraction(recovery: Double?): Double {
  * This returns the full band as a range, for the GlowRing target arc.
  */
 internal fun optimalFractionRange(recovery: Double?): ClosedFloatingPointRange<Float>? {
-    val band = optimalStrainRange(recovery) ?: return null
+    val band = todayOptimalStrainRange(recovery) ?: return null
     val low = (band.low.toDouble() / 21.0).coerceIn(0.0, 1.0).toFloat()
     val high = (band.high.toDouble() / 21.0).coerceIn(0.0, 1.0).toFloat()
     return low..high
@@ -79,6 +90,6 @@ internal fun optimalFractionRange(recovery: Double?): ClosedFloatingPointRange<F
 
 /** The optimal band as display text ("14 to 18" / the no-data token). Byte-identical to the Swift twin. */
 internal fun optimalStrainRangeText(recovery: Double?): String {
-    val band = optimalStrainRange(recovery) ?: return COUPLED_NO_DATA
+    val band = todayOptimalStrainRange(recovery) ?: return COUPLED_NO_DATA
     return "${band.low} to ${band.high}"
 }

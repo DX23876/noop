@@ -95,7 +95,8 @@ final class CoreCoachData: CoachDataReading {
         guidanceArgs["sex"] = strainProfileSex
         guidanceArgs["dismissedWorkouts"] = settings.dismissedWorkoutSpans
         let options = await CoreTrainingGuidance.options(guidanceArgs, store: reader.store)
-        trainingGuidance = await TrainingGuidanceReader.read(reader: reader, days: self.days, options: options, now: t)
+        trainingGuidance = await TrainingGuidanceReader.read(reader: reader, days: self.days, options: options, now: t,
+                                                             cache: CoreTrainingGuidance.cache)
     }
 
     var cardioLoadMaxHR: Double {

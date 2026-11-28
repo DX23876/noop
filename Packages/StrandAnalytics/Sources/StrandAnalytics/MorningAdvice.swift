@@ -30,6 +30,8 @@ public enum AdviceReason: String, Sendable, Codable, Equatable {
     case lowCharge
     case strengthWellAbove
     case cardioWellAbove
+    /// Both lanes well above usual: easy for both.
+    case bothWellAbove
     case planned
     case plannedShorter
     case behindGoal
@@ -83,21 +85,31 @@ public struct MorningAdviceInput: Equatable, Sendable {
     }
 }
 
-public struct MorningAdviceReading: Equatable, Sendable {
+public struct MorningAdviceReading: Equatable, Sendable, Codable {
     public let stance: AdviceStance
     public let reason: AdviceReason
     public let state: AdviceState
     /// A lane held back on its own while the other stays free (rule 4). Nil when the stance holds for both.
     public let limitedLane: TrainingLaneKind?
-    /// Today's Effort target on the stored 0 to 100 axis: Charge's band, capped by the advice (Q14).
-    public let effortTarget: ClosedRange<Double>?
+    /// Today's Effort target on WHOOP's 0 to 21 day scale: Charge's band, capped by the advice (Q14). Every
+    /// readout of today's target reads this one band: the ring, the target notification, the coupled view.
+    public let effortBand21: ClosedRange<Int>?
     /// A short food hint went with the advice (Q38).
     public let ateTooLittle: Bool
 
+    /// The same target on the stored 0 to 100 axis.
+    public var effortTarget: ClosedRange<Double>? { effortBand21.map(EffortTargetBand.stored) }
+
     public init(stance: AdviceStance, reason: AdviceReason, state: AdviceState, limitedLane: TrainingLaneKind?,
-                effortTarget: ClosedRange<Double>?, ateTooLittle: Bool) {
+                effortBand21: ClosedRange<Int>?, ateTooLittle: Bool) {
         self.stance = stance; self.reason = reason; self.state = state; self.limitedLane = limitedLane
-        self.effortTarget = effortTarget; self.ateTooLittle = ateTooLittle
+        self.effortBand21 = effortBand21; self.ateTooLittle = ateTooLittle
+    }
+
+    /// The same advice in another state.
+    public func with(state: AdviceState) -> MorningAdviceReading {
+        MorningAdviceReading(stance: stance, reason: reason, state: state, limitedLane: limitedLane,
+                             effortBand21: effortBand21, ateTooLittle: ateTooLittle)
     }
 }
 
@@ -149,7 +161,7 @@ public enum MorningAdvice {
         } else if input.strengthBand == .muchHigher && input.cardioBand != .muchHigher {
             (stance, reason) = (.easy, .strengthWellAbove); limited = .strength
         } else if anyWellAbove {
-            (stance, reason) = (.easy, .cardioWellAbove)
+            (stance, reason) = (.easy, .bothWellAbove)
         } else if input.plannedToday {
             if let c = chargeKnown, c < highCharge { (stance, reason) = (.steady, .plannedShorter) }
             else { (stance, reason) = (.steady, .planned) }
@@ -162,8 +174,19 @@ public enum MorningAdvice {
             (stance, reason) = (.steady, .steady)
         }
         return MorningAdviceReading(stance: stance, reason: reason, state: state, limitedLane: limited,
-                                    effortTarget: effortTarget(stance: stance, charge: chargeKnown),
+                                    effortBand21: effortBand(stance: stance, charge: chargeKnown),
                                     ateTooLittle: input.ateTooLittle)
+    }
+
+    /// The day's advice as it stands once given (Q15): the first ready advice holds for the rest of the day, and
+    /// later only its state moves to done. Two things may still replace it, because both are new facts about the
+    /// body rather than a day that went on: a raised illness signal (rule 1), and last night arriving after an
+    /// advice that had to do without it.
+    public static func held(_ computed: MorningAdviceReading, given: MorningAdviceReading?) -> MorningAdviceReading {
+        guard let given, computed.state != .waitingForNight else { return computed }
+        if computed.reason == .illness && given.reason != .illness { return computed }
+        if given.reason == .noNight && computed.reason != .noNight { return computed }
+        return given.with(state: computed.state)
     }
 
     /// Whether a session planned for the advice's day goes against it (Q28): anything above easy on a rest day, a
@@ -183,17 +206,22 @@ public enum MorningAdvice {
     }
 
     /// Charge's band capped by the advice: rest keeps to the red band, easy to the middle one at most.
-    public static func effortTarget(stance: AdviceStance, charge: Double?) -> ClosedRange<Double>? {
+    public static func effortBand(stance: AdviceStance, charge: Double?) -> ClosedRange<Int>? {
         let band = EffortTargetBand.forCharge(charge)
         switch stance {
         case .rest:
-            return EffortTargetBand.stored(4...10)
+            return 4...10
         case .easy:
-            guard let band else { return EffortTargetBand.stored(10...14) }
-            return EffortTargetBand.stored(band.upperBound > 14 ? 10...14 : band)
+            guard let band else { return 10...14 }
+            return band.upperBound > 14 ? 10...14 : band
         case .steady, .push:
-            return band.map(EffortTargetBand.stored)
+            return band
         }
+    }
+
+    /// The capped target on the stored 0 to 100 axis.
+    public static func effortTarget(stance: AdviceStance, charge: Double?) -> ClosedRange<Double>? {
+        effortBand(stance: stance, charge: charge).map(EffortTargetBand.stored)
     }
 }
 

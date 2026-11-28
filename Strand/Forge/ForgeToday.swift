@@ -41,8 +41,11 @@ enum ForgeToday {
 
     /// The one sentence under the rings. It only compares two numbers the rings already show, so it never
     /// claims more than they do; with no Effort or no Charge there is nothing to compare and it says nothing.
-    static func summary(effortStored: Double?, charge: Double?, scale: EffortScale) -> String? {
-        guard let effortStored, let target = effortTargetStored(charge: charge) else { return nil }
+    /// `target` is today's capped target from the morning advice (`MorningAdvice.effortTarget`); without it,
+    /// Charge's own band.
+    static func summary(effortStored: Double?, charge: Double?, scale: EffortScale,
+                        target todayTarget: ClosedRange<Double>? = nil) -> String? {
+        guard let effortStored, let target = todayTarget ?? effortTargetStored(charge: charge) else { return nil }
         let value = effortText(effortStored, scale: scale)
         let t = targetText(target, scale: scale)
         switch position(effortStored: effortStored, target: target) {

@@ -28,6 +28,8 @@ internal fun JSONObject.withGoalHostSettings(context: Context): JSONObject =
         // The scale's correction of the strap's burn (`BurnCorrection`), so every energy read applies it alike.
         .put("scaleCorrection", CoreEnergyPlan.scaleCorrection(context))
         .put("journalCatalog", journalCatalogWire(loadJournalCatalogItems(context)).toString())
+        // The guidance settings, so the coach reads the same morning advice Today shows (Training Load phase 2, Q23).
+        .put("guidance", CoreTrainingGuidance.hostArgs(context).toString())
 
 /** The catalog in Swift's own `JournalCatalogItem` coding, so the core folds the same aliases Apple does. */
 internal fun journalCatalogWire(items: List<JournalCatalogItem>): JSONArray = JSONArray(items.map { item ->

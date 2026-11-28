@@ -3144,7 +3144,9 @@ final class AppModel: ObservableObject {
         StrainTargetNotifier.onDayUpdate(
             day: row.day,
             dayStrain21: row.strain.map { UnitFormatter.effortValue($0, scale: .whoop) },
-            target21: CoupledView.optimalStrainRange(recovery: row.recovery)?.lowerBound,
+            // Today's band as the morning advice capped it (Training Load plan, Q14), the one the ring shows.
+            target21: ((row.day == Repository.localDayKey(Date()) ? TrainingGuidanceAdviceStore.todayBand21() : nil)
+                ?? CoupledView.optimalStrainRange(recovery: row.recovery))?.lowerBound,
             enabled: behavior.strainTargetNudge)
     }
 

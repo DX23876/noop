@@ -470,7 +470,7 @@ private fun DayEndEntry(e: TodayTimeline.Entry.DayEnd, today: CoreRead.Day?) {
     val colors = Forge.colors
     val format = rememberEffortFormat()
     val effort = today?.effort
-    val target = effortTargetStored(today?.charge)
+    val target = todayEffortTarget(today?.charge)
     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
         Text(stringResource(R.string.forge_de_title), style = Forge.type.footnote.copy(fontWeight = FontWeight.SemiBold), color = colors.textSecondary)
         if (effort != null && target != null) {

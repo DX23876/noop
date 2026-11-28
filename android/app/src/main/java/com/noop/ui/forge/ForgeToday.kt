@@ -432,6 +432,8 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                  // chamber reads as the page's head rather than as the first of a list.
                  modifier = Modifier.padding(bottom = ForgeMetrics.heroGap - ForgeMetrics.sectionGap))
             if (shown == today) ForgeActivityPrompt()
+            // Training Load plan, phase 2: today's advice beside the rings (Q5).
+            if (shown == today) rememberTrainingGuidance()?.let { ForgeAdviceCard(it, showOffers = false) }
             // The day's one hint under the rings, as iOS's `hintCard`.
             if (shown == today) {
                 var hintCharge by remember { mutableStateOf(false) }
@@ -474,6 +476,8 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                             onCoach = if (coachOn) ({ more.push(MoreRoute.Dest(MoreDest.Coach)) }) else null,
                             onArrange = { arranging = style }, onPickDay = { dayPicker = true })
             if (shown == today) ForgeActivityPrompt()
+            // Training Load plan, phase 2: today's advice beside the rings (Q5).
+            if (shown == today) rememberTrainingGuidance()?.let { ForgeAdviceCard(it, showOffers = false) }
             if (shown == today) ForgeMorningSuggestion(fetching = viewModel.live.collectAsState().value.backfilling)
             ForgeStyledDashboard(style, layoutRevision, shown, model?.day, viewModel,
                 onSection = { drawSection(it) },
@@ -488,6 +492,8 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
         // Pinned above the arranged sections, as on iOS (`MorningSuggestionCard` before the `ForEach`); activity
         // detection's prompt first, so a suggestion waiting for an answer cannot be arranged below the fold.
         if (shown == today) ForgeActivityPrompt()
+        // Training Load plan, phase 2: today's advice beside the rings (Q5).
+        if (shown == today) rememberTrainingGuidance()?.let { ForgeAdviceCard(it, showOffers = false) }
         if (shown == today) ForgeMorningSuggestion(fetching = viewModel.live.collectAsState().value.backfilling)
         // Every drawn section in the saved order (`TodayLayoutDefaults`); a hidden one keeps its stored place.
         sections.forEach { drawSection(it) }

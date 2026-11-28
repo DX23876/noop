@@ -3,6 +3,7 @@ import StrandAnalytics
 import WhoopProtocol
 import WhoopStore
 import StrandCore
+import StrandTraining
 
 /// The measured cardiovascular work attached to one canonical training session. TRIMP is additive;
 /// Effort is its familiar 0–100 presentation and must never be summed across sessions.
@@ -79,7 +80,9 @@ extension Repository {
         }.value
         guard !Task.isCancelled else { return }
         if context != readinessLoadContext { readinessLoadContext = context }
-        await refreshTrainingGuidance()
+        // The guidance reads the same sessions and loads, already priced with the repo's own memo.
+        await refreshTrainingGuidance(precomputed: .init(sessions: sessions, resolution: resolution,
+                                                         strength: await strengthRead))
     }
 
     /// The wearer's settings and models as the guidance reads them, the same options Android passes to
@@ -100,25 +103,33 @@ extension Repository {
             o.dietStartDay = plan.startDay
         }
         let today = Repository.localDayKey(Date())
-        o.plannedTitle = await MainActor.run {
-            CoachPlanStore.shared.proposals.first { $0.day == today && ($0.status == .accepted || $0.status == .modifiedByUser) }
-                .map { WorkoutSource.localizedDisplaySport($0.sport) }
+        o = await MainActor.run { [o] in
+            var filled = o
+            TrainingGuidanceReader.fillPlanned(&filled, today: today)
+            return filled
         }
         o.firstWeekday = (TrainingWeekStart(rawValue: d.string(forKey: "training.weekStartsOn") ?? "") ?? .monday) == .monday ? 2 : 1
-        let weights = await weightDailyValues(days: 30).map { (day: $0.day, kg: $0.value) }
-        o.weightTrendKgPerWeek = DietAdjust.slopePerWeek(weights.filter { $0.day >= WeeklyDigestEngine.addDays(today, -20) })
-        o.latestWeightKg = weights.last?.kg
+        // The weight trend is read in the core (`TrainingGuidanceReader.weightTrend`), the same on both platforms.
         return o
     }
 
-    /// Reads the guidance and publishes it when it changed.
-    func refreshTrainingGuidance() async {
+    /// Reads the guidance and publishes it. `precomputed` is the lanes' own read, when the caller just made it.
+    func refreshTrainingGuidance(precomputed: TrainingGuidanceReader.Precomputed? = nil) async {
         guard let store = await storeHandle() else { return }
         let options = await trainingGuidanceOptions()
         let reader = storeReader(store)
-        let snapshot = await TrainingGuidanceReader.read(reader: reader, days: days, options: options)
+        var input = precomputed
+        if input == nil {
+            let lookback = TrainingGuidanceReader.lookbackDays
+            async let fused = trainingSessions(days: lookback)
+            async let strength = resolvedStrengthHistory(days: lookback)
+            let sessions = await fused.sessions
+            input = .init(sessions: sessions, resolution: await cardioLoads(for: sessions), strength: await strength)
+        }
+        let snapshot = await TrainingGuidanceReader.read(reader: reader, days: days, options: options, precomputed: input)
         guard !Task.isCancelled else { return }
         trainingGuidance = snapshot
+        MorningAdviceNotifier.postIfDue(snapshot)
     }
 
     /// The cardio lane's room today (`LaneOutlook.headroom`), read over exactly the history a reading

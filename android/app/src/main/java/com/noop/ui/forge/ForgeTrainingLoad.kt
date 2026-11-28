@@ -132,6 +132,28 @@ fun ForgeTrainingLoadPage(onClose: () -> Unit, onStrength: (() -> Unit)? = null,
                                        color = Forge.sceneInk.secondary, modifier = Modifier.padding(horizontal = ForgeMetrics.space1))
         if (!loaded) return@SettingsColumn
         if (o == null) return@SettingsColumn
+        // Training Load plan, phase 2: today's advice, "enough?", the verdicts against the goal, the Lab markers.
+        val guidance = rememberTrainingGuidance(reload)
+        val lab = remember(reload) { com.noop.ui.NoopPrefs.of(context).getBoolean(com.noop.core.TrainingGuidancePrefs.LAB_INSTRUMENTS, false) }
+        var goals by remember { mutableStateOf<com.noop.core.CoreTrainingGuidance.GoalReadings?>(null) }
+        var instruments by remember { mutableStateOf<com.noop.core.CoreTrainingGuidance.Instruments?>(null) }
+        LaunchedEffect(reload, lab) {
+            // Read off the main thread, written on it: Compose state is only assigned back here.
+            val read = withContext(Dispatchers.IO) {
+                val profile = ProfileStore.from(context)
+                val dismissed = dismissedTrainingWorkouts(context)
+                com.noop.core.CoreTrainingGuidance.goalReadings(context, profile.hrMax.toDouble(), profile.sex, dismissed) to
+                    (if (lab) com.noop.core.CoreTrainingGuidance.instruments(context, profile.hrMax.toDouble(), profile.sex,
+                                                                             dismissed) else null)
+            }
+            goals = read.first
+            instruments = read.second
+        }
+        guidance?.let { ForgeAdviceCard(it) }
+        goals?.let { ForgeGoalNotesCard(it) }
+        guidance?.let { ForgeEnoughCard(it) }
+        if (lab) ForgeInstrumentsCard(instruments)
+        ForgeGuidanceSettings { reload++ }
         if (ForgeDesign.preview) {
             // The new design as iOS's `forgeBody`: where the week stands, what is left of it, how it got here and
             // what it builds toward.

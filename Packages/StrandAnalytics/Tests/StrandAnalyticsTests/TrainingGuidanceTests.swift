@@ -175,6 +175,28 @@ final class TrainingGuidanceTests: XCTestCase {
         XCTAssertEqual(advise(.init(charge: 80, night: .scored)).stance, .steady)
     }
 
+    /// Q15: the first ready advice holds for the day; only illness or last night arriving replace it.
+    func testTheAdviceHoldsForTheDay() {
+        let morning = advise(.init(charge: 80, night: .scored))
+        let afternoon = advise(.init(charge: 80, night: .scored, cardioBand: .muchHigher, trainedToday: true))
+        let held = MorningAdvice.held(afternoon, given: morning)
+        XCTAssertEqual(held.stance, .steady, "a session that raised the lane does not change the day's advice")
+        XCTAssertEqual(held.state, .done)
+        XCTAssertEqual(held.effortBand21, 14...18)
+        let ill = advise(.init(charge: 80, night: .scored, unwell: true))
+        XCTAssertEqual(MorningAdvice.held(ill, given: morning).stance, .rest, "illness still turns the day to rest")
+        let withoutNight = advise(.init(charge: nil, night: .missing))
+        XCTAssertEqual(MorningAdvice.held(morning, given: withoutNight).reason, .steady, "last night arriving replaces it")
+        XCTAssertEqual(MorningAdvice.held(morning, given: nil), morning)
+    }
+
+    func testRisingStrengthKeepsItsVerdictInADeficit() {
+        let r = GoalOutcome.strength(verdict: .status(.productive), band: .usual, focus: losing, changePercent: 6,
+                                     weightChangePercentPerWeek: -0.8, recovery: .holding, today: today)
+        XCTAssertNil(r.note)
+        XCTAssertEqual(r.verdict, .status(.productive))
+    }
+
     func testMissingDataNeverPushesAndEatingTooLittleBlocksPush() {
         XCTAssertNotEqual(advise(.init(charge: nil, night: .missing, behindGoal: true)).stance, .push)
         XCTAssertEqual(advise(.init(charge: nil, night: .missing)).reason, .noNight)

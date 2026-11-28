@@ -155,10 +155,28 @@ public enum CoreTrainingLoad {
         var from: Int, today: String, offset: Int
     }
 
+    /// The last reading and what it was read for, so a second op on the same page (`training.goalReadings`
+    /// right after `training.load`) reuses it instead of reading and pricing the history again.
+    @MainActor private static var last: (key: String, at: Int, reading: LoadReading)?
+
     /// Reads what `TrainingLoadModel.snapshot` reads and runs the shared computation (`TrainingLoadPreparation`).
-    /// Shared by the screen's `read` and the coach's brief (`CoreCoachData.trainingLoadBrief`).
+    /// Shared by the screen's `read` and the coach's brief (`CoreCoachData.trainingLoadBrief`). With
+    /// `reuseWithinSeconds`, a reading for the same inputs that is younger than that is returned as it is.
     static func reading(reader: StoreReader, maxHR: Double, sex: String, dismissedWorkoutSpans: [String],
-                        now: Int = Int(Date().timeIntervalSince1970)) async -> LoadReading {
+                        now: Int = Int(Date().timeIntervalSince1970), reuseWithinSeconds: Int = 0) async -> LoadReading {
+        let key = "\(reader.activeDeviceId)|\(maxHR)|\(sex)|\(dismissedWorkoutSpans.joined(separator: ","))"
+        if reuseWithinSeconds > 0, let cached = await MainActor.run(body: { last }), cached.key == key,
+           now - cached.at <= reuseWithinSeconds {
+            return cached.reading
+        }
+        let fresh = await computeReading(reader: reader, maxHR: maxHR, sex: sex,
+                                         dismissedWorkoutSpans: dismissedWorkoutSpans, now: now)
+        await MainActor.run { last = (key, now, fresh) }
+        return fresh
+    }
+
+    private static func computeReading(reader: StoreReader, maxHR: Double, sex: String, dismissedWorkoutSpans: [String],
+                                       now: Int) async -> LoadReading {
         let store = reader.store
         let cache = CardioLoadCache()
         let days = TrainingLoadPreparation.historyDays

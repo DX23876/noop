@@ -21,7 +21,8 @@ struct ForgeEffortDetailView: View {
     private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
     @State private var todayWorkouts: [WorkoutRow] = []
 
-    private var target: ClosedRange<Double>? { ForgeToday.effortTargetStored(charge: charge) }
+    /// Today's target: Charge's band capped by the morning advice (Q14), the one the Today ring shows.
+    private var target: ClosedRange<Double>? { repo.trainingGuidance?.advice.effortTarget ?? ForgeToday.effortTargetStored(charge: charge) }
     private var shown: Double? { effortStored.map { UnitFormatter.effortValue($0, scale: effortScale) } }
 
     @State private var scrolledPast = false
@@ -45,7 +46,7 @@ struct ForgeEffortDetailView: View {
                                           let t = ForgeToday.targetText($0, scale: effortScale)
                                           return String(localized: "target \(t.low) to \(t.high)")
                                       })
-                    if let line = ForgeToday.summary(effortStored: effortStored, charge: charge, scale: effortScale) {
+                    if let line = ForgeToday.summary(effortStored: effortStored, charge: charge, scale: effortScale, target: target) {
                         Text(line).font(.system(.body)).foregroundStyle(ForgeColor.text)
                             .multilineTextAlignment(.center)
                             .fixedSize(horizontal: false, vertical: true)

@@ -359,7 +359,8 @@ class AiCoach(
      */
     suspend fun suggestions(): List<String> = withContext(Dispatchers.IO) {
         val days = runCatching { repo.daysMerged(activeStrapId()) }.getOrDefault(emptyList())
-        CoachSuggestions.suggestions(days.lastOrNull(), days)
+        // The first chip follows the day's advice (Training Load plan, Q24), as on the iPhone.
+        CoachSuggestions.suggestions(days.lastOrNull(), days, com.noop.core.CoreTrainingGuidance.adviceOfDay()?.stance)
     }
 
     // K7: Follow-up suggestion chips shown after each assistant reply. These are generic

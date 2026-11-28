@@ -8,6 +8,10 @@ import WhoopStore
 /// `training.goalReadings` for the Training Load page, `training.instruments` for the Lab card.
 @MainActor
 enum CoreTrainingGuidance {
+    /// The pricing memo kept for the process, so repeated reads do not price the last week from raw heart rate
+    /// again (`CardioLoadCache`; ledger rows only answer once a session is a week old).
+    static let cache = CardioLoadCache()
+
     struct Advice: Encodable {
         var stance: String
         var reason: String
@@ -16,6 +20,9 @@ enum CoreTrainingGuidance {
         /// Today's Effort target on the stored 0 to 100 axis.
         var effortLow: Double?
         var effortHigh: Double?
+        /// The same target on WHOOP's 0 to 21 scale, for the target notification and the coupled view.
+        var band21Low: Int?
+        var band21High: Int?
         var ateTooLittle: Bool
     }
 
@@ -77,6 +84,13 @@ enum CoreTrainingGuidance {
         var cardioBand: String?
         var askRating: Rating?
         var food: Food
+        var movablePlan: Movable?
+    }
+
+    struct Movable: Encodable {
+        var id: String
+        var title: String
+        var tomorrow: String
     }
 
     /// The options Android passes, the same the iPhone reads from its own settings and models.
@@ -101,6 +115,7 @@ enum CoreTrainingGuidance {
         }
         o.goals = (try? await CoreGoalState.read(store: store) { ctx in
             TrainingGuidanceReader.focusGoals(ctx.goals.activeGoals) }) ?? []
+        TrainingGuidanceReader.fillPlanned(&o, today: StoreReader.localDayKey(Date()))
         // The activity status the wearer set (sick or injured) rests the body too (Q22 rule 1).
         let status = ActivityStatusStore.load().state
         if status == .sick || status == .injured { o.unwell = true }
@@ -113,23 +128,36 @@ enum CoreTrainingGuidance {
         let today = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(now)))
         let from = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(now - 30 * 86_400)))
         let days = await CoreRead.dailyRows(from: from, to: today, reader: reader)
-        return output(await TrainingGuidanceReader.read(reader: reader, days: days, options: options, now: now))
+        return output(await TrainingGuidanceReader.read(reader: reader, days: days, options: options, now: now,
+                                                        cache: cache))
+    }
+
+    /// The advice as first given today (`TrainingGuidanceAdviceStore`), without reading anything else: for the
+    /// target notification, the coupled view and the coach's chips. Nil before today's advice was given.
+    static func adviceOfDay() -> Advice? {
+        TrainingGuidanceAdviceStore.load(day: StoreReader.localDayKey(Date())).map(advice)
+    }
+
+    static func advice(_ a: MorningAdviceReading) -> Advice {
+        Advice(stance: a.stance.rawValue, reason: a.reason.rawValue, state: a.state.rawValue,
+               limitedLane: a.limitedLane?.rawValue, effortLow: a.effortTarget?.lowerBound,
+               effortHigh: a.effortTarget?.upperBound, band21Low: a.effortBand21?.lowerBound,
+               band21High: a.effortBand21?.upperBound, ateTooLittle: a.ateTooLittle)
     }
 
     static func output(_ s: TrainingGuidanceReader.Snapshot) -> Output {
         let a = s.advice
         return Output(
             today: s.today,
-            advice: Advice(stance: a.stance.rawValue, reason: a.reason.rawValue, state: a.state.rawValue,
-                           limitedLane: a.limitedLane?.rawValue, effortLow: a.effortTarget?.lowerBound,
-                           effortHigh: a.effortTarget?.upperBound, ateTooLittle: a.ateTooLittle),
+            advice: advice(a),
             offers: s.offers.map(offer), cardioFocus: focus(s.cardioFocus), strengthFocus: focus(s.strengthFocus),
             weeks: s.weeks.map(week), carried: s.carried, strengthBand: s.strengthBand?.rawValue,
             cardioBand: s.cardioBand?.rawValue,
             askRating: s.askRating.map { Rating(sessionId: $0.sessionId, sport: WorkoutSource.localizedDisplaySport($0.sport),
                                                 startTs: $0.startTs, endTs: $0.endTs) },
             food: Food(ateTooLittle: s.food.ateTooLittle, ateOverPlan: s.food.ateOverPlan,
-                       proteinLow: s.food.proteinLow, completeDays: s.food.completeDays))
+                       proteinLow: s.food.proteinLow, completeDays: s.food.completeDays),
+            movablePlan: s.movablePlan.map { Movable(id: $0.id.uuidString, title: $0.title, tomorrow: $0.tomorrow) })
     }
 
     static func offer(_ o: TrainingOffer) -> Offer {
@@ -166,6 +194,8 @@ enum CoreTrainingGuidance {
         var cardio: GoalReading
         var strength: GoalReading
         var strengthChangePercent: Double?
+        /// Low protein beside strength falling in a deficit (Q40).
+        var proteinHint: Bool
         var food: Food
         var guidance: Output
     }
@@ -175,12 +205,17 @@ enum CoreTrainingGuidance {
     static func goalReadings(_ args: [String: Any], store: WhoopStore, reader: StoreReader,
                              now: Int = Int(Date().timeIntervalSince1970)) async -> GoalReadings {
         let options = await options(args, store: store)
+        // The page has just read `training.load`; its reading is reused rather than computed a second time.
         let load = await CoreTrainingLoad.reading(reader: reader, maxHR: options.maxHR, sex: options.sex,
-                                                  dismissedWorkoutSpans: options.dismissedWorkoutSpans, now: now)
+                                                  dismissedWorkoutSpans: options.dismissedWorkoutSpans, now: now,
+                                                  reuseWithinSeconds: 60)
         let from = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(now - 30 * 86_400)))
         let days = await CoreRead.dailyRows(from: from, to: load.today, reader: reader)
-        let guidance = await TrainingGuidanceReader.read(reader: reader, days: days, options: options, now: now)
-        let history = await StrengthHistoryReader.read(store: store, days: 60, now: now) { load.fusion }
+        let history = await StrengthHistoryReader.read(store: store, days: TrainingGuidanceReader.lookbackDays,
+                                                       now: now) { load.fusion }
+        let guidance = await TrainingGuidanceReader.read(
+            reader: reader, days: days, options: options, now: now,
+            precomputed: .init(sessions: load.fusion.sessions, resolution: load.resolution, strength: history))
         let r = TrainingGuidanceReader.goalReadings(prepared: load.prepared, guidance: guidance,
                                                     strengthWorkouts: history.workouts, templates: history.templates,
                                                     options: options)
@@ -189,7 +224,8 @@ enum CoreTrainingGuidance {
         }
         let out = output(guidance)
         return GoalReadings(cardio: reading(r.cardio), strength: reading(r.strength),
-                            strengthChangePercent: r.strengthChangePercent, food: out.food, guidance: out)
+                            strengthChangePercent: r.strengthChangePercent, proteinHint: r.proteinHint, food: out.food,
+                            guidance: out)
     }
 
     // MARK: Lab

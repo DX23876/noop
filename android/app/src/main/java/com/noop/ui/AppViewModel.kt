@@ -1241,6 +1241,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 // the persisted edge replaced, and reinstating it would bring the cold start back.
                 // A loading/error emission with fewer than 14 days cannot establish a real clear.
                 if (days.size >= 14) IllnessAlertNotifier.onEvaluated(appContext, _healthAlert.value)
+                // Training Load plan, phase 2, Q22 rule 1: a raised illness alert turns the morning advice to rest.
+                com.noop.core.TrainingGuidancePrefs.illnessRaised = _healthAlert.value != null
+                com.noop.notif.MorningAdviceNotifier.postIfDue(appContext)
                 // Morning recap (#517) — opt-in, default OFF. Once today's row carries a banked night
                 // (totalSleepMin != null), post a one-per-day Charge + Rest recap. recovery == Charge;
                 // Rest is recomputed from the night's totals via RestScorer (the same single source of
@@ -1266,7 +1269,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                         context = appContext,
                         day = todayRow.day,
                         dayStrain21 = todayRow.strain?.let { UnitFormatter.effortValue(it, EffortScale.WHOOP) },
-                        target21 = optimalStrainRange(todayRow.recovery)?.low,
+                        // Today's band as the morning advice capped it (Training Load plan, Q14).
+                        target21 = (kotlinx.coroutines.withContext(Dispatchers.IO) {
+                            com.noop.core.CoreTrainingGuidance.adviceOfDay()?.band21Low
+                        } ?: optimalStrainRange(todayRow.recovery)?.low),
                     )
                 }
                 // Parity plan 2.3: the goal notifications iOS sends after each goals refresh (a goal reached, a

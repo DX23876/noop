@@ -924,6 +924,8 @@ public enum CoreCall {
                                                   customUntil: (args["until"] as? NSNumber)?.intValue))
         case "training.guidance":
             return CoreRead.json(await CoreTrainingGuidance.read(args, store: store, reader: reader))
+        case "training.adviceOfDay":
+            return CoreRead.json(await CoreTrainingGuidance.adviceOfDay())
         case "training.goalReadings":
             return CoreRead.json(await CoreTrainingGuidance.goalReadings(args, store: store, reader: reader))
         case "training.instruments":

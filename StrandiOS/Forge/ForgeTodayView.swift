@@ -177,6 +177,10 @@ struct ForgeTodayView: View {
                             // Room between the rings and what follows, so the card reads as the page's head.
                             // The measure is `NoopMetrics.heroGap`, which Android keeps in one piece.
                             .padding(.bottom, NoopMetrics.heroGapUnderCard)
+                            // Training Load plan, phase 2: today's advice beside the rings (Q5).
+                            if let guidance = repo.trainingGuidance {
+                                TrainingAdviceCard(guidance: guidance, showOffers: false).padding(.top, 4)
+                            }
                             // A detected activity waiting for an answer, then the day's one hint. Each brings
                             // its own room rather than taking the stack's: on a day with neither, the two
                             // empty slots still took their spacing, and the rings then sat about twenty

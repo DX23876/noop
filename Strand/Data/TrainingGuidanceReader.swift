@@ -2,6 +2,8 @@ import Foundation
 import StrandAnalytics
 import StrandCore
 import WhoopStore
+import WhoopProtocol
+import StrandTraining
 
 /// Training Load plan, phase 2 (docs/fork/TRAINING_LOAD_PLAN.md §8): the morning advice, "enough?", the offers
 /// and the rating to ask for, read once for every surface on both platforms. Apple reads it through
@@ -26,6 +28,10 @@ enum TrainingGuidanceReader {
         var ownWeeklyMinutes: Int? = nil
         /// Today's session from the plan, by its title (Q26).
         var plannedTitle: String? = nil
+        /// Today's committed coach session and how hard it is, so a day held back can offer to move it (Q17, Q27).
+        var plannedProposalId: UUID? = nil
+        var plannedHard = false
+        var plannedModerate = false
         /// `Calendar.firstWeekday`: 1 Sunday, 2 Monday.
         var firstWeekday: Int = 2
         /// The diet plan's day goals as the Food page resolves them (`DietDayResolver`); nil without a plan,
@@ -36,6 +42,12 @@ enum TrainingGuidanceReader {
         /// fast-loss checks.
         var weightTrendKgPerWeek: Double? = nil
         var latestWeightKg: Double? = nil
+    }
+
+    struct MovablePlan: Sendable, Equatable {
+        let id: UUID
+        let title: String
+        let tomorrow: String
     }
 
     struct RatingAsk: Sendable, Equatable {
@@ -59,6 +71,12 @@ enum TrainingGuidanceReader {
         let askRating: RatingAsk?
         /// What the food log adds (Q37 to Q42).
         let food: TrainingFoodSignals.Signals
+        /// Today's planned session that goes against the advice and can be moved to tomorrow on a tap (Q17, Q27).
+        let movablePlan: MovablePlan?
+        /// The weight trend over three weeks in kilograms a week and the latest weight, read in the core so both
+        /// platforms see the same stall and fast-loss checks.
+        let weightTrendKgPerWeek: Double?
+        let latestWeightKg: Double?
 
         var thisWeek: EnoughWeek? { weeks.last }
         var carried: Bool { EnoughCount.isCarried(weeks) }
@@ -66,20 +84,42 @@ enum TrainingGuidanceReader {
 
     static let weeksRead = EnoughCount.windowWeeks + 1
 
+    /// Sessions the caller has already read and priced over at least `lookbackDays`, so a refresh that has just
+    /// read the lanes does not read and price them a second time.
+    struct Precomputed: Sendable {
+        let sessions: [UnifiedTrainingSession]
+        let resolution: TrainingCardioLoadResolution
+        let strength: ResolvedStrengthHistory
+    }
+
+    /// History the guidance reads: the lanes' own window, and at least the weeks of "enough?" plus one.
+    static var lookbackDays: Int { max(TrainingLoadLanes.lookbackDays, weeksRead * 7 + 7) }
+
+    /// `cache` is the pricing memo the caller keeps across reads (`CardioLoadCache`); a fresh one prices the
+    /// last week's sessions from raw heart rate again, because ledger rows only answer once a session is a week old.
     static func read(reader: StoreReader, days: [DailyMetric], options: Options,
-                     now: Int = Int(Date().timeIntervalSince1970)) async -> Snapshot {
+                     now: Int = Int(Date().timeIntervalSince1970), precomputed: Precomputed? = nil,
+                     cache: CardioLoadCache = CardioLoadCache(), defaults: UserDefaults = .standard) async -> Snapshot {
         let offset = TimeZone.current.secondsFromGMT()
         let today = StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval(now)))
-        let lookback = max(TrainingLoadLanes.lookbackDays, weeksRead * 7 + 7)
+        let lookback = lookbackDays
         let from = now - lookback * 86_400
-        let fusion = await TrainingSessionResolver.read(reader: reader, from: from, to: now + 86_400,
-                                                        dismissedDetectedSpans: options.dismissedWorkoutSpans)
-        let strength = await StrengthHistoryReader.read(store: reader.store, days: lookback, now: now) { fusion }
-        let resolution = await CardioLoadPricing.price(fusion.sessions, reader: reader, maxHR: options.maxHR,
-                                                       sex: options.sex, dataRevision: 0, cache: CardioLoadCache(),
+        let sessions: [UnifiedTrainingSession]
+        let strength: ResolvedStrengthHistory
+        let resolution: TrainingCardioLoadResolution
+        if let precomputed {
+            sessions = precomputed.sessions; strength = precomputed.strength; resolution = precomputed.resolution
+        } else {
+            let fusion = await TrainingSessionResolver.read(reader: reader, from: from, to: now + 86_400,
+                                                            dismissedDetectedSpans: options.dismissedWorkoutSpans)
+            sessions = fusion.sessions
+            strength = await StrengthHistoryReader.read(store: reader.store, days: lookback, now: now) { fusion }
+            resolution = await CardioLoadPricing.price(fusion.sessions, reader: reader, maxHR: options.maxHR,
+                                                       sex: options.sex, dataRevision: 0, cache: cache,
                                                        budget: CardioLoadPricing.cardioLoadSessionBudget,
                                                        recompute: false).resolution
-        let cardio = TrainingLoadLanes.cardioSeries(sessions: fusion.sessions, resolution: resolution,
+        }
+        let cardio = TrainingLoadLanes.cardioSeries(sessions: sessions, resolution: resolution,
                                                     tzOffsetSeconds: offset)
         let context = TrainingLoadLanes.readinessContext(strengthWorkouts: strength.workouts, cardio: cardio,
                                                          today: today, tzOffsetSeconds: offset)
@@ -96,54 +136,116 @@ enum TrainingGuidanceReader {
                                                           goals: options.goals, today: today)
         let ratings = await SessionRPEEntry.read(store: reader.store, from: from, to: now + 86_400)
         let weeks = await enoughWeeks(reader: reader, focus: cardioFocus.focus, options: options, today: today,
-                                      sessions: fusion.sessions, resolution: resolution, ratings: ratings,
-                                      strengthWorkouts: strength.workouts, offset: offset)
+                                      sessions: sessions, resolution: resolution, ratings: ratings,
+                                      strengthWorkouts: strength.workouts, offset: offset, days: days)
 
-        let trainedToday = fusion.sessions.contains {
+        let trainedToday = sessions.contains {
             AnalyticsEngine.dayString($0.row.startTs, offsetSec: offset) == today
         } || strength.workouts.contains { AnalyticsEngine.dayString($0.startTs, offsetSec: offset) == today }
 
         let todayRow = days.first { $0.day == today }
+        // Without a Charge for today the night is still on its way until midday: a strap streaming live heart rate
+        // keeps its latest sample current while the night itself is not scored yet. Only after midday is a missing
+        // Charge a night that was not measured.
         let night: AdviceNight
         if todayRow?.recovery != nil {
             night = .scored
         } else {
-            let latest = await reader.unionLatestHRSampleTs() ?? 0
-            let midnight = Self.localMidnight(now, offset: offset)
-            let hour = (now - midnight) / 3600
-            night = latest < midnight + 3 * 3600 && hour < 15 ? .pending : .missing
+            let hour = (now - Self.localMidnight(now, offset: offset)) / 3600
+            night = hour < Self.nightPendingUntilHour ? .pending : .missing
         }
 
         let goalRests = (cardioFocus.pause?.restsTheBody ?? false) || (strengthFocus.pause?.restsTheBody ?? false)
         let unwell = options.unwell || goalRests
         let behind = Self.isBehind(weeks.last, today: today, firstWeekday: options.firstWeekday)
         let heavy = [strengthBand, cardioBand].contains { $0 == .higher || $0 == .muchHigher }
+        let weight = await Self.weightTrend(reader: reader, today: today, options: options)
         let cachedGoal = options.dietDirection == nil ? nil : TrainingGuidanceFoodGoal.load(today: today)
         let food = await TrainingFoodSignals.read(store: reader.store, today: today,
                                                   goalKcal: options.foodGoalKcal ?? cachedGoal?.kcal,
                                                   proteinGoalG: options.proteinGoalG ?? cachedGoal?.proteinG,
                                                   heavyWeek: heavy,
                                                   losing: cardioFocus.focus == .loseWeight,
-                                                  trendKgPerWeek: options.weightTrendKgPerWeek)
+                                                  trendKgPerWeek: weight.trend)
+        // Today's plan: a committed coach session, else a routine planned for today and not yet run (Q26).
+        var planned = options
+        if planned.plannedTitle == nil {
+            planned.plannedTitle = await Self.openRoutineTitle(reader: reader, today: today, now: now,
+                                                               firstWeekday: options.firstWeekday)
+        }
         let charge: Double? = todayRow?.recovery
         let input = MorningAdviceInput(
             charge: charge, night: night, unwell: unwell,
             recovery: recovery, strengthBand: strengthBand, cardioBand: cardioBand,
-            plannedToday: options.plannedTitle != nil, behindGoal: behind,
+            plannedToday: planned.plannedTitle != nil, behindGoal: behind,
             ateTooLittle: food.ateTooLittle, trainedToday: trainedToday)
-        let advice = MorningAdvice.resolve(input)
+        // The first ready advice holds for the day (Q15).
+        let given = TrainingGuidanceAdviceStore.load(day: today, defaults: defaults)
+        let advice = MorningAdvice.held(MorningAdvice.resolve(input), given: given)
+        if advice.state != .waitingForNight { TrainingGuidanceAdviceStore.save(advice, day: today, defaults: defaults) }
 
         let cardioRoom = LaneOutlook.headroom(dailyByDay: cardio.byDay, unknownDays: cardio.unknownDays,
                                               activity: cardio.activity, lane: .cardio, today: today)?.beforeAbove
-        let offers = TrainingOffers.build(advice: advice, plannedTitle: options.plannedTitle, cardioRoom: cardioRoom,
-                                          typical: typicalCardio(sessions: fusion.sessions, resolution: resolution,
+        let offers = TrainingOffers.build(advice: advice, plannedTitle: planned.plannedTitle, cardioRoom: cardioRoom,
+                                          typical: typicalCardio(sessions: sessions, resolution: resolution,
                                                                  today: today, offset: offset),
                                           strengthGroups: strengthRoom(strength: strength, today: today, offset: offset))
         return Snapshot(today: today, advice: advice, offers: offers, cardioFocus: cardioFocus,
                         strengthFocus: strengthFocus, weeks: weeks, strengthBand: strengthBand, cardioBand: cardioBand,
-                        askRating: ratingToAsk(sessions: fusion.sessions, ratings: ratings, today: today, offset: offset,
+                        askRating: ratingToAsk(sessions: sessions, ratings: ratings, today: today, offset: offset,
                                                now: now),
-                        food: food)
+                        food: food,
+                        movablePlan: movable(options: planned, advice: advice, today: today),
+                        weightTrendKgPerWeek: weight.trend, latestWeightKg: weight.latest)
+    }
+
+    /// Hours after local midnight a day without a Charge still waits for its night.
+    static let nightPendingUntilHour = 12
+
+    /// The weight trend over the last three weeks and the latest weight, unless the caller passed them.
+    static func weightTrend(reader: StoreReader, today: String, options: Options) async -> (trend: Double?, latest: Double?) {
+        if options.weightTrendKgPerWeek != nil || options.latestWeightKg != nil {
+            return (options.weightTrendKgPerWeek, options.latestWeightKg)
+        }
+        let points = await WeightSeries.series(reader: reader, from: WeeklyDigestEngine.addDays(today, -29), to: today)
+            .map { (day: $0.day, kg: $0.value) }
+        let recent = points.filter { $0.day >= WeeklyDigestEngine.addDays(today, -20) }
+        return (DietAdjust.slopePerWeek(recent), points.last?.kg)
+    }
+
+    /// The first routine the training plan holds for today that no saved workout of today was run from.
+    static func openRoutineTitle(reader: StoreReader, today: String, now: Int, firstWeekday: Int) async -> String? {
+        let store = reader.store
+        guard let plan = try? await store.trainingPlan(weekStartsOn: firstWeekday == 1 ? .sunday : .monday),
+              let n = FitnessInstruments.dayNumber(today) else { return nil }
+        // dayNumber 0 (1970-01-01) was a Thursday: ISO weekday 4.
+        let iso = ((n % 7) + 7 + 3) % 7 + 1
+        guard let weekday = TrainingWeekday(rawValue: iso) else { return nil }
+        let routines = plan.routines(day: today, weekday: weekday)
+        guard !routines.isEmpty else { return nil }
+        let workouts = (try? await store.nativeWorkouts(from: now - 2 * 86_400, to: now + 86_400)) ?? []
+        let open = Set(PlannedToday.openRoutineIds(routines.map(\.id), day: today, workouts: workouts))
+        return routines.first { open.contains($0.id) }?.title
+    }
+
+    /// The planned session a held-back day offers to move: a hard one on an easy day, anything above easy on a rest
+    /// day, the same rule the coach's proposals are marked by (`MorningAdvice.conflicts`).
+    static func movable(options: Options, advice: MorningAdviceReading, today: String) -> MovablePlan? {
+        guard let id = options.plannedProposalId, let title = options.plannedTitle,
+              MorningAdvice.conflicts(advice, hard: options.plannedHard, moderate: options.plannedModerate,
+                                      targetEffort: nil) else { return nil }
+        return MovablePlan(id: id, title: title, tomorrow: WeeklyDigestEngine.addDays(today, 1))
+    }
+
+    /// Today's committed coach session, read from the one plan store both platforms share.
+    @MainActor static func fillPlanned(_ o: inout Options, today: String) {
+        guard let p = CoachPlanStore.shared.proposals.first(where: {
+            $0.day == today && ($0.status == .accepted || $0.status == .modifiedByUser)
+        }) else { return }
+        o.plannedTitle = WorkoutSource.localizedDisplaySport(p.sport)
+        o.plannedProposalId = p.id
+        o.plannedHard = p.intent == .hard
+        o.plannedModerate = p.intent == .moderate
     }
 
     // MARK: The verdict against the goal
@@ -153,6 +255,8 @@ enum TrainingGuidanceReader {
         let strength: LaneGoalReading
         /// The main lifts' change over six weeks, the one strength trend (Q39).
         let strengthChangePercent: Double?
+        /// Low protein, shown only beside strength falling in a deficit (Q40).
+        let proteinHint: Bool
     }
 
     /// Training Load's two verdicts after the goal has spoken, from the page's own prepared lanes and the
@@ -164,7 +268,7 @@ enum TrainingGuidanceReader {
         let change = StrengthSession.recentChangePercent(workouts: strengthWorkouts, templates: templates,
                                                          through: guidance.today, tzOffsetSeconds: offset)
         var weightPercent: Double? = nil
-        if let trend = options.weightTrendKgPerWeek, let kg = options.latestWeightKg, kg > 0 { weightPercent = trend / kg * 100 }
+        if let trend = guidance.weightTrendKgPerWeek, let kg = guidance.latestWeightKg, kg > 0 { weightPercent = trend / kg * 100 }
         let cardio = GoalOutcome.cardio(verdict: prepared.cardioVerdict, band: prepared.cardio.reading?.band,
                                         focus: guidance.cardioFocus, weeks: guidance.weeks,
                                         recovery: prepared.recovery.state, today: guidance.today)
@@ -172,7 +276,9 @@ enum TrainingGuidanceReader {
                                             focus: guidance.strengthFocus, changePercent: change,
                                             weightChangePercentPerWeek: weightPercent,
                                             recovery: prepared.recovery.state, today: guidance.today)
-        return GoalReadings(cardio: cardio, strength: strength, strengthChangePercent: change)
+        // Q40: protein is named as a possible reason only beside strength that is falling in a deficit.
+        let proteinHint = guidance.food.proteinLow && guidance.strengthFocus.focus == .loseWeight && (change ?? 0) < 0
+        return GoalReadings(cardio: cardio, strength: strength, strengthChangePercent: change, proteinHint: proteinHint)
     }
 
     // MARK: Enough
@@ -182,28 +288,61 @@ enum TrainingGuidanceReader {
     /// with `pulseUnreliable` only rated minutes count (Q7).
     static func enoughWeeks(reader: StoreReader, focus: TrainingFocus, options: Options, today: String,
                             sessions: [UnifiedTrainingSession], resolution: TrainingCardioLoadResolution,
-                            ratings: [SessionRPEEntry], strengthWorkouts: [HevyWorkout], offset: Int) async -> [EnoughWeek] {
+                            ratings: [SessionRPEEntry], strengthWorkouts: [HevyWorkout], offset: Int,
+                            days: [DailyMetric] = []) async -> [EnoughWeek] {
         guard let target = EnoughTarget.forFocus(focus, age: options.age, ownWeeklyMinutes: options.ownWeeklyMinutes)
         else { return [] }
         let thisStart = weekStart(today, firstWeekday: options.firstWeekday)
         let starts = (0..<weeksRead).reversed().map { WeeklyDigestEngine.addDays(thisStart, -7 * $0) }
         let first = starts.first ?? thisStart
         let stored = await reader.storedActiveMinutesByDay(fromDay: first, toDay: today)
+        let restingValues = days.suffix(14).compactMap(\.restingHr).sorted()
+        let resting = restingValues.isEmpty ? StrainScorer.defaultRestingHR : Double(restingValues[restingValues.count / 2])
 
         let ratingByStart = Dictionary(ratings.map { ($0.startTs, $0.rpe) }, uniquingKeysWith: { a, _ in a })
         let ratingById = Dictionary(ratings.compactMap { r in r.sessionId.map { ($0, r.rpe) } },
                                     uniquingKeysWith: { a, _ in a })
+        // Minutes counted by a rating, minutes of a session measured by another trace than the strap's, and strap
+        // minutes inside a swim that the rating replaces: each session's minutes are counted exactly once.
         var ratedByDay: [String: Int] = [:]
-        for s in sessions where s.kind != .strength {
+        var traceByDay: [String: Int] = [:]
+        var replacedByDay: [String: Int] = [:]
+        for s in sessions where s.kind != .strength && !resolution.duplicateSessionIds.contains(s.id) {
             let day = AnalyticsEngine.dayString(s.row.startTs, offsetSec: offset)
-            guard day >= first, day <= today else { continue }
-            let measured = resolution.loads[s.id] != nil
+            guard day >= first, day <= today, s.row.endTs > s.row.startTs else { continue }
+            let span = s.row.startTs..<s.row.endTs
+            let load = resolution.loads[s.id]
+            // A session the pricing budget left for later has its heart rate; it is measured, not unrated.
+            let measured = load != nil || resolution.deferredSessionIds.contains(s.id)
             let swim = SessionRatingPolicy.family(forSport: s.row.sport) == .swimming
-            guard options.pulseUnreliable || !measured || swim else { continue }
-            let minutes = max(0, (s.row.endTs - s.row.startTs) / 60)
-            let rating = ratingById[s.id] ?? ratingByStart[s.row.startTs]
-            let rated = ActiveMinutes.ratedMinutes(durationMinutes: minutes, rating: rating)
-            ratedByDay[day, default: 0] += rated.moderate + 2 * rated.vigorous
+            if options.pulseUnreliable || !measured || swim {
+                let minutes = max(0, (s.row.endTs - s.row.startTs) / 60)
+                let rating = ratingById[s.id] ?? ratingByStart[s.row.startTs]
+                let rated = ActiveMinutes.ratedMinutes(durationMinutes: minutes, rating: rating)
+                ratedByDay[day, default: 0] += rated.moderate + 2 * rated.vigorous
+                if swim && !options.pulseUnreliable {
+                    let strap = await strapSamples(reader: reader, span: span)
+                    let m = ActiveMinutes.day(hr: strap, steps: [], sessions: [span], restingHR: resting, maxHR: options.maxHR)
+                    replacedByDay[day, default: 0] += m.sessionModerate + 2 * m.sessionVigorous
+                }
+                continue
+            }
+            // Measured by another trace (an Apple Watch workout) while the strap was off: the daily pass, which reads
+            // the strap alone, has none of these minutes, so they are counted from the session's own trace.
+            guard let load, load.source != .noopBand else { continue }
+            let strap = await strapSamples(reader: reader, span: span)
+            guard strap.count < (span.count / 4) else { continue }
+            let trace = await reader.hrSamples(from: span.lowerBound, to: span.upperBound, limit: Int.max)
+            let m = ActiveMinutes.day(hr: trace, steps: [], sessions: [span], restingHR: resting, maxHR: options.maxHR)
+            var counted = m.sessionModerate + 2 * m.sessionVigorous
+            if counted == 0, !trace.isEmpty, options.maxHR > resting + 10 {
+                // A sparse trace (a sample every few seconds is not enough per minute): its average speaks for it.
+                let average = Double(trace.map(\.bpm).reduce(0, +)) / Double(trace.count)
+                let share = (average - resting) / (options.maxHR - resting)
+                if share >= ActiveMinutes.vigorousReserve { counted = 2 * load.coveredMinutes }
+                else if share >= ActiveMinutes.moderateReserve { counted = load.coveredMinutes }
+            }
+            traceByDay[day, default: 0] += counted
         }
         var strengthDays: Set<String> = []
         for w in strengthWorkouts { strengthDays.insert(AnalyticsEngine.dayString(w.startTs, offsetSec: offset)) }
@@ -219,7 +358,10 @@ enum TrainingGuidanceReader {
                 let m = stored[cursor] ?? ActiveMinutesDay()
                 let e = m.everydayModerate + 2 * m.everydayVigorous
                 let s = m.sessionModerate + 2 * m.sessionVigorous
-                if !options.pulseUnreliable { hrMinutes += s + e; everyday += e }
+                if !options.pulseUnreliable {
+                    hrMinutes += max(0, s - (replacedByDay[cursor] ?? 0)) + e + (traceByDay[cursor] ?? 0)
+                    everyday += e
+                }
                 rated += ratedByDay[cursor] ?? 0
                 if strengthDays.contains(cursor) { strengthCount += 1 }
                 cursor = WeeklyDigestEngine.addDays(cursor, 1)
@@ -228,6 +370,12 @@ enum TrainingGuidanceReader {
                               ratedMinutes: rated, strengthDays: strengthCount, target: target,
                               isComplete: end < today)
         }
+    }
+
+    /// The strap's own samples inside a span, the ones the daily pass counted.
+    static func strapSamples(reader: StoreReader, span: Range<Int>) async -> [HRSample] {
+        (try? await reader.store.hrSamples(deviceId: reader.activeDeviceId, from: span.lowerBound, to: span.upperBound,
+                                           limit: Int.max)) ?? []
     }
 
     /// Behind the goal: this week's minutes trail the share of the target the days so far ask for. Never on
@@ -390,5 +538,35 @@ enum TrainingGuidancePrefs {
 
     static func chosenFocus(_ d: UserDefaults = .standard) -> TrainingFocus? {
         d.string(forKey: focusKey).flatMap(TrainingFocus.init(rawValue:))
+    }
+}
+
+// MARK: The day's advice
+
+/// The advice as first given today, kept so it holds for the day (Q15) and so cheap readouts (the Effort target
+/// notification, the coupled view, Android's coach chips) read the same band and stance without the full read.
+enum TrainingGuidanceAdviceStore {
+    static let key = "trainingLoad.adviceOfDay"
+
+    private struct Stored: Codable {
+        let day: String
+        let advice: MorningAdviceReading
+    }
+
+    static func save(_ advice: MorningAdviceReading, day: String, defaults: UserDefaults = .standard) {
+        guard let data = try? JSONEncoder().encode(Stored(day: day, advice: advice)),
+              let text = String(data: data, encoding: .utf8) else { return }
+        defaults.set(text, forKey: key)
+    }
+
+    static func load(day: String, defaults: UserDefaults = .standard) -> MorningAdviceReading? {
+        guard let text = defaults.string(forKey: key), let data = text.data(using: .utf8),
+              let stored = try? JSONDecoder().decode(Stored.self, from: data), stored.day == day else { return nil }
+        return stored.advice
+    }
+
+    /// Today's capped Effort band on the 0 to 21 scale, or nil before the advice was given.
+    static func todayBand21(now: Date = Date(), defaults: UserDefaults = .standard) -> ClosedRange<Int>? {
+        load(day: StoreReader.localDayKey(now), defaults: defaults)?.effortBand21
     }
 }

@@ -45,7 +45,7 @@ object CoachSuggestions {
      * Byte-twin of `StrandAnalytics.CoachSuggestions.suggestions(for:recent:)`. If you change a chip
      * string here, change it in the Swift twin in the same PR.
      */
-    fun suggestions(today: DailyMetric?, recent: List<DailyMetric>): List<String> {
+    fun suggestions(today: DailyMetric?, recent: List<DailyMetric>, stance: String? = null): List<String> {
         if (today == null) return fallback
         val charge = today.recovery
         val hrv = today.avgHrv
@@ -56,8 +56,15 @@ object CoachSuggestions {
 
         val chips = mutableListOf<String>()
 
-        // 1. Charge band → one readiness prescription chip.
-        if (charge != null) {
+        // 1. Today's advice (`MorningAdvice`, Training Load plan phase 2, Q24) → one prescription chip; without it,
+        // Charge's band. Twin of the Swift `stance` parameter.
+        if (stance != null) {
+            chips += when (stance) {
+                "rest", "easy" -> "Active recovery only today — what should I do?"
+                "push" -> "Green light — how hard can I push today?"
+                else -> "Quality over volume today — plan my session"
+            }
+        } else if (charge != null) {
             chips += when {
                 charge < CHARGE_RED_CUTOFF -> "Active recovery only today — what should I do?"
                 charge < CHARGE_GREEN_CUTOFF -> "Quality over volume today — plan my session"

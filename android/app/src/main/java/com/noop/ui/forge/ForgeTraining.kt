@@ -274,6 +274,10 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
         if (s == null) return@Column
         // The new design opens on the week's workouts, then starting, as iOS's `weekHero` over `startRow`.
         if (ForgeDesign.preview) TrainingWeekHero(s.week, viewModel)
+        // Training Load plan, phase 2: today's advice with its offers, and "enough?" beside the week (Q5, Q26, Q33).
+        val guidance = rememberTrainingGuidance()
+        guidance?.let { ForgeAdviceCard(it, showPlanned = false) }
+        guidance?.let { ForgeEnoughCard(it) }
         val live = activeWorkout
         if (s.hasDraft || live != null) {
             InProgressCard(subtitle = live?.sport?.name, onResume = {

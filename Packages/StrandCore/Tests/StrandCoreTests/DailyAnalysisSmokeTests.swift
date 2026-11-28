@@ -422,6 +422,29 @@ final class DailyAnalysisSmokeTests: XCTestCase {
         }, "the import must re-derive the day, not reuse it: \(host.lines)")
     }
 
+    /// Training Load plan, phase 2, Q20 and AI-39: the pass stores each day's active minutes. The walk's twenty
+    /// minutes at 155 bpm count as vigorous workout minutes; its warm-up at 100 bpm stays under 40 % of the
+    /// reserve, and with no step stream nothing outside the workout counts as everyday movement.
+    func testThePassStoresTheDaysActiveMinutes() async throws {
+        let store = try await WhoopStore.inMemory()
+        let (start, day) = try await seedYesterday(store, walk: true, lowHour: false)
+        let walkStart = start + 15 * 3_600
+        _ = try await store.upsertWorkouts([workout(walkStart, walkStart + 35 * 60, sport: "Walking",
+                                                    source: "activity-file")], deviceId: "activity-file")
+        let reader = StoreReader(store: store, activeDeviceId: "my-whoop", registeredWhoopIds: [])
+        let services = StoreServices(reader: reader)
+        let host = Host()
+        host.dayCycleMode = .midnight
+        let engine = DailyAnalysis(services: services, profile: Profile(), deviceId: "my-whoop", host: host,
+                                   messages: { "\($0)" })
+        await engine.analyzeRecent(maxDays: 2, force: true, allowDayReuse: false)
+        let stored = await reader.storedActiveMinutesByDay(fromDay: day, toDay: day)
+        let minutes = try XCTUnwrap(stored[day])
+        XCTAssertGreaterThanOrEqual(minutes.sessionVigorous, 15, "\(minutes)")
+        XCTAssertLessThanOrEqual(minutes.sessionVigorous, 20, "\(minutes)")
+        XCTAssertEqual(minutes.everydayModerate + minutes.everydayVigorous, 0, "no steps, no everyday minutes")
+    }
+
     /// With activity detection on, the pass stores the day's suggestions for the screens to read; off, it
     /// stores nothing. The walk-shaped bout of the fixture has no step stream, so it is a heart-rate span.
     func testThePassStoresActivitySuggestionsOnlyWhenDetectionIsOn() async throws {

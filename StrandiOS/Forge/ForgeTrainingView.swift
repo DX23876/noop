@@ -91,8 +91,12 @@ struct ForgeTrainingView: View {
                     }.id("forge-training-top")
                     VStack(alignment: .leading, spacing: 14) {
                         weekHero
+                        // Training Load plan, phase 2: today's advice with its offers, then "enough?" beside
+                        // the week's goals (Q5, Q26, Q33).
+                        if let guidance = repo.trainingGuidance { TrainingAdviceCard(guidance: guidance, showPlanned: false) }
                         startRow
                         todayPlan
+                        if let guidance = repo.trainingGuidance { TrainingEnoughCard(guidance: guidance) }
                         yourWeek
                         routines
                         recentActivities

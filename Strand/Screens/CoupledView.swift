@@ -364,7 +364,7 @@ struct CoupledView: View {
             Text("OPTIMAL")
                 .font(StrandFont.overline).tracking(StrandFont.overlineTracking)
                 .foregroundStyle(StrandPalette.textSecondary)
-            Text(Self.optimalStrainRangeText(recovery: recovery))
+            Text(Self.todayBand(recovery: recovery).map { String(localized: "\($0.lowerBound) to \($0.upperBound)") } ?? "—")
                 .font(StrandFont.number(20))
                 .foregroundStyle(StrandPalette.chargeColor)
                 .lineLimit(1).minimumScaleFactor(0.6)
@@ -376,8 +376,15 @@ struct CoupledView: View {
     /// The optimal band's upper bound as a 0–1 fraction of the 0–21 axis, for the tube fill. 0 (empty) when
     /// recovery is unknown so the tube never fabricates a band.
     private var optimalUpperFraction: Double {
-        guard let band = Self.optimalStrainRange(recovery: recovery) else { return 0 }
+        guard let band = Self.todayBand(recovery: recovery) else { return 0 }
         return max(0, min(1, Double(band.upperBound) / 21))
+    }
+
+    /// Today's optimal band: the morning advice's capped band once it was given (Training Load plan, Q14), so this
+    /// card, the ring and the target notification name one band; Charge's own band before that.
+    static func todayBand(recovery: Double?) -> ClosedRange<Int>? {
+        guard recovery != nil else { return nil }
+        return TrainingGuidanceAdviceStore.todayBand21() ?? optimalStrainRange(recovery: recovery)
     }
 
     /// The heroStat idiom (WorkoutsView.swift:500–509): an UPPERCASE tracked overline over a big tinted
@@ -709,12 +716,8 @@ struct CoupledView: View {
 
     /// The pure recovery→optimal-strain band. Returns nil when recovery is unknown. Bands per the doc above.
     static func optimalStrainRange(recovery: Double?) -> ClosedRange<Int>? {
-        guard let r = recovery else { return nil }
-        switch r {
-        case 67...:   return 14...18
-        case 34..<67: return 10...14
-        default:      return 4...10
-        }
+        // The rule lives in the core now (Training Load plan, phase 2, Q24), where the morning advice caps it.
+        EffortTargetBand.forCharge(recovery)
     }
 
     /// The optimal band as display text ("14 to 18" / "—"). Byte-identical formatting to Android.

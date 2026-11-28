@@ -1,6 +1,6 @@
 # Training Load – Umbau- und Erweiterungsplan
 
-Stand: 2026-09-24 · Branch: `claude/training-load-optimization-cfb32e` · Status: **beschlossen; P1–P6 und P8 (als Messinstrument) umgesetzt** (offen: Jahresvergleich, P7; Laufzeitprüfung des Backfills und P8-Validierung am echten iPhone-Datensatz) · **Phase 2 beschlossen 2026-11-28** (§8), Schritt 1 umgesetzt
+Stand: 2026-09-24 · Branch: `claude/training-load-optimization-cfb32e` · Status: **beschlossen; P1–P6 und P8 (als Messinstrument) umgesetzt** (offen: Jahresvergleich, P7; Laufzeitprüfung des Backfills und P8-Validierung am echten iPhone-Datensatz) · **Phase 2 beschlossen 2026-11-28** (§8), Schritte 1 bis 5 gebaut, Abnahmewoche offen
 
 Dieser Plan fasst die Untersuchung von Training Load zusammen (Code-Review, Messung gegen die echte
 `StrandAnalytics`-Logik, Abgleich mit dem Polar-Whitepaper) und die in vier Grilling-Runden getroffenen
@@ -437,15 +437,16 @@ Unterschied, keine Aufforderung. Der Coach plant weiter keine Ernährung.
 1. **Tabellenkorrektur** (Befund 1, 2, 10). Umgesetzt 2026-11-28. Analysis migration required: no.
 2. **Urteil nach Ziel:** neue Wörter, Schwerpunkt, „genug?“ mit Alltagsminuten und „Deine Woche“,
    Körpergewichtsübungen, Bewertungsabfrage für erkannte Einheiten, Krankheitssignal, Ernährung als Erklärung mit
-   einer Kraftrechnung. Eigener Zweig. Analysis migration required: wahrscheinlich yes, falls die Alltagsminuten
-   als neue Tagesreihe gespeichert werden (Rebuild-Schritt im nächsten Rezept).
+   einer Kraftrechnung. Eigener Zweig. Analysis migration required: yes (AI-39, die Alltagsminuten als vier
+   neue Tagesreihen). Gebaut 2026-11-28.
 3. **Rat am Morgen:** eine Kette für Effort-Ziel, Coach und Vorschlagsknöpfe, Angebote, Plan anpassen,
-   Mitteilung, Sicherheitsregel beim Essen; die Kotlin-Kopie des Effort-Ziels entfällt. Analysis migration
-   required: no.
+   Mitteilung, Sicherheitsregel beim Essen; Today liest das Effort-Ziel auf beiden Plattformen aus dem Kern, die
+   Kotlin-Kopie bleibt nur als Rückfall, bis der Rat geladen ist. Analysis migration
+   required: no. Gebaut 2026-11-28.
 4. **Messinstrumente im Labor:** Puls bei gleicher Schrittfrequenz, Pulserholung, mit Prüfregel. Analysis
-   migration required: no (Labor, Standard aus).
-5. **Später:** Puls bei gleichem Tempo aus GPS; der zweite Effort-Schritt übernimmt die Minutenregel. Analysis
-   migration required: yes.
+   migration required: no (Labor, Standard aus). Gebaut 2026-11-28.
+5. **Später:** Puls bei gleichem Tempo aus GPS (gebaut 2026-11-28 als drittes Labor-Instrument); der zweite
+   Effort-Schritt übernimmt die Minutenregel (offen, eigenes Projekt). Analysis migration required: yes.
 
 Abnahme vor dem Release (Q30): kein „unproduktiv“ wegen fehlendem Nachweis, kein Widerspruch zwischen Ring,
 Rat und Coach, auf jeder Karte eine Aussage.

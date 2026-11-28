@@ -1,5 +1,5 @@
 import XCTest
-import StrandCore
+@testable import StrandCore
 import StrandTraining
 import WhoopStore
 import WhoopProtocol
@@ -27,6 +27,14 @@ final class SessionRatingRemindersTests: XCTestCase {
                                                        foundLate: true), end + SessionRatingReminders.delaySeconds)
         XCTAssertTrue(SessionRatingReminders.isFoundLate(source: "detected-confirmed"))
         XCTAssertFalse(SessionRatingReminders.isFoundLate(source: "apple-health"))
+    }
+
+    /// A late session is handed out for an immediate ask once; the record expires after the window.
+    func testALateAskIsRememberedForItsWindow() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "late-ask-\(UUID().uuidString)"))
+        SessionRatingReminders.markLateAsked(["session-rpe-reminder-a"], defaults: defaults, now: 1_000)
+        XCTAssertNotNil(SessionRatingReminders.lateAsked(defaults, now: 2_000)["session-rpe-reminder-a"])
+        XCTAssertNil(SessionRatingReminders.lateAsked(defaults, now: 1_000 + 4 * 3600)["session-rpe-reminder-a"])
     }
 
     func testDeliveryRechecksTheCanonicalRatingAndDeletedWorkout() async throws {

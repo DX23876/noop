@@ -449,7 +449,10 @@ public enum GoalOutcome {
             return LaneGoalReading(verdict: verdict, note: nil, focus: focus)
         }
         if change >= strengthHeldDrop {
-            guard !isProtected(verdict) else { return LaneGoalReading(verdict: verdict, note: nil, focus: focus) }
+            // Rising lifts keep their own, stronger verdict: "held" is the success of a deficit, not a downgrade.
+            guard !isProtected(verdict), verdict != .status(.productive) else {
+                return LaneGoalReading(verdict: verdict, note: nil, focus: focus)
+            }
             return LaneGoalReading(verdict: verdict, note: .strengthHeld, focus: focus)
         }
         if let loss = weightChangePercentPerWeek, -loss > fastLossPercentPerWeek, recovery == .strained {

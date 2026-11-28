@@ -58,6 +58,8 @@ final class TrainingLoadModel: ObservableObject {
     /// Each of the last 56 days' ratio per lane — the same comparison the dials show, day by day.
     @Published private(set) var ratios: [RatioPoint] = []
     @Published private(set) var loaded = false
+    /// Each lane's verdict after the goal has spoken (Training Load plan, phase 2).
+    @Published private(set) var goalReadings: TrainingGuidanceReader.GoalReadings?
     /// Stored cardio loads priced with another HR maximum than the current one (Q15: history is only
     /// recomputed on request).
     @Published private(set) var hrmaxMismatchCount = 0
@@ -80,6 +82,9 @@ final class TrainingLoadModel: ObservableObject {
         let rpeEntries: [SessionRPEEntry]
         /// The experimental training-based VO₂max, nil while its Experimental switch is off.
         var exerciseVO2max: ExerciseVO2maxReading? = nil
+        /// The lifts the six-week strength trend reads (Training Load plan, phase 2, Q39).
+        var strengthWorkouts: [HevyWorkout] = []
+        var strengthTemplates: [String: HevyExerciseTemplate] = [:]
     }
 
     static func snapshot(repo: Repository, now: Int = Int(Date().timeIntervalSince1970)) async -> Snapshot {
@@ -116,7 +121,8 @@ final class TrainingLoadModel: ObservableObject {
             Self.exerciseVO2max(sessions: unified, resolution: cardioResolution, restingByDay: inputs.resting,
                                 maxHR: maxHR, apple: inputs.apple, offset: offset, elevations: elevations)
         }
-        return Snapshot(prepared: prepared, fusion: fusion, rpeEntries: rpeEntries, exerciseVO2max: exerciseVO2max)
+        return Snapshot(prepared: prepared, fusion: fusion, rpeEntries: rpeEntries, exerciseVO2max: exerciseVO2max,
+                        strengthWorkouts: strengthHistory.workouts, strengthTemplates: strengthHistory.templates)
     }
 
     func load(repo: Repository) async {
@@ -127,6 +133,14 @@ final class TrainingLoadModel: ObservableObject {
 
         guard !Task.isCancelled else { return }
         await repo.refreshSessionRatingReminders(now: now)
+        // Training Load plan, phase 2: the two verdicts after the goal has spoken, from the same snapshot Today reads.
+        if repo.trainingGuidance == nil { await repo.refreshTrainingGuidance() }
+        if let guidance = repo.trainingGuidance {
+            let options = await repo.trainingGuidanceOptions()
+            goalReadings = TrainingGuidanceReader.goalReadings(prepared: prepared, guidance: guidance,
+                                                               strengthWorkouts: snapshot.strengthWorkouts,
+                                                               templates: snapshot.strengthTemplates, options: options)
+        }
         strength = prepared.strength
         cardio = prepared.cardio
         session = prepared.session
@@ -242,6 +256,7 @@ struct TrainingLoadView: View {
     @State private var openSummary: SummaryDetail?
     @State private var adviceBounce = 0
     @State private var confirmRecompute = false
+    @AppStorage(TrainingGuidancePrefs.labInstrumentsKey) private var labInstruments = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private enum SummaryDetail: String, Identifiable {
@@ -338,7 +353,10 @@ struct TrainingLoadView: View {
 
     /// Where the week stands first, what is left of it, how it got here and what it builds toward.
     @ViewBuilder private var forgeBody: some View {
+        if let guidance = repo.trainingGuidance { TrainingAdviceCard(guidance: guidance) }
         forgeStandingCard.id("hero")
+        if let guidance = repo.trainingGuidance { TrainingEnoughCard(guidance: guidance) }
+        if labInstruments { TrainingInstrumentsCard() }
         roomCard
         maturityLine
         duplicateReviewCard
@@ -350,6 +368,7 @@ struct TrainingLoadView: View {
         TrainingHistoryLink(focus: .all) {
             TrainingHistoryRow(subtitle: String(localized: "Strength, cardio and session load over months and years"))
         }
+        TrainingGuidanceSettings()
         explainers.id("method")
     }
 
@@ -360,12 +379,16 @@ struct TrainingLoadView: View {
             VStack(alignment: .leading, spacing: NoopMetrics.space3) {
                 laneLink(to: .strength) {
                     forgeLaneRow(.strength, lane: model.strength, verdict: model.strengthVerdict,
+                                 goal: model.goalReadings?.strength,
+                                 foodNote: model.goalReadings?.proteinHint == true ? TrainingGuidanceText.proteinLow : nil,
                                  figure: strengthFigure, evidence: strengthEvidence,
                                  caveat: strengthCaveat, note: provisionalNote ?? capNote(model.strength))
                 }
                 Divider().overlay(StrandPalette.hairline)
                 laneLink(to: .cardio) {
                     forgeLaneRow(.cardio, lane: model.cardio, verdict: model.cardioVerdict,
+                                 goal: model.goalReadings?.cardio,
+                                 foodNote: repo.trainingGuidance?.food.ateOverPlan == true ? TrainingGuidanceText.ateOverPlan : nil,
                                  figure: cardioFigure, evidence: cardioEvidence,
                                  caveat: cardioCaveat, note: capNote(model.cardio))
                 }
@@ -382,12 +405,17 @@ struct TrainingLoadView: View {
     }
 
     private func forgeLaneRow(_ laneKind: TrainingLane, lane: TrainingLoadModel.Lane?, verdict: LaneVerdict?,
+                              goal: LaneGoalReading? = nil, foodNote: String? = nil,
                               figure: String?, evidence: String?, caveat: String?, note: String?) -> some View {
-        VStack(alignment: .leading, spacing: NoopMetrics.space2) {
+        let headline: String = {
+            if let goal, goal.noteIsHeadline, let n = goal.note { return TrainingGuidanceText.note(n) }
+            return (goal.map { $0.note == .goalTooNew ? $0.verdict : verdict } ?? verdict)?.label ?? "—"
+        }()
+        return VStack(alignment: .leading, spacing: NoopMetrics.space2) {
             HStack(alignment: .firstTextBaseline) {
                 Text(laneKind.title).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
                 Spacer(minLength: NoopMetrics.space2)
-                Text(verdict?.label ?? "—")
+                Text(headline)
                     .font(StrandFont.subhead.weight(.semibold))
                     .foregroundStyle(laneKind.color)
                     .lineLimit(1)
@@ -406,6 +434,14 @@ struct TrainingLoadView: View {
             }
             if let figure {
                 Text(figure).font(StrandFont.captionNumber).foregroundStyle(StrandPalette.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let goal, !goal.noteIsHeadline, let n = goal.note {
+                Text(TrainingGuidanceText.note(n)).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let foodNote {
+                Text(foodNote).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             if let evidence {

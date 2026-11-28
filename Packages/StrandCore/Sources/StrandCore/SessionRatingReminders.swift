@@ -28,6 +28,27 @@ public enum SessionRatingReminders {
     /// Whether a session reaches the app only after the fact (detected from the strap's data).
     public static func isFoundLate(source: String) -> Bool { source.hasPrefix("detected") }
 
+    /// Late-found sessions already handed out for an immediate ask, with when, so a reconcile after the
+    /// notification was delivered does not schedule it again: a late session is asked once (Q12).
+    static let lateAskedKey = "training.sessionRating.lateAsked"
+
+    static func lateAsked(_ defaults: UserDefaults, now: Int) -> [String: Int] {
+        let all = defaults.dictionary(forKey: lateAskedKey) ?? [:]
+        var out: [String: Int] = [:]
+        for (id, value) in all {
+            let ts = (value as? Int) ?? (value as? NSNumber)?.intValue ?? 0
+            if now - ts < foundLateWindowSeconds + deliveryGraceSeconds { out[id] = ts }
+        }
+        return out
+    }
+
+    static func markLateAsked(_ ids: [String], defaults: UserDefaults, now: Int) {
+        guard !ids.isEmpty else { return }
+        var asked = lateAsked(defaults, now: now)
+        for id in ids { asked[id] = now }
+        defaults.set(asked, forKey: lateAskedKey)
+    }
+
     public static func fireTime(startTs: Int, endTs: Int, now: Int, forDelivery: Bool = false,
                                 foundLate: Bool = false) -> Int? {
         guard endTs > startTs, endTs <= now else { return nil }
@@ -75,7 +96,7 @@ public enum SessionRatingReminders {
     /// over an earlier scheduled request. A rating attributed to another canonical session never gates this one.
     public static func candidates(reader: StoreReader, prompt: SessionRatingPrompt, maxHR: Double?,
                                    dismissed: [String], now: Int = Int(Date().timeIntervalSince1970),
-                                   forDelivery: Bool = false) async -> [Candidate] {
+                                   forDelivery: Bool = false, defaults: UserDefaults = .standard) async -> [Candidate] {
         guard prompt != .off else { return [] }
         let fusion = await TrainingSessionResolver.read(reader: reader, from: now - TrainingHistoryWindow.allDays * 86_400, to: now,
                                                         dismissedDetectedSpans: dismissed)
@@ -90,6 +111,8 @@ public enum SessionRatingReminders {
         let resting = restingByDay.keys.sorted().suffix(14).compactMap { restingByDay[$0] }.sorted()
         let baseline = resting.isEmpty ? nil : resting[resting.count / 2]
         var result: [Candidate] = []
+        let askedLate = lateAsked(defaults, now: now)
+        var newlyLate: [String] = []
         for session in timely {
             let row = session.row
             guard let fire = fireTime(startTs: row.startTs, endTs: row.endTs, now: now, forDelivery: forDelivery,
@@ -101,9 +124,15 @@ public enum SessionRatingReminders {
             guard await isWorthAsking(reader: reader, startTs: row.startTs, endTs: row.endTs, sport: row.sport,
                 source: row.source, averageHR: row.avgHr.map(Double.init), restingHR: baseline, maxHR: maxHR,
                 prompt: prompt) else { continue }
-            result.append(Candidate(id: "session-rpe-reminder-\(session.id)", sessionId: session.id,
+            let id = "session-rpe-reminder-\(session.id)"
+            // A late session is handed out for scheduling once; delivery still finds it while it is due.
+            let late = isFoundLate(source: row.source) && fire == now && !forDelivery
+            if late && askedLate[id] != nil { continue }
+            if late { newlyLate.append(id) }
+            result.append(Candidate(id: id, sessionId: session.id,
                 sport: row.sport, startTs: row.startTs, endTs: row.endTs, fireTs: fire))
         }
+        markLateAsked(newlyLate, defaults: defaults, now: now)
         return result.sorted { ($0.fireTs, $0.id) < ($1.fireTs, $1.id) }
     }
 }

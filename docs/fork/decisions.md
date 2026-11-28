@@ -2248,3 +2248,39 @@ the Effort target, the coach and the suggestion chips all read, offers in minute
 instruments in the Lab behind a pre-registered check, and the food log as explanation only.
 
 Analysis migration required: no (read-time only; nothing stored changes)
+
+## 2026-11-28 — Training Load phase 2, steps 2 to 5: the goal, "enough?", one morning advice, the Lab markers
+
+Built on `feature/training-load-phase2` in one batch, as the owner asked, from the 43 decisions of
+`docs/fork/TRAINING_LOAD_PLAN.md` §8:
+
+- **The verdict against the goal.** `TrainingFocusResolver` reads each lane's focus from the diet plan, the weight
+  goal and training goals, or the wearer's chosen focus; `GoalOutcome` judges a lane by it. Losing weight, cardio is
+  a success when the minutes came together in three of four weeks and recovery is not strained, strength when the
+  main lifts held within 5 % over six weeks; a new goal is only described for two weeks, a goal paused for illness
+  or pain rests the verdict. The verdicts read in everyday words ("Kein Fortschritt sichtbar" instead of
+  "Unproduktiv"). Bodyweight movements count by the repetitions of their best set.
+- **Enough?** The WHO 2020 minutes (40 % of the heart-rate reserve and above, vigorous counting double, two strength
+  days) as the floor, raised by the focus, read from the active minutes the daily pass now stores (AI-39): inside
+  sessions by heart rate, outside them only with steps in the same minute. Sessions the pulse cannot speak for
+  count by the wearer's rating; a profile switch says the pulse does not show effort at all.
+- **One morning advice.** `MorningAdvice.resolve` decides push, steady, easy or rest by seven ordered rules, caps
+  Charge's Effort band (the rule left `CoupledView` for the core; Android's Today reads the core's target and keeps
+  its Kotlin band only until the advice has loaded), and feeds Today, the Training
+  tab, Training Load, the coach's prompt, its morning brief and its suggestion chips. Offers come in minutes of the
+  wearer's own typical session and hard sets per muscle group with room. A coach proposal against the advice is
+  marked, never refused. An optional morning notification posts once a day, never beside the coach's brief.
+- **Food as explanation.** `TrainingFoodSignals` reads complete food days only: "eaten over plan" beside a stalled
+  weight, low protein beside falling strength, and one safety rule that never lets the advice push while complete
+  days sit well under plan in a heavy week. The Food page's strength check now reads the same six-week trend.
+- **Ratings.** A session the app only finds later (a detected walk) may be asked about up to three hours after it
+  ended; the morning advice also asks for yesterday's unrated session.
+- **Lab markers.** The pulse at the usual walking cadence, the pulse recovery after hard endings and the pulse on
+  flat GPS kilometres at the usual pace, each with the pre-registered `InstrumentCheck` (eight weekly comparisons,
+  70 % agreement with Apple VO₂max, the pace pulse or the resting pulse). None of them feeds a verdict.
+
+Android reads all of it from the core (`training.guidance`, `training.goalReadings`, `training.instruments`); no
+Kotlin twin decides anything. The acceptance week (Q30) is still owed before a release.
+
+Analysis migration required: yes (AI-39: the full rebuild writes the four active-minute series for the whole
+history; every other part is read-time)
