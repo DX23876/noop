@@ -224,9 +224,18 @@ final class OrganicScoreGeometryTests: XCTestCase {
         XCTAssertTrue(OrganicScoreMotionPrefs.reactsToMovementDefault)
     }
 
-    func testRingStyleKeepsTheLivingRingsUnlessClassicWasChosen() {
+    func testRingStyleKeepsTheLivingRingsUnlessAnotherWasChosen() {
         XCTAssertEqual(ScoreRingStyle.resolve(nil), .organic)
         XCTAssertEqual(ScoreRingStyle.resolve("something else"), .organic)
         XCTAssertEqual(ScoreRingStyle.resolve("classic"), .classic)
+        XCTAssertEqual(ScoreRingStyle.resolve("colored"), .colored)
+    }
+
+    /// Only the living rings move: the classic and the coloured rings both stop the frame clock and the
+    /// motion sensor, and both grey out the motion-effect switch.
+    func testOnlyTheLivingRingsMove() {
+        XCTAssertFalse(ScoreRingStyle.organic.isStill)
+        XCTAssertTrue(ScoreRingStyle.classic.isStill)
+        XCTAssertTrue(ScoreRingStyle.colored.isStill)
     }
 }

@@ -6635,7 +6635,10 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_ap_score_rings">评分圆环</string>
     <string name="forge_ap_living">灵动</string>
     <string name="forge_ap_classic">经典</string>
-    <string name="forge_ap_rings_note">灵动圆环会移动和呼吸。经典圆环保持静止，更省电。</string>
+    <string name="forge_ap_colored">彩色</string>
+    <string name="forge_ap_rings_living_detail">灵动圆环会移动和呼吸。</string>
+    <string name="forge_ap_rings_classic_detail">静止圆环，带柔和渐变，更省电。</string>
+    <string name="forge_ap_rings_colored_detail">扁平圆环，颜色清晰：Charge 按数值从红到绿，Effort 为蓝色，Rest 为浅蓝色。保持静止，更省电。</string>
     <string name="forge_ap_motion">运动</string>
     <string name="forge_log_photo">照片</string>
     <string name="forge_log_photo_question">这是一张我想记录的照片，比如一顿饭或训练屏幕。说说你看到了什么，以及我可以记录什么。估算请标明是估算，不要自行记录任何内容。</string>
@@ -7460,7 +7463,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fsw4_wake_check">清醒检查</string>
     <string name="fsw4_wake_note">只有在你走动或改变姿势时才算作清醒。仅心率上升仍视为浅睡。运动数据过少的夜晚会跳过。从下一晚开始生效。</string>
     <string name="fsw4_style">风格</string>
-    <string name="fsw4_style_blurb">浅色、深色或跟随系统，以及强调色和图标。</string>
+    <string name="fsw4_style_blurb">浅色、深色或跟随系统，以及强调色、圆环和图标。</string>
     <string name="fsw4_system">系统</string>
     <string name="fsw4_backup_group">备份与还原</string>
     <string name="fsw4_imports_blurb">NOOP 读取的其他来源及其占用的空间。</string>

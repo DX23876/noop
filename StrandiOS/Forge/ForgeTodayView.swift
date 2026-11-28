@@ -33,6 +33,8 @@ struct ForgeTodayView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.scrollToTopSignal) private var scrollToTopSignal
     @AppStorage(UnitPrefs.effortScaleKey) private var effortScaleRaw = EffortScale.hundred.rawValue
+    /// The ring style, so the pinned bar's dots take the coloured rings' colours when those are drawn.
+    @AppStorage(ScoreRingStyle.storageKey) private var ringStyleRaw = ScoreRingStyle.defaultStyle.rawValue
     private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
     @AppStorage(UnitPrefs.systemKey) private var unitSystemRaw = UnitSystem.metric.rawValue
     @AppStorage(UnitPrefs.distanceSystemKey) private var distanceSystemRaw = ""
@@ -356,14 +358,19 @@ struct ForgeTodayView: View {
         }
     }
 
-    /// The three scores in one glass bar while the rings are scrolled away. Tapping returns to the top.
+    /// The three scores in one glass bar while the rings are scrolled away. Tapping returns to the top. Its dots
+    /// are in the rings' colours: the page's own, or the fixed ones of the coloured rings.
     private var pinnedBar: some View {
-        HStack(spacing: 16) {
-            pinnedValue(DomainTheme.charge.productName, chargeScore.map { "\(Int($0.rounded()))" }, ForgeColor.charge)
+        let rest = snapshot.loaded ? snapshot.rest : nil
+        let colored = ScoreRingStyle.resolve(ringStyleRaw) == .colored
+        return HStack(spacing: 16) {
+            pinnedValue(DomainTheme.charge.productName, chargeScore.map { "\(Int($0.rounded()))" },
+                        colored ? StrandPalette.coloredRingTint(metric: .charge, score: chargeScore) : ForgeColor.charge)
             pinnedValue(DomainTheme.effort.productName,
-                        snapshot.effortStored.map { ForgeToday.effortText($0, scale: effortScale) }, ForgeColor.effort)
-            pinnedValue(DomainTheme.rest.productName,
-                        (snapshot.loaded ? snapshot.rest : nil).map { "\(Int($0.rounded()))" }, ForgeColor.rest)
+                        snapshot.effortStored.map { ForgeToday.effortText($0, scale: effortScale) },
+                        colored ? StrandPalette.coloredRingTint(metric: .effort, score: effortScore) : ForgeColor.effort)
+            pinnedValue(DomainTheme.rest.productName, rest.map { "\(Int($0.rounded()))" },
+                        colored ? StrandPalette.coloredRingTint(metric: .rest, score: rest) : ForgeColor.rest)
         }
         .padding(.horizontal, 16)
         .frame(height: 44)

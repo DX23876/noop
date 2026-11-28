@@ -160,6 +160,12 @@ public enum StrandPalette {
     public static let organicRest = Color(light: "#7265FF", dark: "#8B80FF")
     public static let organicMissing = Color(light: "#AAB2C0", dark: "#8A94A4")
 
+    // MARK: Coloured score rings (Settings, Style, Rings: Colored) — flat rings in fixed, clear colours on a
+    // neutral track, whatever chart colours or colour profile are chosen. Android reads the same tokens.
+    public static let coloredRingTrack = Color(light: "#0000001A", dark: "#FFFFFF24")
+    public static let coloredRingEffort = Color(light: "#0A6FD6", dark: "#2B95FF")
+    public static let coloredRingRest = Color(light: "#6B9BD6", dark: "#A3C4EC")
+
     // MARK: Forge brand ember — the orange face of the NOOP Forge "F" (app icon, Today mark). Brand only,
     // never a data colour, so it does not follow the chart style.
     public static let forgeEmber = Color(light: "#D94A0A", dark: "#FF6A16")
@@ -1084,6 +1090,28 @@ public enum StrandPalette {
     /// real, terrible recovery.
     public static func chargeRingColor(_ score: Double) -> Color {
         chargeBandColor(ChargeBand.of(score: score))
+    }
+
+    /// The coloured ring's Charge colour: red to green by band, from the classic readiness swatches, so it
+    /// stays a traffic light under every chart style. Same bands as `chargeRingColor`, only the palette is fixed.
+    public static func coloredRingCharge(_ score: Double) -> Color {
+        switch ChargeBand.of(score: score) {
+        case .depleted: return cRecovery000
+        case .low:      return cRecovery030
+        case .moderate: return cRecovery055
+        case .primed:   return cRecovery078
+        case .peak:     return cRecovery100
+        }
+    }
+
+    /// The one colour a coloured ring of `metric` is drawn in, used by the ring and by anything that names
+    /// the same score beside it. A missing score draws in the missing grey.
+    public static func coloredRingTint(metric: OrganicScoreMetric, score: Double?) -> Color {
+        switch metric {
+        case .charge: return score.map(coloredRingCharge) ?? organicMissing
+        case .effort: return score == nil ? organicMissing : coloredRingEffort
+        case .rest:   return score == nil ? organicMissing : coloredRingRest
+        }
     }
 
     /// The DISCRETE colour for a Charge band, one flat swatch per band per style — never an

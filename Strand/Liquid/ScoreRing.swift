@@ -1,9 +1,9 @@
 import SwiftUI
 import StrandDesign
 
-/// A Charge, Effort or Rest score ring in the style the wearer chose (Settings, Motion, Rings): the living
-/// `OrganicScoreRing`, or a still classic `GlowRing` drawn from the same visual model. Every score ring goes
-/// through here, so the one setting holds everywhere.
+/// A Charge, Effort or Rest score ring in the style the wearer chose (Settings, Style, Rings): the living
+/// `OrganicScoreRing`, a still classic `GlowRing`, or a flat coloured `FlatScoreRing`, the last two drawn from
+/// the same visual model. Every score ring goes through here, so the one setting holds everywhere.
 struct ScoreRing: View {
     let model: OrganicScoreVisualModel
     let tint: Color
@@ -20,12 +20,34 @@ struct ScoreRing: View {
     @AppStorage(ScoreRingStyle.storageKey) private var styleRaw = ScoreRingStyle.defaultStyle.rawValue
 
     var body: some View {
-        if ScoreRingStyle.resolve(styleRaw) == .classic {
-            classic
-        } else {
+        switch ScoreRingStyle.resolve(styleRaw) {
+        case .organic:
             OrganicScoreRing(model: model, tint: tint, score: score, decimals: decimals, frame: frame,
                              diameter: diameter, hitDiameter: hitDiameter, memoKey: memoKey)
+        case .classic:
+            classic
+        case .colored:
+            colored
         }
+    }
+
+    /// Flat and in fixed colours: the caller's tint is not used, so every page draws one score in one colour.
+    /// Charge and Rest are percentages and say so; Effort is a load, on either scale, and carries no sign.
+    private var colored: some View {
+        let ring = diameter * 0.76
+        let color = StrandPalette.coloredRingTint(metric: model.metric, score: score)
+        let unit = model.metric == .effort ? nil : "%"
+        return Group {
+            if let score, let fraction = model.normalizedValue {
+                FlatScoreRing(fraction: fraction, value: score, format: format, color: color,
+                              diameter: ring, lineWidth: ring * 0.075, unit: unit)
+            } else {
+                FlatScoreRing(fraction: 0, value: 0, format: { _ in "–" }, color: color,
+                              diameter: ring, lineWidth: ring * 0.075)
+            }
+        }
+        .frame(width: diameter, height: diameter)
+        .contentShape(Circle().inset(by: max(0, (diameter - (hitDiameter ?? diameter)) / 2)))
     }
 
     /// The arc sits where the organic contour does, a little inside the ring's square.

@@ -84,7 +84,7 @@ struct OrganicScoreHeroClock<Content: View>: View {
             heroVisible: isVisible,
             reactsToDeviceMovement: reactsToMovement,
             platformHasMotionSensor: hasSensor,
-            classicRings: ScoreRingStyle.resolve(ringStyleRaw) == .classic
+            classicRings: ScoreRingStyle.resolve(ringStyleRaw).isStill
         )
     }
 

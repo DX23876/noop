@@ -6749,7 +6749,10 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_ap_score_rings">Score rings</string>
     <string name="forge_ap_living">Living</string>
     <string name="forge_ap_classic">Classic</string>
-    <string name="forge_ap_rings_note">Living rings move and breathe. Classic rings stand still and use less battery.</string>
+    <string name="forge_ap_colored">Colored</string>
+    <string name="forge_ap_rings_living_detail">Living rings move and breathe.</string>
+    <string name="forge_ap_rings_classic_detail">Still rings with a soft shading. They use less battery.</string>
+    <string name="forge_ap_rings_colored_detail">Flat rings in clear colours: Charge red to green by its value, Effort blue, Rest light blue. They stand still and use less battery.</string>
     <string name="forge_ap_motion">Motion</string>
     <string name="forge_log_photo">Photo</string>
     <string name="forge_log_photo_question">Here is a photo I want to log, such as a meal or a workout screen. Say what you see and what I could log from it. Mark any estimate as an estimate and do not log anything yourself.</string>
@@ -7568,7 +7571,7 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="fsw4_wake_check">Wake check</string>
     <string name="fsw4_wake_note">Counts a wake-up only if you walked or changed position. A heart-rate rise alone stays light sleep. Skipped on nights with too little motion data. Applies from the next night.</string>
     <string name="fsw4_style">Style</string>
-    <string name="fsw4_style_blurb">Light, dark or your system setting, plus accent and icons.</string>
+    <string name="fsw4_style_blurb">Light, dark or your system setting, plus accent, rings and icons.</string>
     <string name="fsw4_system">System</string>
     <string name="fsw4_backup_group">Backup &amp; restore</string>
     <string name="fsw4_imports_blurb">Other sources NOOP reads, and the space it uses.</string>

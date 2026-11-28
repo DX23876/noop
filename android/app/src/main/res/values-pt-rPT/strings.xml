@@ -6672,7 +6672,10 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="forge_ap_score_rings">Anéis de pontuação</string>
     <string name="forge_ap_living">Vivos</string>
     <string name="forge_ap_classic">Clássico</string>
-    <string name="forge_ap_rings_note">Os anéis vivos movem-se e respiram. Os clássicos ficam parados e gastam menos bateria.</string>
+    <string name="forge_ap_colored">Coloridos</string>
+    <string name="forge_ap_rings_living_detail">Os anéis vivos movem-se e respiram.</string>
+    <string name="forge_ap_rings_classic_detail">Anéis parados com um sombreado suave. Gastam menos bateria.</string>
+    <string name="forge_ap_rings_colored_detail">Anéis planos em cores nítidas: Charge do vermelho ao verde conforme o valor, Effort azul, Rest azul-claro. Ficam parados e gastam menos bateria.</string>
     <string name="forge_ap_motion">Movimento</string>
     <string name="forge_log_photo">Foto</string>
     <string name="forge_log_photo_question">Aqui está uma foto que quero registar, como uma refeição ou um ecrã de treino. Diz o que vês e o que posso registar a partir dela. Marca qualquer estimativa como estimativa e não registes nada tu.</string>
@@ -7513,7 +7516,7 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="fsw4_wake_check">Verificação de despertares</string>
     <string name="fsw4_wake_note">Só conta um despertar se andou ou mudou de posição. Uma subida do pulso, por si só, fica como sono leve. Ignorado em noites com poucos dados de movimento. Aplica-se a partir da próxima noite.</string>
     <string name="fsw4_style">Estilo</string>
-    <string name="fsw4_style_blurb">Claro, escuro ou como o sistema, mais destaque e ícones.</string>
+    <string name="fsw4_style_blurb">Claro, escuro ou como o sistema, mais destaque, anéis e ícones.</string>
     <string name="fsw4_system">Sistema</string>
     <string name="fsw4_backup_group">Cópia de segurança e restauro</string>
     <string name="fsw4_imports_blurb">Outras fontes que o NOOP lê e o espaço que ocupa.</string>

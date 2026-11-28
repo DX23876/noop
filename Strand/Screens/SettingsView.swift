@@ -1835,10 +1835,14 @@ private struct SettingsPageContent: View, Equatable {
                 rowDivider
             }
             #endif
+            // The score rings, a look choice since there are three: under the colour profile (owner, 2026-11-27).
+            scoreRingsRow
+            scoreRingsExplanation
             // Accent controls links, buttons, focus, and selection. Chart colours controls health data
             // only (recovery, strain, sleep); it never changes chrome. Custom reveals a colour well.
             // A calm profile brings its own accent, so there is nothing to choose then.
             if NoopVisualStyle.skin != .forge || NoopVisualStyle.forgeProfile == .colorful {
+            rowDivider
             FormRow(label: "Accent") {
                 Picker("Accent", selection: $accentRaw) {
                     ForEach(AccentColor.allCases) { c in
@@ -1911,7 +1915,7 @@ private struct SettingsPageContent: View, Equatable {
             SettingsSection(
                 icon: "circle.lefthalf.filled",
                 title: "Style",
-                blurb: "Light, dark or your system setting, plus accent and icons."
+                blurb: "Light, dark or your system setting, plus accent, rings and icons."
             ) {
                 VStack(alignment: .leading, spacing: 0) {
                     designMenuRows
@@ -1932,7 +1936,7 @@ private struct SettingsPageContent: View, Equatable {
         SettingsSection(
             icon: "circle.lefthalf.filled",
             title: "Style",
-            blurb: "Light, dark or your system setting, plus accent and icons."
+            blurb: "Light, dark or your system setting, plus accent, rings and icons."
         ) {
             VStack(alignment: .leading, spacing: 0) {
                 designMenuRows
@@ -2022,19 +2026,37 @@ private struct SettingsPageContent: View, Equatable {
         .tint(StrandPalette.accent)
     }
 
-    /// The score-rings menu (shared by both looks): living organic rings or still classic arcs, for Today,
-    /// the score pages, Sleep and the weekly report alike.
+    /// The score-rings menu (shared by both looks): living organic rings, still classic arcs or flat coloured
+    /// rings, for Today, the score pages, Sleep and the weekly report alike.
     private var scoreRingsRow: some View {
         FormRow(label: "Score rings") {
             Picker("Score rings", selection: $scoreRingStyleRaw) {
                 Text("Living").tag(ScoreRingStyle.organic.rawValue)
                 Text("Classic").tag(ScoreRingStyle.classic.rawValue)
+                Text("Colored").tag(ScoreRingStyle.colored.rawValue)
             }
             .labelsHidden()
             .pickerStyle(.menu)
             .appleInspiredTint("settings.controls")
             .accessibilityLabel("Score rings")
         }
+    }
+
+    /// What the chosen ring style looks like, under the menu.
+    @ViewBuilder
+    private var scoreRingsExplanation: some View {
+        Group {
+            switch ScoreRingStyle.resolve(scoreRingStyleRaw) {
+            case .organic:
+                Text("Living rings move and breathe.")
+            case .classic:
+                Text("Still rings with a soft shading. They use less battery.")
+            case .colored:
+                Text("Flat rings in clear colours: Charge red to green by its value, Effort blue, Rest light blue. They stand still and use less battery.")
+            }
+        }
+        .settingsCaption()
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     #if os(iOS)
@@ -2048,7 +2070,7 @@ private struct SettingsPageContent: View, Equatable {
         }
         .toggleStyle(.switch)
         .tint(StrandPalette.accent)
-        .disabled(quietMotion || ScoreRingStyle.resolve(scoreRingStyleRaw) == .classic)
+        .disabled(quietMotion || ScoreRingStyle.resolve(scoreRingStyleRaw).isStill)
     }
     #endif
 
@@ -2073,9 +2095,6 @@ private struct SettingsPageContent: View, Equatable {
                              footer: Text("Holds the liquid gauges, the sky and the tilt response still, and turns off the motion sensor that drives them. Saves battery. Low Power Mode and the system Reduce Motion setting already do this.")) {
                 reduceMotionToggle
             }
-            SettingsSubGroup(footer: Text("Living rings move and breathe. Classic rings stand still and use less battery.")) {
-                scoreRingsRow
-            }
             #if os(iOS)
             SettingsSubGroup(footer: Text("The Today rings lean and ripple as you move your phone. Off, they keep their own slow movement.")) {
                 heroMovementToggle
@@ -2097,12 +2116,6 @@ private struct SettingsPageContent: View, Equatable {
             VStack(alignment: .leading, spacing: 0) {
                 reduceMotionToggle
                 Text("Holds the liquid gauges, the sky and the tilt response still, and turns off the motion sensor that drives them. Saves battery. Low Power Mode and the system Reduce Motion setting already do this.")
-                    .settingsCaption()
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                rowDivider
-                scoreRingsRow
-                Text("Living rings move and breathe. Classic rings stand still and use less battery.")
                     .settingsCaption()
                     .frame(maxWidth: .infinity, alignment: .leading)
 

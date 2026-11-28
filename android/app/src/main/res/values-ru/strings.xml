@@ -6660,7 +6660,10 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_ap_score_rings">Кольца оценок</string>
     <string name="forge_ap_living">Живые</string>
     <string name="forge_ap_classic">Классический режим</string>
-    <string name="forge_ap_rings_note">Живые кольца двигаются и дышат. Классические неподвижны и экономят заряд.</string>
+    <string name="forge_ap_colored">Цветные</string>
+    <string name="forge_ap_rings_living_detail">Живые кольца двигаются и дышат.</string>
+    <string name="forge_ap_rings_classic_detail">Неподвижные кольца с мягким переходом цвета. Экономят заряд.</string>
+    <string name="forge_ap_rings_colored_detail">Плоские кольца чётких цветов: Charge от красного до зелёного по значению, Effort синий, Rest голубой. Неподвижны и экономят заряд.</string>
     <string name="forge_ap_motion">Движение</string>
     <string name="forge_log_photo">Фото</string>
     <string name="forge_log_photo_question">Вот фото, которое я хочу записать, например еда или экран тренировки. Скажи, что ты видишь и что я могу из этого записать. Помечай оценки как оценки и ничего не записывай сам.</string>
@@ -7530,7 +7533,7 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="fsw4_wake_check">Проверка пробуждений</string>
     <string name="fsw4_wake_note">Засчитывает пробуждение, только если вы ходили или меняли положение. Один лишь рост пульса остаётся лёгким сном. Пропускается в ночи со слишком малым количеством данных о движении. Действует со следующей ночи.</string>
     <string name="fsw4_style">Стиль</string>
-    <string name="fsw4_style_blurb">Светлая, тёмная или как в системе, плюс акцент и значки.</string>
+    <string name="fsw4_style_blurb">Светлая, тёмная или как в системе, плюс акцент, кольца и значки.</string>
     <string name="fsw4_system">Системная</string>
     <string name="fsw4_backup_group">Резервная копия и восстановление</string>
     <string name="fsw4_imports_blurb">Другие источники, которые читает NOOP, и занимаемое место.</string>
