@@ -241,11 +241,12 @@ private fun habitIcon(component: String): ImageVector = when (component) {
     "vegetables" -> Icons.Rounded.Eco
     "fruit" -> Icons.Rounded.ShoppingBasket
     "wholeGrains" -> Icons.Rounded.RiceBowl
-    "sugaryDrinks" -> Icons.Rounded.LocalDrink
     "nutsLegumes" -> Icons.Rounded.Grass
     "redMeat" -> Icons.Rounded.OutdoorGrill
+    "processedMeat" -> Icons.Rounded.LunchDining
     "fishOmega3" -> Icons.Rounded.SetMeal
-    "polyFats" -> Icons.Rounded.Opacity
+    "freeSugar" -> Icons.Rounded.Cake
+    "satFat" -> Icons.Rounded.Opacity
     "sodium" -> Icons.Rounded.Grain
     "alcohol" -> Icons.Rounded.WineBar
     else -> Icons.Rounded.Eco
@@ -471,11 +472,12 @@ internal fun componentNameText(context: Context, c: String): String = context.ge
     "vegetables" -> R.string.food_part_vegetables
     "fruit" -> R.string.food_part_fruit
     "wholeGrains" -> R.string.food_part_whole_grains
-    "sugaryDrinks" -> R.string.food_part_sweet_drinks
     "nutsLegumes" -> R.string.food_part_nuts
     "redMeat" -> R.string.food_part_red_meat
+    "processedMeat" -> R.string.food_part_processed_meat
     "fishOmega3" -> R.string.food_part_fish
-    "polyFats" -> R.string.food_part_fats
+    "freeSugar" -> R.string.food_part_free_sugar
+    "satFat" -> R.string.food_part_sat_fat
     "sodium" -> R.string.food_part_salt
     "fiber" -> R.string.food_part_fibre
     else -> R.string.food_part_alcohol

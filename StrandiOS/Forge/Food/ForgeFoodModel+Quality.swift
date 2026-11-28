@@ -25,7 +25,7 @@ extension ForgeFoodModel {
         let all = (try? await store.foodLogEntries(from: "2000-01-01", to: today)) ?? []
         allEntries = all
         for id in Set(all.compactMap(\.foodId)) where !id.hasPrefix("bls:") && factsById[id] == nil {
-            if let item = await FoodLibrary.item(store: store, id: id) { factsById[id] = .init(group: item.group, nova: item.nova) }
+            if let item = await FoodLibrary.item(store: store, id: id) { factsById[id] = item.scoreFacts }
         }
         let options = scoreOptions
         let usual = FoodQuality.usualKcal(entries: all, before: day) ?? calories?.kcal

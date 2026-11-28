@@ -5527,11 +5527,9 @@
     <string name="food_part_vegetables">Verduras</string>
     <string name="food_part_fruit">Fruta</string>
     <string name="food_part_whole_grains">Cereales integrales</string>
-    <string name="food_part_sweet_drinks">Bebidas azucaradas y zumo</string>
     <string name="food_part_nuts">Frutos secos y legumbres</string>
-    <string name="food_part_red_meat">Carne roja y procesada</string>
+    <string name="food_part_red_meat">Carne roja</string>
     <string name="food_part_fish">Omega-3</string>
-    <string name="food_part_fats">Grasas de aceites vegetales y frutos secos</string>
     <string name="food_part_salt">Sal</string>
     <string name="food_part_alcohol">Alcohol</string>
     <string name="food_full_vegetables">Todos los puntos desde 5 raciones al día</string>
@@ -5540,8 +5538,7 @@
     <string name="food_full_whole_grains_f">Todos los puntos desde 75 g al día</string>
     <string name="food_full_nuts">Todos los puntos desde 1 ración al día</string>
     <string name="food_full_fish">Todos los puntos desde unas dos comidas de pescado a la semana</string>
-    <string name="food_full_fats">Todos los puntos desde una décima parte de tus calorías</string>
-    <string name="food_full_salt">Todos los puntos hasta unos 4 g de sal al día</string>
+    <string name="food_full_salt">Sin descuento hasta unos 4 g de sal al día</string>
     <string name="food_full_none">Todos los puntos con nada</string>
     <string name="food_amount_portions">%1$s raciones al día</string>
     <string name="food_amount_grams">%1$s g al día</string>
@@ -7411,7 +7408,7 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="food_add_again">Añadir %1$s g de nuevo</string>
     <string name="food_badge_days100">100 días registrados</string>
     <string name="food_badge_days30">30 días registrados</string>
-    <string name="food_badge_days_detail">Días que cuentan, registrados con al menos la mitad de tu comida habitual.</string>
+    <string name="food_badge_days_detail">Días que cuentan, registrados con al menos un tercio de tu comida habitual.</string>
     <string name="food_badge_full_week">Una semana completa</string>
     <string name="food_badge_full_week_detail">Todos los días de una semana registrados.</string>
     <string name="food_badge_good_month">Un mes de 8</string>
@@ -7432,7 +7429,7 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="food_favourites_hint">Marca un alimento con la estrella, crea una comida o guarda una desde su menú en la página de Nutrición para encontrarla aquí.</string>
     <string name="food_foods">Alimentos</string>
     <string name="food_full_fibre">Puntos completos desde 30 g al día</string>
-    <string name="food_full_red_meat">Puntos completos sin embutido y con hasta 350 g de carne roja a la semana</string>
+    <string name="food_full_red_meat">Sin descuento hasta 350 g por semana</string>
     <string name="food_goal_on">En el objetivo</string>
     <string name="food_goal_over">Objetivo superado</string>
     <string name="food_goal_too_little">Demasiado poco</string>
@@ -7450,7 +7447,7 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="food_note_about_day">La comida del propio día; el pescado, los frutos secos, las legumbres y la carne se leen en los últimos siete días, porque nadie los come a diario.</string>
     <string name="food_note_about_span">Las cantidades de todos los días sumadas y puntuadas una vez, como hace la investigación nutricional para más de un día. Describe tu hábito, así que puede diferir de las notas diarias.</string>
     <string name="food_note_appears">La nota del día aparece cuando registras comida.</string>
-    <string name="food_note_counts_from_half">La nota cuenta desde la mitad de tu día habitual: por ahora %1$s de %2$s kcal.</string>
+    <string name="food_note_counts_from_half">La nota cuenta desde un tercio de tu día habitual: %1$s de %2$s kcal hasta ahora.</string>
     <string name="food_note_from_days_28">De %1$d días registrados de los últimos 28</string>
     <string name="food_note_last_weeks">Últimas 8 semanas</string>
     <string name="food_note_none_day">Aún no hay nota para este día</string>
@@ -8274,4 +8271,10 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="fw_fat">Grasas</string>
     <string name="fw_grams">%1$s g</string>
     <string name="fw_grams_of">%1$s / %2$s g</string>
+    <string name="food_part_free_sugar">Azúcar añadido</string>
+    <string name="food_part_sat_fat">Grasas saturadas</string>
+    <string name="food_part_processed_meat">Embutidos y carnes curadas</string>
+    <string name="food_full_free_sugar">Sin descuento hasta una veinteava parte de tus calorías</string>
+    <string name="food_full_sat_fat">Sin descuento hasta una décima parte de tus calorías</string>
+    <string name="food_full_processed_meat">Sin descuento si no hay embutidos ni carnes curadas</string>
 </resources>

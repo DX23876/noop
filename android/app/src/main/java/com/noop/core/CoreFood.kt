@@ -248,10 +248,14 @@ object CoreFood {
     fun onlineBarcode(code: String, language: String): Item? =
         call("food.onlineBarcode", JSONObject().put("code", code).put("language", language))?.let(::item)
 
-    /** The cart's products with missing nutrients borrowed from the closest BLS food; unchanged ones as they were. */
-    fun coachEnrich(items: List<Item>): List<Item>? {
+    /**
+     * The cart's products worked over by the coach once: what each is made of, so the nutrition score can count
+     * it, and, when [fillGaps] is set, its missing nutrients borrowed from the closest BLS food. Unchanged ones
+     * come back as they were.
+     */
+    fun coachEnrich(items: List<Item>, fillGaps: Boolean): List<Item>? {
         val array = JSONArray(); items.forEach { array.put(it.json) }
-        val json = call("coach.foodEnrich", JSONObject().put("items", array)) ?: return null
+        val json = call("coach.foodEnrich", JSONObject().put("items", array).put("fillGaps", fillGaps)) ?: return null
         return items(json).takeIf { it.size == items.size }
     }
 

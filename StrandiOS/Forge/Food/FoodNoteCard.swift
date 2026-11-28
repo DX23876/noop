@@ -121,7 +121,7 @@ struct FoodNoteCard: View {
             switch error.reason {
             case .nothing: return String(localized: "The day's note appears once you log food.")
             case .tooLittle(let logged, let needed):
-                return String(localized: "The note counts from half your usual day: \(FoodText.kcal(logged)) of \(FoodText.kcal(needed)) kcal so far.")
+                return String(localized: "The note counts from a third of your usual day: \(FoodText.kcal(logged)) of \(FoodText.kcal(needed)) kcal so far.")
             }
         case .success(let note):
             if note.uncertain {

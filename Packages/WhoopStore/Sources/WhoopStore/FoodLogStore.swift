@@ -92,14 +92,17 @@ public struct CustomFood: Equatable, Sendable {
     /// One piece of the package in g or ml and how many pieces it holds, as its label states (v92).
     public var packageAmount: Double?
     public var packageCount: Int?
+    /// What the food is made of, as the coach or the wearer worked it out, held as the JSON of StrandCore's
+    /// `FoodClassification` (v95). The store keeps it without reading it, so its shape lives in one place.
+    public var classification: String?
 
     public init(id: String, name: String, brand: String? = nil, barcode: String? = nil, group: String? = nil,
                 nova: Int? = nil, servingG: Double? = nil, servingLabel: String? = nil, per100g: FoodNutrientValues,
                 origin: Origin, sourceId: String? = nil, createdAt: Int, updatedAt: Int,
                 estimatedFrom: String? = nil, estimatedKeys: [String] = [], liquid: Bool = false,
-                packageAmount: Double? = nil, packageCount: Int? = nil) {
+                packageAmount: Double? = nil, packageCount: Int? = nil, classification: String? = nil) {
         self.liquid = liquid; self.packageAmount = packageAmount; self.packageCount = packageCount
-        self.estimatedFrom = estimatedFrom; self.estimatedKeys = estimatedKeys
+        self.estimatedFrom = estimatedFrom; self.estimatedKeys = estimatedKeys; self.classification = classification
         self.id = id; self.name = name; self.brand = brand; self.barcode = barcode; self.group = group
         self.nova = nova; self.servingG = servingG; self.servingLabel = servingLabel; self.per100g = per100g
         self.origin = origin; self.sourceId = sourceId; self.createdAt = createdAt; self.updatedAt = updatedAt
@@ -424,13 +427,13 @@ extension WhoopStore {
             try db.execute(sql: """
                 INSERT OR REPLACE INTO foodCustom
                   (id, name, brand, barcode, foodGroup, nova, servingG, servingLabel, per100g, origin, sourceId,
-                   createdAt, updatedAt, estimatedFrom, estimatedKeys, liquid, packageAmount, packageCount)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                   createdAt, updatedAt, estimatedFrom, estimatedKeys, liquid, packageAmount, packageCount, classification)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, arguments: [
                     food.id, food.name, food.brand, food.barcode, food.group, food.nova, food.servingG,
                     food.servingLabel, Self.encodeNutrients(food.per100g), food.origin.rawValue, food.sourceId,
                     food.createdAt, food.updatedAt, food.estimatedFrom, Self.encodeKeys(food.estimatedKeys),
-                    food.liquid ? 1 : 0, food.packageAmount, food.packageCount])
+                    food.liquid ? 1 : 0, food.packageAmount, food.packageCount, food.classification])
         }
         return true
     }
@@ -473,7 +476,7 @@ extension WhoopStore {
                           sourceId: row["sourceId"], createdAt: row["createdAt"], updatedAt: row["updatedAt"],
                           estimatedFrom: row["estimatedFrom"], estimatedKeys: decodeKeys(row["estimatedKeys"]),
                           liquid: (row["liquid"] as Int?) == 1, packageAmount: row["packageAmount"],
-                          packageCount: row["packageCount"])
+                          packageCount: row["packageCount"], classification: row["classification"])
     }
 
     // MARK: - Recipes

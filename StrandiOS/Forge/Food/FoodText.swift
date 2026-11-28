@@ -174,11 +174,12 @@ enum FoodText {
         case .vegetables: String(localized: "Vegetables")
         case .fruit: String(localized: "Fruit")
         case .wholeGrains: String(localized: "Whole grains")
-        case .sugaryDrinks: String(localized: "Sweet drinks and juice")
         case .nutsLegumes: String(localized: "Nuts and pulses")
-        case .redMeat: String(localized: "Red and processed meat")
+        case .redMeat: String(localized: "Red meat")
+        case .processedMeat: String(localized: "Sausage and cured meat")
         case .fishOmega3: String(localized: "Omega-3")
-        case .polyFats: String(localized: "Fats from plant oils and nuts")
+        case .freeSugar: String(localized: "Added sugar")
+        case .satFat: String(localized: "Saturated fat")
         case .sodium: String(localized: "Salt")
         case .alcohol: String(localized: "Alcohol")
         case .fiber: String(localized: "Fibre")
@@ -191,12 +192,13 @@ enum FoodText {
         case .vegetables: String(localized: "Full points from 5 portions a day")
         case .fruit: String(localized: "Full points from 4 portions a day")
         case .wholeGrains: male ? String(localized: "Full points from 90 g a day") : String(localized: "Full points from 75 g a day")
-        case .sugaryDrinks: String(localized: "Full points with none")
         case .nutsLegumes: String(localized: "Full points from 1 portion a day")
-        case .redMeat: String(localized: "Full points without sausage and with up to 350 g red meat a week")
+        case .redMeat: String(localized: "Nothing off up to 350 g a week")
+        case .processedMeat: String(localized: "Nothing off without sausage and cured meat")
         case .fishOmega3: String(localized: "Full points from about two fish meals a week")
-        case .polyFats: String(localized: "Full points from a tenth of your calories")
-        case .sodium: String(localized: "Full points up to about 4 g salt a day")
+        case .freeSugar: String(localized: "Nothing off up to a twentieth of your calories")
+        case .satFat: String(localized: "Nothing off up to a tenth of your calories")
+        case .sodium: String(localized: "Nothing off up to about 4 g salt a day")
         case .alcohol: String(localized: "Full points with none")
         case .fiber: String(localized: "Full points from 30 g a day")
         }
@@ -207,11 +209,11 @@ enum FoodText {
         let a = part.amountPerDay
         func one(_ v: Double) -> String { v.formatted(.number.precision(.fractionLength(0...1)).locale(AppLanguage.activeLocale)) }
         switch part.component {
-        case .vegetables, .fruit, .sugaryDrinks, .nutsLegumes, .redMeat:
+        case .vegetables, .fruit, .nutsLegumes, .processedMeat:
             return String(localized: "\(one(a)) portions a day")
-        case .wholeGrains, .fiber: return String(localized: "\(grams(a)) g a day")
+        case .wholeGrains, .fiber, .redMeat: return String(localized: "\(grams(a)) g a day")
         case .fishOmega3: return String(localized: "\(kcal(a)) mg a day")
-        case .polyFats: return String(localized: "\(one(a)) % of calories")
+        case .freeSugar, .satFat: return String(localized: "\(one(a)) % of calories")
         case .sodium: return String(localized: "\(one(a * 2.5 / 1_000)) g salt a day")
         case .alcohol: return String(localized: "\(one(a)) drinks a day")
         }
@@ -251,7 +253,7 @@ enum FoodText {
     static func badgeDetail(_ badge: FoodBadges.Badge) -> String {
         switch badge {
         case .firstFullWeek: String(localized: "Every day of a week logged.")
-        case .days30, .days100: String(localized: "Days that count, logged with at least half your usual food.")
+        case .days30, .days100: String(localized: "Days that count, logged with at least a third of your usual food.")
         case .goodWeek: String(localized: "Your first week with a note of 8 or more.")
         case .goodMonth: String(localized: "Your first four weeks with a note of 8 or more.")
         case .habit: String(localized: "Eight points or more in this part, four weeks in a row.")
@@ -275,11 +277,12 @@ enum FoodText {
         case .vegetables: "carrot.fill"
         case .fruit: "basket.fill"
         case .wholeGrains: "fork.knife"
-        case .sugaryDrinks: "waterbottle.fill"
         case .nutsLegumes: "leaf.fill"
         case .redMeat: "flame.fill"
+        case .processedMeat: "takeoutbag.and.cup.and.straw.fill"
         case .fishOmega3: "fish.fill"
-        case .polyFats: "drop.fill"
+        case .freeSugar: "cube.fill"
+        case .satFat: "drop.fill"
         case .sodium: "circle.grid.3x3.fill"
         case .alcohol: "wineglass.fill"
         case .fiber: "leaf.circle.fill"

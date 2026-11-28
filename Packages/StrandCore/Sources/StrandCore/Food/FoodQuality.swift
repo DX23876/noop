@@ -11,7 +11,7 @@ import WhoopStore
 /// - A week's or a month's note adds up the amounts of its 7 or 28 days first and scores them once, the NCI's
 ///   method for more than one day. Averaging day notes would not give the same figure, since each part is capped
 ///   at 10 a day; the two may differ, and say different things (the day, the habit).
-/// - A day counts once it holds at least half the wearer's usual intake; today's note is provisional.
+/// - A day counts once it holds at least a third of the wearer's usual intake; today's note is provisional.
 /// - Food the log cannot place in any group is shown as a share; from 30 % of the energy the note is uncertain.
 public enum FoodQuality {
     public struct Note: Equatable, Sendable, Codable {
@@ -39,7 +39,7 @@ public enum FoodQuality {
     public enum Missing: Equatable, Sendable {
         /// Nothing logged.
         case nothing
-        /// Less than half the usual intake logged so far.
+        /// Less than a third of the usual intake logged so far.
         case tooLittle(loggedKcal: Double, neededKcal: Double)
     }
 
@@ -47,8 +47,10 @@ public enum FoodQuality {
     public static let monthSpan = 28
     /// From this share of unplaced energy a note is uncertain.
     public static let uncertainUnplacedShare = 0.30
-    /// A day counts from this share of the usual intake.
-    public static let countsFromShare = 0.5
+    /// A day counts from this share of the usual intake: a third, as Bevel unlocks its score at a third of the
+    /// calorie goal, but held against the wearer's own usual day rather than a goal they may never have set
+    /// (owner, 2026-11-22).
+    public static let countsFromShare = 1.0 / 3.0
     /// The usual intake is the median of up to this many logged days before.
     public static let usualDays = 14
     /// Fewer logged days than this before a day leave the usual intake to the calorie goal.
@@ -123,7 +125,12 @@ public enum FoodQuality {
     static func isPlaced(_ entry: FoodLogEntry, facts: [String: FoodScore.FoodFacts]) -> Bool {
         guard let id = entry.foodId else { return false }
         if id.hasPrefix("bls:") || id.hasPrefix("recipe:") { return true }
-        if let group = facts[id]?.group, !group.isEmpty { return true }
+        // A classified food is placed even where it belongs to no group the score counts (a cheese, an oil):
+        // the coach looked at it and said so, which is the opposite of not knowing.
+        if let facts = facts[id] {
+            if facts.shares != nil || facts.wholeGrainShare != nil || facts.freeSugarShare != nil { return true }
+            if let group = facts.group, !group.isEmpty { return true }
+        }
         return FoodScore.kind(of: entry, group: nil, name: entry.name.lowercased()) != nil
     }
 

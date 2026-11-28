@@ -431,7 +431,10 @@ public enum FoodLibrary {
                                 sourceId: source, createdAt: existing?.createdAt ?? stamp, updatedAt: stamp,
                                 estimatedFrom: food.estimatedFrom, estimatedKeys: food.estimatedKeys ?? [],
                                 liquid: food.liquid == true, packageAmount: food.packageAmount,
-                                packageCount: food.packageCount)
+                                packageCount: food.packageCount,
+                                // The wearer's own answer stands: a coach classification never replaces one.
+                                classification: Self.keptClassification(food.classification,
+                                                                        stored: existing?.classification)?.json)
         guard (try? await store.saveCustomFood(custom)) == true else { return nil }
         return item(for: custom)
     }
@@ -475,7 +478,16 @@ public enum FoodLibrary {
                  servingG: food.servingG, servingLabel: food.servingLabel,
                  per100g: NutrientAmounts(stored: food.per100g), barcode: food.barcode,
                  estimatedFrom: food.estimatedFrom, estimatedKeys: food.estimatedKeys.isEmpty ? nil : food.estimatedKeys,
-                 liquid: food.liquid ? true : nil, packageAmount: food.packageAmount, packageCount: food.packageCount)
+                 liquid: food.liquid ? true : nil, packageAmount: food.packageAmount, packageCount: food.packageCount,
+                 classification: FoodClassification.decode(food.classification))
+    }
+
+    /// Which classification is written: the wearer's own, when there is one, whatever the coach now says.
+    static func keptClassification(_ next: FoodClassification?, stored: String?) -> FoodClassification? {
+        let kept = FoodClassification.decode(stored)
+        if kept?.author == .wearer, next?.author != .wearer { return kept }
+        guard let next, next.isSound else { return kept }
+        return next
     }
 }
 

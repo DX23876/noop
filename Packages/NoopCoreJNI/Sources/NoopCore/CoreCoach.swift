@@ -66,12 +66,14 @@ enum CoreCoach {
         if op == "coach.checkin" { return CoreRead.json(await CheckInState(reader: reader, fixedMinutes: args["fixedMinutes"] as? Int ?? 480)) }
         let coach = await engine(reader: reader, settings: CoreGoalEnergy.settings(args), fresh: freshDataOps.contains(op))
         if op == "coach.foodEnrich" {
-            // Missing vitamins and minerals borrowed from the closest BLS food (`CoachFoodEstimate`).
+            // What each product is made of (`CoachFoodClassify`), and missing vitamins and minerals borrowed from
+            // the closest BLS food when the wearer asked for that (`CoachFoodEstimate`, `fillGaps`).
             let items = ((args["items"] as? [[String: Any]]) ?? []).compactMap { value -> FoodItem? in
                 guard let data = try? JSONSerialization.data(withJSONObject: value) else { return nil }
                 return try? JSONDecoder().decode(FoodItem.self, from: data)
             }
-            return CoreRead.json(["items": await coach.fillingMissingNutrients(items, store: reader.store)])
+            let fillGaps = args["fillGaps"] as? Bool ?? false
+            return CoreRead.json(["items": await coach.enriching(items, store: reader.store, fillGaps: fillGaps)])
         }
         if op == "coach.foodPhotos" { return CoreRead.json(["reads": coach.readsFoodPhotos]) }
         if op == "coach.foodCart" {

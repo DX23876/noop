@@ -5540,11 +5540,9 @@
     <string name="food_part_vegetables">Gemüse</string>
     <string name="food_part_fruit">Obst</string>
     <string name="food_part_whole_grains">Vollkorn</string>
-    <string name="food_part_sweet_drinks">Süße Getränke und Saft</string>
     <string name="food_part_nuts">Nüsse und Hülsenfrüchte</string>
-    <string name="food_part_red_meat">Rotes und verarbeitetes Fleisch</string>
+    <string name="food_part_red_meat">Rotes Fleisch</string>
     <string name="food_part_fish">Omega-3</string>
-    <string name="food_part_fats">Fette aus Pflanzenölen und Nüssen</string>
     <string name="food_part_salt">Salz</string>
     <string name="food_part_alcohol">Alkohol</string>
     <string name="food_full_vegetables">Volle Punkte ab 5 Portionen am Tag</string>
@@ -5553,8 +5551,7 @@
     <string name="food_full_whole_grains_f">Volle Punkte ab 75 g am Tag</string>
     <string name="food_full_nuts">Volle Punkte ab 1 Portion am Tag</string>
     <string name="food_full_fish">Volle Punkte ab etwa zwei Fischmahlzeiten pro Woche</string>
-    <string name="food_full_fats">Volle Punkte ab einem Zehntel deiner Kalorien</string>
-    <string name="food_full_salt">Volle Punkte bis etwa 4 g Salz am Tag</string>
+    <string name="food_full_salt">Kein Abzug bis etwa 4 g Salz am Tag</string>
     <string name="food_full_none">Volle Punkte ohne</string>
     <string name="food_amount_portions">%1$s Portionen am Tag</string>
     <string name="food_amount_grams">%1$s g am Tag</string>
@@ -7425,7 +7422,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="food_add_again">%1$s g erneut hinzufügen</string>
     <string name="food_badge_days100">100 Tage geloggt</string>
     <string name="food_badge_days30">30 Tage geloggt</string>
-    <string name="food_badge_days_detail">Tage, die zählen: mit mindestens der Hälfte deines üblichen Essens geloggt.</string>
+    <string name="food_badge_days_detail">Tage, die zählen, mit mindestens einem Drittel deines üblichen Essens geloggt.</string>
     <string name="food_badge_full_week">Eine volle Woche</string>
     <string name="food_badge_full_week_detail">Jeden Tag einer Woche geloggt.</string>
     <string name="food_badge_good_month">Ein Monat mit 8</string>
@@ -7446,7 +7443,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="food_favourites_hint">Markiere ein Lebensmittel mit dem Stern, stell eine Mahlzeit zusammen oder merke dir eine über ihr Menü auf der Ernährungsseite. Dann findest du sie hier.</string>
     <string name="food_foods">Lebensmittel</string>
     <string name="food_full_fibre">Volle Punkte ab 30 g am Tag</string>
-    <string name="food_full_red_meat">Volle Punkte ohne Wurst und mit bis zu 350 g rotem Fleisch pro Woche</string>
+    <string name="food_full_red_meat">Kein Abzug bis 350 g in der Woche</string>
     <string name="food_goal_on">Im Ziel</string>
     <string name="food_goal_over">Über Ziel</string>
     <string name="food_goal_too_little">Zu wenig</string>
@@ -7464,7 +7461,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="food_note_about_day">Das Essen des Tages selbst. Fisch, Nüsse, Hülsenfrüchte und Fleisch zählen über die letzten sieben Tage, weil niemand sie jeden Tag isst.</string>
     <string name="food_note_about_span">Die Mengen aller Tage zusammengezählt und dann einmal bewertet, wie es die Ernährungsforschung für mehrere Tage macht. Sie beschreibt deine Gewohnheit und kann deshalb von den Tagesnoten abweichen.</string>
     <string name="food_note_appears">Die Tagesnote erscheint, sobald du Essen loggst.</string>
-    <string name="food_note_counts_from_half">Die Note zählt ab der Hälfte deines üblichen Tages: bisher %1$s von %2$s kcal.</string>
+    <string name="food_note_counts_from_half">Die Note zählt ab einem Drittel deines üblichen Tages: %1$s von %2$s kcal bisher.</string>
     <string name="food_note_from_days_28">Aus %1$d geloggten Tagen der letzten 28</string>
     <string name="food_note_last_weeks">Letzte 8 Wochen</string>
     <string name="food_note_none_day">Für diesen Tag noch keine Note</string>
@@ -8288,4 +8285,10 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fw_fat">Fett</string>
     <string name="fw_grams">%1$s g</string>
     <string name="fw_grams_of">%1$s / %2$s g</string>
+    <string name="food_part_free_sugar">Zugesetzter Zucker</string>
+    <string name="food_part_sat_fat">Gesättigte Fette</string>
+    <string name="food_part_processed_meat">Wurst und Geräuchertes</string>
+    <string name="food_full_free_sugar">Kein Abzug bis zu einem Zwanzigstel deiner Kalorien</string>
+    <string name="food_full_sat_fat">Kein Abzug bis zu einem Zehntel deiner Kalorien</string>
+    <string name="food_full_processed_meat">Kein Abzug ohne Wurst und Geräuchertes</string>
 </resources>

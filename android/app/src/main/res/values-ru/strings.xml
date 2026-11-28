@@ -5508,11 +5508,9 @@
     <string name="food_part_vegetables">Овощи</string>
     <string name="food_part_fruit">Фрукты</string>
     <string name="food_part_whole_grains">Цельные злаки</string>
-    <string name="food_part_sweet_drinks">Сладкие напитки и сок</string>
     <string name="food_part_nuts">Орехи и бобовые</string>
-    <string name="food_part_red_meat">Красное и переработанное мясо</string>
+    <string name="food_part_red_meat">Красное мясо</string>
     <string name="food_part_fish">Омега-3</string>
-    <string name="food_part_fats">Жиры из растительных масел и орехов</string>
     <string name="food_part_salt">Соль</string>
     <string name="food_part_alcohol">Алкоголь</string>
     <string name="food_full_vegetables">Полный балл от 5 порций в день</string>
@@ -5521,8 +5519,7 @@
     <string name="food_full_whole_grains_f">Полный балл от 75 г в день</string>
     <string name="food_full_nuts">Полный балл от 1 порции в день</string>
     <string name="food_full_fish">Полный балл примерно от двух рыбных блюд в неделю</string>
-    <string name="food_full_fats">Полный балл от десятой части калорий</string>
-    <string name="food_full_salt">Полный балл до примерно 4 г соли в день</string>
+    <string name="food_full_salt">Без вычета до примерно 4 г соли в день</string>
     <string name="food_full_none">Полный балл, если нет совсем</string>
     <string name="food_amount_portions">%1$s порций в день</string>
     <string name="food_amount_grams">%1$s г в день</string>
@@ -7418,7 +7415,7 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="food_add_again">Снова добавить %1$s г</string>
     <string name="food_badge_days100">100 дней с записями</string>
     <string name="food_badge_days30">30 дней с записями</string>
-    <string name="food_badge_days_detail">Засчитанные дни: записано не меньше половины обычного питания.</string>
+    <string name="food_badge_days_detail">Дни, которые считаются: записана хотя бы треть обычной еды.</string>
     <string name="food_badge_full_week">Полная неделя</string>
     <string name="food_badge_full_week_detail">Записан каждый день недели.</string>
     <string name="food_badge_good_month">Месяц на 8</string>
@@ -7439,7 +7436,7 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="food_favourites_hint">Отметь продукт звёздочкой, собери приём пищи или сохрани его через меню на странице питания, чтобы найти здесь.</string>
     <string name="food_foods">Продукты</string>
     <string name="food_full_fibre">Полные баллы от 30 г в день</string>
-    <string name="food_full_red_meat">Полные баллы без колбасы и не больше 350 г красного мяса в неделю</string>
+    <string name="food_full_red_meat">Без вычета до 350 г в неделю</string>
     <string name="food_goal_on">В цели</string>
     <string name="food_goal_over">Выше цели</string>
     <string name="food_goal_too_little">Слишком мало</string>
@@ -7457,7 +7454,7 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="food_note_about_day">Еда самого дня; рыба, орехи, бобовые и мясо считаются за последние семь дней, ведь никто не ест их каждый день.</string>
     <string name="food_note_about_span">Количества за все дни складываются и оцениваются один раз, как делают исследования питания для нескольких дней. Это описывает привычку, поэтому может отличаться от дневных оценок.</string>
     <string name="food_note_appears">Оценка дня появится, когда ты запишешь еду.</string>
-    <string name="food_note_counts_from_half">Оценка считается с половины обычного дня: пока %1$s из %2$s ккал.</string>
+    <string name="food_note_counts_from_half">Оценка считается от трети обычного дня: %1$s из %2$s ккал пока.</string>
     <string name="food_note_from_days_28">Из %1$d записанных дней за последние 28</string>
     <string name="food_note_last_weeks">Последние 8 недель</string>
     <string name="food_note_none_day">Для этого дня ещё нет оценки</string>
@@ -8293,4 +8290,10 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="fw_fat">Жиры</string>
     <string name="fw_grams">%1$s g</string>
     <string name="fw_grams_of">%1$s / %2$s g</string>
+    <string name="food_part_free_sugar">Добавленный сахар</string>
+    <string name="food_part_sat_fat">Насыщенные жиры</string>
+    <string name="food_part_processed_meat">Колбасы и копчёности</string>
+    <string name="food_full_free_sugar">Без вычета до одной двадцатой калорий</string>
+    <string name="food_full_sat_fat">Без вычета до одной десятой калорий</string>
+    <string name="food_full_processed_meat">Без вычета без колбас и копчёностей</string>
 </resources>

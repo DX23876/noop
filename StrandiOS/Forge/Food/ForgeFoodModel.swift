@@ -679,9 +679,11 @@ final class ForgeFoodModel {
         for index in items.indices where items[index].source == .online {
             if let saved = await FoodLibrary.saveOwn(store: store, items[index], origin: .online) { items[index] = saved }
         }
-        // Missing vitamins and minerals, from the closest BLS food or the coach's estimate, only when chosen.
-        if let coach, CoachFeaturePrefs.isEnabled, UserDefaults.standard.bool(forKey: FoodEstimate.enabledKey) {
-            items = await coach.fillingMissingNutrients(items, store: store)
+        // What each product is made of, so the score can count it; its missing vitamins and minerals only when
+        // the wearer chose that (`AICoachEngine.enriching`).
+        if let coach, CoachFeaturePrefs.isEnabled {
+            items = await coach.enriching(items, store: store,
+                                          fillGaps: UserDefaults.standard.bool(forKey: FoodEstimate.enabledKey))
         }
         let origin: FoodLogEntry.Origin = items.contains { $0.source == .recipe } ? .recipe : .search
         let entries = zip(lines, items).map { line, item in

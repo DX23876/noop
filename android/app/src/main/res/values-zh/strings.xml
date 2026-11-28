@@ -5483,11 +5483,9 @@
     <string name="food_part_vegetables">蔬菜</string>
     <string name="food_part_fruit">水果</string>
     <string name="food_part_whole_grains">全谷物</string>
-    <string name="food_part_sweet_drinks">甜饮料和果汁</string>
     <string name="food_part_nuts">坚果和豆类</string>
-    <string name="food_part_red_meat">红肉和加工肉</string>
+    <string name="food_part_red_meat">红肉</string>
     <string name="food_part_fish">Omega-3</string>
-    <string name="food_part_fats">来自植物油和坚果的脂肪</string>
     <string name="food_part_salt">盐</string>
     <string name="food_part_alcohol">酒精</string>
     <string name="food_full_vegetables">每天 5 份即可满分</string>
@@ -5496,8 +5494,7 @@
     <string name="food_full_whole_grains_f">每天 75 克即可满分</string>
     <string name="food_full_nuts">每天 1 份即可满分</string>
     <string name="food_full_fish">每周约两餐鱼即可满分</string>
-    <string name="food_full_fats">占热量十分之一即可满分</string>
-    <string name="food_full_salt">每天约 4 克盐以内为满分</string>
+    <string name="food_full_salt">每天不超过约 4 克盐不扣分</string>
     <string name="food_full_none">完全没有时满分</string>
     <string name="food_amount_portions">每天 %1$s 份</string>
     <string name="food_amount_grams">每天 %1$s 克</string>
@@ -7351,7 +7348,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="food_add_again">再次添加 %1$s 克</string>
     <string name="food_badge_days100">记录 100 天</string>
     <string name="food_badge_days30">记录 30 天</string>
-    <string name="food_badge_days_detail">计入的天数：记录了至少一半的日常饮食。</string>
+    <string name="food_badge_days_detail">算进去的日子：至少记录了平常饮食的三分之一。</string>
     <string name="food_badge_full_week">完整一周</string>
     <string name="food_badge_full_week_detail">一周每天都有记录。</string>
     <string name="food_badge_good_month">一个月 8 分</string>
@@ -7372,7 +7369,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="food_favourites_hint">给食物加星标、搭配一餐，或在饮食页面通过餐食菜单保存，就能在这里找到。</string>
     <string name="food_foods">食物</string>
     <string name="food_full_fibre">每天 30 克起得满分</string>
-    <string name="food_full_red_meat">不吃加工肉且每周红肉不超过 350 克得满分</string>
+    <string name="food_full_red_meat">每周不超过 350 克不扣分</string>
     <string name="food_goal_on">达标</string>
     <string name="food_goal_over">超过目标</string>
     <string name="food_goal_too_little">太少</string>
@@ -7390,7 +7387,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="food_note_about_day">当天自己的饮食；鱼、坚果、豆类和肉按最近七天计算，因为没人每天都吃。</string>
     <string name="food_note_about_span">把所有天的摄入量相加后再统一评分，这是营养研究处理多天数据的方法。它反映你的习惯，因此可能与每日评分不同。</string>
     <string name="food_note_appears">记录饮食后就会显示当天评分。</string>
-    <string name="food_note_counts_from_half">评分从平时一天的一半开始计算：目前 %1$s / %2$s 千卡。</string>
+    <string name="food_note_counts_from_half">评分从平常一天的三分之一起算：目前 %1$s / %2$s 千卡。</string>
     <string name="food_note_from_days_28">来自最近 28 天中记录的 %1$d 天</string>
     <string name="food_note_last_weeks">最近 8 周</string>
     <string name="food_note_none_day">这一天还没有评分</string>
@@ -8208,4 +8205,10 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fw_fat">脂肪</string>
     <string name="fw_grams">%1$s g</string>
     <string name="fw_grams_of">%1$s / %2$s g</string>
+    <string name="food_part_free_sugar">添加糖</string>
+    <string name="food_part_sat_fat">饱和脂肪</string>
+    <string name="food_part_processed_meat">香肠和腌肉</string>
+    <string name="food_full_free_sugar">不超过热量的二十分之一不扣分</string>
+    <string name="food_full_sat_fat">不超过热量的十分之一不扣分</string>
+    <string name="food_full_processed_meat">没有香肠和腌肉就不扣分</string>
 </resources>

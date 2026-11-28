@@ -95,7 +95,8 @@
   "v91-food-saved-meal",
   "v92-food-package",
   "v93-energy-everyday",
-  "v94-weight-water-mark"
+  "v94-weight-water-mark",
+  "v95-food-classification"
  ],
  "divergenceReasons": {
   "android-orphan-synced-column": "REAL COLUMN DRIFT: `synced` exists on Android only. GRDB's v10 note is explicit that stepSample gets no `synced` column ('unused; see StreamStore'), and v12's ppgHrSample never had one either; the Room entities copied the flag from the older per-second entities. Nothing reads it on Android — the per-row upload flag belongs to an upload path that does not exist there — so it is dead width, not divergent data. Removing it needs a Room table rebuild.",
@@ -5575,6 +5576,12 @@
     {
      "name": "packageCount",
      "affinity": "INTEGER",
+     "notNull": false,
+     "default": null
+    },
+    {
+     "name": "classification",
+     "affinity": "TEXT",
      "notNull": false,
      "default": null
     }

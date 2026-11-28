@@ -2190,8 +2190,7 @@ extension WhoopStore {
         }
         // A food's package and whether it is a drink (owner, 2026-11-25), so the amount sheet can offer "1 can",
         // "the whole pack" and millilitres for a food the wearer kept. Wearer data, additive: every food saved
-        // before reads as grams with no package, as it did. (The classification branch names its own v92 step
-        // "v92-food-classification"; the two names differ, so both can land in either order.)
+        // before reads as grams with no package, as it did.
         migrator.registerMigration("v92-food-package") { db in
             try db.alter(table: "foodCustom") { t in
                 t.add(column: "liquid", .integer).notNull().defaults(to: 0)
@@ -2222,6 +2221,16 @@ extension WhoopStore {
             try db.alter(table: "bodyWeightEntry") { t in
                 t.add(column: "waterMark", .text)
             }
+        }
+        // What a food is made of, as the coach or the wearer worked it out (owner, 2026-11-22; written as v92 on its
+        // branch, which never shipped, and numbered after the steps main took meanwhile): the groups its
+        // weight falls into, how much of it is whole grain, and how much of its sugar is free sugar. The
+        // nutrition score counts food by these, since Open Food Facts leaves four of ten of this wearer's own
+        // products without any category at all. Additive and nullable, held as JSON the store does not read;
+        // `FoodClassification` in StrandCore owns its shape. The score is worked out at view time and nothing
+        // derived from it is stored, so nothing goes stale. Analysis migration required: no.
+        migrator.registerMigration("v95-food-classification") { db in
+            try db.alter(table: "foodCustom") { t in t.add(column: "classification", .text) }
         }
         return migrator
     }

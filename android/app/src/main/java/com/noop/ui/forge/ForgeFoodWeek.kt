@@ -64,11 +64,7 @@ import kotlin.math.roundToInt
  * `FoodMealPicture` draw them. The numbers come from the shared core (`food.week`, `food.habit`, `food.sentence`).
  */
 
-/** The Lab switch, the same key as iOS (`FoodScore.enabledKey`). */
-internal const val FOOD_SCORE_KEY = "food.score.enabled"
 private const val HABIT_DISMISSED_KEY = "food.repeat.dismissed"
-
-internal fun foodScoreEnabled(context: android.content.Context) = com.noop.ui.NoopPrefs.of(context).getBoolean(FOOD_SCORE_KEY, false)
 
 /** "Not today" holds for the rest of the day (iOS keys it by day and meal; one offer a day is enough here). */
 internal fun foodHabitDismissed(context: android.content.Context, day: String) =
@@ -292,15 +288,15 @@ private fun FoodNoteTrend(notes: List<com.noop.core.CoreFoodNotes.Note>) {
 }
 
 /** Parts where less is better, as iOS `FoodScore.Component.isLimit`. */
-private val LIMIT_PARTS = setOf("sugaryDrinks", "redMeat", "sodium", "alcohol")
+private val LIMIT_PARTS = setOf("freeSugar", "satFat", "sodium", "redMeat", "processedMeat", "alcohol")
 
 @Composable
 private fun ScorePartRow(part: CoreFood.ScorePart, male: Boolean) {
     val colors = Forge.colors
     val green = nutrientTint("fiber_g", colors.dark)
     val red = nutrientTint("iron_mg", colors.dark)
-    // Points added (more is better) or lost (less is better), from -10 to +10.
-    val effect = if (part.component in LIMIT_PARTS) -(10 - part.points) else part.points
+    // What the part did to the score: the core sends it signed (iOS `FoodScore.Part.points`).
+    val effect = part.points
     val signed = if (kotlin.math.abs(effect) < 0.05) "0" else (if (effect > 0) "+" else "−") + gramsText(kotlin.math.abs(effect))
     Row(Modifier.fillMaxWidth().padding(vertical = ForgeMetrics.space2), verticalAlignment = Alignment.Top) {
         Image(painterResource(partPicture(part.component)), contentDescription = null, contentScale = ContentScale.Crop,
@@ -332,11 +328,12 @@ private fun partPicture(c: String): Int = when (c) {
     "vegetables" -> R.drawable.food_motif_vegetables
     "fruit" -> R.drawable.food_motif_fruit
     "wholeGrains" -> R.drawable.food_motif_grains
-    "sugaryDrinks" -> R.drawable.food_motif_drinks
     "nutsLegumes" -> R.drawable.food_motif_legumes
     "redMeat" -> R.drawable.food_motif_meat
+    "processedMeat" -> R.drawable.food_motif_meat
     "fishOmega3" -> R.drawable.food_motif_fish
-    "polyFats" -> R.drawable.food_motif_fats
+    "freeSugar" -> R.drawable.food_motif_sweets
+    "satFat" -> R.drawable.food_motif_fats
     "sodium" -> R.drawable.food_motif_salt
     "fiber" -> R.drawable.food_motif_vegetables
     else -> R.drawable.food_motif_alcohol
@@ -347,11 +344,12 @@ internal fun foodComponentName(c: String): String = stringResource(when (c) {
     "vegetables" -> R.string.food_part_vegetables
     "fruit" -> R.string.food_part_fruit
     "wholeGrains" -> R.string.food_part_whole_grains
-    "sugaryDrinks" -> R.string.food_part_sweet_drinks
     "nutsLegumes" -> R.string.food_part_nuts
     "redMeat" -> R.string.food_part_red_meat
+    "processedMeat" -> R.string.food_part_processed_meat
     "fishOmega3" -> R.string.food_part_fish
-    "polyFats" -> R.string.food_part_fats
+    "freeSugar" -> R.string.food_part_free_sugar
+    "satFat" -> R.string.food_part_sat_fat
     "sodium" -> R.string.food_part_salt
     "fiber" -> R.string.food_part_fibre
     else -> R.string.food_part_alcohol
@@ -364,10 +362,12 @@ private fun componentGoal(c: String, male: Boolean): String = stringResource(whe
     "wholeGrains" -> if (male) R.string.food_full_whole_grains_m else R.string.food_full_whole_grains_f
     "nutsLegumes" -> R.string.food_full_nuts
     "fishOmega3" -> R.string.food_full_fish
-    "polyFats" -> R.string.food_full_fats
+    "freeSugar" -> R.string.food_full_free_sugar
+    "satFat" -> R.string.food_full_sat_fat
     "sodium" -> R.string.food_full_salt
     "fiber" -> R.string.food_full_fibre
     "redMeat" -> R.string.food_full_red_meat
+    "processedMeat" -> R.string.food_full_processed_meat
     else -> R.string.food_full_none
 })
 
@@ -376,9 +376,9 @@ private fun componentAmount(p: CoreFood.ScorePart): String {
     val one = NumberFormat.getNumberInstance(Locale.getDefault()).apply { maximumFractionDigits = 1 }
     val a = p.amountPerDay
     return when (p.component) {
-        "wholeGrains", "fiber" -> stringResource(R.string.food_amount_grams, gramsText(a))
+        "wholeGrains", "fiber", "redMeat" -> stringResource(R.string.food_amount_grams, gramsText(a))
         "fishOmega3" -> stringResource(R.string.food_amount_mg, kcalText(a))
-        "polyFats" -> stringResource(R.string.food_amount_share, one.format(a))
+        "freeSugar", "satFat" -> stringResource(R.string.food_amount_share, one.format(a))
         "sodium" -> stringResource(R.string.food_amount_salt, one.format(a * 2.5 / 1000))
         "alcohol" -> stringResource(R.string.food_amount_drinks, one.format(a))
         else -> stringResource(R.string.food_amount_portions, one.format(a))
