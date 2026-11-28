@@ -20,14 +20,30 @@ public enum SessionRatingReminders {
 
     /// Future sessions, zero-length windows and old sessions never become pending notifications.
     /// A delayed platform wake gets a bounded grace period, rather than a prompt hours after training.
-    public static func fireTime(startTs: Int, endTs: Int, now: Int, forDelivery: Bool = false) -> Int? {
+    /// How long after its end a session the app only found later may still be asked about (Training Load
+    /// plan, phase 2, Q12). A detected walk is usually found at the next strap sync, often well after the
+    /// half-hour delay, and on real data such walks were then never asked about at all.
+    public static let foundLateWindowSeconds = 3 * 3600
+
+    /// Whether a session reaches the app only after the fact (detected from the strap's data).
+    public static func isFoundLate(source: String) -> Bool { source.hasPrefix("detected") }
+
+    public static func fireTime(startTs: Int, endTs: Int, now: Int, forDelivery: Bool = false,
+                                foundLate: Bool = false) -> Int? {
         guard endTs > startTs, endTs <= now else { return nil }
         let (fire, overflow) = endTs.addingReportingOverflow(delaySeconds)
         guard !overflow else { return nil }
+        let lateLimit = endTs + foundLateWindowSeconds
         if forDelivery {
             let (expiry, expiresOverflow) = fire.addingReportingOverflow(deliveryGraceSeconds)
-            guard !expiresOverflow, now >= fire, now <= expiry else { return nil }
-        } else if fire <= now { return nil }
+            guard !expiresOverflow else { return nil }
+            let last = foundLate ? max(expiry, lateLimit) : expiry
+            guard now >= fire, now <= last else { return nil }
+        } else if fire <= now {
+            // Found after its delay had passed: ask now, while it is still within the window.
+            guard foundLate, now <= lateLimit else { return nil }
+            return now
+        }
         return fire
     }
 
@@ -64,7 +80,8 @@ public enum SessionRatingReminders {
         let fusion = await TrainingSessionResolver.read(reader: reader, from: now - TrainingHistoryWindow.allDays * 86_400, to: now,
                                                         dismissedDetectedSpans: dismissed)
         let timely = fusion.sessions.filter {
-            fireTime(startTs: $0.row.startTs, endTs: $0.row.endTs, now: now, forDelivery: forDelivery) != nil
+            fireTime(startTs: $0.row.startTs, endTs: $0.row.endTs, now: now, forDelivery: forDelivery,
+                     foundLate: isFoundLate(source: $0.row.source)) != nil
         }
         guard !timely.isEmpty else { return [] }
         guard let ratings = try? await reader.store.trainingSessionRatings(from: 0, to: Int.max) else { return [] }
@@ -75,7 +92,8 @@ public enum SessionRatingReminders {
         var result: [Candidate] = []
         for session in timely {
             let row = session.row
-            guard let fire = fireTime(startTs: row.startTs, endTs: row.endTs, now: now, forDelivery: forDelivery) else { continue }
+            guard let fire = fireTime(startTs: row.startTs, endTs: row.endTs, now: now, forDelivery: forDelivery,
+                                      foundLate: isFoundLate(source: row.source)) else { continue }
             let starts = Set(session.components.map { $0.row.startTs } + [row.startTs])
             guard !ratings.contains(where: {
                 $0.sessionId == session.id || ($0.sessionId == nil && starts.contains($0.workoutStartTs))

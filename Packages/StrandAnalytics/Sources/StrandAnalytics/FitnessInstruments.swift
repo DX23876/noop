@@ -48,9 +48,10 @@ public enum FitnessInstruments {
     /// The smallest change across the window that counts as a direction.
     public static let minimumPulseChange = 3.0
     public static let minimumRecoveryChange = 3.0
-    /// Cadence bins, steps a minute, for walking.
+    /// Cadence bins in strap step ticks a minute. Ticks are not calibrated steps, so the range is wide and the
+    /// reference bin is simply the wearer's most common one: the comparison is with themselves.
     public static let cadenceBinWidth = 10
-    public static let cadenceRange = 80...140
+    public static let cadenceRange = 40...300
     /// Minutes a session needs in the reference bin.
     public static let minimumMinutesInBin = 5
 
@@ -159,13 +160,14 @@ public enum FitnessInstruments {
         return InstrumentReading(direction: direction, change: change, sessions: sorted.count, weeks: weeks)
     }
 
-    static func median(_ xs: [Double]) -> Double? {
+    public static func median(_ xs: [Double]) -> Double? {
         guard !xs.isEmpty else { return nil }
         let s = xs.sorted()
         return s.count % 2 == 1 ? s[s.count / 2] : (s[s.count / 2 - 1] + s[s.count / 2]) / 2
     }
 
-    static func dayNumber(_ day: String) -> Int? {
+    /// Days since 1970-01-01 for a `yyyy-MM-dd` key, nil when it is not one.
+    public static func dayNumber(_ day: String) -> Int? {
         let p = day.split(separator: "-").compactMap { Int($0) }
         guard p.count == 3 else { return nil }
         // Days since a fixed epoch, enough to order and space keys (Howard Hinnant's days_from_civil).

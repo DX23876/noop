@@ -15,6 +15,20 @@ final class SessionRatingRemindersTests: XCTestCase {
         XCTAssertNil(SessionRatingReminders.fireTime(startTs: 100, endTs: Int.max, now: Int.max))
     }
 
+    /// Training Load plan, phase 2, Q12: a walk the app detects at the next sync is asked about at once, as
+    /// long as it ended no more than three hours ago; a session logged as it happened keeps the old clock.
+    func testASessionFoundLateIsAskedAboutWithinThreeHours() {
+        let end = 10_000
+        XCTAssertEqual(SessionRatingReminders.fireTime(startTs: 8_000, endTs: end, now: end + 5_000, foundLate: true),
+                       end + 5_000)
+        XCTAssertNil(SessionRatingReminders.fireTime(startTs: 8_000, endTs: end, now: end + 5_000))
+        XCTAssertNil(SessionRatingReminders.fireTime(startTs: 8_000, endTs: end, now: end + 3 * 3600 + 1, foundLate: true))
+        XCTAssertEqual(SessionRatingReminders.fireTime(startTs: 8_000, endTs: end, now: end + 9_000, forDelivery: true,
+                                                       foundLate: true), end + SessionRatingReminders.delaySeconds)
+        XCTAssertTrue(SessionRatingReminders.isFoundLate(source: "detected-confirmed"))
+        XCTAssertFalse(SessionRatingReminders.isFoundLate(source: "apple-health"))
+    }
+
     func testDeliveryRechecksTheCanonicalRatingAndDeletedWorkout() async throws {
         let store = try await WhoopStore.inMemory()
         let reader = StoreReader(store: store, activeDeviceId: "strap", registeredWhoopIds: [])

@@ -922,6 +922,12 @@ public enum CoreCall {
         case "today.setActivity":
             return ok(CoreTodayStatus.setActivity(state: string("state"), duration: string("duration"),
                                                   customUntil: (args["until"] as? NSNumber)?.intValue))
+        case "training.guidance":
+            return CoreRead.json(await CoreTrainingGuidance.read(args, store: store, reader: reader))
+        case "training.goalReadings":
+            return CoreRead.json(await CoreTrainingGuidance.goalReadings(args, store: store, reader: reader))
+        case "training.instruments":
+            return CoreRead.json(await CoreTrainingGuidance.instruments(args, store: store, reader: reader))
         case "training.load":
             let maxHR = (args["maxHR"] as? NSNumber)?.doubleValue ?? Double(StrainScorer.defaultMaxHR())
             return CoreRead.json(await CoreTrainingLoad.read(reader: reader, maxHR: maxHR, sex: string("sex"),

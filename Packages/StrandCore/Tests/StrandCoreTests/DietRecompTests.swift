@@ -224,7 +224,7 @@ final class DietAdviceTests: XCTestCase {
                         strength: Double? = nil, trend: Double? = -0.5, logged21: Int = 18, age: Int = 40,
                         holding: Bool = false) -> DietAdvice.Inputs {
         .init(goal: goal, proteinMeanG: protein, proteinGoalG: 160, weighInsLast7: weighIns, loggedDaysLast7: logged,
-              strengthChange4WeeksPercent: strength, trend3WeeksKgPerWeek: trend, loggedDaysLast21: logged21,
+              strengthChangeRecentPercent: strength, trend3WeeksKgPerWeek: trend, loggedDaysLast21: logged21,
               inBreakOrHolding: holding, planAgeDays: age)
     }
 

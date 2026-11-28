@@ -284,7 +284,13 @@ public enum AnalysisRecipe {
     // almost whole instead of moving the value by 18 % (the owner was priced at 208.7 kg for six weeks after
     // weighing 205.6). The full rebuild prices every day's `activeKcalEst` and detected workouts again with
     // that weight; no weigh-in is rewritten, and daily weigh-ins resolve exactly as before.
-    public static let currentVersion = 38
+    // AI-39 (2026-11-28, fork, Training Load plan §8 Q20) stores each day's active minutes: minutes at 40 % of
+    // the heart-rate reserve and above, inside sessions by heart rate alone and outside them only where the
+    // strap counted steps in the same minute (`ActiveMinutes.day`, four `active_min_*` series under the
+    // computed id). "Enough?" reads them for the WHO weekly minutes. Its own number because AI-38 has shipped:
+    // the testing build of 2026-11-28 (`a4aa0ab71`) carries it. The full rebuild scores every day again, which
+    // writes the four series for the whole history; no stored input is rewritten.
+    public static let currentVersion = 39
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy
     /// repairs of older recipes, which fix stored inputs rather than derive anything (`LegacyRepair`).

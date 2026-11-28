@@ -82,7 +82,7 @@ final class TrainingGuidanceTests: XCTestCase {
         minute(2000, bpm: 120, ticks: 100)  // everyday walk, moderate
         minute(3000, bpm: 140, ticks: 0)    // raised pulse at a desk: never counted
         minute(4000, bpm: 90, ticks: 100)   // a stroll below 40 %: not counted
-        let day = ActiveMinutes.day(hr: hr, steps: steps, sessions: [60_000...60_119], restingHR: rest, maxHR: max)
+        let day = ActiveMinutes.day(hr: hr, steps: steps, sessions: [60_000..<60_120], restingHR: rest, maxHR: max)
         XCTAssertEqual(day.sessionModerate, 1)
         XCTAssertEqual(day.sessionVigorous, 1)
         XCTAssertEqual(day.everydayModerate, 1)

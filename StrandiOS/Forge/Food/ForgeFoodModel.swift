@@ -416,7 +416,7 @@ final class ForgeFoodModel {
     private(set) var advice: [DietAdvice.Suggestion] = []
     /// Mean protein on the logged days of the last seven, the figure the protein suggestion is about.
     private(set) var proteinMean7: Double?
-    @ObservationIgnored private var strengthChange4Weeks: Double?
+    @ObservationIgnored private var strengthChangeRecent: Double?
     private static let adviceDismissedKey = "food.advice.dismissed"
 
     /// Monday of this week, so a dismissed suggestion comes back the week after.
@@ -440,7 +440,7 @@ final class ForgeFoodModel {
         proteinMean7 = proteins.isEmpty ? nil : proteins.reduce(0, +) / Double(proteins.count)
         let inputs = DietAdvice.Inputs(goal: planResult.goal, proteinMeanG: proteinMean7,
                                        proteinGoalG: planResult.proteinG, weighInsLast7: weights7, loggedDaysLast7: last7.count,
-                                       strengthChange4WeeksPercent: strengthChange4Weeks, trend3WeeksKgPerWeek: trend,
+                                       strengthChangeRecentPercent: strengthChangeRecent, trend3WeeksKgPerWeek: trend,
                                        loggedDaysLast21: days21.count, inBreakOrHolding: p != .main, planAgeDays: age)
         let dismissed = Set((UserDefaults.standard.stringArray(forKey: Self.adviceDismissedKey) ?? [])
             .filter { $0.hasPrefix(Self.adviceWeek + ":") }
@@ -477,9 +477,9 @@ final class ForgeFoodModel {
             StrengthSession.mainLiftChangePercent(workouts: history.workouts, templates: history.templates, since: p.startDay,
                                                   tzOffsetSeconds: offset)
         }
-        strengthChange4Weeks = StrengthSession.mainLiftChangePercent(
+        strengthChangeRecent = StrengthSession.recentChangePercent(
             workouts: history.workouts, templates: history.templates,
-            since: Repository.localDayKey(Calendar.current.date(byAdding: .day, value: -28, to: .now) ?? .now), tzOffsetSeconds: offset)
+            through: Repository.localDayKey(.now), tzOffsetSeconds: offset)
     }
 
     #if DEBUG

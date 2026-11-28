@@ -11,7 +11,7 @@ public enum DietAdvice {
         case weighMore
         /// Fewer than five logged days in seven: the weekly check holds.
         case logMore
-        /// Gaining or recomposition, and the main lifts have not moved for four weeks: 100 kcal more.
+        /// Gaining or recomposition, and the main lifts have not moved over six weeks: 100 kcal more.
         case strengthStalled
         /// Losing, and the trend has not moved for three weeks despite logged days: a break week instead of cutting.
         case lossStalled
@@ -36,8 +36,9 @@ public enum DietAdvice {
         public var proteinGoalG: Double
         public var weighInsLast7: Int
         public var loggedDaysLast7: Int
-        /// Strength change in percent over the last four weeks; nil without enough sessions.
-        public var strengthChange4WeeksPercent: Double?
+        /// The main lifts' change in percent over the last six weeks (`StrengthSession.recentChangePercent`, the
+        /// one strength trend Training Load reads too, Training Load plan Q39); nil without enough sessions.
+        public var strengthChangeRecentPercent: Double?
         /// Weight trend in kilograms a week over the last three weeks; nil without enough weigh-ins.
         public var trend3WeeksKgPerWeek: Double?
         public var loggedDaysLast21: Int
@@ -47,11 +48,11 @@ public enum DietAdvice {
         public var planAgeDays: Int
 
         public init(goal: DietPlan.Goal, proteinMeanG: Double?, proteinGoalG: Double, weighInsLast7: Int,
-                    loggedDaysLast7: Int, strengthChange4WeeksPercent: Double?, trend3WeeksKgPerWeek: Double?,
+                    loggedDaysLast7: Int, strengthChangeRecentPercent: Double?, trend3WeeksKgPerWeek: Double?,
                     loggedDaysLast21: Int, inBreakOrHolding: Bool, planAgeDays: Int) {
             self.goal = goal; self.proteinMeanG = proteinMeanG; self.proteinGoalG = proteinGoalG
             self.weighInsLast7 = weighInsLast7; self.loggedDaysLast7 = loggedDaysLast7
-            self.strengthChange4WeeksPercent = strengthChange4WeeksPercent; self.trend3WeeksKgPerWeek = trend3WeeksKgPerWeek
+            self.strengthChangeRecentPercent = strengthChangeRecentPercent; self.trend3WeeksKgPerWeek = trend3WeeksKgPerWeek
             self.loggedDaysLast21 = loggedDaysLast21; self.inBreakOrHolding = inBreakOrHolding; self.planAgeDays = planAgeDays
         }
     }
@@ -66,7 +67,7 @@ public enum DietAdvice {
            let trend = i.trend3WeeksKgPerWeek, trend > -0.1 {
             out.append(.init(kind: .lossStalled, action: .takeBreakWeek))
         }
-        if i.goal == .gain || i.goal == .recomp, i.planAgeDays >= 28, let s = i.strengthChange4WeeksPercent, s < 1 {
+        if i.goal == .gain || i.goal == .recomp, i.planAgeDays >= 28, let s = i.strengthChangeRecentPercent, s < 1 {
             out.append(.init(kind: .strengthStalled, action: .addKcal))
         }
         if let mean = i.proteinMeanG, i.loggedDaysLast7 >= 3, i.proteinGoalG > 0, mean < i.proteinGoalG * 0.8 {

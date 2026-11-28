@@ -297,6 +297,9 @@ public final class DailyAnalysis {
         public let rhrBinLine: String?
         /// #1331 respiratory diagnostic line (see `respRateLogLine`); replayed with `rhrLine`.
         public let respLine: String?
+        /// Training Load phase 2 (Q20): the day's active minutes, inside sessions by heart rate alone and
+        /// outside them only with steps in the same minute, stored per day so "enough?" reads them.
+        public var activeMinutes: ActiveMinutesDay? = nil
         /// CAPTURE-B (#814/#799): the resolved READ owner id this day was scored from, and how many HR rows
         /// that owner returned for the night window, carried out of the off-actor loop so the main-actor
         /// fold can emit the universal `dayOwner …` self-diagnostic line (it needs the registry active id +
@@ -2858,8 +2861,14 @@ public final class DailyAnalysis {
                 // windowing + delegation lives in the byte-identical, tested `AnalyticsEngine`.
                 let (primarySessionRHR, primarySessionRHRCoverage) =
                     AnalyticsEngine.primarySessionRestingHRWithCoverage(sessions: res.sleepSessions, hr: hr)
+                let dayActiveMinutes = ActiveMinutes.day(
+                    hr: dayHr, steps: daySteps,
+                    sessions: effortWorkoutSpans.filter { $0.lowerBound <= dayEnd && dayMid < $0.upperBound },
+                    restingHR: res.effortRestingHR,
+                    maxHR: Double(dayMaxHR?.wholeBpm ?? StrainScorer.defaultMaxHR()))
                 out.append(DayScan(result: res, inputProbe: probe,
                                    rhrLine: rhrLine, rhrBinLine: rhrBinLine, respLine: respLine,
+                                   activeMinutes: dayActiveMinutes,
                                    readOwner: owner, hrRows: hr.count,
                                    sleepTrace: sleepTrace, stepsTrace: stepsTrace, hrvTrace: hrvTrace,
                                    hrvDiag: hrvDiag.map { line in dayWindowSkew.map { line + "\n" + $0 } ?? line }
@@ -2908,6 +2917,7 @@ public final class DailyAnalysis {
         var primarySessionRHRCoverageByDay: [String: PrimarySessionRestingHR.Coverage] = [:]
         // The resting heart rate each scored day's Effort was scored against (`EffortRestingHR`).
         var effortRestingHRByDay: [String: Double] = [:]
+        var activeMinutesByDay: [String: ActiveMinutesDay] = [:]
 
         // Back on the main actor: fold the off-actor results into the pass-2 state in the SAME order the
         // loop produced them. Pure assignment / appends , no further store reads , so this is cheap and the
@@ -2937,6 +2947,7 @@ public final class DailyAnalysis {
                 primarySessionRHRCoverageByDay[res.daily.day] = cov
             }
             effortRestingHRByDay[res.daily.day] = res.effortRestingHR
+            if let minutes = scan.activeMinutes { activeMinutesByDay[res.daily.day] = minutes }
             if let line = scan.rhrLine { host.diagnostic(line, domain: nil) }
             if let line = scan.rhrBinLine { host.diagnostic(line, domain: nil) }
             if let line = scan.respLine { host.diagnostic(line, domain: nil) }
@@ -3522,6 +3533,15 @@ public final class DailyAnalysis {
             // refresh, the wake-day cycle and Android read the same value (`EffortRestingHR`).
             if let v = effortRestingHRByDay[daily.day] {
                 restPoints.append(MetricPoint(day: daily.day, key: EffortRestingHR.seriesKey, value: v))
+            }
+            // Training Load phase 2 (Q20): the day's active minutes, written whole every pass so a re-scored
+            // day replaces its four values rather than keeping a stale one.
+            if let m = activeMinutesByDay[daily.day] {
+                let keys = ActiveMinutesDay.seriesKeys
+                restPoints.append(MetricPoint(day: daily.day, key: keys.sessionModerate, value: Double(m.sessionModerate)))
+                restPoints.append(MetricPoint(day: daily.day, key: keys.sessionVigorous, value: Double(m.sessionVigorous)))
+                restPoints.append(MetricPoint(day: daily.day, key: keys.everydayModerate, value: Double(m.everydayModerate)))
+                restPoints.append(MetricPoint(day: daily.day, key: keys.everydayVigorous, value: Double(m.everydayVigorous)))
             }
             cachedSleep.append(contentsOf: night.cachedSleep)
             // Keep the analytics detector as an enrichment input for real imported/manual workouts, but do

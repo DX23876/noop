@@ -252,7 +252,7 @@ public enum ActiveMinutes {
 
     /// One day's active minutes. `sessions` are the spans of workouts and recorded sessions; a minute inside
     /// one counts by heart rate alone, a minute outside only with steps measured in that minute.
-    public static func day(hr: [HRSample], steps: [StepSample], sessions: [ClosedRange<Int>],
+    public static func day(hr: [HRSample], steps: [StepSample], sessions: [Range<Int>],
                            restingHR: Double, maxHR: Double) -> ActiveMinutesDay {
         let reserve = maxHR - restingHR
         guard reserve > 10, !hr.isEmpty else { return ActiveMinutesDay() }
@@ -279,8 +279,8 @@ public enum ActiveMinutes {
         return out
     }
 
-    /// Locomotion ticks attributed to the minute of the later sample, by `StepsCounter`'s own rules.
-    static func ticksPerMinute(_ samples: [StepSample]) -> [Int: Int] {
+    /// Locomotion ticks attributed to the minute of the later sample (`ts / 60`), by `StepsCounter`'s own rules.
+    public static func ticksPerMinute(_ samples: [StepSample]) -> [Int: Int] {
         let sorted = samples.sorted { $0.ts < $1.ts }
         guard sorted.count >= 2 else { return [:] }
         let classed = StepsCounter.hasActivityClasses(sorted)

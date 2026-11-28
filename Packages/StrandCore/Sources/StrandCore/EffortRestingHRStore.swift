@@ -75,3 +75,31 @@ extension StoreReader {
             ?? StrainScorer.defaultRestingHR
     }
 }
+
+extension StoreReader {
+    /// The active minutes the daily pass stored for each day in `[fromDay, toDay]` (Training Load plan, phase 2,
+    /// Q20), read from the computed ids the pass writes under. Days it did not score are absent, never zero.
+    public func storedActiveMinutesByDay(fromDay: String, toDay: String) async -> [String: ActiveMinutesDay] {
+        let keys = ActiveMinutesDay.seriesKeys
+        var values: [String: [String: Double]] = [:]
+        for key in [keys.sessionModerate, keys.sessionVigorous, keys.everydayModerate, keys.everydayVigorous] {
+            var byDay: [String: Double] = [:]
+            for id in rawComputedReadIds {
+                for point in (try? await store.metricSeries(deviceId: id, key: key, from: fromDay, to: toDay)) ?? []
+                where byDay[point.day] == nil {
+                    byDay[point.day] = point.value
+                }
+            }
+            values[key] = byDay
+        }
+        var out: [String: ActiveMinutesDay] = [:]
+        let days = Set(values.values.flatMap(\.keys))
+        for day in days {
+            out[day] = ActiveMinutesDay(sessionModerate: Int(values[keys.sessionModerate]?[day] ?? 0),
+                                        sessionVigorous: Int(values[keys.sessionVigorous]?[day] ?? 0),
+                                        everydayModerate: Int(values[keys.everydayModerate]?[day] ?? 0),
+                                        everydayVigorous: Int(values[keys.everydayVigorous]?[day] ?? 0))
+        }
+        return out
+    }
+}

@@ -131,7 +131,9 @@ enum CoreDietPlan {
         let proteinMean = proteins.isEmpty ? nil : proteins.reduce(0, +) / Double(proteins.count)
         let inputs = DietAdvice.Inputs(goal: main.goal, proteinMeanG: proteinMean, proteinGoalG: main.proteinG,
                                        weighInsLast7: weights7, loggedDaysLast7: last7.count,
-                                       strengthChange4WeeksPercent: strengthChange(ctx.history, since: key(28)),
+                                       strengthChangeRecentPercent: StrengthSession.recentChangePercent(
+                                           workouts: ctx.history.workouts, templates: ctx.history.templates,
+                                           through: key(0), tzOffsetSeconds: TimeZone.current.secondsFromGMT()),
                                        trend3WeeksKgPerWeek: trend, loggedDaysLast21: days21.count,
                                        inBreakOrHolding: ctx.day.phase != .main, planAgeDays: age)
         let week = adviceWeek
