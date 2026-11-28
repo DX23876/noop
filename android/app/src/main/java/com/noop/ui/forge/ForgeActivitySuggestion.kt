@@ -189,6 +189,12 @@ private fun SuggestionCard(r: CoreActivity.Result, item: CoreActivity.Item, more
             // "Today, 18:54 to 19:30 · avg 106 bpm": the span and the effort in one secondary line.
             val avg = item.avgBpm?.let { " · " + fill(r.label("avg"), emptyList(), it.toLong()) }.orEmpty()
             Text(whenLine(r, item) + avg, style = Forge.type.footnote, color = colors.textSecondary)
+            // A walk the strap has no steps for: its times are the bounds of the stretch the strap missed,
+            // not of the walking inside it, so the card may not show them as if they were measured. The
+            // wording comes from the same catalogue the iPhone reads.
+            if (item.strapStepsMissing) {
+                Text(r.label("times.rough"), style = Forge.type.caption, color = colors.textSecondary)
+            }
             // One row of three compact answers, as on iOS: save as the most likely kind, the rest behind one menu,
             // "Not training" to discard it for good.
             val likely = item.likelyKind

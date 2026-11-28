@@ -555,6 +555,9 @@ interface WhoopDao : DeviceRegistryDao {
     @Upsert
     suspend fun upsertAppleDaily(rows: List<AppleDaily>)
 
+    @Upsert
+    suspend fun upsertAppleStepHours(rows: List<AppleStepHour>)
+
     // MARK: - Range reads (ORDER BY ts ASC, inclusive [from, to], limited)
 
     /** COALESCE union (#172/#219 parity with Swift's hrSamples): the measured `hrSample` is

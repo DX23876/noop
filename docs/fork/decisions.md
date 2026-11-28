@@ -2307,3 +2307,221 @@ Decided with the owner:
   is greyed out (`ScoreRingStyle.isStill`).
 
 Analysis migration required: no (display only).
+
+## 2026-11-20 — A walk is the walking in it, and a stop is not part of it
+
+The owner asked for walks to be captured properly, after a span that held a tram ride was offered as
+one walk. Measured on the database pulled the same day (`quick_check` ok, data to 18:40), over the
+window `activityCandidate` actually keeps, 2026-10-22 to 2026-11-20: 76 candidates, 33 of them with an
+answer that still resolves to a span, 2538 walked minutes, median 89 a day.
+
+Three findings decided it.
+
+**The second share was the defect.** `locomotionShare` counted classified SECONDS, so a weak continuous
+signal of ten to twenty-five walking seconds a minute summed to 0.3 to 0.7 with no walked minute in it.
+That is how a ride got the walk label. Counted in minutes the same spans read 0.13 and 0.15.
+
+**The gates, not the data, were losing walks.** Long walks were already found (90 % of the bouts with
+at least fifteen walked minutes, 94 % from twenty). What fell through were walks of ten to twenty-one
+walked minutes, 13 of 67 bouts, because a walk had to be 80 steps a minute, fifteen minutes long and
+80 % dense. The missed ones were strolls: 10-22 08:54 with 21 walked minutes in 32, 10-27 18:50 with
+20 in 26, 10-31 13:46 with 18 in 22.
+
+**Shortening a span would have made the card contradict itself** ("walk 15:21 to 16:12, 24 minutes"),
+which the readout rule forbids. The stops are contiguous, so splitting is available instead: still
+block from five minutes, each piece from ten walked minutes, and 26 of 29 confirmed walks keep a
+proposal. Of the three that do not, two are the 11-09 strap gap and one is errands with the walking
+scattered over 58 minutes (10-23 08:42), which is a real loss and accepted. A density floor of 0.6
+costs nothing further (63 pieces instead of 66, no additional confirmed walk lost) and stops a run of
+"three minutes on, four off" from becoming a two-hour span.
+
+So, rule `activity-v3`: a walked minute is 30 classified seconds, 30 of them walking or running, and
+40 steps. A walk is a run of walked minutes cut wherever more than `walkStopMinutes` of standing lie
+between two of them, offered from `minimumWalkMinutes` 10 with `walkDensity` 0.6, and a thinner run is
+cut at its longest stop and judged again. Start and end are its first and last walked minute, so the
+duration is the walking. Gone with no replacement: `walkCadence` 80, `walkSlowSteps`, `boutShare` for
+walks, `minimumMinutes` as a walk gate, `walkEdgeMinutes` and the edge growing, `mostlyWalkingShare`
+and the mixed way. `likelyKinds` counts walked minutes out of classified minutes at
+`walkingKindShare` 0.5. A heart-rate span is asked about on its load alone.
+
+`activitybench` on the same data, 30 worn awake days: the walk track offers 2.00 spans a day without a
+logged entry against the published detector's 5.17, hits 3 of 4 logged walks against 2, and the mean
+end error falls from 47.2 to 10.3 minutes. Only five entries exist in the window, so those hit counts
+carry no rate; the answer-based measurement above is the stronger evidence.
+
+Not built in this step, and built in the next one after the owner asked for it the same evening (see
+below): nothing here reads the phone. Strap coverage is a median 1399 of 1440 minutes a day
+over 129 days, but 2026-11-09 has 283, and in such a gap every per-second stream is missing at once
+while the heart rate keeps arriving (2354 rows against zero between 15:04 and 15:45). The gap is
+permanent, so waiting for it is pointless: eleven days later the day is unchanged. Apple's hourly steps
+would prove walking there (4501 against the strap's 913), but they can only ever prove walking, never
+stillness, because in 530 fully covered hours with movement the strap counts a median 3.17 times the
+phone's steps, upper quartile 13.9. A phone-gap track is therefore its own piece of work, not a clause
+in this rule. Also not built: a vehicle signal. `gravitySample.dynAccel` separates a desk (median
+0.024, n=60656) from being out (0.135, n=324), but "out" holds standing, queueing and talking as well
+as riding, and for a duration it changes nothing, since a ride and a stand are both not walking.
+
+Measurements and scripts: `backlog/plans/walk-detection-2026-11-20.md`.
+
+Analysis migration required: no
+
+## 2026-11-20 — The phone may speak for a walk the strap never delivered, and only for walking
+
+The same evening, the owner asked for the gap the entry above left open, and asked the question that
+decides where it lives: if the rule reads the phone's steps, does Android not need that too?
+
+It does, and it did not have it. The rule belongs in the core, so `ActivityCandidates.gapWalks` owns it
+once and reads an hour of phone steps from whichever source the platform filled: `appleStepHour` under
+`apple-health` (iOS, `HealthKitBridge`) or under `health-connect` (Android), the LARGER of the two for an
+hour rather than their sum, since a phone and a watch writing the same hour are the same steps twice
+(#589). Android read Health Connect steps already but folded them into day totals only, so the rule
+would have arrived empty there and never fired, silently. `HealthConnectImporter` now buckets the same
+records by LOCAL hour as well, splitting a record proportionally over the hours it touches rather than
+dropping it into the hour it started in, and a record longer than six hours is left out because no
+honest hour can be named for it. Hour keys come from the zone, never from arithmetic on the epoch: in a
+half-hour zone a local hour does not begin on a unix hour, and that key is what the rule looks an hour
+up by. Kotlin supplies the data, the core keeps the rule; six tests pin the split.
+
+The rule itself is asymmetric on purpose, because the evidence is: the phone can prove walking and can
+never prove stillness. In 530 fully covered hours with movement the strap counted a median 3.17 times
+the phone's steps, upper quartile 13.9 (the phone on a desk). So a gap is offered only when the steps
+the phone counted BEYOND what the strap's own minutes in those hours account for, divided by the
+wearer's own measured pace that day, reach `minimumWalkMinutes` and fill `walkDensity` of the gap. Then
+the whole gap is the walk, because nothing in the data can place the walking inside it more precisely.
+Otherwise the gap stays silent: 2026-11-09 06:00 is seven walked minutes somewhere in fifty-two, which
+is not a walk anyone can name. Only an hour the gap takes at least `minimumGapMinutes` out of may speak
+for it, so two gaps in one hour cannot both claim the same steps. A minute spent asleep ends a gap, and
+a strap with no step stream at all (WHOOP 4.0) has absence rather than gaps, so neither is claimed.
+
+`activitybench` on 2026-10-22 to 2026-11-20 with the phone's hours fed in: the walk track goes from 2.00
+to 2.03 spans a day, so the rule fires ONCE in thirty days, and that once is 2026-11-09 15:04 to 15:45,
+the 41 minutes the strap missed and the owner had answered as a walk. A rule that rare is still worth
+its code because the alternative loses a 40-minute walk outright, but it is not a rule anyone should
+expect to see work often.
+
+Open: the card says nothing about the strap data being incomplete. Such a proposal carries coarse times
+by construction, and a word on it needs a new catalogue key, which only an Xcode build can add. Until
+then the card shows the window as the duration like any other walk, which is honest but silent about
+why the times are rounder than usual.
+
+Analysis migration required: no
+
+## 2026-11-20 — Three corrections to the gap rule, from reviewing it
+
+A review of the two commits above found three things, all fixed in one commit.
+
+**A surplus that cannot fit the gap is now refused, not taken as proof.** The density test divided the
+estimated walking by the gap's length, so an estimate of half an hour inside a ten-minute gap read as
+3.2 and passed most easily of all. The strap counts a median 3.17 times the phone's steps, but the tenth
+percentile is 1.07, so hours where the phone leads do exist, and in one of those any ten-minute gap
+would have become a walk. The estimate must now also stay within `surplusFit` (1.5) of the gap: some
+overshoot is expected, since the pace it is divided by is a median and the two devices count
+differently, but twice the gap is not the gap. On the owner's data this costs nothing, 2026-11-09 still
+reads 15:04 to 15:45 and the walk track stays at 2.03 spans a day.
+
+**Android wrote hourly rows for the whole decade.** The hourly accumulation inherited `WINDOW_YEARS`,
+so a full import built ~87,600 per-hour maps and wrote that many rows one statement at a time, on a path
+the file already flags as expensive, for a rule that reads the last few days. Held to
+`HOURLY_STEPS_DAYS` (90) now, which is what iOS bounds the same table to.
+
+**`refreshTodaySteps` left today's hours empty.** Only `import()` wrote hourly rows, while the screen's
+live top-up rewrote the daily row alone, so a gap today had no phone steps until the next import and the
+rule simply never fired for the day the wearer is looking at: the silent failure this work exists to
+avoid. It now spreads the same records it already reads over today's hours and writes them beside the
+daily row. All sixteen Health Connect suites pass (110 tests).
+
+Analysis migration required: no
+
+## 2026-11-20 — The gap's own fit test asks what the gap could hold, not how fast the day was
+
+Reviewing the corrections above found that the first of them traded a false card for a silent miss.
+`surplusFit` bounded the surplus at 1.5 times an estimate derived from the day's MEDIAN walked-minute
+pace, so a gap walked faster than the strolls that set that median was refused for producing too many
+steps: a twenty-minute gap walked at 140 to 170 steps a minute reads as 31 to 38 minutes against a
+median of 90, and 30 was the ceiling.
+
+The bound now asks the one question it can answer: could these steps have been made inside the gap at
+all. `surplus <= gap.count * fastestCadence` with `fastestCadence` 200, which is a run, not a stroll.
+4000 steps credited to a ten-minute hole still fall (2000 is the most ten minutes can hold), 1800 pass,
+and the median pace keeps its old job of deciding whether there were ENOUGH steps, never whether there
+were too many. 2026-11-09 still reads 15:04 to 15:45 and the walk track stays at 2.03 spans a day.
+
+The review's second finding was the hourly write replacing a complete hour with a partial one after a
+read that died on a later page — the shape the daily path already guards as "a swallowed error must not
+be mistaken for an authoritative zero". `readAll` and `readSelected` both report whether they finished
+and both call sites discarded it; the hourly rows in `refreshTodaySteps` AND in `import` are now written
+only from a read that completed. The day aggregates keep their existing behaviour, where a partial read
+only ever reads low.
+
+Analysis migration required: no
+
+## 2026-11-20 — A card showing a gap's bounds says so, in one fact resolved once
+
+The gap rule's one open end: a suggestion the phone's steps spoke for carries the bounds of the stretch
+the strap missed, not of the walking inside it, and the card showed them like any measured span.
+
+The fact has one home, `ActivityCandidates.Candidate.strapStepsMissing`: a walk-track span with no step
+reading at all. A walk is found FROM step minutes, so that can only be a `gapWalks` span, and no screen
+has to guess it (the Alarms lesson: resolve a fact once, pass it in). It claims nothing about any other
+track, since a heart-rate span is free to have no steps in it. `ActivitySuggestions.Suggestion` carries
+it through, and the JNI `Item` too, so the iPhone card and the Forge card on Android both show one
+caption and both take the wording from the same catalogue entry.
+
+The catalogue key had to be added by hand. `xcodebuild` treats `Localizable.xcstrings` as an input and
+never writes it back, which a successful macOS build proved by leaving the file untouched, and
+`Tools/fill-missing-translations.py` deliberately refuses to invent catalogue keys. The entry was
+inserted as text at its place in the file rather than through a JSON round trip, which would have
+reformatted all 135,000 lines, and it carries all nine languages. The strap's name per language follows
+what the catalogue already uses (Strap, pulsera, bracelet, fascia, opaska, bracelete, браслет, 手环).
+
+The label key is `times.rough`, not `roughTimes`, and that is not cosmetic: `Tools/i18n_audit.py` reads a
+lower-case literal with no space as an identifier and anything else inside a `Text(` as copy, so the
+camel-case key failed the Android hardcoded-literal gate. Renaming it keeps the gate's rule intact
+instead of adding a new finding to its baseline.
+
+Analysis migration required: no
+
+## 2026-11-21 — The live page is the old console rebuilt, and three of its faults are closed
+
+The owner asked for the new live page to be rebuilt FROM the old console rather than replaced by a
+lighter one, and for the result to be checked, not assumed. Comparing the two found three faults, two
+of them old.
+
+**Two connect affordances could never appear.** `offlineConnectCallout` and `ringConnectCallout` sat in
+the branch for a LIVE link, each gated on exactly the condition `needsConnection` had already excluded
+(`!live.connected` for a strap, the ring's phase for a ring). A comment claimed the opposite. Both now
+sit where there is no link, which is where someone needs them. The fault was in the old page too, so
+both skins are fixed.
+
+**RMSSD was computed in three places and shown twice on one screen.** `LiveConsoleReadout.rollingRMSSD`
+owns it now, over `HRVAnalyzer.rmssdRaw`, and the signal rail states currency rather than a second copy
+of a figure stated elsewhere. `isLiveLink` and `isWorn` moved there too, after a fourth reader of "is
+the link live" appeared in the new tiles. Five tests pin all three.
+
+**An empty trace drew nothing**, leaving a hole that reads as broken; it now shows the calm tube the R-R
+strip already used.
+
+What the page carries now, in reading order: the beat with its trace and the link, a running session if
+one is being recorded, the R-R thread with the rolling HRV and the raw readouts, the HRV reading that is
+taken FROM that stream, the signal rail, and Disconnect. Starting a workout left the page (it belongs
+with the workouts), as did buzzing the strap, refreshing its battery and opening Devices — device
+housekeeping that says nothing about the body and already has a home (owner, 2026-11-21).
+
+On design, four rounds with the owner, all of them things only a screenshot shows: the heart-rate ZONE
+was never on the old page and is not on this one; a figure in the vessel's own colour disappeared into
+the rising fill, so it sits beside the vessel now; the facts read as lines rather than columns, because
+a long German label wrapped in a column and pushed its own value out of the row; and the card lost its
+divider and its label-and-value rows, which is what made it look generated. The signal tiles went to two
+columns (150, not 168, is what fits a phone) with titles in sentence case, since uppercase plus tracking
+hyphenated "Herzfrequenz" mid-word and truncated "Verlaufssynchronisierung" anyway.
+
+One crash was introduced and caught in the simulator: a computed property on a view VALUE read
+`@EnvironmentObject` before SwiftUI had installed it, so opening the page died on
+`No ObservableObject of type LiveState found`. It is a flag read inside `body` now. It is also the
+reason the checking rule here is a screenshot of the WHOLE page after every build, not of its top.
+
+Still open, found by looking at the bottom of the page: `BLEManager` assigns six user-facing error
+messages as raw Swift strings, so a German phone reads "This device can't use Bluetooth Low Energy."
+in English. `Tools/i18n_audit.py` does not scan `Strand/BLE`, which is why no gate says so.
+
+Analysis migration required: no

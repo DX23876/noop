@@ -140,6 +140,15 @@ struct LiveView: View {
                         actionTitle: "Manage devices",
                         action: { router.openDevices() }
                     )
+                    // The connect affordance belongs HERE, where there is no link. Both callouts used to
+                    // sit in the branch below, each gated on exactly the condition `needsConnection` had
+                    // already excluded (`!live.connected` for a WHOOP, the ring phase for a ring), so
+                    // neither could ever appear and an offline page offered nothing but words.
+                    if activeIsWhoop {
+                        offlineConnectCallout
+                    } else if activeIsOura {
+                        ringConnectCallout
+                    }
                     // This is where people connect, so this is where the question belongs: a scan that
                     // heard several WHOOPs and names none of them waits for an answer, and without it here
                     // a tap on Connect looks like it does nothing.
@@ -151,17 +160,6 @@ struct LiveView: View {
                     WorkoutStartControl()
                 } else {
                 consoleHeader
-                // Primary Connect affordance, surfaced ABOVE the fold whenever there's no link. The real
-                // Scan & Connect control otherwise lives in `controls` (below the Signal Trust grid), so
-                // an offline user saw only inert copy up top. Gated purely on `!live.connected`, so it
-                // disappears the instant the radio connects. Shared with macOS — it reuses `scanButton`,
-                // which the wide layout already renders in `controls`.
-                // WHOOP only (#2305): under a ring this card named the ring over a button that ran a
-                // WHOOP scan — the #2303 reporter's Re-scan ran a full 5/MG handshake with the ring active.
-                if activeIsWhoop, !live.connected { offlineConnectCallout }
-                // The ring's own above-the-fold affordance: its link phase and a reconnect, shown until
-                // `auth OK` — the same "no link yet" slot the WHOOP callout fills.
-                if activeIsOura, ringPhase != .authenticated { ringConnectCallout }
                 bodyConsole
                 // Low-bandwidth fallback note (#80): the radio couldn't sustain the WHOOP 4 R10/R11 raw
                 // realtime burst, so live HR is riding the standard BLE Heart-Rate profile instead. Live HR
@@ -241,6 +239,9 @@ struct LiveView: View {
 
     /// One question, how the heart is doing now: the figure and its trace first, then what can be done with
     /// the strap. Every control of the shipped console stays, in the same connection gates.
+    /// The live page in the new design, built from what the old console showed, in the order someone
+    /// actually reads it: what my body is doing now, what I can do about it, the proof the numbers are
+    /// live, what the link itself can be trusted with, and the strap's own actions last.
     private var forgeBody: some View {
         VStack(alignment: .leading, spacing: NoopMetrics.sectionGap) {
             if let guide = live.reconnectGuide { reconnectGuideBanner(guide) }
@@ -252,38 +253,38 @@ struct LiveView: View {
                     actionTitle: "Manage devices",
                     action: { router.openDevices() }
                 )
+                // The connect affordance belongs HERE, where there is no link. It used to sit in the
+                // branch below, gated on `!live.connected` under a `needsConnection` that is exactly
+                // `!live.connected` for a WHOOP — so it could never appear, and an offline page offered
+                // nothing but words. The ring's own callout had the same shape with `ringPhase`.
+                if activeIsWhoop {
+                    offlineConnectCallout
+                } else if activeIsOura {
+                    ringConnectCallout
+                }
                 StrapChoiceCard(ble: model.ble,
                                 onPick: { model.pickHeardStrap($0) },
                                 onDismiss: { model.ble.clearStrapChoice() })
-                WorkoutStartControl()
             } else {
-                ForgeLiveHero(activeIsWhoop: activeIsWhoop, zoneSet: model.profile.hrZoneSet,
-                              detailLabel: forgeConnectionLabel)
-                if activeIsWhoop, !live.connected { offlineConnectCallout }
-                if activeIsOura, ringPhase != .authenticated { ringConnectCallout }
+                ForgeLiveHero(activeIsWhoop: activeIsWhoop, activeConnection: activeConnection,
+                              zoneSet: model.profile.hrZoneSet, detailLabel: forgeConnectionLabel,
+                              deviceName: activeDeviceName)
                 if Self.shouldShowStandardHRNote(live.standardHRMode) {
                     standardHRNote(live.standardHRMode ?? "")
                 }
-                if let workout = model.activeWorkout {
-                    activeWorkoutCard(workout)
-                } else {
-                    NoopButton("Start workout", systemImage: "figure.run", kind: .primary, fullWidth: true) {
-                        showStartSport = true
-                    }
-                    .disabled(!activeConnection)
-                    if let last = model.lastWorkout { workoutSavedRow(last) }
-                }
-                ForgeSectionHeading("Session")
-                ForgeLiveTiles(activeIsWhoop: activeIsWhoop, deviceName: activeDeviceName)
-                ForgeSectionHeading("Strap")
-                forgeStrapRows
+                // A running session still belongs here, because it is the live stream being recorded.
+                // STARTING one does not: this page is what the body is doing, and the start lives with
+                // the workouts (owner, 2026-11-21).
+                if let workout = model.activeWorkout { activeWorkoutCard(workout) }
+                ForgeLiveProof(activeConnection: activeConnection)
+                hrvReadingRow
+                signalTrustRail
                 if activeIsWhoop, !activeConnection {
                     modelPicker
                     scanButton
                 } else if activeIsOura {
                     ringControls
                 }
-                signalTrustRail
                 if activeIsWhoop {
                     disconnectButton
                 }
@@ -301,48 +302,21 @@ struct LiveView: View {
         return String(localized: "Disconnected")
     }
 
-    private var forgeStrapRows: some View {
+    /// The one strap action that belongs on this page: a reading taken FROM the live R-R stream the card
+    /// above is showing. Buzzing the strap, refreshing its battery and opening Devices are device
+    /// housekeeping — they say nothing about the body, and each already has a home on the Devices screen
+    /// (owner, 2026-11-21).
+    private var hrvReadingRow: some View {
         NoopCard {
-            VStack(spacing: NoopMetrics.space2) {
-                Button { showHRVSnapshot = true } label: {
-                    ForgeTileRow(symbol: "waveform.path.ecg", tint: StrandPalette.chargeColor,
-                                 title: String(localized: "HRV reading"),
-                                 subtitle: String(localized: "Take a 60-second seated HRV reading from the live R-R stream."),
-                                 showsChevron: true) { EmptyView() }
-                }
-                .buttonStyle(LiquidPressStyle())
-                .disabled(!activeConnection)
-                .opacity(activeConnection ? 1 : StrandPalette.disabledOpacity)
-                Divider().overlay(StrandPalette.hairline)
-                if activeIsWhoop {
-                    Button { model.buzzStrapOnce() } label: {
-                        ForgeTileRow(symbol: "waveform.path", tint: StrandPalette.effortColor,
-                                     title: String(localized: "Buzz strap"),
-                                     subtitle: String(localized: "Fire a test haptic buzz on the strap (requires an active strap connection)"),
-                                     showsChevron: true) { EmptyView() }
-                    }
-                    .buttonStyle(LiquidPressStyle())
-                    .disabled(!activeConnection)
-                    .opacity(activeConnection ? 1 : StrandPalette.disabledOpacity)
-                    Divider().overlay(StrandPalette.hairline)
-                }
-                Button { model.getBattery() } label: {
-                    ForgeTileRow(symbol: "arrow.clockwise", tint: StrandPalette.metricCyan,
-                                 title: String(localized: "Refresh"),
-                                 subtitle: String(localized: "Refresh strap battery and connection state."),
-                                 showsChevron: true) { EmptyView() }
-                }
-                .buttonStyle(LiquidPressStyle())
-                .disabled(!activeConnection)
-                .opacity(activeConnection ? 1 : StrandPalette.disabledOpacity)
-                Divider().overlay(StrandPalette.hairline)
-                Button { router.openDevices() } label: {
-                    ForgeTileRow(symbol: "badge.plus.radiowaves.right", tint: StrandPalette.restColor,
-                                 title: String(localized: "Manage devices"),
-                                 subtitle: manageDevicesDetail, showsChevron: true) { EmptyView() }
-                }
-                .buttonStyle(LiquidPressStyle())
+            Button { showHRVSnapshot = true } label: {
+                ForgeTileRow(symbol: "waveform.path.ecg", tint: StrandPalette.chargeColor,
+                             title: String(localized: "HRV reading"),
+                             subtitle: String(localized: "Take a 60-second seated HRV reading from the live R-R stream."),
+                             showsChevron: true) { EmptyView() }
             }
+            .buttonStyle(LiquidPressStyle())
+            .disabled(!activeConnection)
+            .opacity(activeConnection ? 1 : StrandPalette.disabledOpacity)
         }
     }
 
@@ -975,8 +949,11 @@ enum LiveDemo {
 /// A leaf that owns LiveState, so the 1 Hz notify redraws this card and not the page.
 private struct ForgeLiveHero: View {
     let activeIsWhoop: Bool
+    /// Resolved by the parent, so this leaf keeps owning only LiveState.
+    let activeConnection: Bool
     let zoneSet: HRZoneSet
     let detailLabel: String
+    let deviceName: String
     @EnvironmentObject private var model: AppModel
     @EnvironmentObject private var live: LiveState
 
@@ -986,8 +963,13 @@ private struct ForgeLiveHero: View {
         #endif
         return model.bpm
     }
-    private var zone: Int { bpm.map { zoneSet.zoneNumber(forBPM: Double($0)) } ?? 0 }
-    private var tint: Color { bpm == nil ? StrandPalette.textTertiary : LiveHeartRateStyle.tint(zone: zone) }
+    /// The card's one colour: the page's own heart, not the heart-rate ZONE.
+    ///
+    /// The zone is not shown here any more (owner, 2026-11-21), and a colour nobody can read a meaning off
+    /// is just a colour — at rest the zone world is grey, which turned the whole card, vessel, figure and
+    /// trace alike, into one grey blob. This is the hue of the heart on the page's own badge, so the card
+    /// belongs to its page. Nothing to pour means nothing to colour.
+    private var tint: Color { bpm == nil ? StrandPalette.textTertiary : StrandPalette.metricRose }
     private var samples: [HRSample] {
         #if DEBUG
         if LiveDemo.isOn { return Self.demoTrace }
@@ -1006,86 +988,165 @@ private struct ForgeLiveHero: View {
                                           ringPct: live.ouraBatteryPct)
     }
 
+    /// The vessel fill: the beat as a fraction of the wearer's own maximum (nil = nothing to pour).
+    private var fill: Double? {
+        guard let bpm, zoneSet.maxHR > 0 else { return nil }
+        return max(0.02, min(1, Double(bpm) / zoneSet.maxHR))
+    }
+
+    @State private var shown: Double = 0
+
     var body: some View {
         NoopCard {
-            VStack(alignment: .leading, spacing: NoopMetrics.space3) {
-                HStack {
-                    Label(detailLabel, systemImage: "antenna.radiowaves.left.and.right")
-                        .font(StrandFont.caption)
-                        .foregroundStyle(StrandPalette.textSecondary)
-                        .lineLimit(1)
-                    Spacer(minLength: NoopMetrics.space2)
-                    if let battery {
-                        Text("Battery \(battery)%")
-                            .font(StrandFont.caption.monospacedDigit())
-                            .foregroundStyle(StrandPalette.textSecondary)
-                    }
-                }
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    LiveHeartRateValue(bpm: bpm, zone: zone, size: 88)
-                    Text(verbatim: "bpm")
-                        .font(StrandFont.headline)
-                        .foregroundStyle(tint)
-                    Spacer(minLength: 0)
-                    if zone >= 1 {
-                        Text(LiveHeartRateStyle.zoneTitle(zone))
-                            .font(StrandFont.subhead)
+            // Three things, in order of what matters: the beat, its shape over the last minutes, and the
+            // circumstances in one quiet line. No divider, no label-and-value rows, no grid — the figure
+            // carries the card and the data itself is the only decoration on it. Worn and the last
+            // offload are NOT repeated here; the trust rail below states both, and saying them twice is
+            // how a card turns into a form.
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .lastTextBaseline, spacing: 6) {
+                    if bpm != nil {
+                        CountUpNumber(value: shown, font: StrandFont.rounded(72, weight: .light))
                             .foregroundStyle(tint)
+                    } else {
+                        Text(verbatim: "—")
+                            .font(StrandFont.rounded(72, weight: .light))
+                            .foregroundStyle(StrandPalette.textTertiary)
                     }
+                    Text(verbatim: "bpm")
+                        .font(StrandFont.subhead)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                    Spacer(minLength: 12)
+                    // The vessel stays, small and precise: the app's own gauge, filling with the beat.
+                    // Big enough to live, small enough not to compete with the figure it describes.
+                    LiquidVessel(value: fill, tint: tint, animated: bpm != nil)
+                        .frame(width: 48, height: 48)
+                        .accessibilityHidden(true)
                 }
-                .accessibilityElement(children: .combine)
-                ForgeHeartTrace(samples: samples)
-                    .frame(height: 64)
-                    .accessibilityHidden(true)
-                HeartRateZoneRail(zone: zone)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(bpm.map { "Heart rate \($0) beats per minute" } ?? "Heart rate not available")
+                // A trace needs two points to be a line; with fewer, `ForgeHeartTrace` draws nothing at
+                // all, which reads as broken rather than as waiting.
+                if samples.count >= 2 {
+                    ForgeHeartTrace(samples: samples, tint: tint)
+                        .frame(height: 60)
+                        .accessibilityHidden(true)
+                } else {
+                    LiquidTube(frac: 0, tint: StrandPalette.textTertiary, height: 12, animated: false)
+                        .frame(height: 60, alignment: .center)
+                        .accessibilityHidden(true)
+                }
+                Label(footLine, systemImage: "antenna.radiowaves.left.and.right")
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .lineLimit(2)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .onAppear { rollTo(bpm) }
+        .onChangeCompat(of: bpm) { rollTo($0) }
+    }
+
+    /// The line beside the figure: what the link is, and the charge when the device reports one. The
+    /// facts row below says neither a second time.
+    private var footLine: String {
+        guard let battery else { return detailLabel }
+        return detailLabel + " · " + String(localized: "Battery \(battery)%")
+    }
+
+    /// Roll the figure to the new beat, in step with the vessel's own fill.
+    private func rollTo(_ v: Int?) {
+        guard let v else { shown = 0; return }
+        withAnimation(.easeOut(duration: 0.6)) { shown = Double(v) }
     }
 }
 
-/// The running facts of the session as four tiles, read from LiveState alone.
-private struct ForgeLiveTiles: View {
-    let activeIsWhoop: Bool
-    let deviceName: String
+/// The proof that the console is genuinely live, carried over from the old page's physiology card: the
+/// recent R-R intervals as a moving thread, the rolling HRV beside them, and the three raw readouts the
+/// old page ended on.
+///
+/// A single heart-rate number can look frozen; a moving trace cannot, which is why the thread is here and
+/// why the empty state is a calm tube with a word rather than nothing at all. Owns LiveState so the ~1 Hz
+/// interval notify re-renders this card alone.
+private struct ForgeLiveProof: View {
+    /// Resolved by the parent, so this leaf keeps owning only LiveState.
+    let activeConnection: Bool
     @EnvironmentObject private var live: LiveState
 
-    private var liveLink: Bool { (activeIsWhoop && live.connected && live.bonded) || (live.connected && live.streamingLiveHR) }
-    private var rmssd: String {
-        let values = live.rrRecent.suffix(12).map(Double.init)
-        guard values.count >= 3 else { return "—" }
-        let diffs = zip(values.dropFirst(), values).map { $0 - $1 }
-        let square = diffs.map { $0 * $0 }.reduce(0, +) / Double(diffs.count)
-        return "\(Int(sqrt(square).rounded())) ms"
-    }
-    private var worn: String {
-        guard liveLink else { return "—" }
-        if let state = live.ouraWearState { return state == .worn ? String(localized: "Yes") : String(localized: "No") }
-        return live.worn || live.streamingLiveHR ? String(localized: "Yes") : String(localized: "No")
-    }
+    private var intervals: [Double] { live.rrRecent.suffix(18).map(Double.init) }
+    private var rmssd: Double? { LiveConsoleReadout.rollingRMSSD(live.rrRecent) }
+    private var lastInterval: String { live.rr.last.map { "\($0) ms" } ?? "—" }
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.flexible(), spacing: NoopMetrics.space2), GridItem(.flexible())],
-                  spacing: NoopMetrics.space2) {
-            tile(String(localized: "HRV"), rmssd)
-            tile(String(localized: "Worn"), worn)
-            tile(String(localized: "Last sync"), LiveSyncFormat.lastSyncLabel(live.lastSyncedAt))
-            tile(String(localized: "Device"), deviceName)
-        }
-    }
-
-    private func tile(_ title: String, _ value: String) -> some View {
         NoopCard {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
-                Text(value)
-                    .font(StrandFont.number(20).monospacedDigit())
-                    .foregroundStyle(StrandPalette.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.6)
+            // Same restraint as the card above: no divider, no columns of label over value. The thread
+            // is the subject, the figure beside it is the one number worth stating, and the raw readouts
+            // close it as a single quiet line.
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .lastTextBaseline, spacing: 6) {
+                    if let rmssd {
+                        Text("\(Int(rmssd.rounded()))")
+                            .font(StrandFont.rounded(34, weight: .light))
+                            .foregroundStyle(StrandPalette.metricCyan)
+                        Text(verbatim: "ms")
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                        Text("RMSSD")
+                            .font(StrandFont.caption)
+                            .foregroundStyle(StrandPalette.textTertiary)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .accessibilityElement(children: .combine)
+                if intervals.count >= 2 {
+                    LiquidThread(bpm: intervals, tint: StrandPalette.metricCyan, height: 44, animated: true)
+                        .accessibilityHidden(true)
+                } else {
+                    LiquidTube(frac: 0, tint: StrandPalette.metricCyan, height: 12, animated: false)
+                        .accessibilityHidden(true)
+                }
+                Text(intervals.isEmpty
+                     ? String(localized: "Waiting for R-R intervals.")
+                     : String(localized: "Recent intervals: \(intervals.suffix(5).map { String(Int($0)) }.joined(separator: " · ")) ms"))
+                    .font(StrandFont.caption)
+                    .foregroundStyle(StrandPalette.textTertiary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                rawLine
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
+
+    /// The three raw readouts as one line. Offline they read as a word rather than three accent-coloured
+    /// em-dashes, which look like broken live numbers rather than an idle console.
+    private var rawLine: some View {
+        HStack(spacing: 4) {
+            readout("R-R", activeConnection ? lastInterval : String(localized: "Offline"))
+            Text(verbatim: "·").foregroundStyle(StrandPalette.textTertiary)
+            readout(String(localized: "Frame"),
+                    activeConnection ? (live.lastFrameType ?? "—") : String(localized: "Offline"))
+            Text(verbatim: "·").foregroundStyle(StrandPalette.textTertiary)
+            readout(String(localized: "Event"),
+                    activeConnection ? (live.lastEvent ?? "—") : String(localized: "Offline"))
+            Spacer(minLength: 0)
+        }
+        .font(StrandFont.caption)
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+    }
+
+    private func readout(_ label: String, _ value: String) -> some View {
+        HStack(spacing: 3) {
+            Text(label)
+                .foregroundStyle(StrandPalette.textTertiary)
+            Text(value)
+                .foregroundStyle(activeConnection ? StrandPalette.textSecondary : StrandPalette.textTertiary)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(label): \(value)")
+    }
+
 }
 
 private struct LiveHeaderStats: View {
@@ -1094,11 +1155,16 @@ private struct LiveHeaderStats: View {
     /// Resolved by the parent (#2075), so the charge below can belong to the device being named.
     let activeIsWhoop: Bool
     let deviceName: String
+    /// False where the card already names the device and its charge elsewhere.
+    var showsDeviceAndBattery = true
     /// #218: an Oura ring streams live HR WITHOUT a WHOOP bond, so `activeConnection` (which needs the bond)
     /// is false for it and the wear stat read "—" mid-stream. A live HR stream is itself the wear signal
     /// (Oura only emits PPG HR while worn). `streamingLiveHR` is Oura-only, so this never widens WHOOP.
     private var ringStreaming: Bool { live.connected && live.streamingLiveHR }
-    private var liveLink: Bool { activeConnection || ringStreaming }
+    private var liveLink: Bool {
+        LiveConsoleReadout.isLiveLink(activeConnection: activeConnection, connected: live.connected,
+                                      streamingLiveHR: live.streamingLiveHR)
+    }
 
     /// The ACTIVE device's charge (#2075). A non-WHOOP active device never falls back to the strap's
     /// number: an em dash says "not reported", where the strap's charge under the ring's name is a
@@ -1113,34 +1179,40 @@ private struct LiveHeaderStats: View {
     /// source switch — so a stale `worn=false` from a prior WHOOP WRIST_OFF must not read "Off wrist"
     /// mid-stream. For WHOOP `ringStreaming` is always false, so this is just `live.worn`. #218.
     private var wornNow: Bool {
-        // An Oura ring reports a precise live wear/charge state (live-HR presence + charger STATE + a
-        // removal watchdog), so prefer it — it drops to not-worn the moment the ring is off the finger or
-        // on the charger, unlike `ringStreaming`, which lingers. WHOOP has no such signal (ouraWearState
-        // stays nil), so it keeps the bond-worn / stream fallback. #218.
-        if let w = live.ouraWearState { return w == .worn }
-        return live.worn || ringStreaming
+        LiveConsoleReadout.isWorn(ouraWearState: live.ouraWearState, worn: live.worn,
+                                  connected: live.connected, streamingLiveHR: live.streamingLiveHR)
     }
 
     var body: some View {
-        HStack(spacing: 16) {
-            stat(String(localized: "Device"), deviceName)
-            stat(String(localized: "Battery"), batteryLabel)
+        // Lines, not columns: "Letzte Synchronisierung" is one German word that wraps, and in a column it
+        // pushed its own value onto a second line while its neighbours kept theirs on the first.
+        // `showsDeviceAndBattery` is read INSIDE body on purpose: a computed property on the view value
+        // would touch `@EnvironmentObject` before SwiftUI has installed it, which is a hard crash.
+        VStack(spacing: 4) {
+            if showsDeviceAndBattery {
+                stat(String(localized: "Device"), deviceName)
+                stat(String(localized: "Battery"), batteryLabel)
+            }
             stat(String(localized: "Worn"), liveLink ? (wornNow ? String(localized: "Yes") : String(localized: "No")) : "—")
             stat(String(localized: "Last sync"), lastSyncLabel)
         }
     }
 
     private func stat(_ title: String, _ value: String) -> some View {
-        VStack(alignment: .trailing, spacing: 1) {
-            Text(title.uppercased())
-                .font(StrandFont.footnote)
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(title)
+                .font(StrandFont.caption)
                 .foregroundStyle(StrandPalette.textTertiary)
+                .lineLimit(1)
+            Spacer(minLength: 8)
             Text(value)
                 .font(StrandFont.captionNumber)
                 .foregroundStyle(StrandPalette.textSecondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title): \(value)")
     }
 
     private var lastSyncLabel: String { LiveSyncFormat.lastSyncLabel(live.lastSyncedAt) }
@@ -1354,15 +1426,9 @@ private struct LivePhysiology: View {
         .accessibilityLabel("\(label): \(value)")
     }
 
-    /// A "feel" RMSSD over the recent R-R buffer — time-gap-unaware on purpose (a live indicator, not a
-    /// clinical figure; it's blanked on disconnect by clearBiometrics). nil until ≥3 intervals land.
-    private var rollingRMSSD: Double? {
-        let values = Array(live.rrRecent.suffix(12)).map(Double.init)
-        guard values.count >= 3 else { return nil }
-        let diffs = zip(values.dropFirst(), values).map { $0 - $1 }
-        let meanSquare = diffs.map { $0 * $0 }.reduce(0, +) / Double(diffs.count)
-        return sqrt(meanSquare)
-    }
+    /// The console's rolling RMSSD, resolved once in `LiveConsoleReadout` so no two surfaces can state
+    /// this figure differently.
+    private var rollingRMSSD: Double? { LiveConsoleReadout.rollingRMSSD(live.rrRecent) }
 
     private var rrSummary: String {
         guard let last = live.rr.last else { return "—" }
@@ -1397,24 +1463,26 @@ private struct LiveSignalTrustRail: View {
     private var ringStreaming: Bool { live.connected && live.streamingLiveHR }
     /// #218: a live link for the wear stat = a WHOOP bond OR an Oura HR stream. Oura streams only while worn
     /// (PPG needs skin contact) and stops when removed, so `ringStreaming` doubles as its wear signal.
-    private var liveLink: Bool { activeConnection || ringStreaming }
+    private var liveLink: Bool {
+        LiveConsoleReadout.isLiveLink(activeConnection: activeConnection, connected: live.connected,
+                                      streamingLiveHR: live.streamingLiveHR)
+    }
     /// Streaming ⟹ worn: keeps a stale `worn=false` (from a prior WHOOP WRIST_OFF, never reset on a source
     /// switch) from reading "Off wrist" while an Oura ring streams. For WHOOP `ringStreaming` is always
     /// false, so this is just `live.worn`. #218.
     private var wornNow: Bool {
-        // An Oura ring reports a precise live wear/charge state (live-HR presence + charger STATE + a
-        // removal watchdog), so prefer it — it drops to not-worn the moment the ring is off the finger or
-        // on the charger, unlike `ringStreaming`, which lingers. WHOOP has no such signal (ouraWearState
-        // stays nil), so it keeps the bond-worn / stream fallback. #218.
-        if let w = live.ouraWearState { return w == .worn }
-        return live.worn || ringStreaming
+        LiveConsoleReadout.isWorn(ouraWearState: live.ouraWearState, worn: live.worn,
+                                  connected: live.connected, streamingLiveHR: live.streamingLiveHR)
     }
 
     var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 168), spacing: NoopMetrics.gap)],
+        // 150, not 168: at 168 two tiles did not fit a 375pt phone beside the page's own margins, so the
+        // whole rail fell to one column and six signals took six full-width cards.
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: NoopMetrics.gap)],
                   spacing: NoopMetrics.gap) {
             ForEach(Array(signalTiles.enumerated()), id: \.element.id) { idx, tile in
                 SignalTrustTile(tile: tile)
+                    .frame(maxHeight: .infinity, alignment: .top)
                     .staggeredAppear(index: idx)
             }
         }
@@ -1433,14 +1501,6 @@ private struct LiveSignalTrustRail: View {
         return StrandPalette.accent
     }
 
-    private var rollingRMSSD: Double? {
-        let values = Array(live.rrRecent.suffix(12)).map(Double.init)
-        guard values.count >= 3 else { return nil }
-        let diffs = zip(values.dropFirst(), values).map { $0 - $1 }
-        let meanSquare = diffs.map { $0 * $0 }.reduce(0, +) / Double(diffs.count)
-        return sqrt(meanSquare)
-    }
-
     private var syncDetail: String {
         if let err = live.lastSyncError { return err }
         if live.backfilling { return String(localized: "\(live.decodedChunksThisSession) decoded, \(live.consoleChunksThisSession) console") }
@@ -1457,7 +1517,12 @@ private struct LiveSignalTrustRail: View {
                   frac: displayHR.map { min(1, Double($0) / Double(max(1, model.profile.hrMax))) }),
             .init(title: String(localized: "R-R intervals"),
                   value: live.rrRecent.isEmpty ? String(localized: "Missing") : String(localized: "\(live.rrRecent.count) recent"),
-                  detail: rollingRMSSD.map { String(localized: "RMSSD \(Int($0.rounded())) ms") } ?? String(localized: "Needs interval frames"),
+                  // The rail's job is whether a signal is CURRENT, so this says that and leaves the
+                  // figure itself to the one surface that states it. It carried an RMSSD of its own
+                  // before, a second spelling of a number the console already shows elsewhere.
+                  detail: live.rrRecent.isEmpty ? String(localized: "Needs interval frames")
+                      : (activeConnection || ringStreaming) ? String(localized: "Streaming now")
+                      : String(localized: "No active stream"),
                   icon: "point.3.connected.trianglepath.dotted",
                   tint: live.rrRecent.isEmpty ? StrandPalette.textTertiary : StrandPalette.metricCyan,
                   frac: live.rrRecent.isEmpty ? nil : min(1, Double(live.rrRecent.count) / 30)),
@@ -1712,10 +1777,11 @@ private struct SignalTrustTile: View {
                 LiquidVessel(value: tile.frac, tint: tile.tint, animated: false)
                     .frame(width: 22, height: 22)
                     .accessibilityHidden(true)
-                Text(tile.title.uppercased())
-                    .font(StrandFont.overline)
-                    .tracking(StrandFont.overlineTracking)
+                Text(tile.title)
+                    .font(StrandFont.caption)
                     .foregroundStyle(StrandPalette.textSecondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 0)
             }
             Text(tile.value)

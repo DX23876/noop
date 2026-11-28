@@ -92,15 +92,21 @@ final class ActivitySuggestionsTests: XCTestCase {
         XCTAssertEqual(S.toAsk(resolve(through: nil), now: later).map(\.start), [10_000], "before the first refresh")
     }
 
-    func testAMixedWayIsAskedBelowTheLoadExceptAtOnlyClear() {
+    func testAHeartRateSpanBelowTheLoadIsNotAskedHoweverMuchOfItWasWalked() {
+        // There is no mixed way any more (rule activity-v3): a way with a stop in it is two walks on the
+        // walk track, so a share of walking never lets a heart-rate span past its load.
         let rows = [candidate(10_000, load: 35, kinds: ["walk", "strength", "other"], share: 0.6),
                     candidate(20_000, load: 35, share: 0.5), candidate(30_000, load: 35)]
         func asks(_ level: ActivityCandidates.Level) -> [Bool] {
             S.resolve(candidates: rows, answers: [], workouts: [], settings: .init(level: level)).map(\.asks)
         }
-        XCTAssertEqual(asks(.more), [true, false, false], "more than half, and an unknown share is not")
-        XCTAssertEqual(asks(.balanced), [true, false, false])
+        XCTAssertEqual(asks(.more), [false, false, false])
+        XCTAssertEqual(asks(.balanced), [false, false, false])
         XCTAssertEqual(asks(.onlyClear), [false, false, false])
+        let walk = [candidate(40_000, track: "walk", load: 12, kinds: ["walk"], share: 0.9)]
+        XCTAssertEqual(S.resolve(candidates: walk, answers: [], workouts: [],
+                                 settings: .init(level: .onlyClear)).map(\.asks), [true],
+                       "a walk is asked about at every level")
     }
 
     func testARefreshRecordsTheNewestMinuteItSawForThatDevice() async throws {

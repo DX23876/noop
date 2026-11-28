@@ -1377,4 +1377,45 @@ public enum LiveConsoleReadout {
         if activeIsWhoop { return whoopPct.map { Int($0.rounded()) } }
         return ringPct
     }
+
+    /// Intervals the rolling RMSSD reads, and the fewest it will answer over.
+    public static let rmssdWindow = 12
+    public static let rmssdMinimumIntervals = 3
+
+    /// The console's rolling RMSSD over the recent R-R buffer, in ms, or nil until enough intervals land.
+    ///
+    /// One place, because the console states this figure on more than one surface and a second spelling
+    /// of it could drift from the first without anyone noticing — the same reason the alarm times resolve
+    /// through one funnel. The arithmetic is `HRVAnalyzer.rmssdRaw`, which is how the whole app measures
+    /// HRV; nothing here re-derives it.
+    ///
+    /// Deliberately the RAW figure over the last `rmssdWindow` intervals: a live indicator, not a clinical
+    /// one. It is gap-unaware on purpose and is blanked on disconnect by `clearBiometrics`, so a reading
+    /// never outlives the stream it came from.
+    public static func rollingRMSSD(_ rr: [Int]) -> Double? {
+        let values = rr.suffix(rmssdWindow).map(Double.init)
+        guard values.count >= rmssdMinimumIntervals else { return nil }
+        return HRVAnalyzer.rmssdRaw(Array(values))
+    }
+
+    /// Whether the console is looking at a live link: a bonded WHOOP, or a ring actually streaming HR.
+    ///
+    /// #218 again, resolved once. A ring streams live HR WITHOUT a WHOOP bond, so `activeConnection` is
+    /// false for it by construction and every surface that forgot the second half read "—" mid-stream.
+    /// `streamingLiveHR` is Oura-only, so this never widens what counts as a link for a WHOOP.
+    public static func isLiveLink(activeConnection: Bool, connected: Bool, streamingLiveHR: Bool) -> Bool {
+        activeConnection || (connected && streamingLiveHR)
+    }
+
+    /// Whether the wearer has the device ON, for the surfaces that say so in a word.
+    ///
+    /// A ring reports a precise live wear state (live-HR presence, charger state, a removal watchdog), so
+    /// it wins when it is there: it drops the moment the ring comes off, unlike a lingering stream flag.
+    /// A WHOOP has no such signal, so it keeps the worn flag with the stream as a fallback — which is what
+    /// stops a stale WRIST_OFF from a previous source reading "off" mid-stream (#218).
+    public static func isWorn(ouraWearState: OuraWearState?, worn: Bool, connected: Bool,
+                              streamingLiveHR: Bool) -> Bool {
+        if let ouraWearState { return ouraWearState == .worn }
+        return worn || (connected && streamingLiveHR)
+    }
 }

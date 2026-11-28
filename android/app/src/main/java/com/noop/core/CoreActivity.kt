@@ -18,6 +18,12 @@ object CoreActivity {
     data class Item(
         val id: String, val track: String, val start: Long, val end: Long, val avgBpm: Int?, val load: Double,
         val kinds: List<String>, val state: String, val asks: Boolean,
+        /**
+         * A walk the strap has no steps for: the phone's own steps spoke for a stretch the strap never
+         * delivered, so the times are that stretch's bounds and the card has to say so. Resolved once in
+         * the core (`ActivityCandidates.Candidate.strapStepsMissing`), never guessed here.
+         */
+        val strapStepsMissing: Boolean = false,
     ) {
         val minutes: Long get() = (end - start) / 60
         val likelyKind: String get() = kinds.firstOrNull() ?: "other"
@@ -83,6 +89,7 @@ object CoreActivity {
                     load = it.optDouble("load", 0.0),
                     kinds = kinds?.let { k -> (0 until k.length()).map(k::getString) } ?: emptyList(),
                     state = it.getString("state"), asks = it.optBoolean("asks", false),
+                    strapStepsMissing = it.optBoolean("strapStepsMissing", false),
                 )
             }
         }

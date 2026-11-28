@@ -19,6 +19,9 @@ enum CoreActivity {
         /// open, logged, or the answer: sport, walk, everyday, housework.
         var state: String
         var asks: Bool
+        /// A walk the strap has no steps for, so its times are the bounds of the stretch the strap missed
+        /// and the card must say so (`ActivityCandidates.Candidate.strapStepsMissing`).
+        var strapStepsMissing: Bool
     }
 
     struct Output: Encodable {
@@ -40,6 +43,7 @@ enum CoreActivity {
         "whenToday": "Today, %@ to %@", "whenYesterday": "Yesterday, %@ to %@", "whenDay": "%@, %@ to %@",
         "kind.walk": "Walk", "kind.run": "sport.running", "kind.cycle": "Cycling", "kind.strength": "Strength",
         "kind.other": "Other", "adjust": "Adjust",
+        "times.rough": "No steps from the strap here, so the times are rough",
     ]
 
     static func settings(_ args: [String: Any]) -> ActivitySuggestions.Settings {
@@ -129,6 +133,7 @@ enum CoreActivity {
         case .answered(let a): state = a.rawValue
         }
         return Item(id: s.id, track: s.track.rawValue, start: s.start, end: s.end, avgBpm: s.avgBpm, load: s.load,
-                    kinds: s.kinds.map(\.rawValue), state: state, asks: s.asks)
+                    kinds: s.kinds.map(\.rawValue), state: state, asks: s.asks,
+                    strapStepsMissing: s.strapStepsMissing)
     }
 }
