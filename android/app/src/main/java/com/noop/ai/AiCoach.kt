@@ -566,7 +566,8 @@ class AiCoach(
             w.strain?.let { parts.add("effort ${fmt1(it)}") }
             w.avgHr?.let { parts.add("avg HR $it") }
             w.energyKcal?.let { parts.add("${it.roundToInt()} kcal") }
-            w.distanceM?.let { parts.add(UnitFormatter.distanceFromMeters(it, distanceSystem)) }
+            // The model reads a point, whatever the screen's language (the formatter follows the app's since 2026-11-28).
+            w.distanceM?.let { parts.add(UnitFormatter.distanceFromMeters(it, distanceSystem, java.util.Locale.US)) }
             sb.append("\n").append(parts.joinToString(", "))
         }
         return sb.toString()
