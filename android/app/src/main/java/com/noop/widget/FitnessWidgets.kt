@@ -7,7 +7,6 @@ import android.graphics.Bitmap
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
@@ -155,7 +154,8 @@ object FitnessWidgets {
 // MARK: - Widgets and receivers
 
 abstract class FitnessGlanceWidget(private val kind: FitnessWidgets.Kind) : GlanceAppWidget() {
-    override val sizeMode = SizeMode.Responsive(setOf(DpSize(150.dp, 150.dp), DpSize(300.dp, 150.dp)))
+    // The real size, so a chart takes the room its widget has rather than a fixed strip (owner, 2026-11-28).
+    override val sizeMode = SizeMode.Exact
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val dark = WidgetTheme.isDark(context)
         if (FitnessWidgets.stored(context) == null) runCatching { FitnessWidgets.refresh(context) }
@@ -229,6 +229,16 @@ private fun letter(key: String): String = runCatching {
     LocalDate.parse(key).dayOfWeek.getDisplayName(DayStyle.NARROW, Locale.getDefault())
 }.getOrDefault("")
 
+/**
+ * A widget's room for its chart: the full inner width in pixels, and the height left in dp once the header, the hero
+ * figure and [lines] lines of text have theirs, so the chart grows with the widget instead of leaving the bottom empty.
+ */
+internal class Dims(private val widthDp: Float, private val heightDp: Float, val density: Float) {
+    val w: Int get() = ((widthDp - 24f) * density).toInt().coerceAtLeast(60)
+    fun h(lines: Int): Int = (heightDp - 24f - 18f - 34f - 15f * lines - 12f).toInt().coerceIn(28, 220)
+    fun px(dp: Int): Int = (dp * density).toInt()
+}
+
 /** The latest value of a series and whether it is the last day's. */
 private fun latest(series: List<Double?>): Pair<Double, Boolean>? =
     series.indexOfLast { it != null }.takeIf { it >= 0 }?.let { series[it]!! to (it == series.lastIndex) }
@@ -284,28 +294,29 @@ private fun NoData(title: String, tint: Color, message: String, ink: WidgetInk) 
 internal fun FitnessWidgetContent(kind: FitnessWidgets.Kind, payload: FitnessWidgets.Payload?, dark: Boolean) {
     val context = LocalContext.current
     val ink = WidgetInk(dark)
-    val wide = LocalSize.current.width >= 250.dp
-    val density = context.resources.displayMetrics.density
+    val size = LocalSize.current
+    val wide = size.width >= 250.dp
+    val dims = Dims(size.width.value, size.height.value, context.resources.displayMetrics.density)
     Column(
         modifier = GlanceModifier.fillMaxSize().background(ColorProvider(ink.surface)).cornerRadius(16.dp)
             .clickable(actionStartActivity<MainActivity>()).padding(12.dp),
         verticalAlignment = Alignment.Top,
     ) {
         when (kind) {
-            FitnessWidgets.Kind.Hrv, FitnessWidgets.Kind.RestingHr -> TrendBody(context, kind, payload, ink, wide, density)
-            FitnessWidgets.Kind.ChargeWeek, FitnessWidgets.Kind.EffortWeek -> WeekBody(context, kind, payload, ink, wide, density)
-            FitnessWidgets.Kind.Steps -> StepsBody(context, payload, ink, wide, density)
-            FitnessWidgets.Kind.Sleep -> SleepBody(context, payload, ink, wide, density)
-            FitnessWidgets.Kind.Weight -> WeightBody(context, payload, ink, wide, density)
+            FitnessWidgets.Kind.Hrv, FitnessWidgets.Kind.RestingHr -> TrendBody(context, kind, payload, ink, wide, dims)
+            FitnessWidgets.Kind.ChargeWeek, FitnessWidgets.Kind.EffortWeek -> WeekBody(context, kind, payload, ink, wide, dims)
+            FitnessWidgets.Kind.Steps -> StepsBody(context, payload, ink, wide, dims)
+            FitnessWidgets.Kind.Sleep -> SleepBody(context, payload, ink, wide, dims)
+            FitnessWidgets.Kind.Weight -> WeightBody(context, payload, ink, wide, dims)
             FitnessWidgets.Kind.Workouts -> WorkoutsBody(context, payload, ink, wide)
-            FitnessWidgets.Kind.Consistency -> ConsistencyBody(context, payload, ink, wide, density)
+            FitnessWidgets.Kind.Consistency -> ConsistencyBody(context, payload, ink, wide, dims)
             FitnessWidgets.Kind.Vitals -> VitalsBody(context, payload, ink)
         }
     }
 }
 
 @Composable
-private fun TrendBody(context: Context, kind: FitnessWidgets.Kind, p: FitnessWidgets.Payload?, ink: WidgetInk, wide: Boolean, density: Float) {
+private fun TrendBody(context: Context, kind: FitnessWidgets.Kind, p: FitnessWidgets.Payload?, ink: WidgetInk, wide: Boolean, dims: Dims) {
     val hrv = kind == FitnessWidgets.Kind.Hrv
     val title = context.getString(if (hrv) R.string.fw_name_hrv else R.string.fw_name_rhr)
     val tint = if (hrv) ink.hrv else ink.heart
@@ -316,7 +327,7 @@ private fun TrendBody(context: Context, kind: FitnessWidgets.Kind, p: FitnessWid
     if (p == null || last == null) return NoData(title, tint, context.getString(R.string.fw_no_scored_night), ink)
     val usualLine = usual?.let { context.getString(R.string.fw_usual_range, whole(it.low), whole(it.high), unit) }
     val shown = if (wide) series else series.takeLast(7)
-    val bmp = WidgetCharts.line(shown, usual?.low, usual?.high, tint.toArgb(), ((if (wide) 140 else 130) * density).toInt(), (44 * density).toInt(), density)
+    val bmp = WidgetCharts.line(shown, usual?.low, usual?.high, tint.toArgb(), dims.w, dims.px(dims.h(if (wide) 4 else 2)), dims.density)
     Header(title, tint)
     Hero(whole(last.first), unit, ink)
     if (wide && usual != null) {
@@ -328,13 +339,13 @@ private fun TrendBody(context: Context, kind: FitnessWidgets.Kind, p: FitnessWid
         Caption(context.getString(R.string.fw_last_14), ink)
     }
     Spacer(GlanceModifier.height(4.dp))
-    chart(bmp, title, 44)
+    chart(bmp, title, dims.h(if (wide) 4 else 2))
     Spacer(GlanceModifier.height(4.dp))
     Footnote(context, p, usualLine, ink)
 }
 
 @Composable
-private fun WeekBody(context: Context, kind: FitnessWidgets.Kind, p: FitnessWidgets.Payload?, ink: WidgetInk, wide: Boolean, density: Float) {
+private fun WeekBody(context: Context, kind: FitnessWidgets.Kind, p: FitnessWidgets.Payload?, ink: WidgetInk, wide: Boolean, dims: Dims) {
     val charge = kind == FitnessWidgets.Kind.ChargeWeek
     val title = context.getString(if (charge) R.string.fw_charge else R.string.fw_effort)
     val series = (if (charge) p?.charge else p?.effort).orEmpty()
@@ -345,21 +356,21 @@ private fun WeekBody(context: Context, kind: FitnessWidgets.Kind, p: FitnessWidg
     fun text(v: Double) = if (charge) "${whole(v)} %" else if (scale == EffortScale.WHOOP) com.noop.ui.UnitFormatter.effortDisplay(v, scale) else whole(v)
     val week = series.takeLast(7)
     val bmp = WidgetCharts.bars(week, 100.0, null, ink.track.toArgb(), { v -> (if (charge) ink.charge(v) else ink.effort).toArgb() },
-                                ((if (wide) 140 else 130) * density).toInt(), (40 * density).toInt(), density)
+                                dims.w, dims.px(dims.h(if (wide) 4 else 2)), dims.density)
     Header(title, tint)
     Hero(text(last.first), null, ink)
     if (wide) week.filterNotNull().takeIf { it.isNotEmpty() }?.average()?.let { mean ->
         Caption(if (charge) "Ø ${whole(mean)} %" else "Ø ${text(mean)}", ink)
     }
     Spacer(GlanceModifier.height(4.dp))
-    chart(bmp, title, 40)
+    chart(bmp, title, dims.h(if (wide) 4 else 2))
     if (wide) Caption(p.days.takeLast(7).joinToString("   ") { letter(it) }, ink)
     Spacer(GlanceModifier.height(4.dp))
     Footnote(context, p, if (last.second) null else context.getString(R.string.fw_today_not_scored), ink)
 }
 
 @Composable
-private fun StepsBody(context: Context, p: FitnessWidgets.Payload?, ink: WidgetInk, wide: Boolean, density: Float) {
+private fun StepsBody(context: Context, p: FitnessWidgets.Payload?, ink: WidgetInk, wide: Boolean, dims: Dims) {
     val title = context.getString(R.string.fw_name_steps)
     val series = p?.steps.orEmpty()
     val last = latest(series)
@@ -368,20 +379,20 @@ private fun StepsBody(context: Context, p: FitnessWidgets.Payload?, ink: WidgetI
     val muted = ink.steps.copy(alpha = 0.5f).toArgb()
     val bmp = WidgetCharts.bars(series.takeLast(7), null, goal, ink.track.toArgb(),
                                 { v -> if (goal != null && v >= goal) ink.steps.toArgb() else muted },
-                                ((if (wide) 140 else 130) * density).toInt(), (40 * density).toInt(), density)
+                                dims.w, dims.px(dims.h(if (wide) 3 else 2)), dims.density)
     val dayLine = if (!last.second) series.indexOfLast { it != null }.let { p.days.getOrNull(it) }?.let { dayText(it) } else null
     val goalLine = goal?.let { context.getString(R.string.fw_of_goal, whole(it)) }
     Header(title, ink.steps)
     Hero(whole(last.first), null, ink)
     if (wide) Caption(context.getString(R.string.fw_last_7), ink)
     Spacer(GlanceModifier.height(4.dp))
-    chart(bmp, title, 40)
+    chart(bmp, title, dims.h(if (wide) 3 else 2))
     Spacer(GlanceModifier.height(4.dp))
     Footnote(context, p, dayLine ?: goalLine, ink)
 }
 
 @Composable
-private fun SleepBody(context: Context, p: FitnessWidgets.Payload?, ink: WidgetInk, wide: Boolean, density: Float) {
+private fun SleepBody(context: Context, p: FitnessWidgets.Payload?, ink: WidgetInk, wide: Boolean, dims: Dims) {
     val title = context.getString(R.string.fw_name_sleep)
     val night = p?.sleep
     if (p == null || night == null) return NoData(title, ink.sleep, context.getString(R.string.fw_sleep_none), ink)
@@ -391,21 +402,21 @@ private fun SleepBody(context: Context, p: FitnessWidgets.Payload?, ink: WidgetI
     Spacer(GlanceModifier.height(4.dp))
     val parts = listOfNotNull(night.deepMin?.let { it to ink.deep.toArgb() }, night.lightMin?.let { it to ink.light.toArgb() },
                               night.remMin?.let { it to ink.rem.toArgb() })
-    if (parts.isNotEmpty()) chart(WidgetCharts.stack(parts, ink.track.toArgb(), ((if (wide) 140 else 130) * density).toInt(), (8 * density).toInt(), density), title, 8)
+    if (parts.isNotEmpty()) chart(WidgetCharts.stack(parts, ink.track.toArgb(), dims.w, dims.px(10), dims.density), title, 10)
     if (wide) {
         Spacer(GlanceModifier.height(4.dp))
         Caption(listOfNotNull(night.deepMin?.let { context.getString(R.string.fw_deep, hm(context, it)) },
                               night.remMin?.let { context.getString(R.string.fw_rem, hm(context, it)) }).joinToString(" · "), ink)
         Caption(context.getString(R.string.fw_last_7_nights), ink)
         chart(WidgetCharts.bars(p.sleepHours.takeLast(7), night.needMin?.let { it / 60 }, night.needMin?.let { it / 60 },
-                                ink.track.toArgb(), { ink.sleep.toArgb() }, (140 * density).toInt(), (30 * density).toInt(), density), title, 30)
+                                ink.track.toArgb(), { ink.sleep.toArgb() }, dims.w, dims.px(dims.h(6)), dims.density), title, dims.h(6))
     }
     Spacer(GlanceModifier.height(4.dp))
     Footnote(context, p, null, ink)
 }
 
 @Composable
-private fun WeightBody(context: Context, p: FitnessWidgets.Payload?, ink: WidgetInk, wide: Boolean, density: Float) {
+private fun WeightBody(context: Context, p: FitnessWidgets.Payload?, ink: WidgetInk, wide: Boolean, dims: Dims) {
     val title = context.getString(R.string.fw_name_weight)
     val readings = p?.weight.orEmpty()
     if (p == null || readings.isEmpty()) return NoData(title, ink.weight, context.getString(R.string.fw_weight_none), ink)
@@ -421,7 +432,7 @@ private fun WeightBody(context: Context, p: FitnessWidgets.Payload?, ink: Widget
     Hero(oneDecimal(values.last()), unit, ink)
     Caption(if (wide) context.getString(R.string.fw_weighed, dayText(readings.last().first)) else dayText(readings.last().first), ink)
     Spacer(GlanceModifier.height(4.dp))
-    chart(WidgetCharts.line(values, null, null, ink.weight.toArgb(), ((if (wide) 140 else 130) * density).toInt(), (40 * density).toInt(), density), title, 40)
+    chart(WidgetCharts.line(values, null, null, ink.weight.toArgb(), dims.w, dims.px(dims.h(if (wide) 4 else 3)), dims.density), title, dims.h(if (wide) 4 else 3))
     if (wide) Caption(context.getString(R.string.fw_weigh_ins_30, readings.size), ink)
     Spacer(GlanceModifier.height(4.dp))
     Footnote(context, p, changeLine, ink)
@@ -455,7 +466,7 @@ private fun WorkoutsBody(context: Context, p: FitnessWidgets.Payload?, ink: Widg
 }
 
 @Composable
-private fun ConsistencyBody(context: Context, p: FitnessWidgets.Payload?, ink: WidgetInk, wide: Boolean, density: Float) {
+private fun ConsistencyBody(context: Context, p: FitnessWidgets.Payload?, ink: WidgetInk, wide: Boolean, dims: Dims) {
     val title = context.getString(R.string.fw_name_consistency)
     val days = p?.activeDays.orEmpty()
     if (p == null || days.none { it != null }) return NoData(title, ink.green, context.getString(R.string.fw_consistency_none), ink)
@@ -466,8 +477,8 @@ private fun ConsistencyBody(context: Context, p: FitnessWidgets.Payload?, ink: W
     Hero(recent.toString(), context.getString(R.string.fw_of_28), ink)
     if (wide) Caption(context.getString(R.string.fw_training_days_4w), ink)
     Spacer(GlanceModifier.height(4.dp))
-    chart(WidgetCharts.heatGrid(shown, ink.green.toArgb(), ink.track.toArgb(), ((if (wide) 150 else 80) * density).toInt(),
-                                (56 * density).toInt(), density), title, 56)
+    chart(WidgetCharts.heatGrid(shown, ink.green.toArgb(), ink.track.toArgb(), dims.w,
+                                dims.px(dims.h(if (wide) 2 else 1)), dims.density), title, dims.h(if (wide) 2 else 1))
     Spacer(GlanceModifier.height(4.dp))
     Footnote(context, p, null, ink)
 }

@@ -6,7 +6,6 @@ import android.content.Context
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
@@ -135,8 +134,8 @@ object DayWidgets {
 }
 
 class RingsGlanceWidget : GlanceAppWidget() {
-    // A row of the home screen is about 70 dp tall: the wide size asks for no more than that.
-    override val sizeMode = SizeMode.Responsive(setOf(DpSize(100.dp, 60.dp), DpSize(240.dp, 60.dp)))
+    // The real size, so the rings fill the room the widget has (owner, 2026-11-28).
+    override val sizeMode = SizeMode.Exact
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val dark = WidgetTheme.isDark(context)
         provideContent { RingsContent(WidgetSnapshotStore.load(context), dark, forge = false, brief = null) }
@@ -144,7 +143,7 @@ class RingsGlanceWidget : GlanceAppWidget() {
 }
 
 class ForgeTodayGlanceWidget : GlanceAppWidget() {
-    override val sizeMode = SizeMode.Responsive(setOf(DpSize(100.dp, 60.dp), DpSize(240.dp, 60.dp)))
+    override val sizeMode = SizeMode.Exact
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val dark = WidgetTheme.isDark(context)
         provideContent { RingsContent(WidgetSnapshotStore.load(context), dark, forge = true, brief = DayWidgets.briefLine(context)) }
@@ -152,7 +151,7 @@ class ForgeTodayGlanceWidget : GlanceAppWidget() {
 }
 
 class EnergyGlanceWidget : GlanceAppWidget() {
-    override val sizeMode = SizeMode.Responsive(setOf(DpSize(150.dp, 150.dp), DpSize(300.dp, 150.dp)))
+    override val sizeMode = SizeMode.Exact
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val dark = WidgetTheme.isDark(context)
         provideContent { EnergyContent(DayWidgets.energy(context), dark) }
@@ -160,7 +159,7 @@ class EnergyGlanceWidget : GlanceAppWidget() {
 }
 
 class FoodGlanceWidget : GlanceAppWidget() {
-    override val sizeMode = SizeMode.Responsive(setOf(DpSize(150.dp, 150.dp), DpSize(300.dp, 150.dp)))
+    override val sizeMode = SizeMode.Exact
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val dark = WidgetTheme.isDark(context)
         provideContent { FoodContent(DayWidgets.food(context), dark) }
@@ -172,6 +171,9 @@ class ForgeTodayWidgetReceiver : GlanceAppWidgetReceiver() { override val glance
 class EnergyWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget: GlanceAppWidget = EnergyGlanceWidget() }
 class FoodWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWidget: GlanceAppWidget = FoodGlanceWidget() }
 
+/** The headline figure grows with the widget's height, as the rings do. */
+private fun heroSp(heightDp: Float): Float = (heightDp * 0.17f).coerceIn(28f, 48f)
+
 private fun kcal(v: Double): String = NumberFormat.getIntegerInstance(Locale.getDefault()).format(v.roundToInt())
 
 @Composable
@@ -180,13 +182,16 @@ private fun Ring(value: Int?, shown: String?, label: String, tint: Color, ink: W
     val density = context.resources.displayMetrics.density
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(GlanceModifier.size(size.dp), contentAlignment = Alignment.Center) {
-            WidgetCharts.ring(value?.let { it / 100.0 }, tint.toArgb(), ink.track.toArgb(), (size * density).toInt(), density)?.let {
+            // The stroke grows with the ring, as the app's rings keep their proportion.
+            WidgetCharts.ring(value?.let { it / 100.0 }, tint.toArgb(), ink.track.toArgb(), (size * density).toInt(), density,
+                              stroke = (size * 0.085f).coerceIn(4f, 12f))?.let {
                 Image(ImageProvider(it), contentDescription = null, modifier = GlanceModifier.size(size.dp), contentScale = ContentScale.Fit)
             }
             Text(shown ?: value?.toString() ?: "–", maxLines = 1, style = TextStyle(color = ColorProvider(ink.text),
                  fontSize = (size * 0.32).sp, fontWeight = FontWeight.Bold))
         }
-        Text(label, maxLines = 1, style = TextStyle(color = ColorProvider(ink.secondary), fontSize = 11.sp, fontWeight = FontWeight.Medium))
+        Text(label, maxLines = 1, style = TextStyle(color = ColorProvider(ink.secondary),
+             fontSize = (size * 0.13).coerceIn(11.0, 15.0).sp, fontWeight = FontWeight.Medium))
     }
 }
 
@@ -194,9 +199,13 @@ private fun Ring(value: Int?, shown: String?, label: String, tint: Color, ink: W
 private fun RingsContent(snap: WidgetSnapshot, dark: Boolean, forge: Boolean, brief: String?) {
     val context = LocalContext.current
     val ink = WidgetInk(dark)
-    val wide = LocalSize.current.width >= 240.dp
-    // The rings grow with the widget's height, from a one-row strip to a larger tile.
-    val ringSize = (LocalSize.current.height.value - (if (forge && brief != null && wide) 70 else 34)).toInt().coerceIn(36, 72)
+    val size = LocalSize.current
+    val wide = size.width >= 200.dp
+    // The rings take the room the widget has: its height less the label and the padding (and the coach's line on
+    // Forge Today), and in a row of three no more than a third of the width.
+    val byHeight = size.height.value - 12f - 18f - (if (forge && brief != null && wide) 44f else 0f)
+    val byWidth = if (wide) size.width.value / 3f - 12f else size.width.value - 12f
+    val ringSize = minOf(byHeight, byWidth).toInt().coerceIn(32, 160)
     val charge = snap.recoveryPct
     val chargeTint = charge?.let { ink.charge(it.toDouble()) } ?: ink.green
     val scale = UnitPrefs.effortScale(context)
@@ -250,7 +259,8 @@ private fun EnergyContent(energy: DayWidgets.Energy?, dark: Boolean) {
             Text(context.getString(R.string.fw_energy_none), style = TextStyle(color = ColorProvider(ink.secondary), fontSize = 12.sp))
             return@Column
         }
-        Text(kcal(total), style = TextStyle(color = ColorProvider(ink.text), fontSize = 30.sp, fontWeight = FontWeight.Bold))
+        Text(kcal(total), style = TextStyle(color = ColorProvider(ink.text), fontSize = heroSp(LocalSize.current.height.value).sp,
+             fontWeight = FontWeight.Bold))
         Text(context.getString(R.string.fw_kcal_so_far), style = TextStyle(color = ColorProvider(ink.secondary), fontSize = 11.sp))
         Spacer(GlanceModifier.height(6.dp))
         energy.active?.let { Text(context.getString(R.string.fw_active, kcal(it)), style = TextStyle(color = ColorProvider(ink.text), fontSize = 12.sp)) }
@@ -274,7 +284,8 @@ private fun FoodContent(food: DayWidgets.Food?, dark: Boolean) {
             .clickable(actionStartActivity<MainActivity>()).padding(12.dp),
     ) {
         Text(context.getString(R.string.fw_nutrition), style = TextStyle(color = ColorProvider(ink.green), fontSize = 13.sp, fontWeight = FontWeight.Bold))
-        Text(food?.let { kcal(it.left ?: it.eaten) } ?: "–", style = TextStyle(color = ColorProvider(ink.text), fontSize = 30.sp, fontWeight = FontWeight.Bold))
+        Text(food?.let { kcal(it.left ?: it.eaten) } ?: "–", style = TextStyle(color = ColorProvider(ink.text),
+             fontSize = heroSp(LocalSize.current.height.value).sp, fontWeight = FontWeight.Bold))
         Text(context.getString(when {
             food == null -> R.string.fw_nothing_logged
             food.left != null -> R.string.fw_kcal_left

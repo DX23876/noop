@@ -14,7 +14,7 @@ import android.graphics.RectF
  */
 internal object WidgetCharts {
     private fun bitmap(w: Int, h: Int): Bitmap? =
-        if (w < 2 || h < 2 || w.toLong() * h > 400_000) null
+        if (w < 2 || h < 2 || w.toLong() * h > 1_500_000) null
         else runCatching { Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888) }.getOrNull()
 
     private fun withAlpha(color: Int, alpha: Float): Int =
