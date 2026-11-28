@@ -96,32 +96,33 @@ internal fun ForgeWeightPage(onBack: () -> Unit) {
         loaded = true
         withContext(Dispatchers.IO) { com.noop.widget.WeightWidgets.publish(context, page) }
     }
-    fun after(block: suspend () -> Boolean) {
-        scope.launch { if (withContext(Dispatchers.IO) { block() }) revision++ }
+    // The write runs on IO; what it closes ([done]) and the reload change Compose state, so they run back on Main.
+    fun after(done: () -> Unit = {}, block: suspend () -> Boolean) {
+        scope.launch { if (withContext(Dispatchers.IO) { block() }) { done(); revision++ } }
     }
     val fmt = rememberWeightFormat(units)
 
     logging?.let { draft ->
         WeighInEditor(draft, fmt, onCancel = { logging = null }, onSave = { kg, at, note, mark ->
-            after {
-                val ok = if (draft.id == null) CoreWeight.logWeight(kg, at, note, mark)
-                         else CoreWeight.updateWeight(draft.id, kg, at, note, mark)
-                if (ok) { logging = null; com.noop.notif.BodyMeasurementReminder.refresh(context) }
+            after(done = { logging = null }) {
+                val ok = if (draft.id == null) CoreWeight.logWeight(context, kg, at, note, mark)
+                         else CoreWeight.updateWeight(context, draft.id, kg, at, note, mark)
+                if (ok) com.noop.notif.BodyMeasurementReminder.refresh(context)
                 ok
             }
-        }, onDelete = draft.id?.let { id -> { after { CoreWeight.deleteWeight(id).also { if (it) logging = null } } } })
+        }, onDelete = draft.id?.let { id -> { after(done = { logging = null }) { CoreWeight.deleteWeight(context, id) } } })
         return
     }
     editingEvent?.let { draft ->
         EventEditor(draft, onCancel = { editingEvent = null }, onSave = { name, day ->
-            after { CoreWeight.saveEvent(draft.id, name, day).also { if (it) editingEvent = null } }
-        }, onDelete = draft.id?.let { id -> { after { CoreWeight.deleteEvent(id).also { if (it) editingEvent = null } } } })
+            after(done = { editingEvent = null }) { CoreWeight.saveEvent(draft.id, name, day) }
+        }, onDelete = draft.id?.let { id -> { after(done = { editingEvent = null }) { CoreWeight.deleteEvent(id) } } })
         return
     }
     if (settings) {
         page?.let { p ->
             WeightSettingsPage(p.settings, p.snapshot?.rates, fmt, onBack = { settings = false }) { next ->
-                after { CoreWeight.saveSettings(next).also { if (it) settings = false } }
+                after(done = { settings = false }) { CoreWeight.saveSettings(next) }
             }
         }
         return

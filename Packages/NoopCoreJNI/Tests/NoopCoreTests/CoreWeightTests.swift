@@ -79,6 +79,30 @@ final class CoreWeightTests: XCTestCase {
         XCTAssertEqual(rate, -0.5 / 100 * 96.1, accuracy: 0.05, "half a percent of the latest weigh-in a week")
     }
 
+    /// An edit keeps the weigh-in's id and source, moves it in one step, and names the earlier of the two instants
+    /// for the energy days to be priced again from, as Apple's `updateWeight` schedules its refresh.
+    func testAnEditMovesTheWeighInAndNamesWhereTheRepriceStarts() async throws {
+        let (store, reader) = try await seeded()
+        let seededRows = try await store.bodyWeights(deviceId: WhoopStore.noopWeightSourceId)
+        let before = try XCTUnwrap(seededRows.first { $0.id == "w30" })
+        // Two days and an hour back: an instant of its own, not the weigh-in already there two days back.
+        let earlier = before.takenAt - 2 * 86_400 - 3_600
+        let answer = await CoreWeight.run("weight.updateWeight",
+            ["id": "w30", "kg": 97.0, "takenAt": earlier, "note": "", "waterMark": "period"], store: store, reader: reader)
+        XCTAssertEqual(answer, #"{"ok":true,"repriceFrom":\#(earlier)}"#)
+        let rows = try await store.bodyWeights(deviceId: WhoopStore.noopWeightSourceId)
+        let edited = try XCTUnwrap(rows.first { $0.id == "w30" })
+        XCTAssertEqual(edited.takenAt, earlier)
+        XCTAssertEqual(edited.weightKg, 97.0)
+        XCTAssertEqual(edited.source, before.source)
+        XCTAssertEqual(edited.waterMark, .period)
+        XCTAssertEqual(rows.count, 40, "replaced, not added")
+
+        let missing = await CoreWeight.run("weight.updateWeight", ["id": "nope", "kg": 97.0, "takenAt": earlier],
+                                           store: store, reader: reader)
+        XCTAssertEqual(missing, #"{"ok":false}"#)
+    }
+
     func testEventsAreEditedAndDeletedInTheGoalPreferences() async throws {
         let (store, reader) = try await seeded()
         _ = await CoreWeight.run("weight.saveEvent", ["name": "Trip", "day": "2027-03-01"], store: store, reader: reader)

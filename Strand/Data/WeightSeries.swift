@@ -153,9 +153,9 @@ extension Repository {
         let existing = (try? await store.bodyWeights(deviceId: WhoopStore.noopWeightSourceId))?
             .first { $0.id == id }
         guard let existing else { return false }
-        // Delete-then-insert rather than an UPDATE: the natural key carries `takenAt`, so moving an
-        // entry to a new instant is a new key, and the delete re-projects the day being left behind.
-        _ = try? await store.deleteBodyWeight(id: id)
+        // Replaced rather than UPDATEd: the natural key carries `takenAt`, so moving an entry to a new
+        // instant is a new key. One transaction (`replaceBodyWeight`) re-projects the day being left behind
+        // and keeps the old weigh-in when the new one cannot be written.
         let row = BodyWeightRow(id: id,
                                 deviceId: WhoopStore.noopWeightSourceId,
                                 day: Self.localDayKey(at),
@@ -164,7 +164,7 @@ extension Repository {
                                 source: existing.source,
                                 note: note?.isEmpty == true ? nil : note,
                                 waterMark: waterMark)
-        guard (try? await store.upsertBodyWeights([row])) != nil else { return false }
+        guard (try? await store.replaceBodyWeight(id: id, with: row)) != nil else { return false }
         await refresh()
         scheduleEnergyRefresh(coveringStart: min(existing.takenAt, row.takenAt))
         WeightLogNotification(kg: kg, day: row.day).post()

@@ -68,17 +68,31 @@ object CoreWeight {
     fun deleteEvent(id: String): Boolean = ok(SwiftCore.call("weight.deleteEvent", JSONObject().put("id", id).toString()))
 
     /** A weigh-in at [at] with an optional note and water mark, on NOOP's own weight lane (`body.logWeight`). */
-    fun logWeight(kg: Double, at: Instant, note: String?, waterMark: String? = null): Boolean =
-        ok(SwiftCore.call("body.logWeight", JSONObject().put("kg", kg).put("takenAt", at.epochSecond)
+    fun logWeight(context: Context, kg: Double, at: Instant, note: String?, waterMark: String? = null): Boolean =
+        written(context, SwiftCore.call("body.logWeight", JSONObject().put("kg", kg).put("takenAt", at.epochSecond)
             .apply { note?.takeIf { it.isNotBlank() }?.let { put("note", it) }; waterMark?.let { put("waterMark", it) } }
             .toString()))
 
     /** An edit that keeps the weigh-in's id, as iOS's `updateWeight`. */
-    fun updateWeight(id: String, kg: Double, at: Instant, note: String?, waterMark: String? = null): Boolean =
-        ok(SwiftCore.call("weight.updateWeight", JSONObject().put("id", id).put("kg", kg).put("takenAt", at.epochSecond)
+    fun updateWeight(context: Context, id: String, kg: Double, at: Instant, note: String?, waterMark: String? = null): Boolean =
+        written(context, SwiftCore.call("weight.updateWeight", JSONObject().put("id", id).put("kg", kg).put("takenAt", at.epochSecond)
             .put("note", note ?: "").apply { waterMark?.let { put("waterMark", it) } }.toString()))
 
-    fun deleteWeight(id: String): Boolean = ok(SwiftCore.call("body.deleteWeight", JSONObject().put("id", id).toString()))
+    fun deleteWeight(context: Context, id: String): Boolean =
+        written(context, SwiftCore.call("body.deleteWeight", JSONObject().put("id", id).toString()))
+
+    /**
+     * A weigh-in write's answer from the core: done, and the instant the stored energy days are priced again from.
+     * On success the screens that follow [CoreShadow.dataRevision] reload, and the reprice runs in the background
+     * ([CoreEnergyDetail.repriceFrom]), as iOS's `logWeight` and `updateWeight` schedule theirs.
+     */
+    internal fun written(context: Context, json: String?): Boolean {
+        val o = json?.let { runCatching { JSONObject(it) }.getOrNull() } ?: return false
+        if (!o.optBoolean("ok")) return false
+        CoreShadow.noteDataChanged()
+        if (o.has("repriceFrom") && !o.isNull("repriceFrom")) CoreEnergyDetail.repriceFrom(context, o.getLong("repriceFrom"))
+        return true
+    }
 
     /** What the core said about the next weigh-in reminder: a moment, none in three weeks, or no answer at all. */
     sealed interface NextReminder {

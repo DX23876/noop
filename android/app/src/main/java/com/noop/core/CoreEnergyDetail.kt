@@ -2,6 +2,13 @@ package com.noop.core
 
 import android.content.Context
 import com.noop.ui.ProfileStore
+import com.noop.ui.forge.dismissedTrainingWorkouts
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -43,6 +50,35 @@ object CoreEnergyDetail {
     }
 
     /** Today's summary for the Today card; null without a profile or a figure. */
+    private val repriceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val repriceLock = Mutex()
+
+    /**
+     * The stored energy days from the one holding [startTs] priced again by the core (`energy.repriceFrom`), as iOS's
+     * `scheduleEnergyRefresh(coveringStart:)` does after a weigh-in: the model resolves body mass per day from the
+     * weight series. In the background and one at a time, since a weigh-in weeks back reprices up to 120 days; the
+     * screens reload on [CoreShadow.dataRevision] once it has written.
+     */
+    fun repriceFrom(context: Context, startTs: Long) {
+        val app = context.applicationContext
+        repriceScope.launch {
+            repriceLock.withLock {
+                if (!SwiftCore.available) return@withLock
+                val written = runCatching {
+                    CoreUserInputs.ensure(app)
+                    val profile = ProfileStore.from(app)
+                    val args = JSONObject().withGoalProfile(profile).withGoalHostSettings(app).put("sex", profile.sex)
+                        .put("lastSync", goalLastSync(app)).put("dismissedWorkouts", JSONArray(dismissedTrainingWorkouts(app)))
+                        .put("from", startTs)
+                    SwiftCore.call("energy.repriceFrom", args.toString())
+                }.getOrNull()
+                if (written != null && runCatching { JSONObject(written).optBoolean("ok") }.getOrDefault(false)) {
+                    CoreShadow.noteDataChanged()
+                }
+            }
+        }
+    }
+
     fun today(context: Context, dismissedWorkouts: List<String>): Summary? {
         if (!SwiftCore.available) return null
         CoreUserInputs.ensure(context)

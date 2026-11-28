@@ -11,6 +11,9 @@ struct FoodCopySheet: View {
     let model: ForgeFoodModel
     @EnvironmentObject private var repo: Repository
     @Environment(\.dismiss) private var dismiss
+    /// The calendar the picker builds its own selection with, so a day filled in by a repeat is the same value as
+    /// the picker's when it is tapped again.
+    @Environment(\.calendar) private var calendar
     @State private var chosen: Set<DateComponents> = []
     /// Monday to Friday to start with, in the calendar's numbering (1 = Sunday).
     @State private var weekdays: Set<Int> = [2, 3, 4, 5, 6]
@@ -22,12 +25,17 @@ struct FoodCopySheet: View {
 
     /// The weekday numbers in the order this calendar starts its week.
     private var orderedWeekdays: [Int] {
-        let first = Calendar.current.firstWeekday
+        let first = calendar.firstWeekday
         return (0..<7).map { (first - 1 + $0) % 7 + 1 }
     }
 
+    /// The chosen days once each, never the shown day itself: copying a meal onto its own day only doubles it.
     private var chosenDays: [String] {
-        chosen.compactMap { Calendar.current.date(from: $0).map(Repository.localDayKey) }.sorted()
+        Set(chosen.compactMap(dayKey)).subtracting([model.day]).sorted()
+    }
+
+    private func dayKey(_ components: DateComponents) -> String? {
+        calendar.date(from: components).map(Repository.localDayKey)
     }
 
     var body: some View {
@@ -36,7 +44,7 @@ struct FoodCopySheet: View {
                 Section {
                     MultiDatePicker("Days", selection: $chosen)
                 } footer: {
-                    Text("Days chosen: \(chosen.count)")
+                    Text("Days chosen: \(chosenDays.count)")
                 }
                 Section {
                     HStack(spacing: 6) {
@@ -56,20 +64,24 @@ struct FoodCopySheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel", action: cancel) }
-                ToolbarItem(placement: .confirmationAction) { Button("Copy", action: copy).disabled(chosen.isEmpty) }
+                ToolbarItem(placement: .confirmationAction) { Button("Copy", action: copy).disabled(chosenDays.isEmpty) }
             }
         }
         .presentationDetents([.large])
         .onAppear(perform: start)
+        .onChange(of: chosen) { _, picked in
+            let tidy = tidied(picked)
+            if tidy != picked { chosen = tidy }
+        }
     }
 
     private func weekdayToggle(_ weekday: Int) -> some View {
         let on = weekdays.contains(weekday)
-        let name = Calendar.current.standaloneWeekdaySymbols[weekday - 1]
+        let name = calendar.standaloneWeekdaySymbols[weekday - 1]
         return Button {
             if on { weekdays.remove(weekday) } else { weekdays.insert(weekday) }
         } label: {
-            Text(Calendar.current.veryShortStandaloneWeekdaySymbols[weekday - 1])
+            Text(calendar.veryShortStandaloneWeekdaySymbols[weekday - 1])
                 .font(.subheadline.weight(.semibold))
                 .frame(maxWidth: .infinity, minHeight: 36)
                 .foregroundStyle(on ? ForgeColor.onAccent : ForgeColor.text)
@@ -82,14 +94,25 @@ struct FoodCopySheet: View {
 
     /// Four weeks ahead to start with.
     private func start() {
-        until = Calendar.current.date(byAdding: .day, value: 28, to: shownDay) ?? shownDay
+        until = calendar.date(byAdding: .day, value: 28, to: shownDay) ?? shownDay
+    }
+
+    /// One entry per day and none on the shown day, whichever way a day got into the selection.
+    private func tidied(_ picked: Set<DateComponents>) -> Set<DateComponents> {
+        var seen: Set<String> = [model.day]
+        return picked.filter { components in
+            guard let key = dayKey(components) else { return false }
+            return seen.insert(key).inserted
+        }
     }
 
     private func selectRepeat() {
-        let days = FoodLog.repeatDays(after: model.day, through: Repository.localDayKey(until), weekdays: weekdays)
-        for day in days {
+        let days = FoodLog.repeatDays(after: model.day, through: Repository.localDayKey(until), weekdays: weekdays,
+                                      calendar: calendar)
+        let already = Set(chosen.compactMap(dayKey))
+        for day in days where !already.contains(day) {
             guard let date = WeightSeries.date(forDay: day) else { continue }
-            chosen.insert(Calendar.current.dateComponents(Self.components, from: date))
+            chosen.insert(calendar.dateComponents(Self.components, from: date))
         }
     }
 

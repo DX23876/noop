@@ -248,6 +248,34 @@ final class BodyWeightStoreTests: XCTestCase {
         XCTAssertTrue(points.isEmpty)
     }
 
+    /// An edit that moves a weigh-in to another day keeps its id, re-projects the day it left and the day it
+    /// joined, and an unknown id writes nothing at all.
+    func testReplacingAWeighInMovesItInOneStep() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await store.upsertBodyWeights([
+            row(id: "a", day: "2026-08-01", takenAt: 1_000, kg: 82.4),
+            row(id: "b", day: "2026-08-02", takenAt: 90_000, kg: 82.0),
+        ])
+        let replaced = try await store.replaceBodyWeight(
+            id: "a", with: row(id: "a", day: "2026-08-03", takenAt: 180_000, kg: 81.6, note: "moved"))
+        XCTAssertEqual(replaced?.day, "2026-08-01")
+
+        let rows = try await store.bodyWeights(deviceId: device)
+        XCTAssertEqual(rows.map(\.id), ["b", "a"])
+        XCTAssertEqual(rows.last?.note, "moved")
+        let points = try await store.metricSeries(deviceId: WhoopStore.noopWeightSourceId,
+                                                  key: WhoopStore.bodyWeightMetricKey,
+                                                  from: "2026-08-01", to: "2026-08-03")
+        XCTAssertEqual(points.map(\.day), ["2026-08-02", "2026-08-03"], "the day it left has no value any more")
+        XCTAssertEqual(points.map(\.value), [82.0, 81.6])
+
+        let unknown = try await store.replaceBodyWeight(
+            id: "nope", with: row(id: "nope", day: "2026-08-04", takenAt: 270_000, kg: 80))
+        XCTAssertNil(unknown)
+        let after = try await store.bodyWeights(deviceId: device)
+        XCTAssertEqual(after.count, 2, "nothing written for an id that is not there")
+    }
+
     func testDeletingAnUnknownIdReportsNothingDeleted() async throws {
         let store = try await WhoopStore.inMemory()
         let deleted = try await store.deleteBodyWeight(id: "nope")

@@ -87,15 +87,16 @@ enum CoreWeight {
             let at = Date(timeIntervalSince1970: (args["takenAt"] as? NSNumber)?.doubleValue ?? Date().timeIntervalSince1970)
             let note = (args["note"] as? String).flatMap { $0.isEmpty ? nil : $0 }
             // As Apple's `updateWeight`: the row keeps its source (a coach weigh-in stays the coach's), and it is
-            // deleted then written again, because the natural key carries the instant and the delete re-projects
-            // the day being left behind.
+            // replaced in one transaction (`replaceBodyWeight`), because the natural key carries the instant: the
+            // day being left behind is re-projected, and a write that fails keeps the old weigh-in.
             guard let existing = (try? await store.bodyWeights(deviceId: WhoopStore.noopWeightSourceId))?
                 .first(where: { $0.id == id }) else { return #"{"ok":false}"# }
-            _ = try? await store.deleteBodyWeight(id: id)
             let row = BodyWeightRow(id: id, deviceId: WhoopStore.noopWeightSourceId, day: StoreReader.localDayKey(at),
                                     takenAt: Int(at.timeIntervalSince1970), weightKg: kg, source: existing.source, note: note,
                                     waterMark: (args["waterMark"] as? String).flatMap(BodyWeightRow.WaterMark.init(rawValue:)))
-            return (try? await store.upsertBodyWeights([row])) != nil ? #"{"ok":true}"# : #"{"ok":false}"#
+            guard (try? await store.replaceBodyWeight(id: id, with: row)) != nil else { return #"{"ok":false}"# }
+            // The days from the earlier of the two instants on were priced with the weight before the edit.
+            return CoreBody.written(repriceFrom: min(existing.takenAt, row.takenAt))
         case "weight.deleteEvent":
             let id = args["id"] as? String ?? ""
             return await change(store: store) { $0.events.removeAll { $0.id == id } }

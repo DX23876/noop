@@ -33,6 +33,15 @@ public actor EnergyStepMovementCache {
 public enum EnergyModelRefresh {
     /// The widest window a refresh reads, in days.
     public static let refreshMaxDays = 120
+
+    /// Whole local days from the one holding `startTs` through today, bounded to `refreshMaxDays`: the window a
+    /// change at that instant (a weigh-in logged, edited or deleted) is priced again over, on both platforms.
+    /// The day holding the instant starts at or before it, so every changed sample is inside the window.
+    public static func days(coveringStart startTs: Int, now: Date, calendar: Calendar = .current) -> Int {
+        let first = calendar.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(max(0, startTs))))
+        let spanned = (calendar.dateComponents([.day], from: first, to: calendar.startOfDay(for: now)).day ?? 0) + 1
+        return min(refreshMaxDays, max(1, spanned))
+    }
     /// The shortest window the Watch calibration is refitted from.
     public static let calibrationFitMinimumDays = 30
 

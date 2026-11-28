@@ -142,6 +142,36 @@ final class BurnCorrectionTests: XCTestCase {
         XCTAssertEqual(BurnCorrection.target(ratio: 1.1, basalShare: 0.6), 1.25, accuracy: 1e-9)
         XCTAssertEqual(BurnCorrection.target(ratio: 1.5, basalShare: nil), 1.2, accuracy: 1e-9)
     }
+
+    /// A measured resting rate set while the correction is active: the same kilocalories move onto everything but
+    /// basal, the weekly step then works on that basis, and removing the rate carries it back.
+    func testAnActiveCorrectionFollowsAChangeOfBasis() {
+        var c = BurnCorrection().evaluated(target: 1.08, today: "2026-12-01", holding: false, measured: false)
+            .accepted(today: "2026-12-01")
+        XCTAssertTrue(c.appliesToBasal)
+        XCTAssertEqual(c.factor, 1.08, accuracy: 1e-9)
+
+        c = c.evaluated(target: 1.2, today: "2026-12-04", holding: false, measured: true, basalShare: 0.6)
+        XCTAssertEqual(c.status, .active)
+        XCTAssertFalse(c.appliesToBasal, "basal is left alone once it is measured")
+        XCTAssertEqual(c.factor, 1.2, accuracy: 1e-9, "8 % of the day is 20 % of the 40 % above basal")
+        XCTAssertEqual(c.sinceDay, "2026-12-01", "the agreement keeps its day")
+
+        c = c.evaluated(target: 1.0, today: "2026-12-08", holding: false, measured: false, basalShare: 0.6)
+        XCTAssertTrue(c.appliesToBasal)
+        XCTAssertEqual(c.factor, 1.05, accuracy: 1e-9, "carried back to 1.08, then a week's step toward 1.0")
+    }
+
+    /// Without a share to carry it by, the correction starts again rather than apply a factor fitted on the other basis.
+    func testAChangeOfBasisWithoutAShareStartsAFreshProposal() {
+        let active = BurnCorrection().evaluated(target: 1.1, today: "2026-12-01", holding: false, measured: false)
+            .accepted(today: "2026-12-01")
+        let next = active.evaluated(target: 1.15, today: "2026-12-04", holding: false, measured: true, basalShare: nil)
+        XCTAssertEqual(next.status, .proposed)
+        XCTAssertEqual(next.targetFactor, 1.15)
+        XCTAssertFalse(next.appliesToBasal)
+        XCTAssertNil(next.factor(on: "2026-12-04"), "no factor applies until the wearer agrees again")
+    }
 }
 
 final class EnergyDensityTests: XCTestCase {

@@ -122,8 +122,9 @@ internal fun FoodCopyDialog(day: LocalDate, onDismiss: () -> Unit, onCopy: (List
                         (0 until 7).forEach { i ->
                             val date = week.getOrNull(i)
                             Box(Modifier.weight(1f).aspectRatio(1f).padding(2.dp), contentAlignment = Alignment.Center) {
+                                // The shown day is marked but cannot be chosen: copying a meal onto its own day only doubles it.
                                 if (date != null) DayCell(date, on = date in chosen, shown = date == day) {
-                                    if (date in chosen) chosen.remove(date) else chosen.add(date)
+                                    if (date in chosen) chosen.remove(date) else if (date != day) chosen.add(date)
                                 }
                             }
                         }
@@ -156,7 +157,8 @@ internal fun FoodCopyDialog(day: LocalDate, onDismiss: () -> Unit, onCopy: (List
             }
         },
         confirmButton = {
-            TextButton(onClick = { onCopy(chosen.sorted().map { it.toString() }) }, enabled = chosen.isNotEmpty()) {
+            TextButton(onClick = { onCopy(chosen.filter { it != day }.distinct().sorted().map { it.toString() }) },
+                       enabled = chosen.any { it != day }) {
                 Text(stringResource(R.string.food_copy_go))
             }
         },
@@ -180,12 +182,12 @@ internal fun FoodCopyDialog(day: LocalDate, onDismiss: () -> Unit, onCopy: (List
     }
 }
 
-/** One day of the copy calendar: filled when chosen, the shown day in the accent colour. */
+/** One day of the copy calendar: filled when chosen, the shown day in the accent colour and not choosable. */
 @Composable
 private fun DayCell(date: LocalDate, on: Boolean, shown: Boolean, toggle: () -> Unit) {
     val colors = Forge.colors
     Box(Modifier.fillMaxSize().clip(CircleShape).background(if (on) colors.accent else Color.Transparent)
-            .clickable(role = Role.Checkbox, onClick = toggle).semantics { selected = on },
+            .clickable(enabled = !shown, role = Role.Checkbox, onClick = toggle).semantics { selected = on },
         contentAlignment = Alignment.Center) {
         Text(date.dayOfMonth.toString(), style = Forge.type.body,
              color = when { on -> colors.onAccent; shown -> colors.accent; else -> colors.text })

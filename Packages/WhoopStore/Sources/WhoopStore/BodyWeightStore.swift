@@ -120,17 +120,7 @@ extension WhoopStore {
                 // Upsert keyed on the natural index, NOT on the `id` PK: re-logging the "same
                 // measurement" (same deviceId+takenAt+source) must update, not duplicate, even if
                 // the caller minted a fresh id.
-                try db.execute(sql: """
-                    INSERT INTO bodyWeightEntry
-                        (id, deviceId, day, takenAt, weightKg, source, note, waterMark)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(deviceId, takenAt, source) DO UPDATE SET
-                        day = excluded.day,
-                        weightKg = excluded.weightKg,
-                        note = excluded.note,
-                        waterMark = excluded.waterMark
-                    """, arguments: [r.id, r.deviceId, r.day, r.takenAt, r.weightKg, r.source, r.note,
-                                      r.waterMark?.rawValue])
+                try Self.insertBodyWeight(db, r)
                 written += db.changesCount
                 touched.insert(DayCell(deviceId: r.deviceId, day: r.day))
             }
@@ -194,7 +184,42 @@ extension WhoopStore {
         }
     }
 
+    /// Replace the weigh-in `id` with `row` in ONE transaction: an edit that keeps the row's id but may move its
+    /// instant (a new natural key) and its day. Both days are re-projected. Returns the row that was replaced, or
+    /// nil when `id` is unknown, in which case nothing is written. Deleting first and writing in a second call
+    /// lost the weigh-in whenever the write failed.
+    @discardableResult
+    public func replaceBodyWeight(id: String, with row: BodyWeightRow) async throws -> BodyWeightRow? {
+        try syncWrite { db in
+            guard let old = try Row.fetchOne(db, sql:
+                "SELECT * FROM bodyWeightEntry WHERE id = ?", arguments: [id]).map(BodyWeightRow.decode) else {
+                return nil
+            }
+            try db.execute(sql: "DELETE FROM bodyWeightEntry WHERE id = ?", arguments: [id])
+            try Self.insertBodyWeight(db, row)
+            try reprojectWeightCells(db, cells: [DayCell(deviceId: old.deviceId, day: old.day),
+                                                 DayCell(deviceId: row.deviceId, day: row.day)])
+            return old
+        }
+    }
+
     // MARK: - Projection helpers (private)
+
+    /// The one insert both writers use, keyed on the natural index, NOT on the `id` PK: re-logging the "same
+    /// measurement" (same deviceId+takenAt+source) updates it, not duplicates it, even under a fresh id.
+    private static func insertBodyWeight(_ db: Database, _ r: BodyWeightRow) throws {
+        try db.execute(sql: """
+            INSERT INTO bodyWeightEntry
+                (id, deviceId, day, takenAt, weightKg, source, note, waterMark)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(deviceId, takenAt, source) DO UPDATE SET
+                day = excluded.day,
+                weightKg = excluded.weightKg,
+                note = excluded.note,
+                waterMark = excluded.waterMark
+            """, arguments: [r.id, r.deviceId, r.day, r.takenAt, r.weightKg, r.source, r.note,
+                              r.waterMark?.rawValue])
+    }
 
     /// Identifies one daily projection cell.
     private struct DayCell: Hashable {

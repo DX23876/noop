@@ -179,8 +179,41 @@ public struct BurnCorrection: Codable, Equatable, Sendable {
     }
 
     /// The state after the scale was read again on `today`. `holding` is true while a known disturbance settles.
+    /// `basalShare` is basal's share of the strap's day, whatever the formula: an active correction whose basis
+    /// changed (a measured resting rate set or removed since it was agreed) is carried over to the new basis with it.
     public func evaluated(target: Double?, today: String, holding: Bool, measured: Bool,
-                          calendar: Calendar = .current) -> BurnCorrection {
+                          basalShare: Double? = nil, calendar: Calendar = .current) -> BurnCorrection {
+        var next = self
+        if status == .active, appliesToBasal == measured {
+            next = rebased(coversBasal: !measured, basalShare: basalShare)
+            guard next.status == .active else { return next.evaluated(target: target, today: today, holding: holding,
+                                                                        measured: measured, calendar: calendar) }
+        }
+        return next.stepped(target: target, today: today, holding: holding, measured: measured, calendar: calendar)
+    }
+
+    /// An active correction moved to the other basis with the same kilocalories: a factor on the whole day becomes
+    /// the factor on everything but basal that adds as much, and back. Without a usable share it starts again as a
+    /// fresh proposal rather than apply a factor fitted on the other basis (2026-11-28 review).
+    func rebased(coversBasal: Bool, basalShare: Double?) -> BurnCorrection {
+        var next = self
+        guard let basalShare, basalShare > 0, basalShare < 0.95 else {
+            next.status = .none
+            next.factor = 1
+            next.sinceDay = nil
+            next.lastUpdatedDay = nil
+            next.appliesToBasal = coversBasal
+            return next
+        }
+        let rest = 1 - basalShare
+        let carried = coversBasal ? 1 + (factor - 1) * rest : 1 + (factor - 1) / rest
+        next.appliesToBasal = coversBasal
+        next.factor = min(Self.upper(coversBasal), max(Self.lower(coversBasal), carried))
+        return next
+    }
+
+    private func stepped(target: Double?, today: String, holding: Bool, measured: Bool,
+                         calendar: Calendar) -> BurnCorrection {
         var next = self
         switch status {
         case .off:

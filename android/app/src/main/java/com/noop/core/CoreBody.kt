@@ -70,14 +70,10 @@ object CoreBody {
         runCatching { (context.applicationContext as NoopApplication).repository.deleteLabMarker(id) }.getOrDefault(false)
             .also { if (it) CoreShadow.noteDataChanged() }
 
-    fun logWeight(kg: Double): Boolean = change("body.logWeight", JSONObject().put("kg", kg))
-    fun deleteWeight(id: String): Boolean = change("body.deleteWeight", JSONObject().put("id", id))
-
-    private fun change(op: String, args: JSONObject): Boolean {
-        if (!SwiftCore.available) return false
-        val json = SwiftCore.call(op, args.toString()) ?: return false
-        return runCatching { JSONObject(json).optBoolean("ok") }.getOrDefault(false).also { if (it) CoreShadow.noteDataChanged() }
-    }
+    fun logWeight(context: Context, kg: Double): Boolean =
+        SwiftCore.available && CoreWeight.written(context, SwiftCore.call("body.logWeight", JSONObject().put("kg", kg).toString()))
+    fun deleteWeight(context: Context, id: String): Boolean =
+        SwiftCore.available && CoreWeight.written(context, SwiftCore.call("body.deleteWeight", JSONObject().put("id", id).toString()))
 
     internal fun parse(json: String): Snapshot? {
         val o = runCatching { JSONObject(json) }.getOrNull() ?: return null

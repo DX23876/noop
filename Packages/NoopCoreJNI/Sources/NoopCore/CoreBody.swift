@@ -105,4 +105,10 @@ enum CoreBody {
     static func deleteWeight(store: WhoopStore, id: String) async -> Bool {
         (try? await store.deleteBodyWeight(id: id)) ?? false
     }
+
+    /// A weigh-in write's answer to the host: done, and the instant the stored energy days are priced again from
+    /// (`energy.repriceFrom`), as Apple's `scheduleEnergyRefresh(coveringStart:)` follows every weigh-in.
+    static func written(repriceFrom startTs: Int) -> String {
+        #"{"ok":true,"repriceFrom":\#(startTs)}"#
+    }
 }

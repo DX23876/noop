@@ -149,7 +149,7 @@ enum CoreEnergyPlan {
             store: reader.store, reader: reader, state: settings.scaleCorrection, plan: plan,
             strapByDay: ScaleCorrectionUpdate.strapByDay(days, today: today),
             kcalPerKg: EnergyDensityResolver.kcalPerKg(profile: profile, metrics: metrics, today: today),
-            basalShare: ScaleCorrectionUpdate.basalShare(days, measured: measured),
+            basalShare: ScaleCorrectionUpdate.basalShare(days), measured: measured,
             strengthDays: ScaleCorrectionUpdate.strengthDays(workouts), today: today)
     }
 

@@ -228,7 +228,7 @@ extension Repository {
             plan: DietPlan.decode(UserDefaults.standard.string(forKey: DietPlan.storageKey)),
             strapByDay: ScaleCorrectionUpdate.strapByDay(days, today: today),
             kcalPerKg: EnergyDensityResolver.kcalPerKg(profile: profile, metrics: metrics, today: today),
-            basalShare: ScaleCorrectionUpdate.basalShare(days, measured: measured),
+            basalShare: ScaleCorrectionUpdate.basalShare(days), measured: measured,
             strengthDays: ScaleCorrectionUpdate.strengthDays(workouts), today: today)
         if result.state != before {
             EnergyPlanStore.scaleCorrection = result.state
@@ -714,12 +714,10 @@ extension Repository {
         return age >= 0 && age < energyHealthRefreshInterval
     }
 
-    /// Whole local days from the one holding `startTs` through today, bounded to `energyRefreshMaxDays`.
-    /// The day holding the instant starts at or before it, so every changed sample is inside the window.
+    /// Whole local days from the one holding `startTs` through today, bounded to `energyRefreshMaxDays`
+    /// (`EnergyModelRefresh.days`, which the Android weigh-ins reprice over too).
     nonisolated static func energyRefreshDays(coveringStart startTs: Int, now: Date, calendar: Calendar) -> Int {
-        let first = calendar.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(max(0, startTs))))
-        let spanned = (calendar.dateComponents([.day], from: first, to: calendar.startOfDay(for: now)).day ?? 0) + 1
-        return min(energyRefreshMaxDays, max(1, spanned))
+        EnergyModelRefresh.days(coveringStart: startTs, now: now, calendar: calendar)
     }
 
     /// Rebuilds the auditable WHOOP bucket output and, only after explicit opt-in, learns a bounded

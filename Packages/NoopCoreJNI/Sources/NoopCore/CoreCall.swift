@@ -558,13 +558,24 @@ public enum CoreCall {
         case "body.logWeight":
             guard let kg = (args["kg"] as? NSNumber)?.doubleValue else { return #"{"error":"invalid"}"# }
             let epoch = (args["takenAt"] as? NSNumber)?.doubleValue ?? Date().timeIntervalSince1970
-            return ok(await CoreBody.logWeight(store: store, kg: kg, at: Date(timeIntervalSince1970: epoch), note: args["note"] as? String,
-                                               waterMark: (args["waterMark"] as? String).flatMap(BodyWeightRow.WaterMark.init(rawValue:))))
+            guard let row = await CoreBody.weighIn(store: store, kg: kg, at: Date(timeIntervalSince1970: epoch),
+                    note: args["note"] as? String, source: "manual",
+                    waterMark: (args["waterMark"] as? String).flatMap(BodyWeightRow.WaterMark.init(rawValue:)))
+            else { return ok(false) }
+            return CoreBody.written(repriceFrom: row.takenAt)
         case "health.planExports": return await CoreHealthExport.plan(store: store, args: args)
         case "health.commitExports": return await CoreHealthExport.commit(store: store, args: args)
         case "health.invalidateExports": return await CoreHealthExport.invalidate(store: store, args: args)
         case "body.deleteWeight":
-            return ok(await CoreBody.deleteWeight(store: store, id: string("id")))
+            let takenAt = (try? await store.bodyWeights(deviceId: WhoopStore.noopWeightSourceId))?
+                .first { $0.id == string("id") }?.takenAt
+            guard await CoreBody.deleteWeight(store: store, id: string("id")) else { return ok(false) }
+            return takenAt.map { CoreBody.written(repriceFrom: $0) } ?? ok(true)
+        case "energy.repriceFrom":
+            // The stored energy days from a changed weigh-in on, priced again with the weight series as it now is.
+            guard let from = (args["from"] as? NSNumber)?.intValue else { return #"{"error":"invalid"}"# }
+            return ok(await CoreGoalEnergy.reprice(reader: reader, settings: CoreGoalEnergy.settings(args),
+                                                   coveringStart: from))
         case "energy.scale":
             // The scale's look at the strap (`ScaleCorrectionUpdate`): the evaluated state to store, and what to show.
             let settings = CoreGoalEnergy.settings(args)

@@ -59,4 +59,24 @@ enum CoreGoalEnergy {
         _ = await EnergyModelRefresh.perform(reader: reader, days: 1, profile: profile, now: now,
                                              inputs: inputs, stepCache: stepCache)
     }
+
+    /// The stored energy days from the one holding `startTs` priced again (`EnergyModelRefresh.days`), as Apple's
+    /// `scheduleEnergyRefresh(coveringStart:)` does after a weigh-in: the model resolves body mass per day from the
+    /// weight series, so the days from a new, edited or deleted weigh-in on were priced with the weight before it.
+    @MainActor
+    static func reprice(reader: StoreReader, settings: CoreGoals.Settings, coveringStart startTs: Int,
+                        now: Date = Date()) async -> Bool {
+        guard let profile = settings.energyProfile else { return false }
+        let days = EnergyModelRefresh.days(coveringStart: startTs, now: now)
+        let today = StoreReader.localDayKey(now)
+        let from = StoreReader.localDayKey(now.addingTimeInterval(-Double(days + 1) * 86_400))
+        let daily = StoreReader.mergeDaily(imported: await reader.unionDailyMetrics(from: from, to: today),
+                                           computed: await reader.unionComputedDailyMetrics(from: from, to: today))
+        let inputs = EnergyModelRefresh.Inputs(dailyRows: daily, manualVO2: settings.energyManualVO2,
+            activityLevelOverride: settings.energyActivityLevel, calibrationEnabled: settings.energyCalibrationEnabled,
+            refreshMaxDays: EnergyModelRefresh.refreshMaxDays, dismissedDetectedSpans: settings.dismissedWorkoutSpans,
+            latestPeakMET: nil)
+        return await EnergyModelRefresh.perform(reader: reader, days: days, profile: profile, now: now,
+                                                inputs: inputs, stepCache: stepCache).ok
+    }
 }

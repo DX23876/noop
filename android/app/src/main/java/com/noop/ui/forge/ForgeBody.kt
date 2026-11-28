@@ -91,7 +91,10 @@ internal fun ForgeBodyPage(onBack: () -> Unit, onOpenWeight: () -> Unit = {}) {
         }
         loaded = true
     }
-    fun after(block: suspend () -> Boolean) { scope.launch { if (withContext(Dispatchers.IO) { block() }) revision++ } }
+    // The write runs on IO; what it closes ([done]) and the reload change Compose state, so they run back on Main.
+    fun after(done: () -> Unit = {}, block: suspend () -> Boolean) {
+        scope.launch { if (withContext(Dispatchers.IO) { block() }) { done(); revision++ } }
+    }
     SettingsColumn {
         PageTitle(stringResource(R.string.forge_body_title), onBack)
         val b = body
@@ -101,9 +104,9 @@ internal fun ForgeBodyPage(onBack: () -> Unit, onOpenWeight: () -> Unit = {}) {
             return@SettingsColumn
         }
         if (measuring) {
-            WeightCard(b, onLog = { kg -> after { CoreBody.logWeight(kg) } }, onDelete = { id -> after { CoreBody.deleteWeight(id) } })
+            WeightCard(b, onLog = { kg -> after { CoreBody.logWeight(context, kg) } }, onDelete = { id -> after { CoreBody.deleteWeight(context, id) } })
             MeasureCard(b, onCancel = { measuring = false }) { values ->
-                after { CoreBody.record(context, values).also { if (it) measuring = false } }
+                after(done = { measuring = false }) { CoreBody.record(context, values) }
             }
             return@SettingsColumn
         }

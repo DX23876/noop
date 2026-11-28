@@ -74,9 +74,10 @@ public enum ScaleCorrectionUpdate {
 
     /// Reads the scale and returns the evaluated state to store and what to show. `strapByDay` holds the strap's
     /// burn per day BEFORE any scale correction, so the correction never feeds on itself; `basalShare` is basal's
-    /// share of the strap's day when a measured resting rate is in force (the correction then leaves it alone).
+    /// share of the strap's day and `measured` whether a measured resting rate is in force (the correction then
+    /// leaves basal alone, and an active one agreed on the other basis is carried over with the share).
     public static func run(store: WhoopStore, reader: StoreReader, state: BurnCorrection, plan: DietPlan?,
-                           strapByDay: [String: Double], kcalPerKg: Double, basalShare: Double?,
+                           strapByDay: [String: Double], kcalPerKg: Double, basalShare: Double?, measured: Bool,
                            strengthDays: [String], today: String) async -> (state: BurnCorrection, snapshot: Snapshot) {
         let from = WeightSeries.date(forDay: today)
             .flatMap { Calendar.current.date(byAdding: .day, value: -ScaleBurn.windowDays, to: $0) }
@@ -100,7 +101,7 @@ public enum ScaleCorrectionUpdate {
                                 appliesToBasal: state.appliesToBasal)
         switch outcome {
         case .estimate(let e):
-            target = e.ratio.map { BurnCorrection.target(ratio: $0, basalShare: basalShare) }
+            target = e.ratio.map { BurnCorrection.target(ratio: $0, basalShare: measured ? basalShare : nil) }
             snapshot.scaleKcal = e.burnKcal
             snapshot.strapKcal = e.strapKcal
             snapshot.completeDays = e.completeDays
@@ -121,7 +122,7 @@ public enum ScaleCorrectionUpdate {
                 snapshot.earlyPercent = words.percent
             }
         }
-        let next = state.evaluated(target: target, today: today, holding: hold, measured: basalShare != nil)
+        let next = state.evaluated(target: target, today: today, holding: hold, measured: measured, basalShare: basalShare)
         snapshot.status = next.status.rawValue
         snapshot.factor = next.factor
         snapshot.targetFactor = next.targetFactor
@@ -161,10 +162,9 @@ extension ScaleCorrectionUpdate {
             .map { StoreReader.localDayKey(Date(timeIntervalSince1970: TimeInterval($0.startTs))) }
     }
 
-    /// Basal's share of the strap's days, when a measured resting rate is in force (the correction then leaves
-    /// basal alone); nil otherwise.
-    public static func basalShare(_ summaries: [DailyEnergySummary], measured: Bool) -> Double? {
-        guard measured else { return nil }
+    /// Basal's share of the strap's days, whatever the formula: with a measured resting rate the correction leaves
+    /// basal alone, and an active correction whose basis changed is carried over with it.
+    public static func basalShare(_ summaries: [DailyEnergySummary]) -> Double? {
         let days = summaries.filter { $0.source == .strapWornTime }
         let basal = days.compactMap(\.basalBurnedSoFar).reduce(0, +)
         let total = days.compactMap { $0.totalBeforeScaleKcal ?? $0.totalBurnedSoFar }.reduce(0, +)
