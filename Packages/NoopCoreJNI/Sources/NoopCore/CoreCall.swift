@@ -693,6 +693,11 @@ public enum CoreCall {
         case "read.workouts":
             return CoreRead.json(await CoreRead.workouts(days: (args["days"] as? Int) ?? 4000,
                                                          dismissed: args["dismissedWorkouts"] as? [String] ?? [], reader: reader))
+        case "read.sessionTitles":
+            // The names the wearer gave their strength sessions, keyed "source|startTs", so the Workouts
+            // lists show "Push day" where the row's sport reads "Strength Training" (as Apple's lists).
+            let now = Int(Date().timeIntervalSince1970)
+            return CoreRead.json(await reader.sessionTitles(from: int("from", now - 91 * 86_400), to: int("to", now)))
         case "sleep.debt":
             return CoreRead.json(await CoreSleepDebt.read(reader: reader))
         case "sleep.nightFacts":

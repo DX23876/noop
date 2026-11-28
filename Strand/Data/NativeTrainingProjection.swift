@@ -24,4 +24,19 @@ extension Repository {
                 primaryComponentKey: primary, updatedAtTs: now))
         }
     }
+
+    /// The names the wearer gave the strength sessions of the last `days` days, keyed by
+    /// `NativeTrainingProjection.titleKey`, so a Workouts list shows "Push day" where the row's sport reads
+    /// only "Strength Training". The same core read Android's lists use (`read.sessionTitles`).
+    func sessionTitles(days: Int) async -> [String: String] {
+        guard let store = await storeHandle() else { return [:] }
+        let now = Int(Date().timeIntervalSince1970)
+        return await storeReader(store).sessionTitles(from: now - days * 86_400, to: now + 1)
+    }
+
+    /// A list row's name: the session's own when the wearer gave it one, else its sport.
+    nonisolated static func sessionName(_ row: WorkoutRow, titles: [String: String]) -> String {
+        titles[NativeTrainingProjection.titleKey(source: row.source, startTs: row.startTs)]
+            ?? WorkoutSource.localizedDisplaySport(row.sport)
+    }
 }

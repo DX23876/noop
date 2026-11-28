@@ -21,6 +21,24 @@ object CoreWorkoutRows {
     }
 
     /**
+     * The names the wearer gave their strength sessions between [from] and [to] (unix seconds), keyed by [titleKey],
+     * from the shared core (`read.sessionTitles`). A row's sport reads "Strength Training"; with this the lists show
+     * "Push day", as the iPhone's do. Empty without a core. Blocking; call off the main thread.
+     */
+    fun sessionTitles(from: Long, to: Long): Map<String, String> {
+        if (!SwiftCore.available) return emptyMap()
+        val json = SwiftCore.call("read.sessionTitles", JSONObject().put("from", from).put("to", to).toString())
+            ?: return emptyMap()
+        return runCatching {
+            val o = JSONObject(json)
+            o.keys().asSequence().associateWith { o.getString(it) }
+        }.getOrDefault(emptyMap())
+    }
+
+    /** The key [sessionTitles] files a session under: its row's source and start, as the core's `titleKey`. */
+    fun titleKey(row: WorkoutRow): String = "${row.source}|${row.startTs}"
+
+    /**
      * Apple's rows carry no device id and no GPS route: the source names the row, and a route lives beside it.
      * The device id is set to the source here; [withRoomKeys] replaces it with the Room row's own. Null for
      * anything but the expected shape (a missing field included), so the caller reads Room instead.

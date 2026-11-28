@@ -66,4 +66,20 @@ final class NativeTrainingProjectionTests: XCTestCase {
 
         XCTAssertEqual(result.workouts.first?.source, .strong)
     }
+
+    func testSessionTitlesNameEachListRowBySourceAndStart() {
+        let push = NativeWorkout(id: UUID(), title: " Push day ", startedAt: 100, endedAt: 200,
+            plannedDay: "1970-01-01", routineIds: [], exercises: [], tracker: nil)
+        let blank = NativeWorkout(id: UUID(), title: "  ", startedAt: 300, endedAt: 400,
+            plannedDay: "1970-01-01", routineIds: [], exercises: [], tracker: nil)
+        let hevy = HevyWorkout(id: "h1", title: "Legs", routineId: nil, notes: nil,
+            startTs: 500, endTs: 600, updatedAtTs: 500, createdAtTs: 500, exercises: [])
+
+        let titles = NativeTrainingProjection.sessionTitles(native: [push, blank], hevy: [hevy])
+        let pushRow = NativeTrainingProjection.workoutRow(push)
+
+        XCTAssertEqual(titles[NativeTrainingProjection.titleKey(source: pushRow.source, startTs: pushRow.startTs)], "Push day")
+        XCTAssertEqual(titles[NativeTrainingProjection.titleKey(source: WorkoutSource.hevySource, startTs: 500)], "Legs")
+        XCTAssertEqual(titles.count, 2, "a blank name falls back to the sport")
+    }
 }

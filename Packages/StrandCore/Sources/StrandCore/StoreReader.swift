@@ -400,6 +400,15 @@ public struct StoreReader: Sendable {
         return values
     }
 
+    /// The names of the strength sessions starting in the window, keyed by
+    /// `NativeTrainingProjection.titleKey`, so the Workouts lists can show "Push day" where the row's sport
+    /// says only "Strength Training".
+    public func sessionTitles(from lo: Int, to hi: Int) async -> [String: String] {
+        let native = await pagedNativeWorkoutRows(from: lo, to: hi)
+        let hevy = (try? await store.hevyWorkouts(from: lo, to: hi, limit: 5_000)) ?? []
+        return NativeTrainingProjection.sessionTitles(native: native, hevy: hevy)
+    }
+
     /// Every native session starting in the window, paged. Not private: `WorkoutHeartRateFills.fillRecorded`
     /// needs the same list, because a native session is not in the `workout` table (#51).
     func pagedNativeWorkoutRows(from: Int, to: Int) async -> [NativeWorkout] {

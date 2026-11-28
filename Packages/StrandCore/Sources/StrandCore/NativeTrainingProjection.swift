@@ -75,6 +75,27 @@ public enum NativeTrainingProjection {
                           distanceM: nil, zonesJSON: nil, notes: workout.note, steps: nil)
     }
 
+    /// The key a list row looks its session's name up under: the row's source and start.
+    public static func titleKey(source: String, startTs: Int) -> String { "\(source)|\(startTs)" }
+
+    /// The name each strength session carries, keyed by `titleKey`: NOOP's own sessions under the source
+    /// their projected row has, Hevy's under the Hevy source. A list row reads "Strength Training" from its
+    /// sport; with this it can show the session the wearer named ("Push day") instead, on both platforms.
+    /// Blank names are left out, so the row falls back to the sport.
+    public static func sessionTitles(native: [NativeWorkout], hevy: [HevyWorkout]) -> [String: String] {
+        var titles: [String: String] = [:]
+        for workout in hevy {
+            let title = workout.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !title.isEmpty { titles[titleKey(source: WorkoutSource.hevySource, startTs: workout.startTs)] = title }
+        }
+        for workout in native {
+            let title = workout.title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let row = workoutRow(workout)
+            if !title.isEmpty { titles[titleKey(source: row.source, startTs: row.startTs)] = title }
+        }
+        return titles
+    }
+
     private static func template(_ exercise: TrainingExercise) -> HevyExerciseTemplate {
         HevyExerciseTemplate(
             id: exercise.id, title: exercise.title, type: measurementType(exercise.mode),
