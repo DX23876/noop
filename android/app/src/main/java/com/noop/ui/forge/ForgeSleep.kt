@@ -234,10 +234,10 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
         }
         // The new design pages the nights in one line under the tab header, as iOS's `nightNavigator`; the shipped
         // design keeps its own titled header over the scene.
-        if (LocalForgeOpenMore.current != null) NightNavigator(night, isLatest = i == nights.lastIndex, zone,
+        if (LocalForgeOpenMore.current != null) NightNavigator(night, zone,
                canBack = i > 0, canForward = i in 0 until nights.lastIndex,
                onBack = { index = i - 1 }, onForward = { index = i + 1 })
-        else Header(night, isLatest = i == nights.lastIndex, zone,
+        else Header(night, zone,
                canBack = i > 0, canForward = i in 0 until nights.lastIndex,
                onBack = { index = i - 1 }, onForward = { index = i + 1 })
         Spacer(Modifier.height(ForgeMetrics.space4))
@@ -297,7 +297,7 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
             }
         }
         if (ForgeDesign.preview) {
-            NewDesignSleep(viewModel, night, i == nights.lastIndex, wakeDay, zone, model?.days.orEmpty(), tiles, traits, need,
+            NewDesignSleep(viewModel, night, wakeDay, zone, model?.days.orEmpty(), tiles, traits, need,
                            changes = changes,
                            onAlarms = { alarms = true }, bodyClock = v5?.bodyClock,
                            // An add refused for lying on top of a stored sleep offers THAT sleep. Only this
@@ -440,7 +440,7 @@ private fun SleepSummaryTiles(night: CoreRead.Night, rest: Double?, model: Sleep
 
 /** Which night, and when it ran, between the arrows that page the nights. */
 @Composable
-private fun NightNavigator(night: CoreRead.Night?, isLatest: Boolean, zone: ZoneId, canBack: Boolean, canForward: Boolean,
+private fun NightNavigator(night: CoreRead.Night?, zone: ZoneId, canBack: Boolean, canForward: Boolean,
                            onBack: () -> Unit, onForward: () -> Unit) {
     val locale = Locale.getDefault()
     val clockFormat = rememberClockFormatter()
@@ -468,12 +468,12 @@ private fun NightNavigator(night: CoreRead.Night?, isLatest: Boolean, zone: Zone
 }
 
 @Composable
-private fun Header(night: CoreRead.Night?, isLatest: Boolean, zone: ZoneId, canBack: Boolean, canForward: Boolean,
+private fun Header(night: CoreRead.Night?, zone: ZoneId, canBack: Boolean, canForward: Boolean,
                    onBack: () -> Unit, onForward: () -> Unit) {
     val colors = Forge.colors
     val locale = Locale.getDefault()
     val title = when {
-        night == null || isLatest -> stringResource(R.string.forge_last_night)
+        night == null || com.noop.ui.isLastNight(night.endTs, java.time.ZonedDateTime.now(zone)) -> stringResource(R.string.forge_last_night)
         else -> {
             val f = DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, DAY_MONTH_SKELETON), locale)
             stringResource(R.string.forge_night_range,
@@ -803,7 +803,7 @@ internal suspend fun nightSteadiness(viewModel: com.noop.ui.AppViewModel, night:
  * weeks (history, body clock, the week's sleep goal). Each figure appears once.
  */
 @Composable
-private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.Night?, isLatest: Boolean,
+private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.Night?,
                            wakeDay: java.time.LocalDate?, zone: ZoneId, days: List<com.noop.data.DailyMetric>,
                            tiles: com.noop.ui.SleepModel?, traits: com.noop.analytics.RestTraitLookup, need: Double,
                            changes: SleepChangeHost,
@@ -875,7 +875,7 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
     }
     if (night != null && wakeDay != null) {
         val key = wakeDay.toString()
-        SleepNightCard(night, isLatest, zone, days,
+        SleepNightCard(night, zone, days,
                        isOura = com.noop.data.DeviceBrandCatalog.isOura(viewModel.activeStrapId),
                        onEdit = { editing = night }, showMakeUp = false)
         DayNaps(night, wakeDay, zone, onDelete = { nap ->

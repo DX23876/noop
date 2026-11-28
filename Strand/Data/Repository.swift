@@ -870,6 +870,14 @@ final class Repository: ObservableObject {
         localDayKey(logicalDay(now, rolloverHour: rolloverHour))
     }
 
+    /// Whether a night that ended at `endTs` is "last night": it woke on today's logical day, the day its
+    /// stored row is keyed by. The newest stored night is not last night while the strap has not synced
+    /// the latest one, and calling it so contradicted Today's "no night measured" and the waiting banner
+    /// above it (design critique 2026-11-28). Twin of the Kotlin `isLastNight` in `LogicalDay.kt`.
+    static func isLastNight(endTs: Int, now: Date, rolloverHour: Int = logicalDayRolloverHour) -> Bool {
+        localDayKey(Date(timeIntervalSince1970: TimeInterval(endTs))) == logicalDayKey(now, rolloverHour: rolloverHour)
+    }
+
     /// Start of the logical day (its real calendar midnight) for `now`, in `calendar`'s zone , the anchor
     /// for the Today HR-trend window so it spans from the logical day's 00:00 rather than restarting at the
     /// new calendar midnight while we're still showing yesterday's logical day in the small hours (#144).

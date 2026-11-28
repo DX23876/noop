@@ -2926,7 +2926,7 @@
     <string name="forge_previous_day">Vorheriger Tag</string>
     <string name="forge_next_day">Nächster Tag</string>
     <string name="forge_unit_ms">ms</string>
-    <string name="forge_unit_bpm">S/min</string>
+    <string name="forge_unit_bpm">bpm</string>
     <string name="forge_unit_breaths">/min</string>
     <string name="forge_hours_minutes">%1$d Std. %2$02d Min.</string>
     <string name="forge_last_night">Letzte Nacht</string>
@@ -3928,9 +3928,16 @@
     <string name="forge_goals_protected_week">Geschützt, diese Woche zählt nicht</string>
     <string name="forge_goals_protected_month">Geschützt, dieser Monat zählt nicht</string>
     <string name="forge_goals_too_few_days">Zu wenige Tage mit Daten für ein Urteil</string>
-    <string name="forge_goals_short_new_week">%1$s fehlen · ab morgen neue Woche</string>
-    <string name="forge_goals_short_new_month">%1$s fehlen · ab morgen neuer Monat</string>
-    <string name="forge_goals_short">%1$s fehlen, zu wenige Tage übrig</string>
+    <string name="forge_goals_out_new_week">Ab morgen neue Woche</string>
+    <string name="forge_goals_out_new_month">Ab morgen neuer Monat</string>
+    <plurals name="forge_goals_out_days_week">
+        <item quantity="one">Noch %1$d Tag · dann neue Woche</item>
+        <item quantity="other">Noch %1$d Tage · dann neue Woche</item>
+    </plurals>
+    <plurals name="forge_goals_out_days_month">
+        <item quantity="one">Noch %1$d Tag · dann neuer Monat</item>
+        <item quantity="other">Noch %1$d Tage · dann neuer Monat</item>
+    </plurals>
     <string name="forge_goals_needs_nightly">Ab jetzt %1$s h pro Nacht nötig</string>
     <string name="forge_goals_average_so_far">Bisheriger Schnitt · Ziel %1$s</string>
     <string name="forge_goals_to_go_last_day">Noch %1$s · letzter Tag</string>

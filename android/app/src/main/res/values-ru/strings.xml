@@ -3810,9 +3810,20 @@
     <string name="forge_goals_protected_week">Защищено, эта неделя не считается</string>
     <string name="forge_goals_protected_month">Защищено, этот месяц не считается</string>
     <string name="forge_goals_too_few_days">Слишком мало дней с данными для оценки</string>
-    <string name="forge_goals_short_new_week">Не хватает %1$s · завтра новая неделя</string>
-    <string name="forge_goals_short_new_month">Не хватает %1$s · завтра новый месяц</string>
-    <string name="forge_goals_short">Не хватает %1$s, осталось слишком мало дней</string>
+    <string name="forge_goals_out_new_week">Завтра новая неделя</string>
+    <string name="forge_goals_out_new_month">Завтра новый месяц</string>
+    <plurals name="forge_goals_out_days_week">
+        <item quantity="one">Ещё %1$d день · потом новая неделя</item>
+        <item quantity="few">Ещё %1$d дня · потом новая неделя</item>
+        <item quantity="many">Ещё %1$d дней · потом новая неделя</item>
+        <item quantity="other">Ещё %1$d дня · потом новая неделя</item>
+    </plurals>
+    <plurals name="forge_goals_out_days_month">
+        <item quantity="one">Ещё %1$d день · потом новый месяц</item>
+        <item quantity="few">Ещё %1$d дня · потом новый месяц</item>
+        <item quantity="many">Ещё %1$d дней · потом новый месяц</item>
+        <item quantity="other">Ещё %1$d дня · потом новый месяц</item>
+    </plurals>
     <string name="forge_goals_needs_nightly">Отсюда нужно %1$s ч за ночь</string>
     <string name="forge_goals_average_so_far">Среднее пока · цель %1$s</string>
     <string name="forge_goals_to_go_last_day">Осталось %1$s · последний день</string>

@@ -21,8 +21,9 @@ struct GoalStatusWord {
                                        symbol: "arrow.up.right", tone: .positive)
         case .onTrack:    return .init(key: "On track", text: String(localized: "On track"),
                                        symbol: "circle.fill", tone: .positive)
-        // Its own text: the bare word "Close" is also the close button's, and read as "Schließen" in German.
-        case .close:      return .init(key: "Close", text: String(localized: "Nearly on track"),
+        // Its own key and text: the bare word "Close" is also the close button's, and `GoalStatusStyle.word`
+        // renders the key, so "Close" read as "Schließen" on the Training week goals (critique 2026-11-28).
+        case .close:      return .init(key: "Nearly on track", text: String(localized: "Nearly on track"),
                                        symbol: "exclamationmark", tone: .warning)
         case .behind:     return .init(key: "Behind", text: String(localized: "Behind"),
                                        symbol: "arrow.down.right", tone: .critical)

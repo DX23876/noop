@@ -114,15 +114,18 @@ object SkinTempDisplay {
         } else {
             value
         }
+        // The app's language decides the decimal mark (it sets the default locale), as iOS's formatters do:
+        // Locale.US put "33.5 °C" beside "13,4" on a German screen (design critique 2026-11-28).
+        val locale = java.util.Locale.getDefault()
         if (kind == Kind.ABSOLUTE) {
-            return String.format(java.util.Locale.US, "%.${decimals}f", display)
+            return String.format(locale, "%.${decimals}f", display)
         }
-        val signed = String.format(java.util.Locale.US, "%+.${decimals}f", display)
+        val signed = String.format(locale, "%+.${decimals}f", display)
         // #1842: a deviation that ROUNDS to zero must not keep its sign. `%+` prints "-0.0" for anything
         // in (-0.05, 0), and "-0.0 Δ°C" on a card reads as a fault rather than as "no change from your
         // baseline" — which is exactly what it means. Drop the sign only when the rounded value is zero;
-        // a real -0.1 keeps it.
-        return if (signed.drop(1).toDoubleOrNull() == 0.0) signed.drop(1) else signed
+        // a real -0.1 keeps it. Judged on the digits, not by parsing the text, which a comma would defeat.
+        return if (signed.drop(1).none { it in '1'..'9' }) signed.drop(1) else signed
     }
 
     /** Full `"34.2 °C"` / `"+0.1 Δ°C"` string for one-shot call sites (Today cards, explorers). */

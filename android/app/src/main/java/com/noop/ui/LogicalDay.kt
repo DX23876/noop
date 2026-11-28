@@ -37,6 +37,18 @@ internal fun logicalDayNow(
     rolloverHour: Int = LOGICAL_DAY_ROLLOVER_HOUR,
 ): LocalDate = logicalDay(ZonedDateTime.now(zone), rolloverHour)
 
+/**
+ * Whether a night that ended at [endTs] is "last night": it woke on today's logical day, the day its stored
+ * row is keyed by. The newest stored night is not last night while the strap has not synced the latest one,
+ * and calling it so contradicted Today's "no night measured" and the waiting banner above it (design critique
+ * 2026-11-28). Twin of iOS `Repository.isLastNight`.
+ */
+internal fun isLastNight(
+    endTs: Long,
+    now: ZonedDateTime = ZonedDateTime.now(),
+    rolloverHour: Int = LOGICAL_DAY_ROLLOVER_HOUR,
+): Boolean = java.time.Instant.ofEpochSecond(endTs).atZone(now.zone).toLocalDate() == logicalDay(now, rolloverHour)
+
 /** ISO `yyyy-MM-dd` key for the current logical day — matches how [DailyMetric.day] is stored. */
 internal fun logicalDayKeyNow(
     zone: ZoneId = ZoneId.systemDefault(),

@@ -274,7 +274,7 @@ internal fun rememberKeyTiles(model: TodayModel?, metrics: Collection<KeyMetric>
                                             deltaText(day?.restingHr?.toDouble(), base[CoreRead.Metric.RestingHr], 0),
                                             CoreRead.Metric.RestingHr)
             KeyMetric.BLOOD_OXYGEN -> KeyTile(day?.spo2?.roundToInt()?.toString(), "%", opens = CoreRead.Metric.Spo2)
-            KeyMetric.RESPIRATORY -> KeyTile(day?.respRate?.let { "%.1f".format(it) }, "rpm",
+            KeyMetric.RESPIRATORY -> KeyTile(day?.respRate?.let { "%.1f".format(it) }, stringResource(R.string.forge_sl_per_min),
                                              deltaText(day?.respRate, base[CoreRead.Metric.RespRate], 1), CoreRead.Metric.RespRate)
             KeyMetric.STEPS -> KeyTile(day?.steps?.let { whole.format(it.toLong()) }, null, opens = CoreRead.Metric.Steps)
             KeyMetric.WEIGHT -> KeyTile(weightKg?.let { "%.1f".format(if (units == UnitSystem.IMPERIAL) UnitFormatter.kgToPounds(it) else it) },

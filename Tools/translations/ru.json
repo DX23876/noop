@@ -4899,5 +4899,9 @@
   "Form is slipping": "Форма снижается",
   "Recovery phase": "Фаза восстановления",
   "An easier session fits today better than %@.": "Сегодня лучше подойдёт что-то легче, чем %@.",
-  "Move to tomorrow": "Перенести на завтра"
+  "Move to tomorrow": "Перенести на завтра",
+  "New week tomorrow": "Завтра новая неделя",
+  "New month tomorrow": "Завтра новый месяц",
+  "%lld days left · then a new week": "Ещё %lld дней · потом новая неделя",
+  "%lld days left · then a new month": "Ещё %lld дней · потом новый месяц"
 }

@@ -1327,10 +1327,11 @@ private fun remainingLine(goal: CoreGoals.Period): String {
         }
         "protected" -> stringResource(if (week) R.string.forge_goals_protected_week else R.string.forge_goals_protected_month)
         "noData" -> stringResource(R.string.forge_goals_too_few_days)
+        // Looks ahead instead of counting what is missing, as iOS `GoalFormat.remainingLine` (critique 2026-11-28).
         "outOfReach" ->
-            if (goal.daysLeft <= 1) stringResource(if (week) R.string.forge_goals_short_new_week else R.string.forge_goals_short_new_month,
-                                                   amount(goal.remaining, goal.metric))
-            else stringResource(R.string.forge_goals_short, amount(goal.remaining, goal.metric))
+            if (goal.daysLeft <= 1) stringResource(if (week) R.string.forge_goals_out_new_week else R.string.forge_goals_out_new_month)
+            else androidx.compose.ui.res.pluralStringResource(if (week) R.plurals.forge_goals_out_days_week else R.plurals.forge_goals_out_days_month,
+                                                             goal.daysLeft, goal.daysLeft)
         else -> when {
             goal.aggregation == "average" -> {
                 val needed = goal.requiredPerDay

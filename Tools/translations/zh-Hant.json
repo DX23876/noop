@@ -5077,5 +5077,9 @@
   "Form is slipping": "狀態在下滑",
   "Recovery phase": "恢復階段",
   "An easier session fits today better than %@.": "今天比起%@，更適合輕一些的訓練。",
-  "Move to tomorrow": "移到明天"
+  "Move to tomorrow": "移到明天",
+  "New week tomorrow": "明天開始新的一週",
+  "New month tomorrow": "明天開始新的一月",
+  "%lld days left · then a new week": "還剩 %lld 天 · 然後開始新的一週",
+  "%lld days left · then a new month": "還剩 %lld 天 · 然後開始新的一月"
 }

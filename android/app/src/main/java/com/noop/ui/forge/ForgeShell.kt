@@ -44,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -208,7 +209,24 @@ private fun TabItem(tab: ForgeTab, selected: Boolean, modifier: Modifier, onClic
         Icon(tab.glyph, contentDescription = null, tint = tint,
              modifier = Modifier.size(26.dp).then(if (tab == ForgeTab.Training) Modifier.rotate(-45f) else Modifier))
         Spacer(Modifier.height(2.dp))
-        Text(stringResource(tab.labelRes), style = Forge.type.caption.copy(fontWeight = FontWeight.Medium), color = tint,
-             maxLines = 1, overflow = TextOverflow.Ellipsis)
+        TabLabel(stringResource(tab.labelRes), tint)
+    }
+}
+
+/**
+ * A tab's label kept clear of its capsule's rounded ends and shrunk a little when it is wider than the tab, as iOS's
+ * tab bar does: at full size "Gesundheit" ran into both ends and lost its first and last letters (critique 2026-11-28).
+ */
+@Composable
+private fun TabLabel(label: String, tint: Color) {
+    val base = Forge.type.caption.copy(fontWeight = FontWeight.Medium)
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 6.dp),
+                                                          contentAlignment = Alignment.Center) {
+        val room = constraints.maxWidth
+        val needed = remember(label, base) { measurer.measure(label, base, maxLines = 1).size.width }
+        val style = if (needed > room && needed > 0) base.copy(fontSize = base.fontSize * (room.toFloat() / needed).coerceAtLeast(0.8f))
+                    else base
+        Text(label, style = style, color = tint, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

@@ -284,7 +284,8 @@ struct ForgeSleepView: View {
         let edited = night.editGroup.contains(where: \.userEdited)
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center) {
-                Text(nightOffset == 0 ? "Last night" : "This night").font(ForgeFont.cardTitle).foregroundStyle(ForgeColor.text)
+                Text(Repository.isLastNight(endTs: night.session.endTs, now: Date()) ? "Last night" : "This night")
+                    .font(ForgeFont.cardTitle).foregroundStyle(ForgeColor.text)
                 Spacer()
                 Text("\(night.onsetText) to \(night.wakeText)")
                     .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)

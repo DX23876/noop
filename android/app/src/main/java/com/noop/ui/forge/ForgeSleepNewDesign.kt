@@ -159,7 +159,7 @@ private fun stageParts(night: CoreRead.Night): List<StagePart> {
  * them, the night's make-up as one bar and each stage's total.
  */
 @Composable
-internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: ZoneId,
+internal fun SleepNightCard(night: CoreRead.Night, zone: ZoneId,
                             days: List<DailyMetric> = emptyList(), isOura: Boolean = false,
                             onEdit: (() -> Unit)? = null, showMakeUp: Boolean = true) {
     val colors = Forge.colors
@@ -167,7 +167,10 @@ internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: Zone
     fun at(ts: Long) = Instant.ofEpochSecond(ts).atZone(zone).format(clock)
     ForgeCard(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(stringResource(if (isLatest) R.string.forge_last_night else R.string.forge_sl_this_night),
+            // "Last night" only for the night that woke today (`isLastNight`, iOS `Repository.isLastNight`): the
+            // newest stored night is older while the strap has not synced, and sat under a banner waiting for it.
+            val lastNight = com.noop.ui.isLastNight(night.endTs, java.time.ZonedDateTime.now(zone))
+            Text(stringResource(if (lastNight) R.string.forge_last_night else R.string.forge_sl_this_night),
                  style = Forge.type.headline, color = colors.text, modifier = Modifier.weight(1f))
             Text(stringResource(R.string.l10n_sleep_screen_deleted_sleep_window_range_7bc5f027, at(night.startTs), at(night.endTs)),
                  style = Forge.type.caption, color = colors.textSecondary, maxLines = 1)

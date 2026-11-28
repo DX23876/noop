@@ -30,6 +30,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.AddCircle
+import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
@@ -65,6 +66,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -481,7 +483,8 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
                 TabHeader(stringResource(R.string.food_title), onProfile = { openSettings?.invoke() },
                           onSearch = rememberOpenSearch(), coach = CoachPage("nutrition", day.toString()), subtitle = dayTitle(day),
                           viewModel = viewModel)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) { foodButtons() }
+                // Adding is the button under the plate and the food data the row at the end of the page, as iOS: a
+                // second icon row here made three header rows before the plate (design critique 2026-11-28).
             } else {
                 PageTitle(stringResource(R.string.food_title), onBack) { foodButtons() }
                 Text(dayTitle(day).uppercase(Locale.getDefault()), style = Forge.type.overline, color = Forge.sceneInk.secondary)
@@ -497,6 +500,7 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
             FoodHero(day, summary?.totals ?: emptyMap(), goals, burnedByDay[day.toString()], onDay = { day = it })
             planDay?.let { FoodPlanDayLines(it) }
             if (sentence.isNotEmpty()) FoodSentence(sentence)
+            FoodAddButton { adding = true }
             summary?.otherKcal?.let { kcal -> FoodOtherIntakeNote(kcal, summary?.otherSource ?: "") }
             q?.let { FoodNoteCard(it, isToday = day == LocalDate.now()) { showScore = true } }
             week?.let { w ->
@@ -564,6 +568,14 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
                     TextButton(onClick = { adding = true }) { Text(stringResource(R.string.food_add), color = Forge.colors.accent) }
                 }
             }
+            if (asTab) {
+                // The food data at the end of the page, as iOS: a tab has no bar to carry it.
+                ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
+                    HealthLinkRow(Icons.Rounded.Settings, Forge.colors.textSecondary, stringResource(R.string.food_data_title), null) {
+                        settings = true
+                    }
+                }
+            }
         }
     }
 }
@@ -608,20 +620,36 @@ private fun dayTitle(day: LocalDate): String = when (day) {
     else -> day.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.FULL).withLocale(Locale.getDefault()))
 }
 
-/** The shown day with a calendar behind it and a way back to today, as iOS `FoodDayPicker` (owner, 2026-11-25).
- *  The arrows stay on the plate below. */
+/** The shown day as iOS `FoodDayPicker`: the day before and after a tap away, the date itself opens a calendar, and a
+ *  way back to today whenever another day is shown (owner, 2026-11-25). The plate no longer carries arrows of its own
+ *  (design critique 2026-11-28). */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun FoodDayJump(day: LocalDate, onDay: (LocalDate) -> Unit) {
     var choosing by remember { mutableStateOf(false) }
+    val colors = Forge.colors
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
-        TextButton(onClick = { choosing = true }) {
-            Text(stringResource(R.string.food_choose_day), style = Forge.type.subhead, color = Forge.colors.accent)
+        horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        IconButton(onClick = { onDay(day.minusDays(1)) }) {
+            Icon(Icons.Rounded.ChevronLeft, stringResource(R.string.food_previous_day), tint = colors.accent)
         }
         Spacer(Modifier.weight(1f))
-        if (day != LocalDate.now()) TextButton(onClick = { onDay(LocalDate.now()) }) {
-            Text(stringResource(R.string.food_today), style = Forge.type.subhead, color = Forge.colors.accent)
+        Row(Modifier.heightIn(min = 44.dp).clickable(role = androidx.compose.ui.semantics.Role.Button,
+                                                      onClickLabel = stringResource(R.string.food_choose_day)) { choosing = true },
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(dayTitle(day), style = Forge.type.headline, color = colors.text)
+            Icon(Icons.Rounded.CalendarMonth, null, tint = colors.textSecondary, modifier = Modifier.size(16.dp))
+        }
+        if (day != LocalDate.now()) {
+            Text(stringResource(R.string.food_today), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                 color = colors.accent,
+                 modifier = Modifier.clip(CircleShape).background(colors.accent.copy(alpha = 0.15f))
+                     .clickable(role = androidx.compose.ui.semantics.Role.Button) { onDay(LocalDate.now()) }
+                     .padding(horizontal = 12.dp, vertical = 6.dp))
+        }
+        Spacer(Modifier.weight(1f))
+        IconButton(onClick = { onDay(day.plusDays(1)) }) {
+            Icon(Icons.Rounded.ChevronRight, stringResource(R.string.food_next_day), tint = colors.accent)
         }
     }
     if (choosing) {
@@ -667,9 +695,8 @@ private fun FoodHero(day: LocalDate, totals: Map<String, Double>, goals: CoreFoo
                     dx = 0f
                 }) { _, d -> dx += d }
             }, verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { onDay(day.minusDays(1)) }) {
-                Icon(Icons.Rounded.ChevronLeft, stringResource(R.string.food_previous_day), tint = colors.textSecondary)
-            }
+            // The day row above pages the days, as iOS: arrows here too made two pagers on one screen (critique
+            // 2026-11-28). A swipe over the plate still turns the day.
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                 Box(Modifier.size(262.dp), contentAlignment = Alignment.Center) {
                     Canvas(Modifier.size(262.dp)) {
@@ -708,9 +735,6 @@ private fun FoodHero(day: LocalDate, totals: Map<String, Double>, goals: CoreFoo
                         }), style = Forge.type.body, color = colors.textSecondary)
                     }
                 }
-            }
-            IconButton(onClick = { onDay(day.plusDays(1)) }) {
-                Icon(Icons.Rounded.ChevronRight, stringResource(R.string.food_next_day), tint = colors.textSecondary)
             }
         }
         Row(Modifier.fillMaxWidth()) {
@@ -1585,5 +1609,20 @@ private fun GoalStepper(title: String, value: String, minus: () -> Unit, plus: (
         TextButton(onClick = minus) { Text("−", style = Forge.type.headline, color = Forge.colors.accent) }
         Text(value, style = Forge.type.bodyNumber, color = Forge.colors.text)
         TextButton(onClick = plus) { Text("+", style = Forge.type.headline, color = Forge.colors.accent) }
+    }
+}
+
+/** Adding, right under the plate it fills, as iOS's `addButton`: in reach without scrolling to the meals. */
+@Composable
+private fun FoodAddButton(onClick: () -> Unit) {
+    val colors = Forge.colors
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+        Row(Modifier.heightIn(min = 48.dp).clip(CircleShape).background(colors.accent)
+                .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick)
+                .padding(horizontal = 24.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(Icons.Rounded.Add, null, tint = colors.onAccent, modifier = Modifier.size(20.dp))
+            Text(stringResource(R.string.food_add), style = Forge.type.headline, color = colors.onAccent)
+        }
     }
 }

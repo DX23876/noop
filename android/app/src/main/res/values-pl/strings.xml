@@ -2929,7 +2929,7 @@
     <string name="forge_previous_day">Poprzedni dzień</string>
     <string name="forge_next_day">Następny dzień</string>
     <string name="forge_unit_ms">ms</string>
-    <string name="forge_unit_bpm">ud./min</string>
+    <string name="forge_unit_bpm">bpm</string>
     <string name="forge_unit_breaths">/min</string>
     <string name="forge_hours_minutes">%1$d godz. %2$02d min</string>
     <string name="forge_last_night">Ostatnia noc</string>
@@ -3937,9 +3937,20 @@
     <string name="forge_goals_protected_week">Chronione, ten tydzień się nie liczy</string>
     <string name="forge_goals_protected_month">Chronione, ten miesiąc się nie liczy</string>
     <string name="forge_goals_too_few_days">Za mało dni z danymi, by ocenić</string>
-    <string name="forge_goals_short_new_week">Brakuje %1$s · jutro nowy tydzień</string>
-    <string name="forge_goals_short_new_month">Brakuje %1$s · jutro nowy miesiąc</string>
-    <string name="forge_goals_short">Brakuje %1$s, zostało za mało dni</string>
+    <string name="forge_goals_out_new_week">Jutro nowy tydzień</string>
+    <string name="forge_goals_out_new_month">Jutro nowy miesiąc</string>
+    <plurals name="forge_goals_out_days_week">
+        <item quantity="one">Został %1$d dzień · potem nowy tydzień</item>
+        <item quantity="few">Zostały %1$d dni · potem nowy tydzień</item>
+        <item quantity="many">Zostało %1$d dni · potem nowy tydzień</item>
+        <item quantity="other">Zostało %1$d dnia · potem nowy tydzień</item>
+    </plurals>
+    <plurals name="forge_goals_out_days_month">
+        <item quantity="one">Został %1$d dzień · potem nowy miesiąc</item>
+        <item quantity="few">Zostały %1$d dni · potem nowy miesiąc</item>
+        <item quantity="many">Zostało %1$d dni · potem nowy miesiąc</item>
+        <item quantity="other">Zostało %1$d dnia · potem nowy miesiąc</item>
+    </plurals>
     <string name="forge_goals_needs_nightly">Od teraz potrzeba %1$s h na noc</string>
     <string name="forge_goals_average_so_far">Średnia dotąd · cel %1$s</string>
     <string name="forge_goals_to_go_last_day">Zostało %1$s · ostatni dzień</string>

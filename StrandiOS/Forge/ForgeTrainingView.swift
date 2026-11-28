@@ -91,12 +91,11 @@ struct ForgeTrainingView: View {
                     }.id("forge-training-top")
                     VStack(alignment: .leading, spacing: 14) {
                         weekHero
-                        // Training Load plan, phase 2: today's advice with its offers, then "enough?" beside
-                        // the week's goals (Q5, Q26, Q33).
+                        // Training Load plan, phase 2: today's advice with its offers (Q5, Q26); "enough?" sits in
+                        // "Your week" under the goals (Q33), so the week is told in one section, not three.
                         if let guidance = repo.trainingGuidance { TrainingAdviceCard(guidance: guidance, showPlanned: false) }
                         startRow
                         todayPlan
-                        if let guidance = repo.trainingGuidance { TrainingEnoughCard(guidance: guidance) }
                         yourWeek
                         routines
                         recentActivities
@@ -181,8 +180,9 @@ struct ForgeTrainingView: View {
         return String(localized: "\(total / 60) h \(String(format: "%02d", total % 60)) min")
     }
 
-    /// Quick starts as in the prototype: start a session (the shared start sheet picks the activity),
-    /// the interval timer, or live heart rate.
+    /// Quick starts as in the prototype: start a session (the shared start sheet picks the activity), add
+    /// one that already happened, or live heart rate. The interval timer and breathing are in Tools below;
+    /// as chips too they made five buttons before the plan (design critique 2026-11-28).
     private var startRow: some View {
         ScrollView(.horizontal) {
             HStack(spacing: 8) {
@@ -195,9 +195,7 @@ struct ForgeTrainingView: View {
                     chipLabel("Add workout", "plus")
                 }
                 .buttonStyle(.plain)
-                quickChip("Intervals", "timer", MoreDestination.intervals)
                 quickChip("Live", "heart.fill", MoreDestination.live)
-                quickChip("Breathe", "wind", MoreDestination.breathe)
             }
         }
         .scrollIndicators(.hidden)
@@ -279,6 +277,8 @@ struct ForgeTrainingView: View {
         VStack(alignment: .leading, spacing: 8) {
             sectionHeader("Your week", link: "Goals", route: TabRoute.goals)
             GoalsContextCard(context: .training)
+            // Under the goals, as the plan decided (Q33): an own weekly goal comes first.
+            if let guidance = repo.trainingGuidance { TrainingEnoughCard(guidance: guidance) }
         }
     }
 

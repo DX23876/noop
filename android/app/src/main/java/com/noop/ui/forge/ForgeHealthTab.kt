@@ -639,8 +639,8 @@ private fun RemoveBadge(modifier: Modifier, onClick: () -> Unit) {
  * in a 28 frame, 12 to a 16 semibold title over a 13 subtitle, 16 by 12 of padding, a chevron (owner, 2026-11-28).
  */
 @Composable
-private fun HealthLinkRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: androidx.compose.ui.graphics.Color,
-                          title: String, subtitle: String, onClick: () -> Unit) {
+internal fun HealthLinkRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: androidx.compose.ui.graphics.Color,
+                           title: String, subtitle: String?, onClick: () -> Unit) {
     val colors = Forge.colors
     Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick)
             .padding(horizontal = ForgeMetrics.space4, vertical = ForgeMetrics.space3),
@@ -652,7 +652,7 @@ private fun HealthLinkRow(icon: androidx.compose.ui.graphics.vector.ImageVector,
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Text(title, style = Forge.type.body.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold), color = colors.text,
                  maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-            Text(subtitle, style = Forge.type.footnote, color = colors.textSecondary, maxLines = 2)
+            subtitle?.let { Text(it, style = Forge.type.footnote, color = colors.textSecondary, maxLines = 2) }
         }
         Spacer(Modifier.size(ForgeMetrics.space2))
         Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))

@@ -6,7 +6,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -128,9 +134,19 @@ internal fun ForgeAdviceCard(guidance: CoreTrainingGuidance.Snapshot, showOffers
 internal fun ForgeEnoughCard(guidance: CoreTrainingGuidance.Snapshot) {
     val week = guidance.thisWeek ?: return
     val colors = Forge.colors
+    // The counting rule behind the info button, as iOS's `TrainingEnoughCard` (design critique 2026-11-28).
+    var showsRule by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     ForgeCard(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text(stringResource(R.string.forge_tg_enough_title), style = Forge.type.subhead, color = colors.text)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.forge_tg_enough_title), style = Forge.type.subhead, color = colors.text,
+                     modifier = Modifier.weight(1f))
+                androidx.compose.material3.IconButton(onClick = { showsRule = !showsRule },
+                                                      modifier = Modifier.size(44.dp).offset(x = 12.dp)) {
+                    Icon(if (showsRule) Icons.Filled.Info else Icons.Outlined.Info,
+                         contentDescription = stringResource(R.string.forge_ex_what_this_means), tint = colors.textSecondary)
+                }
+            }
             LinearProgressIndicator(progress = { (week.minutes.toFloat() / maxOf(1, week.targetLow)).coerceIn(0f, 1f) },
                                     modifier = Modifier.fillMaxWidth())
             Text(stringResource(R.string.forge_tg_minutes, week.minutes, week.targetLow), style = Forge.type.body, color = colors.text)
@@ -142,7 +158,7 @@ internal fun ForgeEnoughCard(guidance: CoreTrainingGuidance.Snapshot) {
                                             style = Forge.type.footnote, color = colors.textSecondary)
             if (guidance.carried) Text(stringResource(R.string.forge_tg_carried), style = Forge.type.footnote, color = colors.textSecondary)
             if (week.balanceHint) Text(stringResource(R.string.forge_tg_balance), style = Forge.type.footnote, color = colors.textSecondary)
-            Text(stringResource(R.string.forge_tg_enough_caption), style = Forge.type.footnote, color = colors.textSecondary)
+            if (showsRule) Text(stringResource(R.string.forge_tg_enough_caption), style = Forge.type.footnote, color = colors.textSecondary)
         }
     }
 }

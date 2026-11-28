@@ -430,8 +430,10 @@ object UnitFormatter {
 
     // MARK: Helpers
 
-    private fun oneDecimal(v: Double): String = String.format(Locale.US, "%.1f", v)
+    // The app's language decides the decimal mark (it sets the default locale), as iOS's formatters do: Locale.US
+    // put "8.0 km" and "33.5 °C" beside "52,0" on a German screen (design critique 2026-11-28).
+    private fun oneDecimal(v: Double): String = String.format(Locale.getDefault(), "%.1f", v)
 
     private fun decimalString(v: Double, decimals: Int): String =
-        if (decimals == 0) "${v.roundToInt()}" else String.format(Locale.US, "%.${decimals}f", v)
+        if (decimals == 0) "${v.roundToInt()}" else String.format(Locale.getDefault(), "%.${decimals}f", v)
 }

@@ -5016,5 +5016,9 @@
   "Form is slipping": "La forma cala",
   "Recovery phase": "Fase di recupero",
   "An easier session fits today better than %@.": "Oggi va meglio una sessione più leggera di %@.",
-  "Move to tomorrow": "Sposta a domani"
+  "Move to tomorrow": "Sposta a domani",
+  "New week tomorrow": "Domani nuova settimana",
+  "New month tomorrow": "Domani nuovo mese",
+  "%lld days left · then a new week": "Ancora %lld giorni · poi nuova settimana",
+  "%lld days left · then a new month": "Ancora %lld giorni · poi nuovo mese"
 }

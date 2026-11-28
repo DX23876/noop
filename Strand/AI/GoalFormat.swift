@@ -130,15 +130,18 @@ enum GoalFormat {
         case .noData:
             return String(localized: "Too few days with data to judge")
         case .outOfReach:
-            // The state already says "out of reach"; the line says how much was missing, and on the last
-            // day looks ahead instead: nothing can be done about this period any more, the next one is
-            // a fresh start.
+            // The state already says "out of reach"; the line looks ahead instead of counting what is
+            // missing. Saturday read "10 workouts short, too few days left" on Training and the same on
+            // Sleep, the week ending on two failures (design critique 2026-11-28, owner: neutral, with
+            // what comes next).
             if left <= 1 {
                 return goal.period == .week
-                    ? String(localized: "\(amount(r.remaining, goal.metric)) short · new week tomorrow")
-                    : String(localized: "\(amount(r.remaining, goal.metric)) short · new month tomorrow")
+                    ? String(localized: "New week tomorrow")
+                    : String(localized: "New month tomorrow")
             }
-            return String(localized: "\(amount(r.remaining, goal.metric)) short, too few days left")
+            return goal.period == .week
+                ? String(localized: "\(left) days left · then a new week")
+                : String(localized: "\(left) days left · then a new month")
         default:
             break
         }

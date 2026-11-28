@@ -4923,5 +4923,9 @@
   "Form is slipping": "Form lässt nach",
   "Recovery phase": "Erholungsphase",
   "An easier session fits today better than %@.": "Heute passt eine leichtere Einheit besser als %@.",
-  "Move to tomorrow": "Auf morgen verschieben"
+  "Move to tomorrow": "Auf morgen verschieben",
+  "New week tomorrow": "Ab morgen neue Woche",
+  "New month tomorrow": "Ab morgen neuer Monat",
+  "%lld days left · then a new week": "Noch %lld Tage · dann neue Woche",
+  "%lld days left · then a new month": "Noch %lld Tage · dann neuer Monat"
 }

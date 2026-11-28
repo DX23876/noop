@@ -84,12 +84,27 @@ struct TrainingAdviceCard: View {
 /// "Enough this week?" against the focus target (Q6, Q20, Q33).
 struct TrainingEnoughCard: View {
     let guidance: TrainingGuidanceReader.Snapshot
+    /// The counting rule sits behind the info button: open in the flow it was the longest text on the Training
+    /// tab and pushed the week's goals down (design critique 2026-11-28).
+    @State private var showsRule = false
 
     var body: some View {
         if let week = guidance.thisWeek {
             NoopCard {
                 VStack(alignment: .leading, spacing: NoopMetrics.space2) {
-                    Text(TrainingGuidanceText.enoughTitle).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(TrainingGuidanceText.enoughTitle).font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                        Spacer(minLength: 8)
+                        Button { withAnimation(.snappy) { showsRule.toggle() } } label: {
+                            Image(systemName: showsRule ? "info.circle.fill" : "info.circle")
+                                .font(.body).foregroundStyle(StrandPalette.textSecondary)
+                                .frame(minWidth: 44, minHeight: 44, alignment: .trailing)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.vertical, -12)
+                        .accessibilityLabel(Text("What this means"))
+                    }
                     ProgressView(value: min(1, Double(week.equivalentMinutes) / Double(max(1, week.target.minutesLow))))
                         .tint(StrandPalette.accent)
                         .accessibilityHidden(true)
@@ -105,8 +120,10 @@ struct TrainingEnoughCard: View {
                     if week.target.balanceHint {
                         Text(TrainingGuidanceText.balanceHint).font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
                     }
-                    Text(TrainingGuidanceText.enoughCaption).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if showsRule {
+                        Text(TrainingGuidanceText.enoughCaption).font(StrandFont.caption).foregroundStyle(StrandPalette.textTertiary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
             }
         }

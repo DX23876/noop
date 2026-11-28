@@ -60,19 +60,9 @@ struct ForgeFoodView: View {
                         ForgeSearchButton()
                     }
                     .padding(.horizontal, -16)
-                    // The bar's Food data and Add food: a tab hides its bar, so they sit here, as on Android.
-                    HStack(spacing: 4) {
-                        Spacer(minLength: 0)
-                        Button("Food data", systemImage: "gearshape", action: openSettings)
-                            .foregroundStyle(ForgeColor.text)
-                            .frame(width: 44, height: 44)
-                        Button("Add food", systemImage: "plus", action: openAdd)
-                            .foregroundStyle(ForgeColor.accent)
-                            .frame(width: 44, height: 44)
-                    }
-                    .labelStyle(.iconOnly)
-                    .font(.title3.weight(.semibold))
-                    .buttonStyle(.plain)
+                    // A tab hides its bar, so Add food is the button under the plate and Food data the row at the
+                    // end of the page. As a second icon row here they made three header rows before the plate
+                    // (design critique 2026-11-28).
                 } else {
                     ForgeDetailHeader(overline: FoodDayPicker.title(model.day), title: String(localized: "Nutrition"),
                                       scrolledPast: $scrolledPast)
@@ -82,6 +72,7 @@ struct ForgeFoodView: View {
                 DietPlanLine(model: model, open: openPlan)
                 DietBurnModelNote(model: model)
                 hero
+                addButton
                 if let other = model.otherIntake {
                     FoodOtherIntakeNote(kcal: other.kcal, source: other.source)
                 }
@@ -140,6 +131,17 @@ struct ForgeFoodView: View {
                 if model.catalogFailed {
                     Text("The food list could not be prepared. Your own foods and quick entries still work.")
                         .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary).padding(.horizontal, 4)
+                }
+                if onProfile != nil {
+                    // The bar's Food data, which a tab does not show.
+                    ForgeGroup {
+                        Button(action: openSettings) {
+                            ForgeRow(systemImage: "gearshape", tint: ForgeColor.secondary,
+                                     title: String(localized: "Food data"), plainMark: true)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.top, 16)
                 }
             }
             .padding(.horizontal, 16)
@@ -220,19 +222,12 @@ struct ForgeFoodView: View {
         let plate = FoodPlate(eaten: model.eatenKcal, goal: model.calories?.kcal,
                               totals: model.summary?.totals ?? NutrientAmounts(), macroGoals: model.macroGoals)
         return VStack(spacing: 24) {
-            HStack(spacing: 0) {
-                Button("Previous day", systemImage: "chevron.left", action: previousDay)
-                    .frame(width: 44, height: 44)
-                Spacer(minLength: 0)
-                plate
-                Spacer(minLength: 0)
-                Button("Next day", systemImage: "chevron.right", action: nextDay)
-                    .frame(width: 44, height: 44)
-            }
-            .labelStyle(.iconOnly)
-            .font(.title3.weight(.semibold))
-            .tint(ForgeColor.secondary)
-            .gesture(DragGesture(minimumDistance: 30).onEnded(swipeDay))
+            // The day row above already pages the days; arrows here too made two pagers on one screen
+            // (design critique 2026-11-28). A swipe over the plate still turns the day.
+            plate
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .gesture(DragGesture(minimumDistance: 30).onEnded(swipeDay))
             FoodPlateLegend(macros: plate.macros)
             FoodDayFigures(eaten: model.eatenKcal, calories: model.calories, burned: model.burned, isToday: model.isToday)
             if model.plan != nil, model.phase(for: model.day) != .main {
@@ -265,8 +260,20 @@ struct ForgeFoodView: View {
         .padding(.top, 8)
     }
 
-    private func previousDay() { model.shiftDay(by: -1) }
-    private func nextDay() { model.shiftDay(by: 1) }
+    /// Adding, right under the plate it fills: in reach without scrolling to the meals.
+    private var addButton: some View {
+        Button(action: openAdd) {
+            Label("Add food", systemImage: "plus")
+                .font(.system(.headline))
+                .foregroundStyle(ForgeColor.onAccent)
+                .padding(.horizontal, 24)
+                .frame(minHeight: 48)
+                .background(Capsule().fill(ForgeColor.accent))
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
+    }
+
     private func swipeDay(_ value: DragGesture.Value) {
         guard abs(value.translation.width) > abs(value.translation.height) else { return }
         model.shiftDay(by: value.translation.width < 0 ? 1 : -1)

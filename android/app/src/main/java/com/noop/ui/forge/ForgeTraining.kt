@@ -274,10 +274,10 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
         if (s == null) return@Column
         // The new design opens on the week's workouts, then starting, as iOS's `weekHero` over `startRow`.
         if (ForgeDesign.preview) TrainingWeekHero(s.week, viewModel)
-        // Training Load plan, phase 2: today's advice with its offers, and "enough?" beside the week (Q5, Q26, Q33).
+        // Training Load plan, phase 2: today's advice with its offers (Q5, Q26); "enough?" sits under the week's
+        // goals (Q33), as iOS, so the week is told in one section, not three.
         val guidance = rememberTrainingGuidance()
         guidance?.let { ForgeAdviceCard(it, showPlanned = false) }
-        guidance?.let { ForgeEnoughCard(it) }
         val live = activeWorkout
         if (s.hasDraft || live != null) {
             InProgressCard(subtitle = live?.sport?.name, onResume = {
@@ -285,14 +285,13 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
             })
         } else if (ForgeDesign.preview) {
             // The new design starts from a row of capsules, as iOS's `startRow`: start (the shared start sheet picks
-            // the activity), add one that already happened, then the interval timer, live heart rate and breathing.
+            // the activity), add one that already happened, then live heart rate. The interval timer and breathing
+            // are in Tools below (design critique 2026-11-28).
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 StartChip(stringResource(R.string.forge_qa_start_workout), Icons.Rounded.PlayArrow) { showAll = true }
                 StartChip(stringResource(R.string.l10n_workouts_screen_add_workout_a196a2cc), Icons.Rounded.Add) { addingWorkout = true }
-                StartChip(stringResource(R.string.nav_intervals), Icons.Rounded.Timer) { page = TrainingPage.Intervals }
                 StartChip(stringResource(R.string.nav_live), Icons.Rounded.Favorite) { page = TrainingPage.Live }
-                StartChip(stringResource(R.string.nav_breathe), Icons.Rounded.Air) { page = TrainingPage.Breathe }
             }
             // Today's routine from the plan, ready to start, as iOS's `todayPlan`.
             // Only what is still to do: a routine already run today no longer offers its Start.
@@ -322,8 +321,13 @@ fun ForgeTrainingScreen(padding: PaddingValues, viewModel: AppViewModel) {
                     more.push(MoreRoute.Dest(MoreDest.Goals))
                 }
                 ForgeGoalsContextCard("training")
+                // Under the goals, as the plan decided (Q33): an own weekly goal comes first.
+                guidance?.let { ForgeEnoughCard(it) }
             }
-        } else ForgeGoalsContextCard("training")
+        } else {
+            ForgeGoalsContextCard("training")
+            guidance?.let { ForgeEnoughCard(it) }
+        }
 
         // The planned week (the schedule), after starting; the new design opens it from Tools, as iOS does.
         if (!ForgeDesign.preview) Section(stringResource(R.string.forge_th_this_week), stringResource(R.string.forge_th_schedule),

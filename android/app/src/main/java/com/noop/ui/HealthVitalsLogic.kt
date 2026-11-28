@@ -326,7 +326,10 @@ internal fun vitalsFor(
     val previousSkin = history.asReversed().asSequence()
         .mapNotNull { row -> skinSelector(row)?.takeIf { VitalBands.isAbsoluteSkinTemp(it) == skinIsAbsolute } }
         .firstOrNull()
-    val respRangeCaption = rangeCaption(days.mapNotNull { it.respRateBpm }, "rpm") { String.format(Locale.US, "%.1f", it) }
+    // "/min" as iOS writes it, in the app's language; "rpm" was the only English unit on the German Health tab
+    // (design critique 2026-11-28).
+    val perMinute = uiString(R.string.forge_sl_per_min)
+    val respRangeCaption = rangeCaption(days.mapNotNull { it.respRateBpm }, perMinute) { String.format(Locale.US, "%.1f", it) }
     val spo2RangeCaption = rangeCaption(days.mapNotNull { it.spo2Pct }, "%") { String.format(Locale.US, "%.0f", it) }
     val rhrRangeCaption = rangeCaption(days.mapNotNull { it.restingHr?.toDouble() }, "bpm") { it.roundToInt().toString() }
     val hrvRangeCaption = rangeCaption(days.mapNotNull { it.avgHrv }, "ms") { it.roundToInt().toString() }
@@ -346,7 +349,7 @@ internal fun vitalsFor(
         rangeCaption(days.mapNotNull(spo2RawMean), "ADC") { String.format(Locale.US, "%.0f", it) }
     return listOf(
         Vital(
-            key = "resp", label = uiString(R.string.l10n_health_screen_resp_rate_1c48dbd8), unit = "rpm",
+            key = "resp", label = uiString(R.string.l10n_health_screen_resp_rate_1c48dbd8), unit = perMinute,
             missingCaption = "No respiratory-rate value",
             value = d?.respRateBpm, format = { String.format("%.1f", it) },
             deltaText = deltaText(d?.respRateBpm, previous { it.respRateBpm }),
