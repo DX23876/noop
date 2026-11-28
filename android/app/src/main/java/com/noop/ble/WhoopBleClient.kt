@@ -6797,11 +6797,14 @@ class WhoopBleClient(
             // 5/MG DISABLE_ALARM is REVISION_2 [0x02, 0xFF]. Sent unconditionally (clearing is safe
             // even if arming was gated off — a no-op on a strap with no alarm set). (PR #85)
             send(CommandNumber.DISABLE_ALARM, AlarmPayload.disableRev2())
-            log(if (willReach) "Alarm: disarmed (5/MG rev2)" else notSent)
+            // "queued", not "disarmed": the write can still be refused by a busy stack and dropped after its
+            // retries (a tester's log, 2026-11-27: four disarms dropped on reconnect, each logged "disarmed").
+            // The drop names its command, so the two lines together say what really happened.
+            log(if (willReach) "Alarm: disarm queued (5/MG rev2)" else notSent)
             return
         }
         send(CommandNumber.DISABLE_ALARM, byteArrayOf(0x01))
-        log(if (willReach) "Alarm: disarmed" else notSent)
+        log(if (willReach) "Alarm: disarm queued" else notSent)
     }
 
     // ====================================================================================
@@ -10989,7 +10992,8 @@ class WhoopBleClient(
                 handler.postDelayed(drainWriteRetryRunnable, WRITE_RETRY_DELAY_MS * minOf(writeRetries, 8))
             } else {
                 // Genuinely stuck after several tries — drop this one frame so it can't wedge the queue.
-                log("writeCharacteristic rejected by stack; dropping one frame (after $MAX_WRITE_RETRIES retries)")
+                log("writeCharacteristic rejected by stack; dropping one frame cmd=${item.cmd?.name ?: "raw"} " +
+                    "(after $MAX_WRITE_RETRIES retries)")
                 // #312: a dropped TOGGLE_REALTIME_HR would leave live R-R (→ HRV / Autonomic) off FOREVER.
                 // Whoever queued it latched [realtimeArmed] = the value it SENT (reconcileRealtime, or the
                 // direct arm-on-connect / keep-alive paths), so it — and the 30s keep-alive tick that also
