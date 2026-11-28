@@ -37112,7 +37112,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "% .2f V"
+            "value" : "%.2f V"
           }
         },
         "zh-Hant" : {
@@ -59522,7 +59522,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld分钟 :% 1f 努力"
+            "value" : "%lld 分钟 · %.1f 努力"
           }
         },
         "zh-Hant" : {
