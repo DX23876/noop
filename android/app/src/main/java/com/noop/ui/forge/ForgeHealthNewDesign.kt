@@ -60,6 +60,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.noop.R
 import kotlin.math.roundToInt
 import com.noop.core.CoreRead
@@ -111,14 +112,17 @@ internal fun HealthFocusGrid(onOpen: (FocusArea) -> Unit) {
             Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
                 pair.forEach { area ->
                     val tint = area.tint()
-                    ForgeCard(Modifier.weight(1f).heightIn(min = 112.dp).clickable(role = Role.Button) { onOpen(area) }) {
+                    // iOS's `ForgeFocusTile` value for value: 120 of content plus the card's 16 on each side, the
+                    // symbol at 28, 12 to the title (callout, 16 semibold), 4 to the subtitle (footnote, 13).
+                    ForgeCard(Modifier.weight(1f).heightIn(min = 152.dp).clickable(role = Role.Button) { onOpen(area) }) {
                         // The symbol alone in its colour, as iOS's focus tiles and Apple Health's category list (owner,
                         // 2026-11-28: a white symbol on a coloured square in every tile read as generated art).
-                        Icon(area.icon, contentDescription = null, tint = tint, modifier = Modifier.size(26.dp))
+                        Icon(area.icon, contentDescription = null, tint = tint, modifier = Modifier.size(28.dp))
                         Spacer(Modifier.height(ForgeMetrics.space3))
-                        Text(stringResource(area.titleRes), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                        Text(stringResource(area.titleRes), style = Forge.type.body.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
                              color = colors.text, maxLines = 2)
-                        Text(stringResource(area.subRes), style = Forge.type.caption, color = colors.textSecondary, maxLines = 2)
+                        Spacer(Modifier.height(ForgeMetrics.space1))
+                        Text(stringResource(area.subRes), style = Forge.type.footnote, color = colors.textSecondary, maxLines = 2)
                     }
                 }
             }
