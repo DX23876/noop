@@ -17,10 +17,13 @@ struct ForgeGroup<Content: View>: View {
     }
 }
 
-/// The inset hairline between two `ForgeRow`s, aligned with the row titles.
+/// The inset hairline between two `ForgeRow`s, aligned with the row titles: 66 beside the tinted circle, 56 beside a
+/// plain mark (16 of padding, its 28, 12 of gap).
 struct ForgeRowDivider: View {
+    var inset: CGFloat = 66
+
     var body: some View {
-        Rectangle().fill(ForgeColor.separator).frame(height: 0.5).padding(.leading, 66)
+        Rectangle().fill(ForgeColor.separator).frame(height: 0.5).padding(.leading, inset)
     }
 }
 
@@ -35,13 +38,20 @@ struct ForgeRow: View {
     var showsChevron = true
     /// The denser iOS Settings look: smaller icon tile, regular-weight title.
     var compact = false
+    /// The symbol alone in its colour, as the Health tab's focus tiles above it (owner, 2026-11-28).
+    var plainMark = false
 
     var body: some View {
         HStack(spacing: 12) {
             // Settings rows keep the iOS Settings tile (white glyph on a coloured square); list rows use the
-            // prototype's tinted circle with a coloured glyph.
+            // prototype's tinted circle with a coloured glyph, or the symbol alone where `plainMark` asks.
             Group {
-                if compact {
+                if plainMark {
+                    Image(systemName: systemImage)
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(tint)
+                        .frame(width: 28, height: 28)
+                } else if compact {
                     Image(systemName: systemImage)
                         .font(.system(.footnote, weight: .semibold))
                         .foregroundStyle(.white)

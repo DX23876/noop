@@ -20,6 +20,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.runtime.collectAsState
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -65,6 +66,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.noop.R
 import com.noop.analytics.VitalBands
@@ -266,20 +268,21 @@ fun ForgeHealthTab(padding: PaddingValues, width: ForgeWidth, viewModel: AppView
         HealthWeekInRings(days) { trendsOpen = true }
         ForgeCard(Modifier.fillMaxWidth(), radius = ForgeMetrics.groupedRadius, contentPadding = 0.dp) {
             // The week read back, as iOS's first row of the group (`ForgeRoute.weeklyReport`).
-            HubRow(Icons.Rounded.CalendarMonth, colors.accent, stringResource(R.string.forge_hv_weekly),
-                   stringResource(R.string.forge_hv_weekly_sub)) { weeklyOpen = true }
-            HubDivider()
-            HubRow(Icons.Rounded.ShowChart, colors.charge, stringResource(R.string.nav_trends),
-                   stringResource(R.string.forge_health_trends_sub)) { trendsOpen = true }
-            HubDivider()
+            HealthLinkRow(Icons.Rounded.CalendarMonth, colors.accent, stringResource(R.string.forge_hv_weekly),
+                          stringResource(R.string.forge_hv_weekly_sub)) { weeklyOpen = true }
+            HealthLinkDivider()
+            HealthLinkRow(Icons.Rounded.ShowChart, colors.charge, stringResource(R.string.nav_trends),
+                          stringResource(R.string.forge_health_trends_sub)) { trendsOpen = true }
+            HealthLinkDivider()
             // What works sits between them, as iOS's Long term group lists it.
             if (MoreDest.Insights.shown(context)) {
-                HubRow(Icons.Rounded.Lightbulb, ForgeTokens.Color.systemYellow.resolve(), stringResource(R.string.forge_health_what_works),
-                       stringResource(R.string.forge_health_what_works_sub)) { open(MoreDest.Insights) }
-                HubDivider()
+                HealthLinkRow(Icons.Rounded.Lightbulb, ForgeTokens.Color.systemYellow.resolve(), stringResource(R.string.forge_health_what_works),
+                              stringResource(R.string.forge_health_what_works_sub)) { open(MoreDest.Insights) }
+                HealthLinkDivider()
             }
-            HubRow(Icons.Rounded.GridView, colors.accent, stringResource(R.string.forge_health_all_metrics),
-                   stringResource(R.string.forge_health_all_metrics_sub)) {
+            // All metrics shares More's grid and its neutral colour, as on iOS.
+            HealthLinkRow(Icons.Rounded.GridView, colors.textSecondary, stringResource(R.string.forge_health_all_metrics),
+                          stringResource(R.string.forge_health_all_metrics_sub)) {
                 open(MoreDest.Explore)
             }
         }
@@ -628,6 +631,39 @@ private fun RemoveBadge(modifier: Modifier, onClick: () -> Unit) {
             .clickable(role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
         Icon(Icons.Rounded.Close, stringResource(R.string.forge_hv_remove), tint = Forge.colors.surface, modifier = Modifier.size(14.dp))
     }
+}
+
+
+/**
+ * One row of the Long term group, iOS's `ForgeRow` with `plainMark` value for value: the symbol alone in its colour
+ * in a 28 frame, 12 to a 16 semibold title over a 13 subtitle, 16 by 12 of padding, a chevron (owner, 2026-11-28).
+ */
+@Composable
+private fun HealthLinkRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tint: androidx.compose.ui.graphics.Color,
+                          title: String, subtitle: String, onClick: () -> Unit) {
+    val colors = Forge.colors
+    Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = ForgeMetrics.space4, vertical = ForgeMetrics.space3),
+        verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(24.dp))
+        }
+        Spacer(Modifier.size(ForgeMetrics.space3))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text(title, style = Forge.type.body.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold), color = colors.text,
+                 maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+            Text(subtitle, style = Forge.type.footnote, color = colors.textSecondary, maxLines = 2)
+        }
+        Spacer(Modifier.size(ForgeMetrics.space2))
+        Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))
+    }
+}
+
+/** iOS's `ForgeRowDivider(inset: 56)`: the hairline starts where the row titles do (16 + 28 + 12). */
+@Composable
+private fun HealthLinkDivider() {
+    androidx.compose.material3.HorizontalDivider(thickness = 0.5.dp, color = Forge.colors.divider,
+                                                 modifier = Modifier.padding(start = 56.dp))
 }
 
 /** Vital tiles whose measure has a page of its own, by tile key, to the page's key. */

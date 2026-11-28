@@ -163,27 +163,29 @@ struct ForgeHealthView: View {
                         ForgeSectionTitle(title: "Long term and patterns", action: nil)
                         if healthspanEnabled { agelessCard }
                         weekInRings
+                        // The symbols alone in their colours, as the focus tiles above (owner, 2026-11-28); All metrics
+                        // shares More's grid and its neutral colour.
                         ForgeGroup {
                             NavigationLink(value: ForgeRoute.weeklyReport) {
                                 ForgeRow(systemImage: "calendar", tint: ForgeColor.accent,
                                          title: String(localized: "Weekly report"),
-                                         subtitle: String(localized: "Your week read back"))
+                                         subtitle: String(localized: "Your week read back"), plainMark: true)
                             }
-                            ForgeRowDivider()
+                            ForgeRowDivider(inset: 56)
                             NavigationLink(value: TabRoute.trends) {
                                 ForgeRow(systemImage: "chart.line.uptrend.xyaxis", tint: ForgeColor.charge,
                                          title: String(localized: "Trends"),
-                                         subtitle: String(localized: "Charge, Effort and Rest over months"))
+                                         subtitle: String(localized: "Charge, Effort and Rest over months"), plainMark: true)
                             }
-                            ForgeRowDivider()
+                            ForgeRowDivider(inset: 56)
                             NavigationLink(value: MoreDestination.insightsHub) {
                                 ForgeRow(systemImage: "lightbulb.fill", tint: .yellow, title: String(localized: "What works"),
-                                         subtitle: String(localized: "What helps you, what hurts you"))
+                                         subtitle: String(localized: "What helps you, what hurts you"), plainMark: true)
                             }
-                            ForgeRowDivider()
+                            ForgeRowDivider(inset: 56)
                             NavigationLink(value: TabRoute.metricExplorer) {
-                                ForgeRow(systemImage: "square.grid.2x2.fill", tint: .blue, title: String(localized: "All metrics"),
-                                         subtitle: String(localized: "Every metric, compare freely"))
+                                ForgeRow(systemImage: "square.grid.2x2.fill", tint: ForgeColor.secondary, title: String(localized: "All metrics"),
+                                         subtitle: String(localized: "Every metric, compare freely"), plainMark: true)
                             }
                         }
                         .buttonStyle(.plain)
