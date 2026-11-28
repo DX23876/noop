@@ -1316,6 +1316,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     // unscored; Rest (Schlaf) and Effort (Belastung) MUST come from today's own row — they are
                     // today's accumulation, and last night's numbers there are a false statement.
                     val rows = widgetRows(days, logicalKey, localKey)
+                    // Today's rings as Today shows them (`TodayScores`); the Room rows only when there is no core.
+                    val rings = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.noop.ui.TodayScores.current(appContext) }
                     // #2040: today's stress curve for the stress widget. Do not even fingerprint the
                     // day's HR when nobody has placed one; scoring is the only expensive widget field.
                     // Null also leaves whatever curve is already stored alone, so a newly placed widget
@@ -1328,11 +1330,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                     WidgetSnapshotStore.push(
                         appContext,
                         WidgetSnapshot(
-                            recoveryPct = rows.recoveryRow?.recovery?.roundToInt(),
+                            recoveryPct = rings?.charge?.roundToInt() ?: rows.recoveryRow?.recovery?.roundToInt(),
                             // Rest = the sleep_performance composite from TODAY's banked stage figures and
                             // Effort = TODAY's 0–100 strain, never the carried Charge row's. (#516)
-                            restPct = rows.metricRow?.let { RestScorer.restFromDaily(it, restTraits.value)?.roundToInt() },
-                            effortPct = rows.metricRow?.strain?.roundToInt(),
+                            restPct = if (rings != null) rings.rest?.roundToInt()
+                                      else rows.metricRow?.let { RestScorer.restFromDaily(it, restTraits.value)?.roundToInt() },
+                            effortPct = if (rings != null) rings.effort?.roundToInt() else rows.metricRow?.strain?.roundToInt(),
                             heartRate = live.heartRate,
                             // The ACTIVE device's charge (#2075): a ring reports its own and does not
                             // funnel into live.batteryPct, so publishing that put the strap's number on
