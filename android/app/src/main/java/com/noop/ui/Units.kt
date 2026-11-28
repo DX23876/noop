@@ -267,16 +267,17 @@ object UnitFormatter {
     /**
      * Format a distance given in METRES (the stored unit for workout distance).
      * Metric: "1.2 km" / "850 m". Imperial: "0.7 mi" / "230 yd" for sub-mile distances.
+     * [locale] decides the decimal mark: the app's language for a screen, `Locale.US` for a prompt a model reads.
      */
-    fun distanceFromMeters(meters: Double, system: UnitSystem): String = when (system) {
+    fun distanceFromMeters(meters: Double, system: UnitSystem, locale: Locale = Locale.getDefault()): String = when (system) {
         UnitSystem.METRIC -> {
             val km = meters / 1000.0
-            if (km >= 1) oneDecimal(km) + " km" else "${meters.roundToInt()} m"
+            if (km >= 1) oneDecimal(km, locale) + " km" else "${meters.roundToInt()} m"
         }
         UnitSystem.IMPERIAL -> {
             val miles = kmToMiles(meters / 1000.0)
             if (miles >= 0.1) {
-                oneDecimal(miles) + " mi"
+                oneDecimal(miles, locale) + " mi"
             } else {
                 // Below ~160 m show yards rather than a "0.0 mi" that reads as nothing.
                 "${(meters * 1.09361).roundToInt()} yd"
@@ -432,7 +433,7 @@ object UnitFormatter {
 
     // The app's language decides the decimal mark (it sets the default locale), as iOS's formatters do: Locale.US
     // put "8.0 km" and "33.5 °C" beside "52,0" on a German screen (design critique 2026-11-28).
-    private fun oneDecimal(v: Double): String = String.format(Locale.getDefault(), "%.1f", v)
+    private fun oneDecimal(v: Double, locale: Locale = Locale.getDefault()): String = String.format(locale, "%.1f", v)
 
     private fun decimalString(v: Double, decimals: Int): String =
         if (decimals == 0) "${v.roundToInt()}" else String.format(Locale.getDefault(), "%.${decimals}f", v)
