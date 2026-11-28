@@ -74,12 +74,17 @@ public struct LiftTrend: Equatable, Sendable {
     public let slopePerWeekKg: Double
     /// Estimable sessions inside the window.
     public let sessions: Int
+    /// A bodyweight movement read by the repetitions of its best set (Training Load plan, phase 2, Q13):
+    /// `slopePerWeekKg` is then repetitions a week.
+    public let isBodyweight: Bool
 
-    public init(templateId: String, direction: StrengthResponse, slopePerWeekKg: Double, sessions: Int) {
+    public init(templateId: String, direction: StrengthResponse, slopePerWeekKg: Double, sessions: Int,
+                isBodyweight: Bool = false) {
         self.templateId = templateId
         self.direction = direction
         self.slopePerWeekKg = slopePerWeekKg
         self.sessions = sessions
+        self.isBodyweight = isBodyweight
     }
 }
 
@@ -415,13 +420,16 @@ public enum TrainingStatusModel {
             let points = StrengthSession.exerciseHistory(templateId: id, workouts: inWindow,
                                                          templates: templates,
                                                          tzOffsetSeconds: tzOffsetSeconds)
-            guard let line = StrengthProgress.e1rmTrend(points) else { continue }
+            let weighted = StrengthProgress.e1rmTrend(points)
+            let bodyweight = weighted == nil ? bodyweightRepsTrend(templateId: id, workouts: inWindow, points: points) : nil
+            guard let line = weighted ?? bodyweight else { continue }
             let liftDirection: StrengthResponse
             if line.directionIsUnclear { unclear += 1; liftDirection = .unclear }
             else if line.slopePerWeek > 0 { rising += 1; liftDirection = .rising }
             else { falling += 1; liftDirection = .falling }
             lifts.append(LiftTrend(templateId: id, direction: liftDirection,
-                                   slopePerWeekKg: line.slopePerWeek, sessions: line.pointCount))
+                                   slopePerWeekKg: line.slopePerWeek, sessions: line.pointCount,
+                                   isBodyweight: bodyweight != nil))
         }
         // Most-trained lifts first, then by id so the order never depends on set iteration.
         lifts.sort { ($0.sessions, $1.templateId) > ($1.sessions, $0.templateId) }
@@ -438,6 +446,24 @@ public enum TrainingStatusModel {
         }
         return StrengthResponseReading(direction: direction, rising: rising, falling: falling, unclear: unclear,
                                        lifts: lifts)
+    }
+
+    /// The repetitions of a bodyweight movement's best working set, per session, as a trend line (Q13). Only
+    /// for movements whose working sets carry repetitions and no load, so a weighted lift whose sets fall
+    /// outside the e1RM formula's domain is not read as bodyweight work. Losing body weight makes these
+    /// sets easier, which is real relative strength for the wearer.
+    static func bodyweightRepsTrend(templateId: String, workouts: [HevyWorkout],
+                                    points: [ExercisePerformancePoint]) -> StrengthTrendLine? {
+        var bestByStart: [Int: Double] = [:]
+        for workout in workouts {
+            let sets = workout.exercises.filter { $0.templateId == templateId }.flatMap(\.sets)
+                .filter { $0.type != .warmup }
+            guard !sets.isEmpty, sets.allSatisfy({ ($0.weightKg ?? 0) <= 0 }) else { continue }
+            let best = sets.compactMap(\.reps).filter { $0 > 0 }.max()
+            if let best { bestByStart[workout.startTs] = Double(best) }
+        }
+        guard !bestByStart.isEmpty else { return nil }
+        return StrengthProgress.trend(points, value: { bestByStart[$0.startTs] })
     }
 
     // MARK: - VO₂max response

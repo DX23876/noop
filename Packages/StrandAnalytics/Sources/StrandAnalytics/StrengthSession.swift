@@ -558,6 +558,20 @@ public enum StrengthSession {
     /// The main lifts' change since `since` (a day key), in percent: the three most-trained exercises, each from its
     /// first best estimated maximum on or after `since` to its latest, averaged over those with at least two such
     /// sessions. Nil when none qualifies. One reading for iOS's diet plan and the Android core.
+    /// The window the strength trend is read over, for the Food page and Training Load alike (Training Load
+    /// plan, phase 2, Q39): six weeks, the strength response's own window.
+    public static let recentChangeWindowDays = TrainingStatusModel.responseWindowDays
+
+    /// The main lifts' change over the last `recentChangeWindowDays` through `day`, the one strength trend
+    /// the diet plan's advice and Training Load's goal reading share.
+    public static func recentChangePercent(workouts: [HevyWorkout], templates: [String: HevyExerciseTemplate],
+                                           through day: String, tzOffsetSeconds: Int) -> Double? {
+        let since = WeeklyDigestEngine.addDays(day, -(recentChangeWindowDays - 1))
+        let window = workouts.filter { AnalyticsEngine.dayString($0.startTs, offsetSec: tzOffsetSeconds) <= day }
+        return mainLiftChangePercent(workouts: window, templates: templates, since: since,
+                                     tzOffsetSeconds: tzOffsetSeconds)
+    }
+
     public static func mainLiftChangePercent(workouts: [HevyWorkout], templates: [String: HevyExerciseTemplate],
                                              since: String, tzOffsetSeconds: Int) -> Double? {
         let changes: [Double] = exerciseFrequency(workouts).prefix(3).compactMap { choice in
