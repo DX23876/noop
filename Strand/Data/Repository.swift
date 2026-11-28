@@ -424,6 +424,9 @@ final class Repository: ObservableObject {
     /// The Strength and Cardio lanes as Readiness reads them (`scheduleReadinessLoadContextRefresh`). Nil
     /// until the first read has finished; Readiness then shows no load signal rather than a guessed one.
     @Published var readinessLoadContext: ReadinessLoadContext?
+    /// Training Load phase 2: the morning advice, "enough?", the offers and the rating to ask for, read with the
+    /// lanes (`refreshTrainingGuidance`). Today, the Effort target, the Training tab and the coach show only this.
+    @Published var trainingGuidance: TrainingGuidanceReader.Snapshot?
     /// The in-flight lane read behind `readinessLoadContext`, and whether another was asked for meanwhile.
     var readinessLoadContextTask: Task<Void, Never>?
     var readinessLoadContextStale = false

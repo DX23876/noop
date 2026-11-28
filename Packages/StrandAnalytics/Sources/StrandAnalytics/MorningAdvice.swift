@@ -166,6 +166,22 @@ public enum MorningAdvice {
                                     ateTooLittle: input.ateTooLittle)
     }
 
+    /// Whether a session planned for the advice's day goes against it (Q28): anything above easy on a rest day, a
+    /// hard session or an Effort above the target on an easy day. The app marks it and the wearer decides;
+    /// nothing is blocked.
+    public static func conflicts(_ advice: MorningAdviceReading, hard: Bool, moderate: Bool, targetEffort: Double?) -> Bool {
+        switch advice.stance {
+        case .rest:
+            return hard || moderate || (targetEffort.map { $0 > (advice.effortTarget?.upperBound ?? 48) } ?? false)
+        case .easy:
+            if hard { return true }
+            guard let effort = targetEffort, let upper = advice.effortTarget?.upperBound else { return false }
+            return effort > upper
+        case .steady, .push:
+            return false
+        }
+    }
+
     /// Charge's band capped by the advice: rest keeps to the red band, easy to the middle one at most.
     public static func effortTarget(stance: AdviceStance, charge: Double?) -> ClosedRange<Double>? {
         let band = EffortTargetBand.forCharge(charge)

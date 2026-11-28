@@ -192,6 +192,28 @@ final class TrainingGuidanceTests: XCTestCase {
         XCTAssertNil(advise(.init(charge: nil, night: .missing)).effortTarget)
     }
 
+    /// Q28: a hard session on an easy day, anything above easy on a rest day, is marked; a steady day takes any.
+    func testAPlanAgainstTheAdviceIsMarkedNotBlocked() {
+        let easy = advise(.init(charge: 80, night: .scored, cardioBand: .muchHigher))
+        XCTAssertTrue(MorningAdvice.conflicts(easy, hard: true, moderate: false, targetEffort: nil))
+        XCTAssertTrue(MorningAdvice.conflicts(easy, hard: false, moderate: false, targetEffort: 80))
+        XCTAssertFalse(MorningAdvice.conflicts(easy, hard: false, moderate: true, targetEffort: 50))
+        let rest = advise(.init(charge: 80, night: .scored, unwell: true))
+        XCTAssertTrue(MorningAdvice.conflicts(rest, hard: false, moderate: true, targetEffort: nil))
+        XCTAssertFalse(MorningAdvice.conflicts(advise(.init(charge: 80, night: .scored)), hard: true, moderate: false,
+                                               targetEffort: 90))
+    }
+
+    /// Q24: the coach's first chip follows the advice rather than Charge's own cut-offs.
+    func testTheCoachChipFollowsTheAdvice() {
+        let day = DailyMetric(day: today, totalSleepMin: 420, efficiency: 90, deepMin: 80, remMin: 90, lightMin: 250,
+                              disturbances: 3, restingHr: 55, avgHrv: 60, recovery: 90, strain: 40, exerciseCount: 0)
+        XCTAssertEqual(CoachSuggestions.suggestions(for: day, recent: [], stance: .easy).first,
+                       "Active recovery only today — what should I do?")
+        XCTAssertEqual(CoachSuggestions.suggestions(for: day, recent: []).first,
+                       "Green light — how hard can I push today?")
+    }
+
     // MARK: Offers
 
     func testOffersAreInEverydayUnitsWithThePlanFirst() {

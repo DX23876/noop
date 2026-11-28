@@ -14,6 +14,8 @@ public enum CoreGoals {
         public var lastSync: Date?
         public var agelessEnabled: Bool
         public var dismissedWorkoutSpans: [String]
+        /// The `training.guidance` options as JSON, so the coach reads the same advice as Today (Q23).
+        public var guidanceArgsJSON: String? = nil
         public var energyProfile: UserProfile?
         public var energyCalibrationEnabled = false
         /// The measured resting rate the wearer entered (`MeasuredRestingRate`), for the energy plan page.

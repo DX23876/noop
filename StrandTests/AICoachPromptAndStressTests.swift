@@ -145,14 +145,16 @@ final class AICoachPromptAndStressTests: XCTestCase {
 
     /// Golden string for the non-tool path. `buildFullContext()` genuinely puts charge/HRV/rest/readiness
     /// in the message there, so "Based on the data above" stays true. Pinned byte-for-byte; updated in P9
-    /// to carry intensity + duration and a low-readiness alternative (9.2/9.3) while keeping the shape.
+    /// to carry intensity + duration and a low-readiness alternative (9.2/9.3) while keeping the shape, and in
+    /// Training Load phase 2 (Q25) to open with today's advice, inside which part (2) stays.
     func testBriefWithoutToolsGoldenString() {
         let instruction = AICoachEngine.briefInstruction(toolsActive: false)
         XCTAssertEqual(instruction, """
-        Based on the data above, give me TODAY'S coaching brief — kept tight, no preamble, three \
-        short parts: \
+        Based on the data above, give me TODAY'S coaching brief — kept tight, no preamble. Open with \
+        one line naming today's advice exactly as the TODAY'S ADVICE block gives it (push, steady, easy \
+        or rest) and its reason, then three short parts: \
         (1) my readiness in one line, citing charge, HRV and rest; \
-        (2) exactly what to do today — the activity, its intensity, and a rough duration — and what \
+        (2) exactly what to do today, inside that advice — the activity, its intensity, and a rough duration — and what \
         to avoid. If my readiness is low, make it the easy/short option (or rest) and say so plainly. \
         You cannot record it for me, so close by telling me to add it in Your plan if I want it; \
         (3) one specific thing to improve my charge. Be punchy and motivating — not long.

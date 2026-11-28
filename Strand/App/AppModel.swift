@@ -3113,6 +3113,8 @@ final class AppModel: ObservableObject {
 
         let result = IllnessSignalEngine.evaluate(inputs, context: context, firedLabels: labels)
         illnessSignal = result
+        // Training Load plan, phase 2, Q22 rule 1: a raised signal turns the morning advice to rest.
+        TrainingGuidancePrefs.illnessRaised = result.level == .raised
         // The amber banner payload reflects the raised / already-unwell levels only (the calmer levels
         // surface in the Health hub's Heads-Up card, never as a scary banner).
         switch result.level {

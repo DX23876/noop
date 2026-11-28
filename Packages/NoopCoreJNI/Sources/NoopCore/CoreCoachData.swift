@@ -23,6 +23,7 @@ final class CoreCoachData: CoachDataReading {
     private(set) var sleeps: [CachedSleepSession] = []
     var deviceId: String { reader.activeDeviceId }
     private(set) var readinessLoadContext: ReadinessLoadContext?
+    private(set) var trainingGuidance: TrainingGuidanceReader.Snapshot?
     private(set) var restTraits: RestTraitLookup = .empty
     /// The rows `chargeBaselines(forDay:)` resolves from, reaching `ChargeBaselines.windowDays` before `days`.
     private var chargeRows: (imported: [DailyMetric], computed: [DailyMetric]) = ([], [])
@@ -86,6 +87,15 @@ final class CoreCoachData: CoachDataReading {
         cardioLanes = (cardio.byDay, cardio.unknownDays, cardio.activity)
         readinessLoadContext = TrainingLoadLanes.readinessContext(strengthWorkouts: strength.workouts, cardio: cardio,
                                                                   today: StoreReader.localDayKey(now), tzOffsetSeconds: offset)
+        // The same snapshot Today reads (`training.guidance`), from the guidance options Android passed along.
+        var guidanceArgs: [String: Any] = [:]
+        if let raw = settings.guidanceArgsJSON, let data = raw.data(using: .utf8),
+           let parsed = try? JSONSerialization.jsonObject(with: data) as? [String: Any] { guidanceArgs = parsed }
+        guidanceArgs["maxHR"] = cardioLoadMaxHR
+        guidanceArgs["sex"] = strainProfileSex
+        guidanceArgs["dismissedWorkouts"] = settings.dismissedWorkoutSpans
+        let options = await CoreTrainingGuidance.options(guidanceArgs, store: reader.store)
+        trainingGuidance = await TrainingGuidanceReader.read(reader: reader, days: self.days, options: options, now: t)
     }
 
     var cardioLoadMaxHR: Double {

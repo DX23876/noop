@@ -112,7 +112,15 @@ extension AICoachEngine {
         coachAppHooks().planProposed(proposal)
         let adapted = adaptation.evidenceNote.map { " Local adaptation: \($0)" } ?? ""
         let effortNote = correction.map { " \($0)" } ?? ""
-        return "Proposed (NOT scheduled): \(proposal.contextSummary()) on \(dayKey).\(adapted)\(effortNote) "
+        // Training Load plan, phase 2, Q28: a session against today's advice is marked, never refused.
+        var adviceNote = ""
+        if let guidance = repo.trainingGuidance, guidance.today == dayKey,
+           MorningAdvice.conflicts(guidance.advice, hard: parsedIntent == .hard, moderate: parsedIntent == .moderate,
+                                   targetEffort: effort) {
+            adviceNote = " NOTE: this goes against today's advice (\(guidance.advice.stance.rawValue), "
+                + "\(guidance.advice.reason.rawValue)). Say so plainly and let the user decide; nothing is blocked."
+        }
+        return "Proposed (NOT scheduled): \(proposal.contextSummary()) on \(dayKey).\(adapted)\(effortNote)\(adviceNote) "
             + "It's waiting for the user to accept, change or decline it in the app — tell them it's "
             + "there for their yes, and don't refer to it as booked."
     }

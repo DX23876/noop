@@ -46,7 +46,9 @@ public enum CoachSuggestions {
     ///   - today: today's (or the newest scored) `DailyMetric`; nil when no data is available.
     ///   - recent: recent days oldest→newest, for the HRV baseline. May be empty or may include today.
     /// - Returns: 2–4 chip strings (contextual) or the 4-string `fallback`.
-    public static func suggestions(for today: DailyMetric?, recent: [DailyMetric]) -> [String] {
+    /// `stance` is today's advice (`MorningAdvice`, Training Load plan, phase 2, Q24): when given, the first chip
+    /// follows it instead of Charge's own cut-offs, so the chips, Today and the coach say one thing.
+    public static func suggestions(for today: DailyMetric?, recent: [DailyMetric], stance: AdviceStance? = nil) -> [String] {
         guard let today else { return fallback }
         let charge = today.recovery
         let hrv = today.avgHrv
@@ -57,8 +59,14 @@ public enum CoachSuggestions {
 
         var chips: [String] = []
 
-        // 1. Charge band → one readiness prescription chip.
-        if let c = charge {
+        // 1. Today's advice → one prescription chip; without it, Charge's band.
+        if let stance {
+            switch stance {
+            case .rest, .easy: chips.append("Active recovery only today — what should I do?")
+            case .steady: chips.append("Quality over volume today — plan my session")
+            case .push: chips.append("Green light — how hard can I push today?")
+            }
+        } else if let c = charge {
             if c < chargeRedCutoff {
                 chips.append("Active recovery only today — what should I do?")
             } else if c < chargeGreenCutoff {

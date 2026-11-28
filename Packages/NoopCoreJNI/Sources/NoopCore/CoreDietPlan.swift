@@ -224,6 +224,8 @@ enum CoreDietPlan {
                                                  proteinPercent: double("proteinPercent"),
                                                  carbsPercent: double("carbsPercent"),
                                                  fatPercent: double("fatPercent")) else { return "null" }
+            // The morning advice reads the same day goal (Training Load plan, Q38).
+            if day == today { TrainingGuidanceFoodGoal.save(day: day, kcal: goal.calories.kcal, proteinG: goal.macros?.proteinG) }
             struct GoalWire: Encodable {
                 var kcal: Double; var basis: String; var burnKcal: Double; var planDeltaKcal: Double
                 var proteinG: Double?; var carbsG: Double?; var fatG: Double?

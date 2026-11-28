@@ -12,6 +12,7 @@ enum CoreGoalEnergy {
             lastSync: epoch > 0 ? Date(timeIntervalSince1970: epoch) : nil,
             agelessEnabled: args["ageless"] as? Bool ?? false,
             dismissedWorkoutSpans: args["dismissedWorkouts"] as? [String] ?? [])
+        settings.guidanceArgsJSON = args["guidance"] as? String
         if let raw = args["energyProfile"] as? [String: Any],
            let weight = raw["weightKg"] as? NSNumber, let height = raw["heightCm"] as? NSNumber,
            let age = raw["age"] as? NSNumber, let maxHR = raw["maxHR"] as? NSNumber,

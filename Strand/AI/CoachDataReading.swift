@@ -19,6 +19,8 @@ protocol CoachDataReading: AnyObject {
     var cardioLoadMaxHR: Double { get }
     var strainProfileSex: String { get }
     var readinessLoadContext: ReadinessLoadContext? { get }
+    /// The morning advice every surface shows (Training Load plan, phase 2, Q23): the coach follows it.
+    var trainingGuidance: TrainingGuidanceReader.Snapshot? { get }
     /// The baselines `day`'s Charge was scored against (AI-34: the nights before it, `ChargeBaselines`), the
     /// one funnel every Charge explanation reads. nil for a nil day or before the first load.
     func chargeBaselines(forDay day: String?) -> ChargeBaselines.Resolved?

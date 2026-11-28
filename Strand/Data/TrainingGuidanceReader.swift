@@ -118,8 +118,11 @@ enum TrainingGuidanceReader {
         let unwell = options.unwell || goalRests
         let behind = Self.isBehind(weeks.last, today: today, firstWeekday: options.firstWeekday)
         let heavy = [strengthBand, cardioBand].contains { $0 == .higher || $0 == .muchHigher }
-        let food = await TrainingFoodSignals.read(store: reader.store, today: today, goalKcal: options.foodGoalKcal,
-                                                  proteinGoalG: options.proteinGoalG, heavyWeek: heavy,
+        let cachedGoal = options.dietDirection == nil ? nil : TrainingGuidanceFoodGoal.load(today: today)
+        let food = await TrainingFoodSignals.read(store: reader.store, today: today,
+                                                  goalKcal: options.foodGoalKcal ?? cachedGoal?.kcal,
+                                                  proteinGoalG: options.proteinGoalG ?? cachedGoal?.proteinG,
+                                                  heavyWeek: heavy,
                                                   losing: cardioFocus.focus == .loseWeight,
                                                   trendKgPerWeek: options.weightTrendKgPerWeek)
         let charge: Double? = todayRow?.recovery
@@ -339,5 +342,53 @@ extension TrainingGuidanceReader {
         case .gain: return .gain
         case .recomp: return .recomp
         }
+    }
+}
+
+// MARK: The plan's day goal
+
+/// The diet plan's day goal as the Food page last resolved it (Apple `ForgeFoodModel.publishWidget`, Android
+/// `food.dayGoal`), kept so the morning advice reads the same goal without resolving the plan a second way.
+/// A goal older than a week is not used, and without a plan there is none, which turns the food signals off.
+enum TrainingGuidanceFoodGoal {
+    static let key = "trainingGuidance.foodGoal"
+
+    static func save(day: String, kcal: Double?, proteinG: Double?, defaults: UserDefaults = .standard) {
+        guard let kcal, kcal > 0 else { defaults.removeObject(forKey: key); return }
+        defaults.set(["day": day, "kcal": kcal, "proteinG": proteinG ?? 0], forKey: key)
+    }
+
+    static func clear(defaults: UserDefaults = .standard) { defaults.removeObject(forKey: key) }
+
+    static func load(today: String, defaults: UserDefaults = .standard) -> (kcal: Double, proteinG: Double?)? {
+        guard let d = defaults.dictionary(forKey: key), let day = d["day"] as? String,
+              let kcal = (d["kcal"] as? NSNumber)?.doubleValue, kcal > 0,
+              day >= WeeklyDigestEngine.addDays(today, -6) else { return nil }
+        let protein = (d["proteinG"] as? NSNumber)?.doubleValue
+        return (kcal, (protein ?? 0) > 0 ? protein : nil)
+    }
+}
+
+// MARK: Settings
+
+/// The wearer's Training Load settings of phase 2, the same keys on both platforms.
+enum TrainingGuidancePrefs {
+    /// The chosen focus (Q3), a `TrainingFocus` raw value; absent lets the goals decide.
+    static let focusKey = "trainingLoad.focus"
+    /// "Mein Puls zeigt meine Belastung nicht richtig" (Q7), off by default.
+    static let pulseUnreliableKey = "trainingLoad.pulseUnreliable"
+    /// The morning advice notification (Q16), off by default.
+    static let morningAdviceKey = "trainingLoad.morningAdvice"
+    /// The day the morning advice was last posted, so it goes out once a day.
+    static let morningAdviceDayKey = "trainingLoad.morningAdviceDay"
+    /// The Lab instruments (Q19, Q35), off by default.
+    static let labInstrumentsKey = "trainingLoad.labInstruments"
+
+    /// The illness signal is raised, as the analytics pass last evaluated it. In memory only: the pass sets it on
+    /// every run, and a cold start reads it again before the advice is needed.
+    nonisolated(unsafe) static var illnessRaised = false
+
+    static func chosenFocus(_ d: UserDefaults = .standard) -> TrainingFocus? {
+        d.string(forKey: focusKey).flatMap(TrainingFocus.init(rawValue:))
     }
 }

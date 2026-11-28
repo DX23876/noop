@@ -774,14 +774,14 @@ final class AICoachEngine: ObservableObject {
     sleep-quality score. A dash in the data means that value was NOT MEASURED that day — say so rather \
     than treating it as a zero. \
     Coach using autoregulation:
-    • Readiness → prescription: your autoregulation input is a Readiness verdict computed the SAME way \
-    the app's own Today screen shows it - level (primed/balanced/strained/rundown), the strength and \
-    cardio training load bands against the user's usual, training monotony, and the contributing signals. FOLLOW that verdict rather than \
-    re-deriving your own call from the raw charge number, so your advice never contradicts what the \
-    user sees on Today. primed = green light to build/push, higher effort is fine; balanced = \
-    maintain, quality over volume, keep it controlled; strained/rundown = active recovery only (Zone 2, \
-    mobility, extra sleep) and protect against accumulating effort debt. If a HEALTH SIGNAL / SAFETY note \
-    is present, do not suggest increasing training load regardless of the readiness level.
+    • Today's advice → prescription: the app decides the day once, in a TODAY'S ADVICE block (push, steady, \
+    easy or rest, its reason, the Effort target and the offers), and Today, the Effort ring and the Training \
+    tab show the same. FOLLOW it: explain it in your own words and plan within it, and never contradict it \
+    or re-derive your own call from the raw charge number. push = a harder or longer session fits; steady = \
+    the usual, quality over volume; easy = keep it light (Zone 2, mobility), and when one lane is held back \
+    the other lane is still free; rest = recovery only. Without that block, follow the Readiness verdict the \
+    same way (primed = push, balanced = steady, strained/rundown = easy). If a HEALTH SIGNAL / SAFETY note \
+    is present, do not suggest increasing training load whatever the advice says.
     • Workout optimisation: progressive overload, polarised ~80/20 intensity, space hard sessions, \
     program deloads/periodisation, and treat sleep as the single biggest recovery lever.
     • Always cite the user's ACTUAL numbers, give a concrete plan (today and the week ahead), and \
@@ -990,7 +990,9 @@ final class AICoachEngine: ObservableObject {
     /// Contextual suggestion chips for the composer, derived from today's bands via `CoachSuggestions`.
     /// Reads only on-device `repo.days`; pure, byte-identical to the Android twin. Returns the stable
     /// generic fallback when there is no usable data for today.
-    var suggestions: [String] { CoachSuggestions.suggestions(for: repo.days.last, recent: repo.days) }
+    var suggestions: [String] {
+        CoachSuggestions.suggestions(for: repo.days.last, recent: repo.days, stance: repo.trainingGuidance?.advice.stance)
+    }
 
     /// K7: Follow-up suggestion chips shown after each assistant reply. These are generic
     /// conversational follow-ups (not data-derived) so the user can dig deeper without typing.
@@ -2995,10 +2997,11 @@ final class AICoachEngine: ObservableObject {
     static func briefInstruction(toolsActive: Bool) -> String {
         guard toolsActive else {
             return """
-            Based on the data above, give me TODAY'S coaching brief — kept tight, no preamble, three \
-            short parts: \
+            Based on the data above, give me TODAY'S coaching brief — kept tight, no preamble. Open with \
+            one line naming today's advice exactly as the TODAY'S ADVICE block gives it (push, steady, easy \
+            or rest) and its reason, then three short parts: \
             (1) my readiness in one line, citing charge, HRV and rest; \
-            (2) exactly what to do today — the activity, its intensity, and a rough duration — and what \
+            (2) exactly what to do today, inside that advice — the activity, its intensity, and a rough duration — and what \
             to avoid. If my readiness is low, make it the easy/short option (or rest) and say so plainly. \
             You cannot record it for me, so close by telling me to add it in Your plan if I want it; \
             (3) one specific thing to improve my charge. Be punchy and motivating — not long.
@@ -3008,7 +3011,9 @@ final class AICoachEngine: ObservableObject {
         You have not been given any of my numbers yet. Before you write anything, call get_readiness and \
         get_biometric_summary; call get_charge_drivers too if my Charge is notably high or low, and \
         get_sleep_detail if sleep is the story. Once you have real numbers, give me TODAY'S coaching brief \
-        — kept tight, no preamble, three short parts: \
+        — kept tight, no preamble. Open with one line naming today's advice exactly as the TODAY'S ADVICE \
+        block in get_readiness gives it (push, steady, easy or rest) and its reason, then three short parts, \
+        keeping part (2) inside that advice: \
         (1) my readiness in one line, citing the charge, HRV and rest you just fetched; \
         (2) exactly what to do today — the activity, its intensity, and a rough duration. If my readiness \
         is low, make it the easy/short option (or rest) and say so. Then record THAT session with \
@@ -3801,6 +3806,10 @@ final class AICoachEngine: ObservableObject {
         let readiness = currentReadiness()
         var lines = ["READINESS (\(readiness.level.rawValue)): \(readiness.headline)", readiness.summary]
         lines.append(contentsOf: CoachTrainingLoadBrief.readinessLines(readiness.loadContext))
+        if let guidance = repo.trainingGuidance {
+            lines.append("")
+            lines.append(contentsOf: Self.adviceLines(guidance))
+        }
         if !readiness.signals.isEmpty {
             lines.append("Signals:")
             for s in readiness.signals { lines.append("  \(s.label): \(s.detail)") }
@@ -3824,6 +3833,37 @@ final class AICoachEngine: ObservableObject {
             }
         }
         return lines.joined(separator: "\n")
+    }
+
+    /// Today's advice as the coach reads it (Training Load plan, phase 2, Q23 to Q25): the one decision Today,
+    /// the Effort target and the Training tab show. The coach follows it, explains it and plans within it.
+    static func adviceLines(_ g: TrainingGuidanceReader.Snapshot) -> [String] {
+        let a = g.advice
+        var lines = ["TODAY'S ADVICE: \(a.stance.rawValue) (reason: \(a.reason.rawValue), state: \(a.state.rawValue))"]
+        if let lane = a.limitedLane { lines.append("Held back: the \(lane.rawValue) lane only; the other lane is free.") }
+        if let t = a.effortTarget {
+            lines.append(String(format: "Effort target today: %.0f to %.0f on NOOP's 0 to 100 scale.", t.lowerBound, t.upperBound))
+        }
+        if a.ateTooLittle {
+            lines.append("Food: the complete food days were well under the plan in a heavy week; do not push. Never praise eating little.")
+        }
+        lines.append("Focus: cardio \(g.cardioFocus.focus.rawValue) (\(g.cardioFocus.source.rawValue)), strength \(g.strengthFocus.focus.rawValue).")
+        if let w = g.thisWeek {
+            lines.append("Enough this week: \(w.equivalentMinutes) moderate-equivalent minutes of \(w.target.minutesLow) to \(w.target.minutesHigh), \(w.strengthDays) of \(w.target.strengthDaysLow) strength days.")
+        }
+        let offers = g.offers.map { offer -> String in
+            switch offer {
+            case .planned(let title): return "planned: \(title)"
+            case .cardio(let sport, let minutes): return "\(minutes) min \(sport)"
+            case .strength(let group, let sets): return "\(sets) hard sets \(group)"
+            case .easyMovement: return "easy walk or stretching"
+            case .startWalk(let minutes): return "\(minutes) min brisk walk"
+            }
+        }
+        if !offers.isEmpty { lines.append("Offers the app shows: " + offers.joined(separator: "; ") + ".") }
+        if g.food.ateOverPlan { lines.append("Weight stalled while the complete food days were over plan: say so, do not blame cardio.") }
+        if g.food.proteinLow { lines.append("Protein was under 80 % of the plan's goal on the complete days.") }
+        return lines
     }
 
     /// Pure: builds `CyclePhaseEngine.Night` rows (+ whether the skin-temp baseline is usable) from

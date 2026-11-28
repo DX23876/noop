@@ -77,8 +77,48 @@ extension Repository {
                                                        tzOffsetSeconds: offset),
                 today: today, tzOffsetSeconds: offset)
         }.value
-        guard !Task.isCancelled, context != readinessLoadContext else { return }
-        readinessLoadContext = context
+        guard !Task.isCancelled else { return }
+        if context != readinessLoadContext { readinessLoadContext = context }
+        await refreshTrainingGuidance()
+    }
+
+    /// The wearer's settings and models as the guidance reads them, the same options Android passes to
+    /// `training.guidance`.
+    func trainingGuidanceOptions() async -> TrainingGuidanceReader.Options {
+        let d = UserDefaults.standard
+        var o = TrainingGuidanceReader.Options(maxHR: cardioLoadMaxHR, sex: strainProfileSex)
+        o.dismissedWorkoutSpans = dismissedDetectedWorkoutSpans
+        o.chosenFocus = TrainingGuidancePrefs.chosenFocus(d)
+        o.pulseUnreliable = d.bool(forKey: TrainingGuidancePrefs.pulseUnreliableKey)
+        let age = Int(ProfileStore.persistedAnalyticsProfile.age)
+        o.age = age > 0 ? age : nil
+        let status = ActivityStatusStore.load().state
+        o.unwell = TrainingGuidancePrefs.illnessRaised || status == .sick || status == .injured
+        o.goals = await MainActor.run { TrainingGuidanceReader.focusGoals(CoachGoalStore.shared.activeGoals) }
+        if let plan = DietPlan.decode(d.string(forKey: DietPlan.storageKey)) {
+            o.dietDirection = TrainingGuidanceReader.dietDirection(plan.goal)
+            o.dietStartDay = plan.startDay
+        }
+        let today = Repository.localDayKey(Date())
+        o.plannedTitle = await MainActor.run {
+            CoachPlanStore.shared.proposals.first { $0.day == today && ($0.status == .accepted || $0.status == .modifiedByUser) }
+                .map { WorkoutSource.localizedDisplaySport($0.sport) }
+        }
+        o.firstWeekday = (TrainingWeekStart(rawValue: d.string(forKey: "training.weekStartsOn") ?? "") ?? .monday) == .monday ? 2 : 1
+        let weights = await weightDailyValues(days: 30).map { (day: $0.day, kg: $0.value) }
+        o.weightTrendKgPerWeek = DietAdjust.slopePerWeek(weights.filter { $0.day >= WeeklyDigestEngine.addDays(today, -20) })
+        o.latestWeightKg = weights.last?.kg
+        return o
+    }
+
+    /// Reads the guidance and publishes it when it changed.
+    func refreshTrainingGuidance() async {
+        guard let store = await storeHandle() else { return }
+        let options = await trainingGuidanceOptions()
+        let reader = storeReader(store)
+        let snapshot = await TrainingGuidanceReader.read(reader: reader, days: days, options: options)
+        guard !Task.isCancelled else { return }
+        trainingGuidance = snapshot
     }
 
     /// The cardio lane's room today (`LaneOutlook.headroom`), read over exactly the history a reading

@@ -585,6 +585,8 @@ final class ForgeFoodModel {
                                           fatG: whole(totals[.fatG]) ?? 0, proteinGoal: whole(macros?.proteinG),
                                           carbsGoal: whole(macros?.carbsG), fatGoal: whole(macros?.fatG))
         if snapshot.save() { WidgetCenter.shared.reloadTimelines(ofKind: WidgetFoodSnapshot.widgetKind) }
+        // The morning advice reads the same day goal (Training Load plan, Q38).
+        TrainingGuidanceFoodGoal.save(day: day, kcal: calories(for: day)?.kcal, proteinG: macros?.proteinG)
     }
 
     /// Looks up the group of foods whose id does not carry it (products, own foods), once per food.
