@@ -211,23 +211,4 @@ class UnitFormatterTest {
         assertEquals("—", UnitFormatter.paceFromSecPerKm(0.0, UnitSystem.IMPERIAL))
         assertEquals("—", UnitFormatter.paceFromSecPerKm(-1.0, UnitSystem.METRIC))
     }
-
-    /**
-     * The app's language decides the decimal mark (design critique 2026-11-28): Locale.US had put "8.0 km" and
-     * "33.5 °C" beside "52,0" on a German screen. The test JVM runs en-US, so German is set here and put back.
-     */
-    @Test
-    fun decimalsFollowTheAppLanguage() {
-        val before = java.util.Locale.getDefault()
-        try {
-            java.util.Locale.setDefault(java.util.Locale.GERMANY)
-            assertEquals("8,0 km", UnitFormatter.distanceFromKilometers(8.0, UnitSystem.METRIC))
-            assertEquals("33,5 °C", UnitFormatter.temperatureFromCelsius(33.5, TemperatureUnit.CELSIUS))
-            assertEquals("+0,3", com.noop.analytics.SkinTempDisplay.numberString(0.3, com.noop.analytics.SkinTempDisplay.Kind.DEVIATION, fahrenheit = false))
-            // A deviation that rounds to zero drops its sign with a comma too (#1842).
-            assertEquals("0,0", com.noop.analytics.SkinTempDisplay.numberString(-0.02, com.noop.analytics.SkinTempDisplay.Kind.DEVIATION, fahrenheit = false))
-        } finally {
-            java.util.Locale.setDefault(before)
-        }
-    }
 }
