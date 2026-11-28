@@ -204,6 +204,12 @@ final class AlarmReadbackDecodeTests: XCTestCase {
     /// one — proving the reframe is reachable via handle() and that the misleading label is gone.
     @MainActor
     func testHandle_noAlarmStoredReadback_logsNoAlarm() {
+        let d = UserDefaults.standard
+        let owedBefore = d.object(forKey: FrameRouter.alarmReadbackOwedKey)
+        defer { d.set(owedBefore, forKey: FrameRouter.alarmReadbackOwedKey) }
+        // The readback that answers an arm (#2893): the arm set the owed flag, so "nothing stored" means
+        // the arm did not persist, and the readback spends the flag.
+        d.set(true, forKey: FrameRouter.alarmReadbackOwedKey)
         let live = LiveState()
         let router = FrameRouter(state: live)
         router.family = .whoop4
@@ -212,6 +218,31 @@ final class AlarmReadbackDecodeTests: XCTestCase {
                       "epoch-0 readback must log the 'no alarm stored' line: \(live.log)")
         XCTAssertFalse(live.log.contains { $0.contains("unrecognised payload") },
                        "epoch-0 readback must NOT log the misleading 'unrecognised' line: \(live.log)")
+        XCTAssertFalse(d.bool(forKey: FrameRouter.alarmReadbackOwedKey), "the readback spends the arm's answer")
+    }
+
+    /// A readback nobody's arm is waiting for (the wearer's own check after a disarm, or after the alarm
+    /// rang) still names the empty store, but claims no failed arm and is never counted as a refusal.
+    @MainActor
+    func testHandle_noAlarmStoredReadback_withoutAnArm_isNotARefusal() {
+        let d = UserDefaults.standard
+        let owedBefore = d.object(forKey: FrameRouter.alarmReadbackOwedKey)
+        let streakBefore = d.object(forKey: "alarm.rejectStreak")
+        defer {
+            d.set(owedBefore, forKey: FrameRouter.alarmReadbackOwedKey)
+            d.set(streakBefore, forKey: "alarm.rejectStreak")
+        }
+        d.set(false, forKey: FrameRouter.alarmReadbackOwedKey)
+        d.set(0, forKey: "alarm.rejectStreak")
+        let live = LiveState()
+        let router = FrameRouter(state: live)
+        router.family = .whoop4
+        router.handle(frame: alarmResponseFrame(payload: [0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04, 0x00, 0x20]))
+        XCTAssertTrue(live.log.contains { $0.contains("NO alarm currently stored") && $0.contains("not the answer to an arm") },
+                      "an unasked-for readback says why it is not counted: \(live.log)")
+        XCTAssertFalse(live.log.contains { $0.contains("did not persist") },
+                       "no arm was waiting, so none failed to persist: \(live.log)")
+        XCTAssertEqual(d.integer(forKey: "alarm.rejectStreak"), 0)
     }
 
     /// A SET_ALARM_TIME (cmd 66) COMMAND_RESPONSE now logs the strap's raw result byte — the accept/reject
