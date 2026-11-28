@@ -71,8 +71,15 @@ enum CoachFoodClassify {
                   number > 0 else { continue }
             shares[group] = number
         }
-        let whole = (object["whole_grain"] as? NSNumber)?.doubleValue ?? 0
-        let free = (object["free_sugar"] as? NSNumber)?.doubleValue ?? 0
+        // A figure the model left out stays open (nil), so the name, category and drink rules still answer for it.
+        let whole = (object["whole_grain"] as? NSNumber)?.doubleValue
+        let free = (object["free_sugar"] as? NSNumber)?.doubleValue
+        // Shares a little over the whole (0.6 nuts and 0.45 legumes) are scaled back to it rather than costing the
+        // whole answer; a share alone above the whole is still refused below.
+        let sum = shares.values.reduce(0, +)
+        if sum > 1, sum <= 1.5, shares.values.allSatisfy({ $0 <= 1 }) {
+            shares = shares.mapValues { $0 / sum }
+        }
         // A processing class outside NOVA's four is left out, so the label's class stands, rather than refusing the
         // whole answer over it.
         let processing = (object["processing"] as? NSNumber).map(\.intValue).flatMap { (1...4).contains($0) ? $0 : nil }
@@ -90,17 +97,51 @@ enum CoachFoodClassify {
     }
 }
 
+/// Which products are being classified right now and which could not be in this run of the app, so one product
+/// is never asked about twice at once (the Food page's pass and a log of the same product) and a product whose
+/// answer failed is not asked about again on every visit, holding back the ones after it. A failure is retried on
+/// the next start of the app.
+final class FoodClassifyGate: @unchecked Sendable {
+    static let shared = FoodClassifyGate()
+    private let lock = NSLock()
+    private var running: Set<String> = []
+    private var failed: Set<String> = []
+
+    /// Claims `id` for one classification; false when it is already running or failed in this run.
+    func begin(_ id: String) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        guard !running.contains(id), !failed.contains(id) else { return false }
+        running.insert(id)
+        return true
+    }
+
+    func end(_ id: String, succeeded: Bool) {
+        lock.lock(); defer { lock.unlock() }
+        running.remove(id)
+        if !succeeded { failed.insert(id) }
+    }
+
+    func isAvailable(_ id: String) -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        return !running.contains(id) && !failed.contains(id)
+    }
+}
+
 extension AICoachEngine {
-    /// `item` with the coach's classification on it, or nil when the coach could not answer. The wearer's own
-    /// classification is never asked about again: it stands (`FoodLibrary.keptClassification`).
+    /// `item` with the coach's classification on it, or nil when the coach could not answer or the product is
+    /// already being classified. The wearer's own classification is never asked about again: it stands
+    /// (`FoodLibrary.keptClassification`).
     func classifying(_ item: FoodItem) async -> FoodItem? {
-        guard item.classification?.author != .wearer else { return nil }
+        guard item.classification?.author != .wearer, FoodClassifyGate.shared.begin(item.id) else { return nil }
+        var out: FoodItem?
+        defer { FoodClassifyGate.shared.end(item.id, succeeded: out != nil) }
         guard let reply = await strongComplete(system: CoachFoodClassify.system,
                                                user: CoachFoodClassify.prompt(item)),
               let classification = CoachFoodClassify.parse(reply) else { return nil }
-        var out = item
-        out.classification = classification
-        return out
+        var next = item
+        next.classification = classification
+        out = next
+        return next
     }
 }
 
@@ -120,12 +161,35 @@ extension AICoachEngine {
         let entries = (try? await store.foodLogEntries(from: "2000-01-01", to: today)) ?? []
         var pending: [FoodItem] = []
         for id in Set(entries.compactMap(\.foodId)).sorted() where id.hasPrefix("own:") {
-            guard let item = await FoodLibrary.item(store: store, id: id), item.classification == nil,
+            // Skipped: a product being classified now or that failed in this run (`FoodClassifyGate`), so the
+            // next ones are reached, and the wearer's correction of a catalogue row, whose code and name the
+            // catalogue rules already read without a model.
+            guard FoodClassifyGate.shared.isAvailable(id),
+                  let item = await FoodLibrary.item(store: store, id: id), item.classification == nil,
                   item.source != .recipe else { continue }
+            if let kept = try? await store.customFood(id: id), kept.sourceId?.hasPrefix("bls:") == true { continue }
             pending.append(item)
             if pending.count == Self.keptFoodsPerPass { break }
         }
         guard !pending.isEmpty else { return 0 }
         return await enriching(pending, store: store, fillGaps: false).filter { $0.classification != nil }.count
+    }
+}
+
+extension AICoachEngine {
+    /// Just logged products classified after their entries were saved, so logging never waits for the model
+    /// (design review 2026-11-28). `kept` are the products as stored, `originals` as they were found: the stored
+    /// copy does not keep the ingredient list or the category tags, which the coach reads, so they come from the
+    /// original. Returns how many were classified.
+    func classifyingLogged(_ kept: [FoodItem], originals: [FoodItem], store: WhoopStore) async -> Int {
+        let merged = zip(kept, originals).map { stored, found -> FoodItem in
+            var item = stored
+            item.ingredients = item.ingredients ?? found.ingredients
+            item.categories = item.categories ?? found.categories
+            return item
+        }
+        let before = Set(merged.filter { $0.classification != nil }.map(\.id))
+        return await enriching(merged, store: store, fillGaps: false)
+            .filter { $0.classification != nil && !before.contains($0.id) }.count
     }
 }

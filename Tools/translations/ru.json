@@ -4905,7 +4905,6 @@
   "%lld days left · then a new week": "Ещё %lld дней · потом новая неделя",
   "%lld days left · then a new month": "Ещё %lld дней · потом новый месяц",
   "No heart rate from today yet. It appears once your strap syncs.": "Пульса за сегодня пока нет. Он появится после синхронизации браслета.",
-  "Added sugar": "Добавленный сахар",
   "Sausage and cured meat": "Колбасы и копчёности",
   "Days that count, logged with at least a third of your usual food.": "Дни, которые считаются: записана хотя бы треть обычной еды.",
   "Nothing off up to 350 g a week": "Без вычета до 350 г в неделю",
@@ -4913,5 +4912,6 @@
   "Nothing off up to a twentieth of your calories": "Без вычета до одной двадцатой калорий",
   "Nothing off up to about 4 g salt a day": "Без вычета до примерно 4 г соли в день",
   "The note counts from a third of your usual day: %@ of %@ kcal so far.": "Оценка считается от трети обычного дня: %1$@ из %2$@ ккал пока.",
-  "Nothing off without sausage and cured meat": "Без вычета без колбас и копчёностей"
+  "Nothing off without sausage and cured meat": "Без вычета без колбас и копчёностей",
+  "Added sugar and juice": "Добавленный сахар и соки"
 }

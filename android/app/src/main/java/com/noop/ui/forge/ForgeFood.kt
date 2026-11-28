@@ -1151,15 +1151,20 @@ private fun ForgeFoodAddPage(day: LocalDate, onBack: () -> Unit, goalKcal: Doubl
                 TextButton(onClick = {
                     scope.launch {
                         withContext(Dispatchers.IO) {
+                            val originals = cart.map { it.item }
                             // An online result is kept as the wearer's own food, so it is there offline next time.
                             var lines = cart.map { line -> if (line.item.source == "online") CoreFood.saveOwn(line.item, "online")?.let { line.copy(item = it) } ?: line else line }
-                            // What each product is made of, so the score can count it; its missing vitamins and
-                            // minerals only when the wearer chose that.
-                            if (com.noop.ui.NoopPrefs.coachEnabled(context)) {
-                                CoreFood.coachEnrich(lines.map { it.item }, prefs.estimateMissing)
+                            val coachOn = com.noop.ui.NoopPrefs.coachEnabled(context)
+                            // Missing vitamins and minerals only when the wearer chose that, before saving, since they
+                            // change the entries' totals; what each product is made of comes after the save.
+                            if (coachOn && prefs.estimateMissing) {
+                                CoreFood.coachEnrich(lines.map { it.item }, fillGaps = true, classify = false)
                                     ?.let { filled -> lines = lines.zip(filled) { l, i -> l.copy(item = i) } }
                             }
                             FoodHealthConnect.wrote(context, CoreFood.logCart(lines, atEpoch, meal))
+                            // So logging never waits for the model, with the found products' ingredient lists
+                            // (iOS `ForgeFoodModel.log`).
+                            if (coachOn) CoreFood.coachClassifyLater(lines.map { it.item }, originals)
                         }
                         onBack()
                     }

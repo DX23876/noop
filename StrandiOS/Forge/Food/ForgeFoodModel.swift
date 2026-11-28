@@ -676,16 +676,17 @@ final class ForgeFoodModel {
     @discardableResult
     func log(_ lines: [FoodCartLine], at: Date, meal: FoodLog.MealKind?, repo: Repository, coach: AICoachEngine?) async -> Bool {
         guard let store = await repo.storeHandle(), !lines.isEmpty else { return false }
-        var items = lines.map(\.item)
+        let originals = lines.map(\.item)
+        var items = originals
         // A result found online is kept as the wearer's own food, so it is there offline next time.
         for index in items.indices where items[index].source == .online {
             if let saved = await FoodLibrary.saveOwn(store: store, items[index], origin: .online) { items[index] = saved }
         }
-        // What each product is made of, so the score can count it; its missing vitamins and minerals only when
-        // the wearer chose that (`AICoachEngine.enriching`).
-        if let coach, CoachFeaturePrefs.isEnabled {
-            items = await coach.enriching(items, store: store,
-                                          fillGaps: UserDefaults.standard.bool(forKey: FoodEstimate.enabledKey))
+        let coachOn = coach != nil && CoachFeaturePrefs.isEnabled
+        // Missing vitamins and minerals only when the wearer chose that, before saving, since they change the
+        // entries' totals (`AICoachEngine.enriching`). What each product is made of comes after the save.
+        if let coach, coachOn, UserDefaults.standard.bool(forKey: FoodEstimate.enabledKey) {
+            items = await coach.enriching(items, store: store, fillGaps: true, classify: false)
         }
         let origin: FoodLogEntry.Origin = items.contains { $0.source == .recipe } ? .recipe : .search
         let entries = zip(lines, items).map { line, item in
@@ -696,6 +697,16 @@ final class ForgeFoodModel {
         await FoodHealthSync.wrote(entries, store: store)
         await reload(store: store)
         savedRevision += 1
+        // What each product is made of, so the score can count it, after the save so logging never waits for the
+        // model; with the found products' ingredient lists, which the stored copies do not keep.
+        if let coach, coachOn {
+            let kept = items
+            Task { [weak self] in
+                guard await coach.classifyingLogged(kept, originals: originals, store: store) > 0, let self else { return }
+                self.factsById = [:]
+                await self.loadQuality(store: store)
+            }
+        }
         return true
     }
 

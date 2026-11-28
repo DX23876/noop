@@ -701785,66 +701785,66 @@
         }
       }
     },
-    "Added sugar" : {
+    "Added sugar and juice" : {
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zugesetzter Zucker"
+            "value" : "Zugesetzter Zucker und Saft"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Added sugar"
+            "value" : "Added sugar and juice"
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Azúcar añadido"
+            "value" : "Azúcar añadido y zumo"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sucres ajoutés"
+            "value" : "Sucres ajoutés et jus"
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zuccheri aggiunti"
+            "value" : "Zuccheri aggiunti e succhi"
           }
         },
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cukier dodany"
+            "value" : "Cukier dodany i soki"
           }
         },
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Açúcar adicionado"
+            "value" : "Açúcar adicionado e sumo"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Добавленный сахар"
+            "value" : "Добавленный сахар и соки"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "添加糖"
+            "value" : "添加糖和果汁"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "添加糖"
+            "value" : "添加糖和果汁"
           }
         }
       }

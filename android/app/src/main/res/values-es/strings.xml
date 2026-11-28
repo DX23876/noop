@@ -8271,7 +8271,7 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="fw_fat">Grasas</string>
     <string name="fw_grams">%1$s g</string>
     <string name="fw_grams_of">%1$s / %2$s g</string>
-    <string name="food_part_free_sugar">Azúcar añadido</string>
+    <string name="food_part_free_sugar">Azúcar añadido y zumo</string>
     <string name="food_part_sat_fat">Grasas saturadas</string>
     <string name="food_part_processed_meat">Embutidos y carnes curadas</string>
     <string name="food_full_free_sugar">Sin descuento hasta una veinteava parte de tus calorías</string>

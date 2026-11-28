@@ -253,10 +253,22 @@ object CoreFood {
      * it, and, when [fillGaps] is set, its missing nutrients borrowed from the closest BLS food. Unchanged ones
      * come back as they were.
      */
-    fun coachEnrich(items: List<Item>, fillGaps: Boolean): List<Item>? {
+    fun coachEnrich(items: List<Item>, fillGaps: Boolean, classify: Boolean = true): List<Item>? {
         val array = JSONArray(); items.forEach { array.put(it.json) }
-        val json = call("coach.foodEnrich", JSONObject().put("items", array).put("fillGaps", fillGaps)) ?: return null
+        val json = call("coach.foodEnrich", JSONObject().put("items", array).put("fillGaps", fillGaps)
+            .put("classify", classify)) ?: return null
         return items(json).takeIf { it.size == items.size }
+    }
+
+    /**
+     * Just logged products classified after the log is saved, so logging never waits for the model
+     * (`coach.foodClassifyLater`, iOS `AICoachEngine.classifyingLogged`). [kept] are the products as stored,
+     * [originals] as found, whose ingredient lists the stored copies do not keep. Returns at once.
+     */
+    fun coachClassifyLater(kept: List<Item>, originals: List<Item>) {
+        val keptArray = JSONArray(); kept.forEach { keptArray.put(it.json) }
+        val originalArray = JSONArray(); originals.forEach { originalArray.put(it.json) }
+        call("coach.foodClassifyLater", JSONObject().put("items", keptArray).put("originals", originalArray))
     }
 
     /**

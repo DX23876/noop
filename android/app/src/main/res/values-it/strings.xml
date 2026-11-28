@@ -8238,7 +8238,7 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="fw_fat">Grassi</string>
     <string name="fw_grams">%1$s g</string>
     <string name="fw_grams_of">%1$s / %2$s g</string>
-    <string name="food_part_free_sugar">Zuccheri aggiunti</string>
+    <string name="food_part_free_sugar">Zuccheri aggiunti e succhi</string>
     <string name="food_part_sat_fat">Grassi saturi</string>
     <string name="food_part_processed_meat">Salumi e carni affumicate</string>
     <string name="food_full_free_sugar">Niente in meno fino a un ventesimo delle tue calorie</string>

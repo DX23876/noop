@@ -178,7 +178,8 @@ enum FoodText {
         case .redMeat: String(localized: "Red meat")
         case .processedMeat: String(localized: "Sausage and cured meat")
         case .fishOmega3: String(localized: "Omega-3")
-        case .freeSugar: String(localized: "Added sugar")
+        // It counts the sugar of juice and honey too, the WHO's free sugar, so the name says juice.
+        case .freeSugar: String(localized: "Added sugar and juice")
         case .satFat: String(localized: "Saturated fat")
         case .sodium: String(localized: "Salt")
         case .alcohol: String(localized: "Alcohol")

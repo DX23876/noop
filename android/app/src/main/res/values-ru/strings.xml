@@ -8290,7 +8290,7 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="fw_fat">Жиры</string>
     <string name="fw_grams">%1$s g</string>
     <string name="fw_grams_of">%1$s / %2$s g</string>
-    <string name="food_part_free_sugar">Добавленный сахар</string>
+    <string name="food_part_free_sugar">Добавленный сахар и соки</string>
     <string name="food_part_sat_fat">Насыщенные жиры</string>
     <string name="food_part_processed_meat">Колбасы и копчёности</string>
     <string name="food_full_free_sugar">Без вычета до одной двадцатой калорий</string>

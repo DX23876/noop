@@ -8330,7 +8330,7 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="fw_fat">Tłuszcz</string>
     <string name="fw_grams">%1$s g</string>
     <string name="fw_grams_of">%1$s / %2$s g</string>
-    <string name="food_part_free_sugar">Cukier dodany</string>
+    <string name="food_part_free_sugar">Cukier dodany i soki</string>
     <string name="food_part_sat_fat">Tłuszcze nasycone</string>
     <string name="food_part_processed_meat">Wędliny i kiełbasy</string>
     <string name="food_full_free_sugar">Bez odjęcia do jednej dwudziestej kalorii</string>

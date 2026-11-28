@@ -18,7 +18,7 @@ enum CoreCoach {
     static let freshDataOps: Set<String> = [
         "coach.send", "coach.sendPhoto", "coach.brief", "coach.regenerate", "coach.deeper", "coach.card",
         "coach.morning", "coach.morning.set", "coach.morning.confirmWake", "coach.morning.decide",
-        "coach.plan.compare", "coach.foodEnrich", "coach.foodClassifyKept", "coach.foodCart",
+        "coach.plan.compare", "coach.foodEnrich", "coach.foodClassifyKept", "coach.foodClassifyLater", "coach.foodCart",
     ]
 
     /// The engine for this store and strap, made on first use and kept for the process, so the transcript and a
@@ -73,7 +73,26 @@ enum CoreCoach {
                 return try? JSONDecoder().decode(FoodItem.self, from: data)
             }
             let fillGaps = args["fillGaps"] as? Bool ?? false
-            return CoreRead.json(["items": await coach.enriching(items, store: reader.store, fillGaps: fillGaps)])
+            // `classify` false leaves what a product is made of to `coach.foodClassifyLater`, after the log is saved.
+            let classify = args["classify"] as? Bool ?? true
+            return CoreRead.json(["items": await coach.enriching(items, store: reader.store, fillGaps: fillGaps,
+                                                                 classify: classify)])
+        }
+        if op == "coach.foodClassifyLater" {
+            // Just logged products classified after their entries were saved, so logging never waits for the model
+            // (`AICoachEngine.classifyingLogged`); the found products carry the ingredient lists the stored copies
+            // do not keep. Starts the work and answers at once; the page reads the result on its next load.
+            func decoded(_ key: String) -> [FoodItem] {
+                ((args[key] as? [[String: Any]]) ?? []).compactMap { value in
+                    guard let data = try? JSONSerialization.data(withJSONObject: value) else { return nil }
+                    return try? JSONDecoder().decode(FoodItem.self, from: data)
+                }
+            }
+            let kept = decoded("items"), originals = decoded("originals")
+            guard kept.count == originals.count, !kept.isEmpty else { return CoreRead.json(["started": 0]) }
+            let store = reader.store
+            Task { _ = await coach.classifyingLogged(kept, originals: originals, store: store) }
+            return CoreRead.json(["started": kept.count])
         }
         if op == "coach.foodClassifyKept" {
             // The wearer's own foods kept before the coach classified products, once each, a few per call

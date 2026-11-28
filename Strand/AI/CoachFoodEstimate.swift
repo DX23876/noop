@@ -116,12 +116,13 @@ extension AICoachEngine {
     ///
     /// Classifying is not behind a switch of its own (owner, 2026-11-22): without it the nutrition score counts a
     /// product as nothing at all, so it is the score's groundwork, not an extra like borrowing nutrients.
-    func enriching(_ items: [FoodItem], store: WhoopStore, fillGaps: Bool) async -> [FoodItem] {
+    /// `classify` off leaves the classification for later (`classifyingLogged`), so a log does not wait for it.
+    func enriching(_ items: [FoodItem], store: WhoopStore, fillGaps: Bool, classify: Bool = true) async -> [FoodItem] {
         var out: [FoodItem] = []
         for item in items {
             var next = item
             // A BLS row and a recipe built from them say what they are through their ids.
-            if next.source != .bls, next.source != .recipe, next.classification == nil,
+            if classify, next.source != .bls, next.source != .recipe, next.classification == nil,
                let classified = await classifying(next) { next = classified }
             if fillGaps, let filled = await estimateMissingNutrients(next) { next = filled }
             guard next != item,

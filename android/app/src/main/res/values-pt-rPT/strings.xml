@@ -8263,7 +8263,7 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="fw_fat">Gordura</string>
     <string name="fw_grams">%1$s g</string>
     <string name="fw_grams_of">%1$s / %2$s g</string>
-    <string name="food_part_free_sugar">Açúcar adicionado</string>
+    <string name="food_part_free_sugar">Açúcar adicionado e sumo</string>
     <string name="food_part_sat_fat">Gorduras saturadas</string>
     <string name="food_part_processed_meat">Salsichas e carnes curadas</string>
     <string name="food_full_free_sugar">Nada descontado até um vigésimo das tuas calorias</string>

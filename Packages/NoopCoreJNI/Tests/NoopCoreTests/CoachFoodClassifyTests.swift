@@ -38,4 +38,40 @@ final class CoachFoodClassifyTests: XCTestCase {
         XCTAssertTrue(CoachFoodClassify.prompt(item).contains("from the label database, by rule: 4"))
         XCTAssertTrue(CoachFoodClassify.system.contains("\"processing\""))
     }
+
+    func testAFigureTheModelLeftOutStaysOpen() throws {
+        let classification = try XCTUnwrap(CoachFoodClassify.parse(#"{"groups": {}, "processing": 3}"#))
+        XCTAssertNil(classification.wholeGrainShare)
+        XCTAssertNil(classification.freeSugarShare)
+        XCTAssertEqual(classification.processing, 3)
+    }
+
+    func testSharesALittleOverTheWholeAreScaledNotRefused() throws {
+        let reply = #"{"groups": {"nuts": 0.6, "legumes": 0.45}, "whole_grain": 0.3, "processing": 3}"#
+        let classification = try XCTUnwrap(CoachFoodClassify.parse(reply))
+        let shares = classification.groupShares
+        XCTAssertEqual((shares[.nuts] ?? 0) + (shares[.legumes] ?? 0), 1, accuracy: 0.0001)
+        XCTAssertEqual(classification.processing, 3)
+        XCTAssertNil(CoachFoodClassify.parse(#"{"groups": {"nuts": 1.4}}"#), "one share beyond the whole is refused")
+    }
+
+    func testTheGateHoldsARunningAndAFailedProductBack() {
+        let gate = FoodClassifyGate()
+        XCTAssertTrue(gate.begin("own:a"))
+        XCTAssertFalse(gate.begin("own:a"), "never asked twice at once")
+        gate.end("own:a", succeeded: false)
+        XCTAssertFalse(gate.isAvailable("own:a"), "a failure is not retried in the same run")
+        XCTAssertTrue(gate.begin("own:b"))
+        gate.end("own:b", succeeded: true)
+        XCTAssertTrue(gate.isAvailable("own:b"))
+    }
+
+    func testClassifyingLoggedKeepsTheFoundIngredients() {
+        var found = FoodItem(id: "off:1", source: .online, name: "EIWEISS BROT", per100g: NutrientAmounts())
+        found.ingredients = "Weizeneiweiß, Sojaschrot"
+        let stored = FoodItem(id: "own:1", source: .own, name: "EIWEISS BROT", per100g: NutrientAmounts())
+        XCTAssertNil(stored.ingredients)
+        XCTAssertTrue(CoachFoodClassify.prompt({ var s = stored; s.ingredients = s.ingredients ?? found.ingredients; return s }())
+            .contains("Weizeneiweiß"))
+    }
 }

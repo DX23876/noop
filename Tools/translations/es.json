@@ -4928,7 +4928,6 @@
   "%lld days left · then a new week": "Quedan %lld días · luego otra semana",
   "%lld days left · then a new month": "Quedan %lld días · luego otro mes",
   "No heart rate from today yet. It appears once your strap syncs.": "Aún no hay pulso de hoy. Aparece cuando tu pulsera se sincroniza.",
-  "Added sugar": "Azúcar añadido",
   "Sausage and cured meat": "Embutidos y carnes curadas",
   "Days that count, logged with at least a third of your usual food.": "Días que cuentan, registrados con al menos un tercio de tu comida habitual.",
   "Nothing off up to 350 g a week": "Sin descuento hasta 350 g por semana",
@@ -4936,5 +4935,6 @@
   "Nothing off up to a twentieth of your calories": "Sin descuento hasta una veinteava parte de tus calorías",
   "Nothing off up to about 4 g salt a day": "Sin descuento hasta unos 4 g de sal al día",
   "The note counts from a third of your usual day: %@ of %@ kcal so far.": "La nota cuenta desde un tercio de tu día habitual: %1$@ de %2$@ kcal hasta ahora.",
-  "Nothing off without sausage and cured meat": "Sin descuento si no hay embutidos ni carnes curadas"
+  "Nothing off without sausage and cured meat": "Sin descuento si no hay embutidos ni carnes curadas",
+  "Added sugar and juice": "Azúcar añadido y zumo"
 }

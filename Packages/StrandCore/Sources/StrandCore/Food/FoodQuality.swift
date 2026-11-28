@@ -128,7 +128,9 @@ public enum FoodQuality {
         // A classified food is placed even where it belongs to no group the score counts (a cheese, an oil):
         // the coach looked at it and said so, which is the opposite of not knowing.
         if let facts = facts[id] {
-            if facts.shares != nil || facts.wholeGrainShare != nil || facts.freeSugarShare != nil { return true }
+            if facts.classified || facts.shares != nil || facts.wholeGrainShare != nil || facts.freeSugarShare != nil {
+                return true
+            }
             if let group = facts.group, !group.isEmpty { return true }
         }
         return FoodScore.kind(of: entry, group: nil, name: entry.name.lowercased()) != nil

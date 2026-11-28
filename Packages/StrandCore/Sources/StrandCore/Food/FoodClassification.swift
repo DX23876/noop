@@ -20,11 +20,12 @@ public struct FoodClassification: Equatable, Sendable, Codable {
 
     /// The groups the food's weight falls into, keyed by `FoodScore.Group`'s raw value, each 0 to 1.
     public var shares: [String: Double]
-    /// How much of the food's weight is whole-grain cereal, 0 to 1.
-    public var wholeGrainShare: Double
+    /// How much of the food's weight is whole-grain cereal, 0 to 1. Nil when the product does not let anyone
+    /// tell: the name and category rules then answer, instead of a zero nobody said.
+    public var wholeGrainShare: Double?
     /// How much of the food's sugar is free sugar as the WHO means it (added sugar, honey, syrup, juice sugar,
-    /// never the sugar inside milk or whole fruit), 0 to 1.
-    public var freeSugarShare: Double
+    /// never the sugar inside milk or whole fruit), 0 to 1. Nil when it cannot be told; the drink rule answers.
+    public var freeSugarShare: Double?
     /// How processed the food is, as NOVA counts it (1 unprocessed, 2 a culinary ingredient, 3 processed, 4 ultra-
     /// processed), judged from the ingredient list. Open Food Facts works its class out by rule from single
     /// ingredient markers, and called a protein bread and seasoned chicken strips ultra-processed beside products
@@ -33,7 +34,7 @@ public struct FoodClassification: Equatable, Sendable, Codable {
     public var author: Author
     public var version: Int
 
-    public init(shares: [FoodScore.Group: Double] = [:], wholeGrainShare: Double = 0, freeSugarShare: Double = 0,
+    public init(shares: [FoodScore.Group: Double] = [:], wholeGrainShare: Double? = nil, freeSugarShare: Double? = nil,
                 processing: Int? = nil, author: Author = .coach, version: Int = FoodClassification.currentVersion) {
         self.shares = Dictionary(uniqueKeysWithValues: shares.map { ($0.key.rawValue, $0.value) })
         self.wholeGrainShare = wholeGrainShare
@@ -58,8 +59,8 @@ public struct FoodClassification: Equatable, Sendable, Codable {
     /// stands above the label's, which Open Food Facts derives by rule.
     public func facts(group: String?, nova: Int?) -> FoodScore.FoodFacts {
         FoodScore.FoodFacts(group: group, nova: processing ?? nova, shares: groupShares.isEmpty ? nil : groupShares,
-                            wholeGrainShare: wholeGrainShare.clamped(0, 1),
-                            freeSugarShare: freeSugarShare.clamped(0, 1))
+                            wholeGrainShare: wholeGrainShare.map { $0.clamped(0, 1) },
+                            freeSugarShare: freeSugarShare.map { $0.clamped(0, 1) }, classified: true)
     }
 
     /// Nothing is made of more than itself: the shares together may not pass the whole food, and every share is
@@ -68,8 +69,8 @@ public struct FoodClassification: Equatable, Sendable, Codable {
         let values = shares.values
         guard values.allSatisfy({ $0.isFinite && $0 >= 0 && $0 <= 1 }), values.reduce(0, +) <= 1.0001,
               shares.count <= Self.maximumShares, shares.keys.allSatisfy({ FoodScore.Group(rawValue: $0) != nil }),
-              wholeGrainShare.isFinite, (0...1).contains(wholeGrainShare),
-              freeSugarShare.isFinite, (0...1).contains(freeSugarShare),
+              wholeGrainShare.map({ $0.isFinite && (0...1).contains($0) }) ?? true,
+              freeSugarShare.map({ $0.isFinite && (0...1).contains($0) }) ?? true,
               processing.map({ (1...4).contains($0) }) ?? true else { return false }
         return true
     }

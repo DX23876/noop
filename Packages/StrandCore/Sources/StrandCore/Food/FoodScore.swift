@@ -86,11 +86,15 @@ public enum FoodScore {
         /// Share of the food's sugar that is free sugar as the WHO means it: added sugar, honey, syrup and the
         /// sugar in juice, but not the sugar in milk or whole fruit. Nil falls back to the drink rule.
         public var freeSugarShare: Double?
+        /// The coach or the wearer looked at this food. A classified food is placed even when it falls in no group
+        /// the score counts and its figures were left open (a cheese): someone said what it is.
+        public var classified: Bool
 
         public init(group: String? = nil, nova: Int? = nil, shares: [Group: Double]? = nil,
-                    wholeGrainShare: Double? = nil, freeSugarShare: Double? = nil) {
+                    wholeGrainShare: Double? = nil, freeSugarShare: Double? = nil, classified: Bool = false) {
             self.group = group; self.nova = nova; self.shares = shares
             self.wholeGrainShare = wholeGrainShare; self.freeSugarShare = freeSugarShare
+            self.classified = classified
         }
     }
 
@@ -117,6 +121,8 @@ public enum FoodScore {
         public static let satFatIdealPercent = 10.0, satFatMaxPercent = 30.0
         /// Salt: nothing up to 1,500 mg sodium, half the cost at 2,300 mg, the full cost at 4,000 mg.
         public static let sodiumFreeMg = 1_500.0, sodiumHalfMg = 2_300.0, sodiumMaxMg = 4_000.0
+        /// The highly processed share is shown once the processing class is known for this much of the energy.
+        public static let processedShownFromCoverage = 0.5
     }
 
     /// Portion sizes in grams (or millilitres for drinks).
@@ -243,8 +249,11 @@ public enum FoodScore {
             return Part(component: component, points: share * component.weight, amountPerDay: amount)
         }
         let score = (base + parts.reduce(0) { $0 + $1.points }).clamped(0, 100)
+        // The share speaks only for the food whose class is known; below half the energy it would describe a
+        // packaged product or two as if they were the whole week (catalogue rows carry no class).
+        let knownEnough = novaKnownKcal > 0 && novaKnownKcal >= Limit.processedShownFromCoverage * (total[.energyKcal] ?? 0)
         return Result(score: score, parts: parts, loggedDays: Int(days),
-                      processedShare: novaKnownKcal > 0 ? processedKcal / novaKnownKcal : nil)
+                      processedShare: knownEnough ? processedKcal / novaKnownKcal : nil)
     }
 
     /// The share of a positive part that is earned: all of it at `full` or more, linear down to none.
@@ -345,8 +354,10 @@ public enum FoodScore {
     static func kind(of entry: FoodLogEntry, group: String?, name: String) -> Group? {
         if let id = entry.foodId, id.hasPrefix("bls:"), let letter = id.dropFirst(4).first.map({ String($0).lowercased() }) {
             switch letter {
-            // BLS G is vegetables, K mushrooms, which the parts count with them.
-            case "g", "k": return .vegetables
+            case "g": return .vegetables
+            // BLS K holds potatoes, cassava and tapioca (K1 to K5), which are not vegetables, and mushrooms (K7),
+            // which the parts count with them.
+            case "k": return id.dropFirst(5).first == "7" ? .vegetables : nil
             case "f": return juiceWords.contains(where: name.contains) ? .drink : .fruit
             case "h": return nutWords.contains(where: name.contains) ? .nuts : .legumes
             // BLS W is sausage and cured meat, processed whatever the animal; U is meat as such.

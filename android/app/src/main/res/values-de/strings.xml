@@ -8285,7 +8285,7 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="fw_fat">Fett</string>
     <string name="fw_grams">%1$s g</string>
     <string name="fw_grams_of">%1$s / %2$s g</string>
-    <string name="food_part_free_sugar">Zugesetzter Zucker</string>
+    <string name="food_part_free_sugar">Zugesetzter Zucker und Saft</string>
     <string name="food_part_sat_fat">Gesättigte Fette</string>
     <string name="food_part_processed_meat">Wurst und Geräuchertes</string>
     <string name="food_full_free_sugar">Kein Abzug bis zu einem Zwanzigstel deiner Kalorien</string>

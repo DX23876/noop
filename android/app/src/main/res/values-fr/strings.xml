@@ -8268,7 +8268,7 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="fw_fat">Lipides</string>
     <string name="fw_grams">%1$s g</string>
     <string name="fw_grams_of">%1$s / %2$s g</string>
-    <string name="food_part_free_sugar">Sucres ajoutés</string>
+    <string name="food_part_free_sugar">Sucres ajoutés et jus</string>
     <string name="food_part_sat_fat">Graisses saturées</string>
     <string name="food_part_processed_meat">Charcuterie et viandes fumées</string>
     <string name="food_full_free_sugar">Rien en moins jusqu’à un vingtième de tes calories</string>

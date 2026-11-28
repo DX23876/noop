@@ -200,6 +200,43 @@ final class FoodScoreTests: XCTestCase {
         XCTAssertEqual(part(classified, .wholeGrains).amountPerDay, 45, accuracy: 0.001)
     }
 
+    /// BLS K holds potatoes and mushrooms: only the mushrooms count as vegetables (design review 2026-11-28).
+    func testCataloguePotatoesAreNotVegetablesButMushroomsAre() throws {
+        let potatoes = days.map { entry("bls:K101100", "Kartoffel geschält, gekocht", day: $0, grams: 300, totals: ["energy_kcal": 210]) }
+        let mushrooms = days.map { entry("bls:K701100", "Champignon roh", day: $0, grams: 160, totals: ["energy_kcal": 30]) }
+        let a = try XCTUnwrap(FoodScore.week(entries: potatoes, lastDay: "2026-11-08", male: true))
+        XCTAssertEqual(part(a, .vegetables).amountPerDay, 0, accuracy: 0.001)
+        let b = try XCTUnwrap(FoodScore.week(entries: mushrooms, lastDay: "2026-11-08", male: true))
+        XCTAssertEqual(part(b, .vegetables).amountPerDay, 2, accuracy: 0.001)
+    }
+
+    /// A figure the coach left open does not count as zero: the name rule still answers for it.
+    func testAnOpenWholeGrainFigureLeavesTheNameRule() throws {
+        let entries = days.map { entry("own:oats", "Zarte Hafer Flocken", day: $0, grams: 90, totals: ["energy_kcal": 335]) }
+        let facts = ["own:oats": FoodClassification(processing: 1).facts(group: nil, nova: nil)]
+        let result = try XCTUnwrap(FoodScore.week(entries: entries, lastDay: "2026-11-08", facts: facts, male: true))
+        XCTAssertEqual(part(result, .wholeGrains).points, 10, accuracy: 0.001)
+    }
+
+    /// The highly processed share speaks only when the class is known for half the energy or more.
+    func testTheProcessedShareNeedsHalfTheEnergyKnown() throws {
+        let entries = days.flatMap { day in [
+            entry("bls:G543100", "Gemüsepaprika rot, roh", day: day, grams: 400, totals: ["energy_kcal": 1_500]),
+            entry("off:bar", "Protein bar", day: day, grams: 60, totals: ["energy_kcal": 300]),
+        ] }
+        let facts = ["off:bar": FoodScore.FoodFacts(group: nil, nova: 4)]
+        let result = try XCTUnwrap(FoodScore.week(entries: entries, lastDay: "2026-11-08", facts: facts, male: nil))
+        XCTAssertNil(result.processedShare, "a sixth of the energy known cannot speak for the week")
+    }
+
+    /// A classified food is placed even when it falls in no counted group and its figures were left open.
+    func testAClassifiedCheeseIsPlaced() {
+        let cheese = entry("own:cheese", "Cheddar Chili", day: "2026-11-08", grams: 120, totals: ["energy_kcal": 480])
+        let facts = ["own:cheese": FoodClassification(processing: 3).facts(group: nil, nova: nil)]
+        XCTAssertEqual(FoodQuality.placedShare([cheese], facts: facts), 1, accuracy: 0.001)
+        XCTAssertEqual(FoodQuality.placedShare([cheese], facts: [:]), 0, accuracy: 0.001)
+    }
+
     /// A BLS row carries no classification: the catalogue's own naming is read instead, in either language.
     func testTheBlsNamesSayWhichGrainsAreWhole() throws {
         let whole = ["bls:B101000": "Vollkornbrot", "bls:B101000 ": "Wholemeal bread",

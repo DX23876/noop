@@ -8205,7 +8205,7 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="fw_fat">脂肪</string>
     <string name="fw_grams">%1$s g</string>
     <string name="fw_grams_of">%1$s / %2$s g</string>
-    <string name="food_part_free_sugar">添加糖</string>
+    <string name="food_part_free_sugar">添加糖和果汁</string>
     <string name="food_part_sat_fat">饱和脂肪</string>
     <string name="food_part_processed_meat">香肠和腌肉</string>
     <string name="food_full_free_sugar">不超过热量的二十分之一不扣分</string>
