@@ -693,6 +693,9 @@ public enum CoreCall {
             return CoreRead.json(CoreRead.OptionalValue(value: value))
         case "export.route":
             return await CoreRouteExport.run(args, reader: reader)
+        case "widgets.fitness":
+            // The ten fitness widgets' numbers, read as the iPhone's `FitnessWidgetPublisher` reads them.
+            return await CoreWidgets.fitness(args, reader: reader)
         case "read.workouts":
             return CoreRead.json(await CoreRead.workouts(days: (args["days"] as? Int) ?? 4000,
                                                          dismissed: args["dismissedWorkouts"] as? [String] ?? [], reader: reader))
