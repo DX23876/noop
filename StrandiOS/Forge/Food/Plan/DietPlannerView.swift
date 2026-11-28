@@ -375,7 +375,7 @@ struct DietPlannerView: View {
             }
             dial(String(localized: "Protein per kg"), value: Binding(get: { draft.proteinPerKg ?? DietTargets.proteinPerKg(goal: draft.goal, strength: draft.strength) + draft.form.proteinBonusPerKg },
                                                                      set: { draft.proteinPerKg = $0 }),
-                 range: 1.2...2.4, step: 0.1, text: { String(format: "%.1f g", $0) })
+                 range: 1.2...2.4, step: 0.1, text: { UnitFormatter.localizedMark(String(format: "%.1f", $0)) + " g" })
             if draft.form.carbCapG == nil {
                 dial(String(localized: "Carbs of the rest"), value: Binding(get: { draft.carbShareOfRest ?? draft.form.carbShareOfRest },
                                                                             set: { draft.carbShareOfRest = $0 }),

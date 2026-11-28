@@ -65,7 +65,24 @@ struct ForgeSleepView: View {
                         // While last night is not in yet: syncing, being worked out, a failed sync, no sync yet,
                         // or no night found, decided by the shared `SleepFreshness` as on Android and the
                         // classic page. Held until the page has read its nights, so it never flashes.
-                        if loaded { SleepFreshnessNote(latestWakeTs: model?.night.session.endTs) }
+                        if loaded {
+                            SleepFreshnessNote(latestWakeTs: model?.night.session.endTs) { words in
+                                HStack(alignment: .top, spacing: 12) {
+                                    Image(systemName: words.symbol).font(.headline).foregroundStyle(ForgeColor.accent)
+                                        .accessibilityHidden(true)
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(words.title).font(.headline).foregroundStyle(ForgeColor.text)
+                                        if let message = words.message {
+                                            Text(message).font(ForgeFont.body).foregroundStyle(ForgeColor.secondary)
+                                                .fixedSize(horizontal: false, vertical: true)
+                                        }
+                                    }
+                                    Spacer(minLength: 0)
+                                }
+                                .forgeCard()
+                                .accessibilityElement(children: .combine)
+                            }
+                        }
                         if let model, let night {
                             nightNavigator(night)
                             summaryTiles(model, night: night)
@@ -564,7 +581,7 @@ struct ForgeSleepView: View {
                         unit: "°C", symbol: "thermometer.medium", series: series { $0.skinTempDevC }),
         ]
         if (night?.stages.total ?? 0) <= 0 {
-            facts.insert(NightSignal(label: String(localized: "Breaths/min"), value: row?.respRateBpm.map { String(format: "%.1f", $0) },
+            facts.insert(NightSignal(label: String(localized: "Breaths/min"), value: row?.respRateBpm.map { UnitFormatter.localizedMark(String(format: "%.1f", $0)) },
                                      unit: "", symbol: "lungs.fill", series: series { $0.respRateBpm }), at: 3)
         }
         return VStack(alignment: .leading, spacing: 8) {

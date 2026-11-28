@@ -57966,13 +57966,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld 休息"
+            "value" : "%lld 小时"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld 時間"
+            "value" : "%lld 小時"
           }
         }
       }
@@ -84492,7 +84492,7 @@
         "pl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Spokojna godzina pomoże ci teraz dobrze wypocząć i dobrze wypocząć."
+            "value" : "Spokojna godzina teraz pomoże ci obudzić się wypoczętym o swojej porze."
           }
         },
         "pt-PT" : {
@@ -123728,7 +123728,7 @@
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "avg %lld bpm"
+            "value" : "media %lld bpm"
           }
         },
         "pl" : {
@@ -573077,7 +573077,7 @@
         "pt-PT" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Treinar"
+            "value" : "Treino"
           }
         },
         "ru" : {

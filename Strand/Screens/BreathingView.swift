@@ -736,7 +736,7 @@ private struct BreathingContent: View {
         guard let proto = selectedProtocol, !proto.stages.isEmpty else {
             return isGuided ? String(localized: "Guided timer") : "—"
         }
-        let parts = proto.stages.map { String(format: "%.1f", Double($0.durationMs) / 1000.0) }
+        let parts = proto.stages.map { UnitFormatter.localizedMark(String(format: "%.1f", Double($0.durationMs) / 1000.0)) }
         return parts.joined(separator: " · ") + "s"
     }
 
@@ -1250,7 +1250,7 @@ private struct ResonanceModeView: View {
 
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     CountUpText(value: result.lockedBpm,
-                                format: { String(format: "%.1f", $0) },
+                                format: { UnitFormatter.localizedMark(String(format: "%.1f", $0)) },
                                 font: StrandFont.number(40),
                                 color: StrandPalette.restBright)
                     Text("br/min")
@@ -1286,7 +1286,7 @@ private struct ResonanceModeView: View {
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     CountUpText(value: bpm,
-                                format: { String(format: "%.1f", $0) },
+                                format: { UnitFormatter.localizedMark(String(format: "%.1f", $0)) },
                                 font: StrandFont.number(34),
                                 color: StrandPalette.restBright)
                     Text("br/min")
@@ -1311,7 +1311,7 @@ private struct ResonanceModeView: View {
             Text("RSA RESPONSE BY PACE").strandOverline()
             ForEach(scores, id: \.bpm) { s in
                 HStack(spacing: 8) {
-                    Text(String(format: "%.1f", s.bpm))
+                    Text(UnitFormatter.localizedMark(String(format: "%.1f", s.bpm)))
                         .font(StrandFont.captionNumber)
                         .foregroundStyle(StrandPalette.textSecondary)
                         .frame(width: 34, alignment: .leading)
@@ -1320,7 +1320,7 @@ private struct ResonanceModeView: View {
                     LiquidTube(frac: (s.rsaAmplitude ?? 0) / max(maxRsa, 0.0001),
                                tint: StrandPalette.restBright.opacity(s.scored ? 1 : 0.35),
                                height: 8, animated: false)
-                    Text(s.rsaAmplitude.map { String(format: "%.1f", $0) } ?? "—")
+                    Text(s.rsaAmplitude.map { UnitFormatter.localizedMark(String(format: "%.1f", $0)) } ?? "—")
                         .font(StrandFont.captionNumber)
                         .foregroundStyle(s.scored ? StrandPalette.textSecondary : StrandPalette.textTertiary)
                         .frame(width: 34, alignment: .trailing)
@@ -1334,8 +1334,8 @@ private struct ResonanceModeView: View {
 
     private func rsaTextSummary(_ scores: [ResonanceEngine.PaceScore]) -> String {
         scores.map { s in
-            let v = s.rsaAmplitude.map { String(format: "%.1f", $0) } ?? String(localized: "unscored")
-            return String(localized: "\(String(format: "%.1f", s.bpm)) breaths per minute: \(v)")
+            let v = s.rsaAmplitude.map { UnitFormatter.localizedMark(String(format: "%.1f", $0)) } ?? String(localized: "unscored")
+            return String(localized: "\(UnitFormatter.localizedMark(String(format: "%.1f", s.bpm))) breaths per minute: \(v)")
         }.joined(separator: ", ")
     }
 

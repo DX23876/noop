@@ -2237,10 +2237,47 @@ func resolveSleepFreshness(hasCurrentNight: Bool, morningReady: Bool, syncing: B
 
 /// Explicit state for the expected current night. Older sleep can remain available underneath, but it is
 /// never left to impersonate today's result while a sync, calculation, or failed detection is unresolved.
-struct SleepFreshnessNote: View {
+/// The words the Sleep status note uses for one state, shared by the classic card and the Forge page's own.
+struct SleepFreshnessWords {
+    let status: SleepFreshness.Status
+    let chunks: Int
+    var title: LocalizedStringKey {
+        switch status {
+        case .syncing: return "Syncing strap history…"
+        case .calculating: return "Calculating last night's sleep…"
+        case .syncFailed: return "Last night's sleep hasn't synced"
+        case .awaitingSync: return "Waiting for last night's sleep"
+        case .notDetected: return "Last night's sleep wasn't detected"
+        }
+    }
+    var message: LocalizedStringKey? {
+        switch status {
+        case .syncing: return chunks > 0 ? "\(chunks) chunks pulled" : nil
+        case .calculating: return "Your strap history is in. NOOP is detecting and staging the night now."
+        case .syncFailed: return "The history sync stopped before it finished. Keep the strap nearby and try Sync again."
+        case .awaitingSync:
+            return "Connect the strap and sync its history. NOOP will calculate the night when the overnight data arrives."
+        case .notDetected:
+            return "Sync finished, but NOOP couldn't confidently identify a sleep window. Keep the strap connected and try Sync again; the older night below is still your latest detected sleep."
+        }
+    }
+    var symbol: String {
+        switch status {
+        case .syncing: return "arrow.triangle.2.circlepath"
+        case .calculating: return "waveform.path.ecg"
+        case .syncFailed: return "exclamationmark.arrow.triangle.2.circlepath"
+        case .awaitingSync: return "arrow.triangle.2.circlepath"
+        case .notDetected: return "moon.zzz"
+        }
+    }
+}
+
+/// Explicit state for the expected current night, drawn by `card` (the classic card unless a page brings its own).
+struct SleepFreshnessNote<Card: View>: View {
     @EnvironmentObject private var live: LiveState
     @EnvironmentObject private var intelligence: IntelligenceEngine
     let latestWakeTs: Int?
+    @ViewBuilder let card: (SleepFreshnessWords) -> Card
 
     var body: some View {
         // The scoring pass does not start when the sync stamps `lastSyncedAt`: it waits for the chunks to
@@ -2256,27 +2293,17 @@ struct SleepFreshnessNote: View {
             lastSyncedAt: live.lastSyncedAt,
             syncFailed: live.lastSyncError != nil
         )
-        switch status {
-        case .syncing:
-            SyncingHistoryNote(chunks: live.syncChunksThisSession)
-        case .calculating:
-            DataPendingNote(title: "Calculating last night's sleep…",
-                            message: "Your strap history is in. NOOP is detecting and staging the night now.",
-                            symbol: "waveform.path.ecg")
-        case .syncFailed:
-            DataPendingNote(title: "Last night's sleep hasn't synced",
-                            message: "The history sync stopped before it finished. Keep the strap nearby and try Sync again.",
-                            symbol: "exclamationmark.arrow.triangle.2.circlepath")
-        case .awaitingSync:
-            DataPendingNote(title: "Waiting for last night's sleep",
-                            message: "Connect the strap and sync its history. NOOP will calculate the night when the overnight data arrives.",
-                            symbol: "arrow.triangle.2.circlepath")
-        case .notDetected:
-            DataPendingNote(title: "Last night's sleep wasn't detected",
-                            message: "Sync finished, but NOOP couldn't confidently identify a sleep window. Keep the strap connected and try Sync again; the older night below is still your latest detected sleep.",
-                            symbol: "moon.zzz")
-        case nil:
-            EmptyView()
+        if let status { card(SleepFreshnessWords(status: status, chunks: live.syncChunksThisSession)) }
+    }
+}
+
+extension SleepFreshnessNote where Card == AnyView {
+    /// The classic Sleep screen's note: the syncing pill while history arrives, else the pending card.
+    init(latestWakeTs: Int?) {
+        self.init(latestWakeTs: latestWakeTs) { words in
+            // Explicit returns: the closure is one AnyView, not a view builder's two-branch type.
+            if words.status == .syncing { return AnyView(SyncingHistoryNote(chunks: words.chunks)) }
+            return AnyView(DataPendingNote(title: words.title, message: words.message ?? "", symbol: words.symbol))
         }
     }
 }
