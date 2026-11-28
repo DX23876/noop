@@ -267,8 +267,8 @@ object UnitFormatter {
     /**
      * Format a distance given in METRES (the stored unit for workout distance).
      * Metric: "1.2 km" / "850 m". Imperial: "0.7 mi" / "230 yd" for sub-mile distances.
+     * [locale] decides the decimal mark: the app's language for a screen, `Locale.US` for a prompt a model reads.
      */
-    /** [locale] decides the decimal mark: the app's language for a screen, `Locale.US` for a prompt a model reads. */
     fun distanceFromMeters(meters: Double, system: UnitSystem, locale: Locale = Locale.getDefault()): String = when (system) {
         UnitSystem.METRIC -> {
             val km = meters / 1000.0
