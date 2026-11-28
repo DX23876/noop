@@ -18,13 +18,32 @@ import WhoopStore
 /// rendered from the shared [SleepModel]'s `sleepDebtLedger`. (#242)
 struct SleepDebtLedgerCard: View {
     let model: SleepModel
+    /// The Forge Sleep tab's form (owner, 2026-11-28): no header or card of its own, since the page's card holds
+    /// it; the balance in the text colour and the bars in Rest's colour rather than in warning amber and rose,
+    /// and every length as hours and minutes ("0:34 h"), as the tiles above it write them.
+    var bare = false
 
     var body: some View {
         let ledger = model.sleepDebtLedger
-        VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-            SectionHeader("Sleep balance", overline: "Last 14 nights",
-                          trailing: String(localized: "running balance"))
-            NoopCard(tint: StrandPalette.restColor) {
+        if bare {
+            VStack(alignment: .leading, spacing: NoopMetrics.space4) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text("Sleep balance").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+                    Spacer(minLength: NoopMetrics.space2)
+                    Text("Last 14 nights").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
+                }
+                content(ledger)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: NoopMetrics.gap) {
+                SectionHeader("Sleep balance", overline: "Last 14 nights",
+                              trailing: String(localized: "running balance"))
+                NoopCard(tint: StrandPalette.restColor) { content(ledger) }
+            }
+        }
+    }
+
+    @ViewBuilder private func content(_ ledger: SleepDebtLedger) -> some View {
                 if ledger.nightCount == 0 {
                     Text("No nights with sleep data yet. Your ledger fills in as you wear the strap to bed.")
                         .font(StrandFont.subhead)
@@ -39,14 +58,14 @@ struct SleepDebtLedgerCard: View {
                                 value: ledger.magnitudeMin,
                                 format: { debtHeadline(forMagnitudeMin: $0, ledger: ledger) },
                                 font: StrandFont.number(26),
-                                color: debtBalanceColor(ledger)
+                                color: bare ? StrandPalette.textPrimary : debtBalanceColor(ledger)
                             )
                             .lineLimit(1)
                             .minimumScaleFactor(0.6)
                             Spacer(minLength: NoopMetrics.space2)
                             Text(debtTag(ledger))
                                 .font(StrandFont.captionNumber)
-                                .foregroundStyle(debtBalanceColor(ledger))
+                                .foregroundStyle(bare ? StrandPalette.textSecondary : debtBalanceColor(ledger))
                         }
                         // Plain-English read.
                         Text(debtRead(ledger))
@@ -64,8 +83,6 @@ struct SleepDebtLedgerCard: View {
                         ])
                     }
                 }
-            }
-        }
     }
 
     /// The diverging per-night delta strip: each night a bar from the centre line — up
@@ -90,7 +107,8 @@ struct SleepDebtLedgerCard: View {
                     let h = max(2, frac * (midY - 2))
                     let x = slot * CGFloat(i) + slot / 2
                     RoundedRectangle(cornerRadius: 2, style: .continuous)
-                        .fill(d >= 0 ? StrandPalette.accent : StrandPalette.metricRose)
+                        .fill(bare ? StrandPalette.restColor.opacity(d >= 0 ? 1 : 0.55)
+                                   : (d >= 0 ? StrandPalette.accent : StrandPalette.metricRose))
                         .frame(width: barW, height: h)
                         // Surplus grows upward from the centre, deficit downward.
                         .position(x: x, y: d >= 0 ? midY - h / 2 : midY + h / 2)
@@ -150,7 +168,7 @@ struct SleepDebtLedgerCard: View {
 
     /// Signed "+1h 20m" / "−2h 10m" / "0m" balance string.
     private func debtSigned(_ minutes: Double) -> String {
-        if abs(minutes) < 1 { return String(localized: "0m") }
+        if abs(minutes) < 1 { return bare ? "0:00 h" : String(localized: "0m") }
         let sign = minutes >= 0 ? "+" : "−"
         return "\(sign)\(durationText(abs(minutes)))"
     }
@@ -159,6 +177,7 @@ struct SleepDebtLedgerCard: View {
     /// renders identically whether hosted in Today or shown in the Sleep tab.
     private func durationText(_ minutes: Double) -> String {
         let m = Swift.max(0, Int(minutes.rounded()))
+        if bare { return "\(m / 60):\(String(format: "%02d", m % 60)) h" }
         if m < 60 { return String(localized: "\(m)m") }
         return String(localized: "\(m / 60)h \(m % 60)m")
     }

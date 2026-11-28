@@ -5701,6 +5701,7 @@
     <string name="forge_sl_smart_alarm">智能闹钟</string>
     <string name="forge_sl_smart_alarm_sub">在浅睡阶段叫醒你，闹钟 %1$s</string>
     <string name="forge_sl_bedtime">就寝时间</string>
+    <string name="forge_sl_wind_down">放松</string>
     <string name="forge_sl_reminder_at">%1$s 提醒</string>
     <string name="forge_sl_off">关闭</string>
     <string name="forge_sl_stages">阶段</string>

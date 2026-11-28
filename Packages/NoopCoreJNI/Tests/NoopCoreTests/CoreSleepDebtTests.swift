@@ -16,10 +16,10 @@ final class CoreSleepDebtTests: XCTestCase {
         let debt = CoreSleepDebt.output(SleepDebt.ledger(series: short, needHours: 8))
         XCTAssertTrue(debt.isDebt)
         XCTAssertEqual(debt.tag, "sleep debt")
-        XCTAssertTrue(debt.headline.hasPrefix("≈"))
+        XCTAssertTrue(debt.headline.hasSuffix(" h"))
         XCTAssertTrue(debt.balanceText.hasPrefix("−"))
-        XCTAssertEqual(debt.needText, "8h 0m")
+        XCTAssertEqual(debt.needText, "8:00 h")
         XCTAssertEqual(debt.deltas.count, 14)
-        XCTAssertEqual(CoreSleepDebt.duration(45), "45m")
+        XCTAssertEqual(CoreSleepDebt.duration(45), "0:45 h")
     }
 }

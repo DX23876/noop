@@ -21,6 +21,9 @@ struct BodyClockDialCard: View {
     /// The night's own bed/wake clock hours (0..<24, fractional), from the scored session.
     let actualBedHour: Double
     let actualWakeHour: Double
+    /// The Forge Sleep tab's form (owner, 2026-11-28): no card of its own inside the page's card, and the verdict
+    /// at headline size rather than as a second page title.
+    var bare = false
 
     // One hue for both arcs, told apart by dash and weight rather than by a second colour. Two blues
     // competed with the background image; a single legible one plus a dashed, lighter reference does not.
@@ -47,7 +50,12 @@ struct BodyClockDialCard: View {
         // circle with no ideal arc beside it would state something false about the night, so the card
         // stands down instead. Twin of the Kotlin guard.
         if ideal != nil {
-            NoopCard(tint: hue) {
+            if bare { content.accessibilityElement(children: .contain) }
+            else { NoopCard(tint: hue) { content }.accessibilityElement(children: .contain) }
+        }
+    }
+
+    private var content: some View {
                 VStack(alignment: .leading, spacing: NoopMetrics.gap) {
                     header
                     dial
@@ -58,7 +66,7 @@ struct BodyClockDialCard: View {
                         .accessibilityLabel(Text("Body clock dial"))
                     legend
                     Text(alignmentText)
-                        .font(StrandFont.title2)
+                        .font(bare ? StrandFont.headline : StrandFont.title2)
                         .foregroundStyle(StrandPalette.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                     if let chronotype = CircadianEngine.chronotype(estimate) {
@@ -67,9 +75,6 @@ struct BodyClockDialCard: View {
                             .foregroundStyle(StrandPalette.textTertiary)
                     }
                 }
-            }
-            .accessibilityElement(children: .contain)
-        }
     }
 
     private var header: some View {

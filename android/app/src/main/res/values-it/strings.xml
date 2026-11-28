@@ -5708,6 +5708,7 @@
     <string name="forge_sl_smart_alarm">Sveglia smart</string>
     <string name="forge_sl_smart_alarm_sub">Ti sveglia in una fase leggera, sveglia %1$s</string>
     <string name="forge_sl_bedtime">Ora di andare a letto</string>
+    <string name="forge_sl_wind_down">Rilassati</string>
     <string name="forge_sl_reminder_at">Promemoria alle %1$s</string>
     <string name="forge_sl_off">Off</string>
     <string name="forge_sl_stages">Fasi</string>

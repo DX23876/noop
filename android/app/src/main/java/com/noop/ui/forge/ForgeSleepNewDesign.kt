@@ -119,15 +119,12 @@ internal fun SleepTonightCard(viewModel: AppViewModel, need: Double, onOpen: () 
             }
             Spacer(Modifier.width(ForgeMetrics.space3))
             Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.forge_sl_tonight), style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold),
+                Text(stringResource(R.string.forge_sl_bedtime), style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold),
                      color = colors.text)
                 Text(stringResource(R.string.forge_sl_full_recovery), style = Forge.type.caption, color = colors.textSecondary)
             }
-            Column(horizontalAlignment = Alignment.End) {
-                Text(bed.format(clock), style = Forge.type.title1.copy(fontSize = 26.sp, fontWeight = FontWeight.SemiBold),
-                     color = colors.rest, maxLines = 1)
-                Text(stringResource(R.string.forge_sl_bedtime_word), style = Forge.type.caption, color = colors.textSecondary)
-            }
+            Text(bed.format(clock), style = Forge.type.title1.copy(fontSize = 26.sp, fontWeight = FontWeight.SemiBold),
+                 color = colors.rest, maxLines = 1)
         }
         Spacer(Modifier.height(ForgeMetrics.space3))
         Box(Modifier.fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider))
@@ -167,7 +164,7 @@ private fun stageParts(night: CoreRead.Night): List<StagePart> {
 @Composable
 internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: ZoneId,
                             days: List<DailyMetric> = emptyList(), isOura: Boolean = false,
-                            onEdit: (() -> Unit)? = null) {
+                            onEdit: (() -> Unit)? = null, showMakeUp: Boolean = true) {
     val colors = Forge.colors
     val clock = rememberClockFormatter()
     fun at(ts: Long) = Instant.ofEpochSecond(ts).atZone(zone).format(clock)
@@ -202,7 +199,9 @@ internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: Zone
         }
         Spacer(Modifier.height(ForgeMetrics.space3))
         }
-        // The night's make-up as one bar, in the lanes' own stage colours.
+        // The night's make-up as one bar, in the lanes' own stage colours. The new Sleep page leaves it to the
+        // Stages card below it, as iOS's `nightCard` (owner, 2026-11-28).
+        if (!showMakeUp) return@ForgeCard
         val total = parts.sumOf { it.minutes }.coerceAtLeast(1.0)
         BoxWithConstraints(Modifier.fillMaxWidth().height(10.dp).clearAndSetSemantics { }) {
             val usable = maxWidth - 6.dp
@@ -248,7 +247,7 @@ internal fun NightFigures(night: CoreRead.Night, days: List<DailyMetric>, isOura
     val colors = Forge.colors
     val facts = rememberNightFacts(night, days) ?: return
     val efficiency = facts.efficiencyPct?.roundToInt()
-    val inBed = durationText(facts.inBedMin)
+    val inBed = hoursText(facts.inBedMin)
     // An Oura night's stages are the ring's own classification, not NOOP's approximation, and it is said in its
     // own words; a night stored as minutes per stage, with no stretches, gets neither line.
     val caption = if (night.stages.isEmpty()) null
@@ -273,15 +272,18 @@ internal fun NightFigures(night: CoreRead.Night, days: List<DailyMetric>, isOura
     Spacer(Modifier.height(ForgeMetrics.space3))
 }
 
+/** "8:13 h": a length as the Sleep page writes every one, iOS's `ForgeSleepView.durationText` (owner, 2026-11-28). */
+internal fun hoursText(minutes: Double): String = "${TodayTimeline.hoursMinutes(minutes)} h"
+
 @Composable
 private fun NightFigure(label: String, minutes: Double, typical: Double?, tint: Color, modifier: Modifier) {
     val colors = Forge.colors
     Column(modifier.semantics(mergeDescendants = true) { }) {
-        Text(durationText(minutes), style = Forge.type.title1, color = tint, maxLines = 1)
+        Text(hoursText(minutes), style = Forge.type.title1, color = tint, maxLines = 1)
         Text(label, style = Forge.type.caption.copy(fontWeight = FontWeight.SemiBold), color = colors.text,
              maxLines = 2)
         if (typical != null) {
-            Text(stringResource(R.string.forge_sl_usually_only, durationText(typical)),
+            Text(stringResource(R.string.forge_sl_usually_only, hoursText(typical)),
                  style = Forge.type.caption, color = colors.textSecondary, maxLines = 1)
         }
     }
@@ -590,7 +592,8 @@ internal fun SleepThisNight(days: List<DailyMetric>, wakeKey: String, hasStages:
     if (!hasStages) signals.add(3, Signal(stringResource(R.string.forge_sl_breaths),
         row?.respRateBpm?.let { "%.1f".format(Locale.getDefault(), it) }, "", Icons.Rounded.Air, recent.map { it.respRateBpm }))
     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
-        SleepSectionTitle(stringResource(R.string.forge_sl_this_night))
+        // It continues "What shaped the night" right above it, so it carries no title of its own (iOS `nightFacts`).
+        if (!hasStages) SleepSectionTitle(stringResource(R.string.forge_sl_shaped))
         signals.chunked(2).forEach { pair ->
             Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.space3)) {
                 pair.forEach { SignalTile(it, highlightLast = row != null, Modifier.weight(1f)) }
@@ -710,7 +713,7 @@ internal fun SleepHistory(days: List<DailyMetric>, need: Double) {
     }
 }
 
-/** The smart alarm and the bedtime reminder, as iOS's `more` group, both opening Alarms. */
+/** The smart alarm and the wind-down reminder, as iOS's rows in its Tonight block, both opening Alarms. */
 @Composable
 internal fun SleepAlarms(viewModel: AppViewModel, onOpen: () -> Unit) {
     val context = LocalContext.current
@@ -721,14 +724,11 @@ internal fun SleepAlarms(viewModel: AppViewModel, onOpen: () -> Unit) {
     val reminder = if (!store.enabled) stringResource(R.string.forge_sl_off)
         else stringResource(R.string.forge_sl_reminder_at,
                             wake.minusMinutes((store.sleepNeedMinutes + store.leadMinutes).toLong()).format(clock))
-    Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
-        SleepSectionTitle(stringResource(R.string.forge_sl_alarms))
-        ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
-            AlarmRow(Icons.Rounded.Alarm, stringResource(R.string.forge_sl_smart_alarm),
-                     stringResource(R.string.forge_sl_smart_alarm_sub, wake.format(clock)), onOpen)
-            Box(Modifier.padding(start = 56.dp).fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider))
-            AlarmRow(Icons.Rounded.Bedtime, stringResource(R.string.forge_sl_bedtime), reminder, onOpen)
-        }
+    ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
+        AlarmRow(Icons.Rounded.Alarm, stringResource(R.string.forge_sl_smart_alarm),
+                 stringResource(R.string.forge_sl_smart_alarm_sub, wake.format(clock)), onOpen)
+        Box(Modifier.padding(start = 56.dp).fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider))
+        AlarmRow(Icons.Rounded.Bedtime, stringResource(R.string.forge_sl_wind_down), reminder, onOpen)
     }
 }
 
@@ -737,13 +737,13 @@ private fun AlarmRow(icon: ImageVector, title: String, subtitle: String, onClick
     val colors = Forge.colors
     Row(Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick).padding(horizontal = ForgeMetrics.space4, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        // iOS `ForgeRow` (not compact): the symbol in the tint on a round wash of it, the title semibold.
-        Box(Modifier.size(38.dp).background(colors.rest.copy(alpha = 0.16f), CircleShape), contentAlignment = Alignment.Center) {
-            Icon(icon, contentDescription = null, tint = colors.rest, modifier = Modifier.size(18.dp))
+        // iOS `ForgeRow(plainMark:)`: the symbol alone in the tint in a 28 frame, the title semibold (owner, 2026-11-28).
+        Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = colors.rest, modifier = Modifier.size(24.dp))
         }
         Spacer(Modifier.width(ForgeMetrics.space3))
         Column(Modifier.weight(1f)) {
-            Text(title, style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
+            Text(title, style = Forge.type.body.copy(fontSize = 16.sp, fontWeight = FontWeight.SemiBold), color = colors.text)
             Text(subtitle, style = Forge.type.footnote, color = colors.textSecondary, maxLines = 2)
         }
         Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = colors.textTertiary,

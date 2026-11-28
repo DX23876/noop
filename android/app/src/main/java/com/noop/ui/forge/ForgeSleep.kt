@@ -261,21 +261,7 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
             if (LocalForgeOpenMore.current != null) {
                 SleepSummaryTiles(night, rest, model, need, onRest = { restValue = rest; restPage = true },
                                   onDuration = { durationPage = CoreRead.Metric.SleepMinutes })
-                // While the coach is on, the night goes to it in one tap, as iOS's button under the tiles.
-                if (com.noop.ui.BottomBarStyleStore.coachEnabled) {
-                    val select = LocalForgeTabSelect.current
-                    val prompt = stringResource(R.string.forge_sleep_discuss_prompt)
-                    Row(Modifier.fillMaxWidth().heightIn(min = 46.dp)
-                            .background(Forge.colors.surface.copy(alpha = 0.6f), CircleShape)
-                            .clickable(role = Role.Button) { com.noop.ui.CoachHandoff.pendingPrompt = prompt; select(ForgeTab.Coach) },
-                        horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.ChatBubbleOutline, contentDescription = null, tint = Forge.colors.accent,
-                             modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(ForgeMetrics.space2))
-                        Text(stringResource(R.string.forge_sleep_discuss), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
-                             color = Forge.colors.accent)
-                    }
-                }
+                // The coach is the header's button; a second one under the tiles said the same (iOS, owner 2026-11-28).
             } else {
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
                 OrganicRing(rest, Forge.colors.rest, if (width == ForgeWidth.Compact) 260.dp else 280.dp, OrganicMetric.Rest)
@@ -721,42 +707,24 @@ private fun SleepDebtLedger() {
         value = withContext(Dispatchers.IO) { com.noop.core.CoreSleepDebt.read() }
     }
     val l = ledger ?: return
-    val tone = when (l.tone) {
-        "warning" -> ForgeTokens.Color.systemOrange.resolve()
-        "critical" -> ForgeTokens.Color.systemRed.resolve()
-        else -> ForgeTokens.Color.systemGreen.resolve()
-    }
-    val surplus = Forge.colors.accent
-    val deficit = ForgeTokens.Color.systemPink.resolve()
+    val rest = Forge.colors.rest
     val line = Forge.colors.border
-    val newDesign = ForgeDesign.preview
-    androidx.compose.foundation.layout.Column(verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(ForgeMetrics.space2)) {
-        // The new design heads the section "Sleep debt" and names the ledger inside its card, the figures on an inset
-        // panel, as iOS's `ForgeNightBreakdown` hosts `SleepDebtLedgerCard`.
-        if (newDesign) SleepSectionTitle(stringResource(R.string.forge_sl_sleep_debt))
-        else androidx.compose.foundation.layout.Row {
+    ForgeCard(Modifier.fillMaxWidth()) {
+        androidx.compose.foundation.layout.Row(Modifier.padding(bottom = ForgeMetrics.space3),
+                                               verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Text(stringResource(R.string.forge_sd_title), style = Forge.type.headline, color = Forge.colors.text,
                  modifier = Modifier.weight(1f))
             Text(stringResource(R.string.forge_sd_last14), style = Forge.type.footnote, color = Forge.colors.textSecondary)
         }
-        ForgeCard(Modifier.fillMaxWidth()) {
-            if (newDesign) androidx.compose.foundation.layout.Row(Modifier.padding(bottom = ForgeMetrics.space3),
-                                                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                Text(stringResource(R.string.forge_sd_title), style = Forge.type.headline, color = Forge.colors.text,
-                     modifier = Modifier.weight(1f))
-                Text(stringResource(R.string.forge_sl_running_balance), style = Forge.type.footnote, color = Forge.colors.textSecondary)
-            }
-            if (l.nightCount == 0) {
-                Text(stringResource(R.string.forge_sd_empty), style = Forge.type.subhead, color = Forge.colors.textTertiary)
-                return@ForgeCard
-            }
-            androidx.compose.foundation.layout.Column(
-                if (newDesign) Modifier.fillMaxWidth().background(Forge.colors.inset.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
-                    .padding(ForgeMetrics.space4) else Modifier,
-                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(ForgeMetrics.space2)) {
+        if (l.nightCount == 0) {
+            Text(stringResource(R.string.forge_sd_empty), style = Forge.type.subhead, color = Forge.colors.textTertiary)
+            return@ForgeCard
+        }
+        androidx.compose.foundation.layout.Column(
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(ForgeMetrics.space2)) {
             androidx.compose.foundation.layout.Row(verticalAlignment = androidx.compose.ui.Alignment.Bottom) {
-                Text(l.headline, style = Forge.type.title1, color = tone, modifier = Modifier.weight(1f))
-                Text(l.tag, style = Forge.type.footnote, color = tone)
+                Text(l.headline, style = Forge.type.title1, color = Forge.colors.text, modifier = Modifier.weight(1f))
+                Text(l.tag, style = Forge.type.footnote, color = Forge.colors.textSecondary)
             }
             Text(l.read, style = Forge.type.subhead, color = Forge.colors.textSecondary)
             androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(56.dp)) {
@@ -768,7 +736,8 @@ private fun SleepDebtLedger() {
                 l.deltas.forEachIndexed { i, d ->
                     val h = (kotlin.math.abs(d) / scale * (mid - 2)).toFloat().coerceAtLeast(2f)
                     val x = slot * i + (slot - bar) / 2
-                    drawRoundRect(if (d >= 0) surplus else deficit, androidx.compose.ui.geometry.Offset(x, if (d >= 0) mid - h else mid),
+                    drawRoundRect(rest.copy(alpha = if (d >= 0) 1f else 0.55f),
+                                  androidx.compose.ui.geometry.Offset(x, if (d >= 0) mid - h else mid),
                                   androidx.compose.ui.geometry.Size(bar, h), androidx.compose.ui.geometry.CornerRadius(4f, 4f))
                 }
             }
@@ -780,7 +749,6 @@ private fun SleepDebtLedger() {
                         Text(value, style = Forge.type.headline, color = Forge.colors.text)
                     }
                 }
-            }
             }
         }
     }
@@ -830,9 +798,9 @@ internal suspend fun nightSteadiness(viewModel: com.noop.ui.AppViewModel, night:
 }
 
 /**
- * The new design's Sleep page under the summary, in iOS's order (`ForgeSleepView.body`): Tonight, the night, its naps,
- * the breakdown (stages against the typical night, what shaped it, sleep debt, body clock), the week's sleep goals,
- * the highlights, the body through the night, the history, the alarms and the night's marks.
+ * The new design's Sleep page under the summary, in iOS's order (`ForgeSleepView.body`, owner 2026-11-28): the night
+ * in detail (its curve, naps, stages and what shaped it), tonight (bedtime, sleep balance, alarm, marks) and the
+ * weeks (history, body clock, the week's sleep goal). Each figure appears once.
  */
 @Composable
 private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.Night?, isLatest: Boolean,
@@ -851,7 +819,6 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
     LaunchedEffect(Unit) {
         if (SleepArrival.consume()) adding = seedForAdd(night != null)
     }
-    SleepTonightCard(viewModel, need, onAlarms)
     changes.undo?.let { held ->
         SleepUndoStrip(held, onUndo = {
             changes.undo = null
@@ -910,7 +877,7 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
         val key = wakeDay.toString()
         SleepNightCard(night, isLatest, zone, days,
                        isOura = com.noop.data.DeviceBrandCatalog.isOura(viewModel.activeStrapId),
-                       onEdit = { editing = night })
+                       onEdit = { editing = night }, showMakeUp = false)
         DayNaps(night, wakeDay, zone, onDelete = { nap ->
             // The nap's own row, as the core named it. Searching for it again by time window read one lane
             // only, so a nap NOOP had computed itself could not be deleted and said nothing.
@@ -923,36 +890,37 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
                 changes.accept(applyNapDelete(viewModel, context, nap, block))
             }
         })
+        // Adding a sleep NOOP never recorded: a night it missed, or a nap. Under the night it would join,
+        // because that is where someone is standing when they notice the gap.
+        LargeRow(Icons.Rounded.Add, Forge.colors.rest, stringResource(R.string.forge_sl_add_row), "",
+                 onClick = { scope.launch { adding = seedForAdd(true) } })
         if (hasStageMinutes(night)) {
             SleepStagesVsTypical(night, tiles)
             val steadiness by produceState<Double?>(null, night.startTs) {
                 value = withContext(Dispatchers.IO) { runCatching { nightSteadiness(viewModel, night, key) }.getOrNull() }
             }
             SleepShaped(night, tiles, traits.needHoursFor(key) * 60, days.lastOrNull { it.day == key }, steadiness)
-            SleepDebtLedger()
-            if (bodyClock != null && bodyClock.confidence != com.noop.analytics.CircadianEngine.PhaseConfidence.UNREADABLE) {
-                Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
-                    SleepSectionTitle(stringResource(R.string.forge_sl_body_clock))
-                    val forgeColors = Forge.colors
-                    val tokens = remember(forgeColors) { hostedTokens(forgeColors) }
-                    com.noop.ui.HostedPalette(tokens, forgeColors.dark) {
-                        com.noop.ui.BodyClockDialCard(bodyClock, com.noop.ui.localClockHour(night.startTs),
-                                                      com.noop.ui.localClockHour(night.endTs))
-                    }
-                }
-            }
         }
-        // Adding a sleep NOOP never recorded: a night it missed, or a nap. Under the night it would join,
-        // because that is where someone is standing when they notice the gap.
-        LargeRow(Icons.Rounded.Add, Forge.colors.rest, stringResource(R.string.forge_sl_add_row), "",
-                 onClick = { scope.launch { adding = seedForAdd(true) } })
-        ForgeGoalsContextCard("sleep")
-        SleepHighlights(night, tiles)
         SleepThisNight(days, key, hasStageMinutes(night))
     }
-    SleepHistory(days, need)
+    // Tonight: when to go to bed, the balance behind it, the alarm and the night's marks.
+    SleepSectionTitle(stringResource(R.string.forge_sl_tonight))
+    SleepTonightCard(viewModel, need, onAlarms)
+    SleepDebtLedger()
     SleepAlarms(viewModel, onAlarms)
     ForgeSleepMarkCard(viewModel)
+    // The weeks: the history, the body clock, the week's sleep goal and the nights deleted by mistake.
+    SleepHistory(days, need)
+    if (night != null && bodyClock != null &&
+        bodyClock.confidence != com.noop.analytics.CircadianEngine.PhaseConfidence.UNREADABLE) {
+        val forgeColors = Forge.colors
+        val tokens = remember(forgeColors) { hostedTokens(forgeColors) }
+        com.noop.ui.HostedPalette(tokens, forgeColors.dark) {
+            com.noop.ui.BodyClockDialCard(bodyClock, com.noop.ui.localClockHour(night.startTs),
+                                          com.noop.ui.localClockHour(night.endTs))
+        }
+    }
+    ForgeGoalsContextCard("sleep")
     DeletedSleepWindows(viewModel)
 }
 

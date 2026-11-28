@@ -5761,6 +5761,7 @@
     <string name="forge_sl_smart_alarm">Inteligentny alarm</string>
     <string name="forge_sl_smart_alarm_sub">Budzi cię w płytkiej fazie, budzik %1$s</string>
     <string name="forge_sl_bedtime">Pora snu</string>
+    <string name="forge_sl_wind_down">Odpręż się</string>
     <string name="forge_sl_reminder_at">Przypomnienie o %1$s</string>
     <string name="forge_sl_off">Wyłączony</string>
     <string name="forge_sl_stages">Gradacja</string>

@@ -6,12 +6,11 @@ import StrandCore
 import WhoopStore
 
 /// The rest of one night on the redesign's Sleep tab (prototype board "SleepNight"): the stages against the
-/// wearer's typical night, what shaped the night against the usual, the sleep-debt ledger and the body
-/// clock. Every value is the shipped `SleepModel`'s; the ledger and the clock dial are the shipped cards.
+/// wearer's typical night and what shaped the night against the usual. Every value is the shipped `SleepModel`'s.
+/// The sleep-debt ledger and the body clock moved to the page's Tonight and History blocks (owner, 2026-11-28).
 struct ForgeNightBreakdown: View {
     let model: SleepModel
     let night: Night
-    @EnvironmentObject private var appModel: AppModel
     @EnvironmentObject private var repo: Repository
 
     /// The wake day's stored row: the figures below belong to the night on screen, not to the newest one.
@@ -29,16 +28,6 @@ struct ForgeNightBreakdown: View {
         VStack(alignment: .leading, spacing: 14) {
             stages
             shaped
-            ForgeSectionTitle(title: "Sleep debt")
-            SleepDebtLedgerCard(model: model)
-                .forgeCard(radius: ForgeRadius.card, padding: 16)
-            if let phase = appModel.circadianPhase, phase.confidence != .unreadable {
-                ForgeSectionTitle(title: "Body clock")
-                BodyClockDialCard(estimate: phase,
-                                  actualBedHour: SleepView.localClockHour(night.session.effectiveStartTs),
-                                  actualWakeHour: SleepView.localClockHour(night.session.endTs))
-                    .forgeCard(radius: ForgeRadius.card, padding: 16)
-            }
         }
     }
 

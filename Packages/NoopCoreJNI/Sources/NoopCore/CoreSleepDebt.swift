@@ -75,21 +75,21 @@ enum CoreSleepDebt {
         return Output(nightCount: nights, balanceMin: ledger.balanceMin, needMin: ledger.needMin,
                       magnitudeMin: ledger.magnitudeMin, isDebt: ledger.isDebt, onTarget: onTarget,
                       deltas: ledger.nights.map(\.deltaMin),
-                      headline: onTarget ? String(localized: "On target") : "≈\(duration(ledger.magnitudeMin))",
+                      headline: onTarget ? String(localized: "On target") : duration(ledger.magnitudeMin),
                       tag: !onTarget && ledger.isDebt ? String(localized: "sleep debt") : String(localized: "balanced"),
                       read: read, balanceText: signed(ledger.balanceMin), needText: duration(ledger.needMin), tone: tone)
     }
 
-    /// `debtSigned`: "+1h 20m", "−2h 10m", "0m".
+    /// `debtSigned`: "+1:20 h", "−2:10 h", "0:00 h".
     static func signed(_ minutes: Double) -> String {
-        if abs(minutes) < 1 { return String(localized: "0m") }
+        if abs(minutes) < 1 { return duration(0) }
         return "\(minutes >= 0 ? "+" : "−")\(duration(abs(minutes)))"
     }
 
-    /// `durationText`: "Xm" or "Yh Zm".
+    /// `SleepDebtLedgerCard(bare:)`'s lengths: "0:34 h", "8:00 h", as the Sleep tab writes every length (owner,
+    /// 2026-11-28), and the estimate stated without the "≈" mark, as the new design states it on the iPhone.
     static func duration(_ minutes: Double) -> String {
         let m = max(0, Int(minutes.rounded()))
-        if m < 60 { return String(localized: "\(m)m") }
-        return String(localized: "\(m / 60)h \(m % 60)m")
+        return "\(m / 60):\(String(format: "%02d", m % 60)) h"
     }
 }

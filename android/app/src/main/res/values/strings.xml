@@ -5805,6 +5805,7 @@
     <string name="forge_sl_smart_alarm">Smart alarm</string>
     <string name="forge_sl_smart_alarm_sub">Wakes you in a light phase, alarm %1$s</string>
     <string name="forge_sl_bedtime">Bedtime</string>
+    <string name="forge_sl_wind_down">Wind down</string>
     <string name="forge_sl_reminder_at">Reminder at %1$s</string>
     <string name="forge_sl_off">Off</string>
     <string name="forge_sl_stages">Stages</string>

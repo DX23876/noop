@@ -5737,6 +5737,7 @@
     <string name="forge_sl_smart_alarm">Alarme intelligente</string>
     <string name="forge_sl_smart_alarm_sub">Te réveille en phase légère, réveil %1$s</string>
     <string name="forge_sl_bedtime">Heure du coucher</string>
+    <string name="forge_sl_wind_down">Détente</string>
     <string name="forge_sl_reminder_at">Rappel à %1$s</string>
     <string name="forge_sl_off">Désactivé</string>
     <string name="forge_sl_stages">Stades</string>

@@ -5720,6 +5720,7 @@
     <string name="forge_sl_smart_alarm">Умный будильник</string>
     <string name="forge_sl_smart_alarm_sub">Будит в лёгкой фазе, будильник %1$s</string>
     <string name="forge_sl_bedtime">Время отхода ко сну</string>
+    <string name="forge_sl_wind_down">Подготовка ко сну</string>
     <string name="forge_sl_reminder_at">Напоминание в %1$s</string>
     <string name="forge_sl_off">Выкл.</string>
     <string name="forge_sl_stages">Стадии</string>

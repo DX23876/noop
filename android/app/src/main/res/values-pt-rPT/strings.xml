@@ -5733,6 +5733,7 @@
     <string name="forge_sl_smart_alarm">Alarme inteligente</string>
     <string name="forge_sl_smart_alarm_sub">Acorda-te numa fase leve, alarme %1$s</string>
     <string name="forge_sl_bedtime">Hora de dormir</string>
+    <string name="forge_sl_wind_down">Relaxe</string>
     <string name="forge_sl_reminder_at">Lembrete às %1$s</string>
     <string name="forge_sl_off">Desligado</string>
     <string name="forge_sl_stages">Estágios</string>

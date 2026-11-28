@@ -2171,16 +2171,13 @@ struct SleepMarkCard: View {
                         .font(StrandFont.footnote)
                         .foregroundStyle(StrandPalette.textTertiary)
                         .fixedSize(horizontal: false, vertical: true)
-                    HStack(spacing: NoopMetrics.gap) {
-                        // Routed through the unified NoopButton system so the two marks sit identically
-                        // (sentence-case label, leading icon at 8pt, controlHeight=48, no glow).
-                        NoopButton("Going to sleep", systemImage: "moon.zzz.fill",
-                                   kind: .secondary, fullWidth: true, multiline: true) { logMark(.bedtime) }
-                            .accessibilityLabel("Log going to sleep")
-
-                        NoopButton("I'm awake", systemImage: "sun.max.fill",
-                                   kind: .secondary, fullWidth: true, multiline: true) { logMark(.wake) }
-                            .accessibilityLabel("Log waking up")
+                    // Routed through the unified NoopButton system so the two marks sit identically
+                    // (sentence-case label, leading icon at 8pt, controlHeight=48, no glow). Side by side where
+                    // both labels fit on one line, else one above the other: "Schlafen gehen" broke over two
+                    // lines in a half-width button (owner, 2026-11-28).
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: NoopMetrics.gap) { markButtons }
+                        VStack(spacing: NoopMetrics.space2) { markButtons }
                     }
                     if let lastMark {
                         Text(lastMark.confirmation)
@@ -2201,6 +2198,13 @@ struct SleepMarkCard: View {
     /// haptic via `lastMark`, appends the human-readable strap-log line, then writes the metric-series
     /// row through the repo's live store handle (no new Repository API, no schema change). The write is
     /// idempotent by (deviceId, day, key). (#461)
+    @ViewBuilder private var markButtons: some View {
+        NoopButton("Going to sleep", systemImage: "moon.zzz.fill", kind: .secondary, fullWidth: true) { logMark(.bedtime) }
+            .accessibilityLabel("Log going to sleep")
+        NoopButton("I'm awake", systemImage: "sun.max.fill", kind: .secondary, fullWidth: true) { logMark(.wake) }
+            .accessibilityLabel("Log waking up")
+    }
+
     private func logMark(_ type: SleepMarkType) {
         let mark = SleepMark(type: type)
         withAnimation(.easeOut(duration: 0.2)) { lastMark = mark }

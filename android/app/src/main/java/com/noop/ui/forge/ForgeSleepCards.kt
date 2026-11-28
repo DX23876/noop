@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -204,17 +205,37 @@ internal fun ForgeSleepMarkCard(viewModel: com.noop.ui.AppViewModel) {
             Text(stringResource(R.string.l10n_sleep_screen_tap_when_you_re_heading_to_1f401690), style = Forge.type.footnote,
                  color = colors.textTertiary)
             Spacer(Modifier.height(ForgeMetrics.space3))
-            Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
-                listOf(Triple(com.noop.analytics.SleepMarkType.BEDTIME, androidx.compose.material.icons.Icons.Rounded.Bedtime,
-                              R.string.l10n_sleep_screen_going_to_sleep_9c6c63fd),
-                       Triple(com.noop.analytics.SleepMarkType.WAKE, androidx.compose.material.icons.Icons.Rounded.WbSunny,
-                              R.string.l10n_sleep_screen_i_m_awake_2caf0e7f)).forEach { (type, icon, label) ->
-                    androidx.compose.material3.Button(onClick = { mark(type) }, modifier = Modifier.weight(1f),
+            // iOS's `SleepMarkCard`: side by side where both labels fit on one line, else one above the other, so
+            // "Schlafen gehen" never breaks over two lines in a half-width button (owner, 2026-11-28).
+            val marks = listOf(Triple(com.noop.analytics.SleepMarkType.BEDTIME, androidx.compose.material.icons.Icons.Rounded.Bedtime,
+                                      stringResource(R.string.l10n_sleep_screen_going_to_sleep_9c6c63fd)),
+                               Triple(com.noop.analytics.SleepMarkType.WAKE, androidx.compose.material.icons.Icons.Rounded.WbSunny,
+                                      stringResource(R.string.l10n_sleep_screen_i_m_awake_2caf0e7f)))
+            val labelStyle = Forge.type.headline
+            val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+            val density = androidx.compose.ui.platform.LocalDensity.current
+            androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val half = (maxWidth - ForgeMetrics.gap) / 2
+                // The symbol, its gap and the button's own padding beside the label.
+                val needed = marks.maxOf { (_, _, label) ->
+                    with(density) { measurer.measure(label, labelStyle).size.width.toDp() } + 18.dp + 8.dp + 48.dp
+                }
+                val button: @Composable (Modifier, Triple<com.noop.analytics.SleepMarkType, androidx.compose.ui.graphics.vector.ImageVector, String>) -> Unit = { mod, (type, icon, label) ->
+                    androidx.compose.material3.Button(onClick = { mark(type) }, modifier = mod.heightIn(min = 48.dp),
                         colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = colors.inset,
                                                                                         contentColor = colors.text)) {
                         androidx.compose.material3.Icon(icon, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(stringResource(label), style = Forge.type.subhead, maxLines = 2)
+                        Text(label, style = labelStyle, maxLines = 1)
+                    }
+                }
+                if (needed <= half) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
+                        marks.forEach { button(Modifier.weight(1f), it) }
+                    }
+                } else {
+                    Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+                        marks.forEach { button(Modifier.fillMaxWidth(), it) }
                     }
                 }
             }

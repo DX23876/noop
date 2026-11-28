@@ -5757,6 +5757,7 @@
     <string name="forge_sl_smart_alarm">Smart-Wecker</string>
     <string name="forge_sl_smart_alarm_sub">Weckt dich in einer leichten Phase, Wecker %1$s</string>
     <string name="forge_sl_bedtime">Schlafenszeit</string>
+    <string name="forge_sl_wind_down">Runterkommen</string>
     <string name="forge_sl_reminder_at">Erinnerung um %1$s</string>
     <string name="forge_sl_off">Aus</string>
     <string name="forge_sl_stages">Phasen</string>
