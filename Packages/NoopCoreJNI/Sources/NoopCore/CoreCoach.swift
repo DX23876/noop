@@ -457,7 +457,10 @@ enum CoreCoach {
         @MainActor init(_ coach: AICoachEngine) {
             conversations = coach.conversations.map { c in
                 let last = c.messages.last { !$0.text.isEmpty }?.text.replacingOccurrences(of: "\n", with: " ")
-                return Row(id: c.id.uuidString, title: c.title.isEmpty ? String(localized: "New chat") : c.title,
+                // The engine stores the English placeholder "New chat" for a chat nobody named yet; shown as stored it
+                // read English in every other language (iOS's `CoachView.shownTitle`).
+                let unnamed = c.title.isEmpty || c.title == "New chat"
+                return Row(id: c.id.uuidString, title: unnamed ? String(localized: "New chat") : c.title,
                            preview: last ?? String(localized: "No messages yet"), updatedAt: c.updatedAt.timeIntervalSince1970,
                            pinned: c.pinned, archived: c.archived, active: c.id == coach.activeConversationID,
                            searchText: ([c.title] + c.messages.map(\.text)).joined(separator: "\n"))
@@ -758,6 +761,8 @@ struct SettingsState: Encodable {
             (.logs, "Logging", "Reading and logging caffeine, journal entries and Lab Book markers."),
             (.sensitiveLogs, "Sensitive journal", "Sexual, relationship, illness and cannabis entries need an extra choice."),
             (.memory, "Memory tools", "Saving, correcting and forgetting facts, and searching past chats."),
+            // iOS's own Food card on the coach settings (2026-11-21): on with the coach, one switch to keep it private.
+            (.food, "Food", "Reading your food log: what you ate, its notes, goals and nutrients."),
             (.patterns, "Also share my patterns & Lab Book",
              enabled.contains(.patterns)
                 ? "On: a short summary of your strongest patterns and logged health numbers is added. Summaries only, never raw readings."
