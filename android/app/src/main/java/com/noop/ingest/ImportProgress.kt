@@ -250,10 +250,10 @@ object ImportProgress {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         runCatching {
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (manager.getNotificationChannel(CHANNEL_ID) != null) return
+            // Set every time, so a channel made in English earlier takes the wearer's language.
             manager.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "Import progress", NotificationManager.IMPORTANCE_LOW)
-                    .apply { description = "How far a running data import has got." },
+                NotificationChannel(CHANNEL_ID, context.getString(R.string.notif_import_channel_name), NotificationManager.IMPORTANCE_LOW)
+                    .apply { description = context.getString(R.string.notif_import_channel_desc) },
             )
         }
     }

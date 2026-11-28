@@ -186,7 +186,7 @@ internal fun ForgeWeeklyReportPage(viewModel: AppViewModel, onBack: () -> Unit, 
                 val day = java.time.Instant.ofEpochSecond(row.startTs).atZone(java.time.ZoneId.systemDefault()).dayOfWeek.getDisplayName(TextStyle.SHORT, locale)
                 tiles += { m -> Highlight(m, stringResource(R.string.forge_wr_hardest), colors.effort,
                     if (scale == EffortScale.WHOOP) "%.1f".format(locale, eff(row.strain!!)) else eff(row.strain!!).roundToInt().toString(),
-                    stringResource(R.string.forge_effort), stringResource(R.string.forge_wr_pair, com.noop.ui.WorkoutEditing.displaySport(row.sport), day)) }
+                    stringResource(R.string.forge_effort), stringResource(R.string.forge_wr_pair, rememberSessionName(row), day)) }
             }
         thisWeek.mean { it.asleepMin }?.let { asleep ->
             val detail = lastWeek.mean { it.asleepMin }?.let { (asleep - it).roundToInt() }

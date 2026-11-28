@@ -799,12 +799,7 @@ struct TrendsDashboardView: View {
         return f
     }()
 
-    private static func date(_ key: String) -> Date? {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.timeZone = .current
-        return f.date(from: key)
-    }
+    private static func date(_ key: String) -> Date? { StoreReader.localDay(fromKey: key) }
 
     // MARK: - Activity
 

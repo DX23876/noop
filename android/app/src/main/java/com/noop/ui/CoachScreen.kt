@@ -121,6 +121,9 @@ fun CoachScreen(vm: CoachViewModel = viewModel(), onOpenSettings: () -> Unit = {
     // handoff degrades to showing setup rather than a failed request. Swift twin: CoachView's task.
     // Opening the chat shows what the coach sent on its own (`markCoachMessagesSeen`).
     LaunchedEffect(Unit) { vm.markSeen() }
+    // Closing it too, as iOS does since 2026-11-22: what arrived while the chat was open (a brief written as it
+    // opened) has been read, so the floating button's dot does not outlive it.
+    androidx.compose.runtime.DisposableEffect(Unit) { onDispose { vm.markSeen() } }
     LaunchedEffect(configured) {
         val handed = CoachHandoff.consume()
         if (handed != null && configured) vm.send(context, handed)

@@ -404,28 +404,19 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             // As iOS's rings: Charge carried from the latest scored day and Rest from the latest night while today has
             // none yet (the small hours, a morning before the sync); Effort stays today's.
             val coreRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
-            val carried by produceState<Pair<Double?, Double?>>(null to null, shown, coreRevision) {
+            // Today's Effort as the classic dashboard has always shown it: the live score over today's raw
+            // heart rate, floored at the stored row (#41). All three come from the one resolver the widgets read
+            // too (`TodayScores`), so the home screen and this page cannot show different rings.
+            val scores by produceState<com.noop.ui.TodayScores.Scores?>(null, shown, coreRevision, model?.day) {
                 value = withContext(Dispatchers.IO) {
                     CoreRead.open(context)
-                    val from = shown.minusDays(14).toString(); val to = shown.toString()
-                    CoreRead.series(CoreRead.Metric.Charge, from, to).lastOrNull()?.value to
-                        CoreRead.series(CoreRead.Metric.Rest, from, to).lastOrNull()?.value
-                }
-            }
-            // Today's Effort as the classic dashboard has always shown it: the live score over today's raw
-            // heart rate, floored at the stored row. The stored row only moves when the nightly pass runs,
-            // so reading it raw showed a lower Effort here than on the other Today for most of the day
-            // (#41). The core resolves it; a past day has no in-progress figure and keeps its stored one.
-            val liveEffort by produceState<Double?>(null, shown, coreRevision, model?.day?.effort) {
-                value = if (shown != today) null else withContext(Dispatchers.IO) {
-                    CoreRead.open(context)
-                    com.noop.core.CoreLiveEffort.today(context, model?.day?.effort)
+                    com.noop.ui.TodayScores.resolve(context, shown, model?.day, isToday = shown == today)
                 }
             }
             val heroDay = (model?.day ?: CoreRead.Day(shown.toString(), null, null, null, null, null, null, null, null, null,
                                                       null, null, null, null, null)).let { d ->
-                d.copy(charge = d.charge ?: carried.first, rest = d.rest ?: carried.second,
-                       effort = liveEffort ?: d.effort)
+                d.copy(charge = scores?.charge ?: d.charge, rest = scores?.rest ?: d.rest,
+                       effort = scores?.effort ?: d.effort)
             }
             Hero(heroDay, width, onHold = { editingWidgets = true }, viewModel = viewModel,
                  // The rings keep more room under them than an ordinary section break, as on iOS, so the

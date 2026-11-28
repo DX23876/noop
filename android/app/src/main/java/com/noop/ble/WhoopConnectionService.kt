@@ -534,15 +534,17 @@ class WhoopConnectionService : Service() {
                     } else {
                         null
                     }
+                    // Today's rings as Today shows them (`TodayScores`); the day state's Room figures only without a core.
+                    val rings = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { com.noop.ui.TodayScores.current(this@WhoopConnectionService) }
                     WidgetSnapshotStore.push(
                         this@WhoopConnectionService,
                         WidgetSnapshot(
-                            recoveryPct = dayState.widgetRecovery,
+                            recoveryPct = rings?.charge?.roundToInt() ?: dayState.widgetRecovery,
                             // Rest = the sleep_performance composite from the anchor row's banked stage
                             // figures (pure, honest-null until last night is scored); Effort = the 0-100
                             // strain. Widget-only carry, so it shows the same day as Today. (#516/#911)
-                            restPct = dayState.widgetRest,
-                            effortPct = dayState.widgetEffort,
+                            restPct = if (rings != null) rings.rest?.roundToInt() else dayState.widgetRest,
+                            effortPct = if (rings != null) rings.effort?.roundToInt() else dayState.widgetEffort,
                             heartRate = state.heartRate,
                             // The ACTIVE device's charge (#2075). This service is the widget's
                             // HEARTBEAT, so publishing the WHOOP's field here would have overwritten the

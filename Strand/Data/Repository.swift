@@ -257,6 +257,10 @@ final class Repository: ObservableObject {
     /// data load on this so they reload when fresh strap data lands , `today?.day` alone is a stable
     /// date string within a day and would freeze e.g. the Today HR trend until the date rolls over.
     @Published private(set) var refreshSeq = 0
+    /// The names the wearer gave their strength sessions, keyed by `NativeTrainingProjection.titleKey`, re-read
+    /// after every refresh (`scheduleSessionTitlesRefresh`). Every screen that names a workout reads it through
+    /// `Repository.sessionName`, so the list, Today and the reports never call one session two things.
+    @Published var sessionTitles: [String: String] = [:]
     /// Explicit sleep edits can be older than the recent-row refresh window.
     @Published private(set) var sleepPresentationRevision = 0
 
@@ -1504,6 +1508,7 @@ final class Repository: ObservableObject {
         // Readiness reads the Training Load lanes. They come from workouts and heart rate rather than the
         // daily rows, so they are re-read after the publish instead of holding it up.
         scheduleReadinessLoadContextRefresh()
+        scheduleSessionTitlesRefresh()
     }
 
     /// Per-source coverage counts for the Freshness Pipeline card. Pure over the rows already read.

@@ -279,7 +279,7 @@
              gated by the Notifications-screen settings. Does nothing until access is granted + enabled. -->
         <service
             android:name="com.noop.notif.NoopNotificationListener"
-            android:label="NOOP wrist alerts"
+            android:label="@string/notif_listener_label"
             android:exported="false"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
@@ -364,13 +364,170 @@
         <receiver
             android:name="com.noop.widget.CoachBriefWidgetReceiver"
             android:exported="true"
-            android:label="Coach Brief">
+            android:label="@string/widget_coach_brief_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"
                 android:resource="@xml/coach_brief_widget_info" />
+        </receiver>
+
+
+        <!-- 2026-11-28: the iPhone's fitness and day widgets Android lacked (FitnessWidgets.kt, DayWidgets.kt). -->
+        <receiver
+            android:name="com.noop.widget.SleepFitnessWidgetReceiver"
+            android:exported="true"
+            android:label="@string/fw_name_sleep">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_fitness_sleep_info" />
+        </receiver>
+        <receiver
+            android:name="com.noop.widget.HrvFitnessWidgetReceiver"
+            android:exported="true"
+            android:label="@string/fw_name_hrv">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_fitness_hrv_info" />
+        </receiver>
+        <receiver
+            android:name="com.noop.widget.RestingHrFitnessWidgetReceiver"
+            android:exported="true"
+            android:label="@string/fw_name_rhr">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_fitness_rhr_info" />
+        </receiver>
+        <receiver
+            android:name="com.noop.widget.ChargeWeekFitnessWidgetReceiver"
+            android:exported="true"
+            android:label="@string/fw_name_charge_week">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_fitness_charge_week_info" />
+        </receiver>
+        <receiver
+            android:name="com.noop.widget.EffortWeekFitnessWidgetReceiver"
+            android:exported="true"
+            android:label="@string/fw_name_effort_week">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_fitness_effort_week_info" />
+        </receiver>
+        <receiver
+            android:name="com.noop.widget.StepsFitnessWidgetReceiver"
+            android:exported="true"
+            android:label="@string/fw_name_steps">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_fitness_steps_info" />
+        </receiver>
+        <receiver
+            android:name="com.noop.widget.WeightFitnessWidgetReceiver"
+            android:exported="true"
+            android:label="@string/fw_name_weight">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_fitness_weight_info" />
+        </receiver>
+        <receiver
+            android:name="com.noop.widget.WorkoutsFitnessWidgetReceiver"
+            android:exported="true"
+            android:label="@string/fw_name_workouts">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_fitness_workouts_info" />
+        </receiver>
+        <receiver
+            android:name="com.noop.widget.ConsistencyFitnessWidgetReceiver"
+            android:exported="true"
+            android:label="@string/fw_name_consistency">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_fitness_consistency_info" />
+        </receiver>
+        <receiver
+            android:name="com.noop.widget.VitalsFitnessWidgetReceiver"
+            android:exported="true"
+            android:label="@string/fw_name_vitals">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_fitness_vitals_info" />
+        </receiver>
+        <receiver
+            android:name="com.noop.widget.RingsWidgetReceiver"
+            android:exported="true"
+            android:label="@string/fw_name_rings">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_rings_info" />
+        </receiver>
+        <receiver
+            android:name="com.noop.widget.ForgeTodayWidgetReceiver"
+            android:exported="true"
+            android:label="@string/fw_name_forge_today">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_forge_today_info" />
+        </receiver>
+        <receiver
+            android:name="com.noop.widget.EnergyWidgetReceiver"
+            android:exported="true"
+            android:label="@string/fw_name_energy">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_energy_info" />
+        </receiver>
+        <receiver
+            android:name="com.noop.widget.FoodWidgetReceiver"
+            android:exported="true"
+            android:label="@string/fw_name_food">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_food_info" />
         </receiver>
 
         <!-- Owner decisions 2026-11-26: the four weight widgets (iOS WeightTrackerWidgets) and their colour choice. -->

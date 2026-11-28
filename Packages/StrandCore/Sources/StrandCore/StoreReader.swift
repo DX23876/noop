@@ -38,6 +38,10 @@ public struct StoreReader: Sendable {
     }
     /// `yyyy-MM-dd` in the device's local zone, matching how `DailyMetric.day` is stored.
     public static func localDayKey(_ date: Date) -> String { dayKeyFormatter.string(from: date) }
+    /// The local midnight a `yyyy-MM-dd` key names, read with the same fixed calendar `localDayKey` writes with.
+    /// A formatter left on the device's calendar reads "2026-11-28" as a Buddhist year on a Thai iPhone (the
+    /// default there), 543 years off, so every key a screen parsed by itself missed its day.
+    public static func localDay(fromKey key: String) -> Date? { dayKeyFormatter.date(from: key) }
     private static let dayKeyFormatter: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.locale = Locale(identifier: "en_US_POSIX"); return f
     }()
@@ -398,6 +402,15 @@ public struct StoreReader: Sendable {
             offset += pageSize
         }
         return values
+    }
+
+    /// The names of the strength sessions starting in the window, keyed by
+    /// `NativeTrainingProjection.titleKey`, so the Workouts lists can show "Push day" where the row's sport
+    /// says only "Strength Training".
+    public func sessionTitles(from lo: Int, to hi: Int) async -> [String: String] {
+        let native = await pagedNativeWorkoutRows(from: lo, to: hi)
+        let hevy = (try? await store.hevyWorkouts(from: lo, to: hi, limit: 5_000)) ?? []
+        return NativeTrainingProjection.sessionTitles(native: native, hevy: hevy)
     }
 
     /// Every native session starting in the window, paged. Not private: `WorkoutHeartRateFills.fillRecorded`

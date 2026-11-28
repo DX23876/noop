@@ -105,7 +105,12 @@ object WidgetSnapshotStore {
         val stressIds = runCatching {
             GlanceAppWidgetManager(app).getGlanceIds(StressGlanceWidget::class.java)
         }.getOrDefault(emptyList())
-        if (standardIds.isEmpty() && compactIds.isEmpty() && hrIds.isEmpty() && stressIds.isEmpty()) {
+        // The rings and Forge Today draw the same three scores (2026-11-28).
+        val ringIds = runCatching {
+            GlanceAppWidgetManager(app).getGlanceIds(RingsGlanceWidget::class.java) +
+                GlanceAppWidgetManager(app).getGlanceIds(ForgeTodayGlanceWidget::class.java)
+        }.getOrDefault(emptyList())
+        if (standardIds.isEmpty() && compactIds.isEmpty() && hrIds.isEmpty() && stressIds.isEmpty() && ringIds.isEmpty()) {
             // Admitted, but there is nowhere for it to go. Recorded rather than returned silently: an
             // export taken with the widget removed is half of the comparison that answers whether it
             // costs anything, and counting this as a send would have made both halves look alike.
@@ -140,6 +145,7 @@ object WidgetSnapshotStore {
         if (compactIds.isNotEmpty()) runCatching { NoopCompactGlanceWidget().updateAll(app) }
         if (hrIds.isNotEmpty()) runCatching { HrGlanceWidget().updateAll(app) }
         if (stressIds.isNotEmpty()) runCatching { StressGlanceWidget().updateAll(app) }
+        if (ringIds.isNotEmpty()) DayWidgets.redrawRings(app)
     }
 
     /**

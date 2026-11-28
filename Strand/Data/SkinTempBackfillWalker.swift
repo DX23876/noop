@@ -264,10 +264,10 @@ actor SkinTempBackfillWalker {
     }
 
     /// Local-day key (yyyy-MM-dd) for a unix timestamp, matching the engine's `dayString(ts,offsetSec:)`.
+    ///
+    /// The engine's own function, not a second copy: the copy read the shifted instant through a calendar in the
+    /// device's zone, adding the offset twice, so in the hours before midnight it named tomorrow.
     private static func dayKey(now: Int, tzOffsetSeconds: Int) -> String {
-        let comps = Calendar(identifier: .gregorian).dateComponents(
-            [.year, .month, .day], from: Date(timeIntervalSince1970: TimeInterval(now + tzOffsetSeconds)))
-        let y = comps.year ?? 0, m = comps.month ?? 0, d = comps.day ?? 0
-        return String(format: "%04d-%02d-%02d", y, m, d)
+        AnalyticsEngine.dayString(now, offsetSec: tzOffsetSeconds)
     }
 }

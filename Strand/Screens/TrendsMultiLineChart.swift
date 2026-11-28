@@ -3,6 +3,7 @@ import SwiftUI
 import Charts
 import StrandDesign
 import WhoopStore
+import StrandCore
 
 /// Three fixed-colour lines over the same 14-day window — Charge (green), Effort (orange — `DailyMetric.strain`
 /// is already this app's own 0…100 load score, the same axis Charge and Rest use, so no rescale is needed),
@@ -98,11 +99,6 @@ struct TrendsMultiLineChart: View {
         }
     }
 
-    private static func date(_ key: String) -> Date? {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd"
-        f.timeZone = .current
-        return f.date(from: key)
-    }
+    private static func date(_ key: String) -> Date? { StoreReader.localDay(fromKey: key) }
 }
 #endif

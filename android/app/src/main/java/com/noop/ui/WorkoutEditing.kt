@@ -58,6 +58,9 @@ object WorkoutEditing {
     /** How far a "Duplicate as manual" copy starts after its original, so the two never share a key. */
     const val COPY_OFFSET_S = 1L
 
+    /** [displaySport] in the wearer's language, for display only ([com.noop.core.CoreSportName]). */
+    fun localizedSport(sport: String): String = com.noop.core.CoreSportName.name(sport)
+
     /**
      * Sport-cell text. "detected" reads as a neutral "Activity". WHOOP sport names arrive as
      * concatenated camelCase (e.g. "TraditionalStrengthTraining"), which reads as one long

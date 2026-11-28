@@ -131,7 +131,7 @@ internal fun ForgeWeekPlanPage(viewModel: AppViewModel, onBack: () -> Unit, onSc
                 if (i > 0) Box(Modifier.padding(start = 72.dp).fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider))
                 val doneRows = done(d); val plan = planned(d)
                 val past = d.isBefore(today)
-                val title = if (doneRows.isNotEmpty()) doneRows.joinToString(", ") { com.noop.ui.WorkoutEditing.displaySport(it.sport) }
+                val title = if (doneRows.isNotEmpty()) doneRows.joinToString(", ") { com.noop.ui.WorkoutEditing.localizedSport(it.sport) }
                             else plan.firstOrNull()?.label ?: stringResource(if (past) R.string.forge_wp_no_workout else R.string.forge_wp_nothing)
                 val effort = l?.effort?.get(d.toString())
                 val detail = when {

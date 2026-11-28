@@ -261,7 +261,7 @@ public enum ActivitySuggestions {
     }
 
     public static func dayKey(_ ts: Int, _ calendar: Calendar) -> String {
-        let c = calendar.dateComponents([.year, .month, .day], from: Date(timeIntervalSince1970: TimeInterval(ts)))
+        let c = calendar.gregorianForDayKeys.dateComponents([.year, .month, .day], from: Date(timeIntervalSince1970: TimeInterval(ts)))
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
 }

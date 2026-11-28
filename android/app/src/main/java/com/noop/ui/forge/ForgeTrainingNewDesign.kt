@@ -209,6 +209,7 @@ internal fun TrainingRecentList(workouts: List<WorkoutRow>, viewModel: com.noop.
         return
     }
     val effortFormat = rememberEffortFormat()
+    val titles = rememberSessionTitles(rows)
     val zone = java.time.ZoneId.systemDefault()
     val locale = java.util.Locale.getDefault()
     val dayFormat = java.time.format.DateTimeFormatter.ofPattern(android.text.format.DateFormat.getBestDateTimePattern(locale, "EEEdMMM"), locale)
@@ -230,7 +231,7 @@ internal fun TrainingRecentList(workouts: List<WorkoutRow>, viewModel: com.noop.
                 }
                 Spacer(Modifier.width(ForgeMetrics.space3))
                 Column(Modifier.weight(1f)) {
-                    Text(com.noop.ui.WorkoutEditing.displaySport(row.sport), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
+                    Text(sessionName(row, titles), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
                          color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     val distance = row.distanceM?.takeIf { it > 0 }?.let { " · " + com.noop.ui.UnitFormatter.distanceFromMeters(it, distanceSystem) }.orEmpty()
                     Text(stringResource(R.string.forge_lw_when, start.format(dayFormat), start.format(clock),

@@ -91,7 +91,7 @@
   "%lld grew": "%lld 个部位增大",
   "%lld inside 10–20": "%lld 个在 10–20 之间",
   "%lld kcal/day": "%lld 千卡/天",
-  "%lld min · %.1f effort": "%lld分钟 :% 1f 努力",
+  "%lld min · %.1f effort": "%lld 分钟 · %.1f 努力",
   "%lld minutes": "%lld 分钟",
   "%lld of %lld cardio sessions carry Effort": "%lld/%lld 次有氧训练有消耗值",
   "%lld of %lld done · %lld needed": "已完成 %lld/%lld · 需要 %lld",

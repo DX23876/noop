@@ -407,7 +407,7 @@ struct ForgeTrainingView: View {
                 .frame(width: 38, height: 38)
                 .background(Circle().fill(tint.opacity(ForgeOpacity.wash)))
             VStack(alignment: .leading, spacing: 1) {
-                Text(WorkoutSource.localizedDisplaySport(row.sport))
+                Text(Repository.sessionName(row, titles: repo.sessionTitles))
                     .font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text).lineLimit(1)
                 Text(detail(row)).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary).lineLimit(1)
             }

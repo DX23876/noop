@@ -94,6 +94,7 @@ internal fun ForgeWorkoutsPage(viewModel: AppViewModel, onBack: () -> Unit) {
     val rows = all.filter { !dayOf(it).isBefore(first) }.sortedByDescending { it.startTs }
     var editing by remember { mutableStateOf<Pair<WorkoutRow?, Boolean>?>(null) }
     var detail by remember { mutableStateOf<WorkoutRow?>(null) }
+    val titles = rememberSessionTitles(rows)
     BackHandler(onBack = onBack)
     SettingsColumn {
         PageTitle(stringResource(R.string.forge_wk_title), onBack)
@@ -114,7 +115,7 @@ internal fun ForgeWorkoutsPage(viewModel: AppViewModel, onBack: () -> Unit) {
             ForgeCard(Modifier.fillMaxWidth(), contentPadding = 0.dp) {
                 week.forEachIndexed { i, row ->
                     if (i > 0) Box(Modifier.padding(start = 64.dp).fillMaxWidth().height(ForgeMetrics.hairline).background(colors.divider))
-                    SessionRow(viewModel, row, onOpen = { detail = row }, onEdit = { r, copy -> editing = r to copy })
+                    SessionRow(viewModel, row, sessionName(row, titles), onOpen = { detail = row }, onEdit = { r, copy -> editing = r to copy })
                 }
             }
         }
@@ -135,6 +136,32 @@ internal fun ForgeWorkoutsPage(viewModel: AppViewModel, onBack: () -> Unit) {
         })
     }
 }
+
+/**
+ * The names the wearer gave the strength sessions among [rows] ("Push day"), read once from the shared core off the
+ * main thread, keyed by [com.noop.core.CoreWorkoutRows.titleKey]. Reloads when the rows or the core's data change.
+ */
+@Composable
+internal fun rememberSessionTitles(rows: List<WorkoutRow>): Map<String, String> {
+    val revision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    val from = rows.minOfOrNull { it.startTs } ?: 0L
+    val to = rows.maxOfOrNull { it.startTs } ?: 0L
+    val titles by androidx.compose.runtime.produceState(emptyMap<String, String>(), from, to, rows.size, revision) {
+        value = if (rows.isEmpty()) emptyMap()
+                else kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    com.noop.core.CoreWorkoutRows.sessionTitles(from, to + 1)
+                }
+    }
+    return titles
+}
+
+/** One row's name, for a page that shows a single session (Today, the reports): the same core read as the lists. */
+@Composable
+internal fun rememberSessionName(row: WorkoutRow): String = sessionName(row, rememberSessionTitles(listOf(row)))
+
+/** The row's own name when the wearer gave the session one, else its sport, as iOS's lists show it. */
+internal fun sessionName(row: WorkoutRow, titles: Map<String, String>): String =
+    titles[com.noop.core.CoreWorkoutRows.titleKey(row)] ?: WorkoutEditing.localizedSport(row.sport)
 
 /** The day and month skeleton for "Week of …", localised by `getBestDateTimePattern`. */
 private const val DAY_MONTH_ONLY = "dMMM"
@@ -218,7 +245,7 @@ private fun Stat(value: String, label: String, modifier: Modifier) {
 /** One session: its sport, when and how long (and how far), its Effort; holding it shows what can be done with it. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SessionRow(viewModel: AppViewModel, row: WorkoutRow, onOpen: () -> Unit, onEdit: (WorkoutRow, Boolean) -> Unit) {
+private fun SessionRow(viewModel: AppViewModel, row: WorkoutRow, name: String, onOpen: () -> Unit, onEdit: (WorkoutRow, Boolean) -> Unit) {
     val context = LocalContext.current
     val colors = Forge.colors
     val effortFormat = rememberEffortFormat()
@@ -241,7 +268,7 @@ private fun SessionRow(viewModel: AppViewModel, row: WorkoutRow, onOpen: () -> U
             }
             Spacer(Modifier.width(ForgeMetrics.space3))
             Column(Modifier.weight(1f)) {
-                Text(WorkoutEditing.displaySport(row.sport), style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold),
+                Text(name, style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold),
                      color = colors.text, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(parts.joinToString(" · "), style = Forge.type.caption, color = colors.textSecondary, maxLines = 1,
                      overflow = TextOverflow.Ellipsis)

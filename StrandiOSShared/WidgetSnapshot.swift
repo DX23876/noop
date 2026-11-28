@@ -283,8 +283,21 @@ public struct WidgetSnapshot: Codable, Equatable {
 
     /// Locale-safe yyyy-MM-dd key shared with the widget's midnight stale-data guard.
     public static func localDayKey(_ date: Date, calendar: Calendar = .current) -> String {
-        let c = calendar.dateComponents([.year, .month, .day], from: date)
+        let c = dayKeyCalendar(calendar).dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
+    }
+
+    /// `calendar` on the Gregorian calendar, in its time zone: the one every stored day key is written in. The
+    /// widget extension has no WhoopStore, so this is its copy of `Calendar.gregorianForDayKeys`; a Thai
+    /// iPhone's default Buddhist calendar would otherwise key today as 2569.
+    public static func dayKeyCalendar(_ calendar: Calendar) -> Calendar {
+        if calendar.identifier == .gregorian { return calendar }
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.timeZone = calendar.timeZone
+        gregorian.locale = calendar.locale
+        gregorian.firstWeekday = calendar.firstWeekday
+        gregorian.minimumDaysInFirstWeek = calendar.minimumDaysInFirstWeek
+        return gregorian
     }
 
     /// A live-only update may reuse score fields only within the same local calendar day. At rollover,

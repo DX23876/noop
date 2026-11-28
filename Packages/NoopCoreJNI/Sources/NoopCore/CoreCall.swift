@@ -375,6 +375,9 @@ public enum CoreCall {
         if op.hasPrefix("profile."), let answer = await CoreProfile.run(op, args) { return answer }
         // The alert settings' decisions (Training Load alert, heart-rate ceiling) are pure too.
         if op.hasPrefix("alerts."), let answer = CoreAlerts.run(op, args) { return answer }
+        // The Sleep page's note while last night is not in yet, pure as well.
+        if op == "sleep.freshness" { return CoreSleepFreshness.run(args) }
+        if op == "workout.sportName" { return CoreRead.json(["name": CoreSportName.name(args["sport"] as? String ?? "")]) }
         guard let (store, _) = ShadowSession.storeAndPath, let reader = ShadowSession.reader else {
             return #"{"error":"noStore"}"#
         }
@@ -701,9 +704,17 @@ public enum CoreCall {
             return CoreRead.json(CoreRead.OptionalValue(value: value))
         case "export.route":
             return await CoreRouteExport.run(args, reader: reader)
+        case "widgets.fitness":
+            // The ten fitness widgets' numbers, read as the iPhone's `FitnessWidgetPublisher` reads them.
+            return await CoreWidgets.fitness(args, reader: reader)
         case "read.workouts":
             return CoreRead.json(await CoreRead.workouts(days: (args["days"] as? Int) ?? 4000,
                                                          dismissed: args["dismissedWorkouts"] as? [String] ?? [], reader: reader))
+        case "read.sessionTitles":
+            // The names the wearer gave their strength sessions, keyed "source|startTs", so the Workouts
+            // lists show "Push day" where the row's sport reads "Strength Training" (as Apple's lists).
+            let now = Int(Date().timeIntervalSince1970)
+            return CoreRead.json(await reader.sessionTitles(from: int("from", now - 91 * 86_400), to: int("to", now)))
         case "sleep.debt":
             return CoreRead.json(await CoreSleepDebt.read(reader: reader))
         case "sleep.nightFacts":

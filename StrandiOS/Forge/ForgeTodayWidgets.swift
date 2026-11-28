@@ -1691,7 +1691,7 @@ struct ForgeLastWorkoutWidget: View {
                     .frame(width: 40, height: 40)
                     .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(tint))
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(WorkoutSource.localizedDisplaySport(row.sport))
+                    Text(Repository.sessionName(row, titles: repo.sessionTitles))
                         .font(.system(.headline)).foregroundStyle(ForgeColor.text).lineLimit(1)
                     Text(verbatim: LiquidTodayView.workoutDayText(start) + " "
                          + start.formatted(.dateTime.hour().minute().locale(AppLanguage.activeLocale))

@@ -85,6 +85,19 @@ object BackupSettingsCodec {
         // SCOPE: NAMES only — the wire carries no kind/group, so a numeric custom behaviour restores as a
         // plain .bool toggle (identical on both platforms; historical entries keep their DB numericValue).
         "journal.customBehaviors" to Kind.STRING,
+        // The training weight unit, the energy plan's formula log, measured resting rate and scale correction:
+        // the iPhone has carried them since they arrived, and a restore without them stepped every day's burn
+        // with nobody having changed anything (found 2026-11-28). Same storage keys as the canonical ones.
+        "training.weightUnit" to Kind.STRING,
+        "energy.bmrFormulaLog" to Kind.STRING,
+        "energy.measuredBMR" to Kind.STRING,
+        "energy.scaleCorrection" to Kind.STRING,
+        // The diet plan and the Food page's own calorie goal and split, on both platforms from 2026-11-28.
+        "food.plan" to Kind.STRING,
+        "food.goal.kcal" to Kind.DOUBLE,
+        "food.goal.proteinPercent" to Kind.DOUBLE,
+        "food.goal.carbsPercent" to Kind.DOUBLE,
+        "food.goal.fatPercent" to Kind.DOUBLE,
     )
 
     /**
@@ -151,6 +164,13 @@ object BackupSettingsBridge {
     private const val JOURNAL_LEGACY_CUSTOM_PREF = "noop.journalCustomQuestions"
     private const val JOURNAL_LEGACY_HIDDEN_PREF = "noop.journalHiddenQuestions"
 
+    /** Whitelisted strings `noop_prefs` keeps under their canonical names, exported and restored as they are. */
+    internal val PLAIN_STRING_KEYS = listOf("training.weightUnit", "energy.bmrFormulaLog", "energy.measuredBMR",
+                                            "energy.scaleCorrection", "food.plan")
+    /** Whitelisted numbers `noop_prefs` keeps as floats under their canonical names (the Food page's goal). */
+    internal val FLOAT_KEYS = listOf("food.goal.kcal", "food.goal.proteinPercent", "food.goal.carbsPercent",
+                                     "food.goal.fatPercent")
+
     /** The whitelisted, user-SET settings of this device as the `settings.json` string, or null. */
     fun snapshotJson(context: Context): String? {
         val values = LinkedHashMap<String, Any>()
@@ -191,6 +211,10 @@ object BackupSettingsBridge {
             }.getOrDefault(emptyList())
             if (names.isNotEmpty()) values["journal.customBehaviors"] = names.joinToString("\n")
         }
+        // Stored under their canonical names: the strings as they are, the food goal's numbers as the floats
+        // Android keeps them in.
+        for (key in PLAIN_STRING_KEYS) noop.getString(key, null)?.takeIf { it.isNotEmpty() }?.let { values[key] = it }
+        for (key in FLOAT_KEYS) if (noop.contains(key)) values[key] = noop.getFloat(key, 0f).toDouble()
         values["sleep.stagerMethod"] = com.noop.ble.PuffinExperiment.from(context).sleepStagerMethod
         values["sleep.stagingRecipe"] = com.noop.ble.PuffinExperiment.from(context).sleepStagingRecipe
         return BackupSettingsCodec.encode(values)
@@ -231,6 +255,8 @@ object BackupSettingsBridge {
         (values["effort.scale"] as? String)?.let { editor.putString(UnitPrefs.KEY_EFFORT_SCALE, it) }
         (values["dayCycle.mode"] as? String)?.let { editor.putString(NoopPrefs.KEY_DAY_CYCLE_MODE, it) }
         (values[HostedCardPrefs.KEY_SELECTION] as? String)?.let { editor.putString(HostedCardPrefs.KEY_SELECTION, it) }
+        for (key in PLAIN_STRING_KEYS) (values[key] as? String)?.let { editor.putString(key, it) }
+        for (key in FLOAT_KEYS) (values[key] as? Double)?.let { editor.putFloat(key, it.toFloat()) }
         // #1361: restore custom behaviours — write the names to the legacy custom key, clear stale hidden,
         // and drop the v2 blob so the next catalog load re-migrates them (restart-gated, #57). Mirrors iOS.
         (values["journal.customBehaviors"] as? String)?.let { joined ->

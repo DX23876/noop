@@ -823,7 +823,7 @@ struct WorkoutDetailView: View {
 
 extension WorkoutDetailView {
     var forgeBody: some View {
-        ScreenScaffold(title: "\(WorkoutSource.localizedDisplaySport(row.sport))",
+        ScreenScaffold(title: "\(Repository.sessionName(row, titles: repo.sessionTitles))",
                        subtitle: "\(forgeWhen)", lazy: true) {
             GoalContributionNote(row: row)
             forgeStats

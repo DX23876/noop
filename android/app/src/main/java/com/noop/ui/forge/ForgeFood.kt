@@ -248,6 +248,13 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
     }
     LaunchedEffect(day, revision, goal) {
         summary = withContext(Dispatchers.IO) { CoreFood.day(day.toString()) }
+        // Today's eating for the Nutrition widget, as the iPhone's food model publishes it (2026-11-28).
+        summary?.let { s ->
+            withContext(Dispatchers.IO) {
+                com.noop.widget.DayWidgets.publishFood(context, day.toString(), s.totals, goals?.kcal, goals?.proteinG,
+                                                      goals?.carbsG, goals?.fatG)
+            }
+        }
         dayComplete = withContext(Dispatchers.IO) { CoreDietPlan.isDayComplete(day.toString()) }
         nutrients = withContext(Dispatchers.IO) {
             val profile = com.noop.ui.ProfileStore.from(context)

@@ -155,20 +155,20 @@ class ScheduledReportPolicyTest {
     // MARK: - morningCopy (honest omission)
 
     @Test fun morningCopyShowsBothScores() {
-        val (title, body) = ScheduledReportPolicy.morningCopy(chargePct = 72, restPct = 88)!!
+        val (title, body) = ScheduledReportPolicy.morningCopy(chargePct = 72, restPct = 88, text = EnglishNotifText)!!
         assertTrue(title.contains("recap"))
         assertTrue(body.contains("Charge 72"))
         assertTrue(body.contains("Rest 88"))
     }
 
     @Test fun morningCopyOmitsAbsentRestNeverShowsZero() {
-        val (_, body) = ScheduledReportPolicy.morningCopy(chargePct = 60, restPct = null)!!
+        val (_, body) = ScheduledReportPolicy.morningCopy(chargePct = 60, restPct = null, text = EnglishNotifText)!!
         assertTrue(body.contains("Charge 60"))
         assertFalse(body.contains("Rest"))
     }
 
     @Test fun morningCopyNullWhenNeitherPresent() {
-        assertNull(ScheduledReportPolicy.morningCopy(chargePct = null, restPct = null))
+        assertNull(ScheduledReportPolicy.morningCopy(chargePct = null, restPct = null, text = EnglishNotifText))
     }
 
     // MARK: - workoutCopy
@@ -176,7 +176,7 @@ class ScheduledReportPolicyTest {
     @Test fun workoutCopyIncludesEffortDurationAndHr() {
         val (title, body) = ScheduledReportPolicy.workoutCopy(
             sportLabel = "Running", effortDisplay = "14.2", effortMaxLabel = "21",
-            durationLabel = "42 min", avgHr = 148,
+            durationLabel = "42 min", avgHr = 148, text = EnglishNotifText,
         )
         assertTrue(title.contains("Running"))
         assertTrue(body.contains("Effort 14.2/21"))
@@ -187,20 +187,31 @@ class ScheduledReportPolicyTest {
     @Test fun workoutCopyOmitsHrWhenAbsent() {
         val (_, body) = ScheduledReportPolicy.workoutCopy(
             sportLabel = "Cycling", effortDisplay = "60", effortMaxLabel = "100",
-            durationLabel = "1 h", avgHr = null,
+            durationLabel = "1 h", avgHr = null, text = EnglishNotifText,
         )
         assertFalse(body.contains("bpm"))
         assertTrue(body.contains("Effort 60/100"))
     }
 
+    @Test fun workoutCopyWithoutEffortStillSummarises() {
+        // A session with no scored Effort: the summary keeps its duration and heart rate, without an Effort piece.
+        val (title, body) = ScheduledReportPolicy.workoutCopy(
+            sportLabel = "Walking", effortDisplay = null, effortMaxLabel = "100",
+            durationLabel = "30 min", avgHr = 110, text = EnglishNotifText,
+        )
+        assertEquals("Workout logged: Walking", title)
+        assertFalse(body.contains("Effort"))
+        assertEquals("30 min · avg 110 bpm. Summarised after your strap synced.", body)
+    }
+
     // MARK: - durationLabel
 
     @Test fun durationLabelFormats() {
-        assertEquals("under a minute", ScheduledReportPolicy.durationLabel(0))
-        assertEquals("under a minute", ScheduledReportPolicy.durationLabel(-5))
-        assertEquals("42 min", ScheduledReportPolicy.durationLabel(42))
-        assertEquals("1 h", ScheduledReportPolicy.durationLabel(60))
-        assertEquals("1 h 8 min", ScheduledReportPolicy.durationLabel(68))
-        assertEquals("2 h", ScheduledReportPolicy.durationLabel(120))
+        assertEquals("under a minute", ScheduledReportPolicy.durationLabel(0, EnglishNotifText))
+        assertEquals("under a minute", ScheduledReportPolicy.durationLabel(-5, EnglishNotifText))
+        assertEquals("42 min", ScheduledReportPolicy.durationLabel(42, EnglishNotifText))
+        assertEquals("1 h", ScheduledReportPolicy.durationLabel(60, EnglishNotifText))
+        assertEquals("1 h 8 min", ScheduledReportPolicy.durationLabel(68, EnglishNotifText))
+        assertEquals("2 h", ScheduledReportPolicy.durationLabel(120, EnglishNotifText))
     }
 }
