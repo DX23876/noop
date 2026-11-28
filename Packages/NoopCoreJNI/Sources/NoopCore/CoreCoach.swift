@@ -610,8 +610,7 @@ enum CorePlan {
 
     /// `CoachPlanView.dayLabel`: Today, Tomorrow, Yesterday, else a short weekday and date.
     static func dayLabel(_ day: String, now: Date) -> String {
-        let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"
-        guard let date = df.date(from: day) else { return day }
+        guard let date = StoreReader.localDay(fromKey: day) else { return day }
         let cal = Calendar.current
         if cal.isDate(date, inSameDayAs: now) { return String(localized: "Today") }
         if let d = cal.date(byAdding: .day, value: 1, to: now), cal.isDate(date, inSameDayAs: d) { return String(localized: "Tomorrow") }

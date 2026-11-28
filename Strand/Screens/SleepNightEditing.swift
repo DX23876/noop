@@ -140,7 +140,7 @@ final class SleepNightEditor: ObservableObject {
     private static func dateFromDayKey(_ day: String) -> Date? {
         let parts = day.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 3 else { return nil }
-        return Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
+        return Calendar.current.gregorianForDayKeys.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
     }
 
     /// One honest sentence per `SleepEditFailure`, so a correction that did not reach the database says

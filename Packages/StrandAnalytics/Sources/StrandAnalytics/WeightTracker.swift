@@ -1,4 +1,5 @@
 import Foundation
+import WhoopStore
 
 /// The weight page, its widgets, the Today tile and the coach read ONE derivation of the scale history: this one.
 /// Pure (no store, no clock, no formatting): callers pass the weigh-ins, the goal, the diet plan's pace, the
@@ -481,14 +482,14 @@ public enum WeightTracker {
     }
 
     static func dayKey(_ date: Date, _ cal: Calendar) -> String {
-        let c = cal.dateComponents([.year, .month, .day], from: date)
+        let c = cal.gregorianForDayKeys.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
 
     static func date(forDay day: String, _ cal: Calendar) -> Date? {
         let parts = day.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 3 else { return nil }
-        return cal.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
+        return cal.gregorianForDayKeys.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
     }
 
     static func eventForecasts(inputs: Inputs, readings: [Reading], forecast: Forecast, cal: Calendar) -> [EventForecast] {
@@ -566,7 +567,8 @@ public enum WeightTracker {
         return rows.reversed()
     }
 
-    static func reports(_ period: Period, readings: [Reading], trend: [Point], cal: Calendar) -> [Report] {
+    static func reports(_ period: Period, readings: [Reading], trend: [Point], cal deviceCalendar: Calendar) -> [Report] {
+        let cal = deviceCalendar.gregorianForDayKeys
         func key(_ d: Date) -> String {
             let c = cal.dateComponents([.year, .month], from: d)
             return period == .month ? String(format: "%04d-%02d", c.year ?? 0, c.month ?? 0) : String(format: "%04d", c.year ?? 0)

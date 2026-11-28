@@ -1,4 +1,5 @@
 import Foundation
+import WhoopStore
 
 // MARK: - Which basal formula applied, and when
 //
@@ -82,9 +83,10 @@ public struct MeasuredRestingRate: Equatable, Codable, Sendable {
     /// More than a year old on `today`.
     public func isOld(today: Date, calendar: Calendar = .current) -> Bool {
         let parts = day.split(separator: "-").compactMap { Int($0) }
+        let keys = calendar.gregorianForDayKeys
         guard parts.count == 3,
-              let measured = calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2])),
-              let days = calendar.dateComponents([.day], from: measured, to: today).day else { return false }
+              let measured = keys.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2])),
+              let days = keys.dateComponents([.day], from: measured, to: today).day else { return false }
         return days > Self.oldAfterDays
     }
 

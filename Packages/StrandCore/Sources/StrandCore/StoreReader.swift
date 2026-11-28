@@ -38,6 +38,10 @@ public struct StoreReader: Sendable {
     }
     /// `yyyy-MM-dd` in the device's local zone, matching how `DailyMetric.day` is stored.
     public static func localDayKey(_ date: Date) -> String { dayKeyFormatter.string(from: date) }
+    /// The local midnight a `yyyy-MM-dd` key names, read with the same fixed calendar `localDayKey` writes with.
+    /// A formatter left on the device's calendar reads "2026-11-28" as a Buddhist year on a Thai iPhone (the
+    /// default there), 543 years off, so every key a screen parsed by itself missed its day.
+    public static func localDay(fromKey key: String) -> Date? { dayKeyFormatter.date(from: key) }
     private static let dayKeyFormatter: DateFormatter = {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.locale = Locale(identifier: "en_US_POSIX"); return f
     }()

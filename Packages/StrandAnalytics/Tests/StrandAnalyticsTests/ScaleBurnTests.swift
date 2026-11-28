@@ -39,6 +39,23 @@ final class ScaleBurnTests: XCTestCase {
         XCTAssertLessThan(e.relativeError, ScaleBurn.maximumRelativeError)
     }
 
+    /// A Thai iPhone's default Buddhist calendar reads the same history: the day keys are Gregorian, and a
+    /// calendar left on the device's numbering read "2026-09-01" as a day in 1483 and found no window at all.
+    func testABuddhistDeviceCalendarReadsTheSameWindow() throws {
+        let h = history()
+        var buddhist = Calendar(identifier: .buddhist)
+        buddhist.timeZone = calendar.timeZone
+        let gregorian = ScaleBurn.estimate(completeIntake: h.intake, weighIns: h.weighIns, strapByDay: h.strap,
+                                           today: day(57), kcalPerKg: 8_700, calendar: calendar)
+        let thai = ScaleBurn.estimate(completeIntake: h.intake, weighIns: h.weighIns, strapByDay: h.strap,
+                                      today: day(57), kcalPerKg: 8_700, calendar: buddhist)
+        guard case .estimate(let a) = gregorian, case .estimate(let b) = thai else {
+            return XCTFail("no estimate: \(gregorian) / \(thai)")
+        }
+        XCTAssertEqual(a.burnKcal, b.burnKcal, accuracy: 1e-9)
+        XCTAssertEqual(BurnCorrection.days(from: day(0), to: day(57), calendar: buddhist), 57)
+    }
+
     /// The same weight loss means less burn for a lean body, whose kilogram holds less energy.
     func testTheEnergyInAKilogramMovesTheBurn() throws {
         let h = history()

@@ -356,7 +356,7 @@ enum GoalActionEvaluator {
     }
 
     static func dayKey(_ date: Date, calendar: Calendar) -> String {
-        let c = calendar.dateComponents([.year, .month, .day], from: date)
+        let c = calendar.gregorianForDayKeys.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
 }

@@ -451,7 +451,8 @@ public final class OuraLiveSource: NSObject, ObservableObject {
 
     /// Cached local-day formatter (the 0x50 stream is high-volume; avoid building one per record).
     private static let activityDayFormatter: DateFormatter = {
-        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f   // local time zone by default
+        // Local time zone by default; the fixed locale keeps the Gregorian year the stored days use.
+        let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; f.locale = Locale(identifier: "en_US_POSIX"); return f
     }()
 
     // MARK: - Sleep-phase arrival visibility — INVESTIGATION ONLY

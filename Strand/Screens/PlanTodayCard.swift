@@ -1,5 +1,6 @@
 import SwiftUI
 import StrandDesign
+import StrandCore
 
 /// The single next committed session, made visible where you'll actually look each morning instead of
 /// living only inside the coach. A tap opens the plan book. Silent (`EmptyView`) when there's nothing
@@ -163,8 +164,7 @@ struct PlanTodayCard: View {
     }
 
     private func dayLabel(_ day: String) -> String {
-        let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"
-        guard let date = df.date(from: day) else { return day }
+        guard let date = StoreReader.localDay(fromKey: day) else { return day }
         if Calendar.current.isDateInToday(date) { return "Today" }
         if Calendar.current.isDateInTomorrow(date) { return "Tomorrow" }
         return day

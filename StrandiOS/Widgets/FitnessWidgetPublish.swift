@@ -86,7 +86,7 @@ enum FitnessWidgetPublisher {
     private static func dayDate(_ key: String, calendar: Calendar) -> Date? {
         let parts = key.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 3 else { return nil }
-        return calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
+        return calendar.gregorianForDayKeys.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
     }
 
     /// The most recent night of the last two days, with the need the Sleep screen uses.

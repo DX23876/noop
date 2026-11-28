@@ -1,5 +1,6 @@
 import SwiftUI
 import StrandDesign
+import StrandCore
 
 /// The plan book: what the coach suggested, what you agreed to, and what happened.
 ///
@@ -431,8 +432,7 @@ struct CoachPlanView: View {
     }
 
     private func dayLabel(_ day: String) -> String {
-        let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"
-        guard let date = df.date(from: day) else { return day }
+        guard let date = StoreReader.localDay(fromKey: day) else { return day }
         if Calendar.current.isDateInToday(date) { return "Today" }
         if Calendar.current.isDateInTomorrow(date) { return "Tomorrow" }
         if Calendar.current.isDateInYesterday(date) { return "Yesterday" }
@@ -697,8 +697,7 @@ struct PlanTimeSheet: View {
                     Button("Set") {
                         // Keep the session's own day — a time alone would silently move it to today.
                         let cal = Calendar.current
-                        let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"
-                        let base = df.date(from: proposal.day) ?? Date()
+                        let base = StoreReader.localDay(fromKey: proposal.day) ?? Date()
                         let hm = cal.dateComponents([.hour, .minute], from: time)
                         let combined = cal.date(bySettingHour: hm.hour ?? 0, minute: hm.minute ?? 0,
                                                 second: 0, of: base)
@@ -766,8 +765,7 @@ struct PlanRescheduleSheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Move") {
-                        let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"
-                        let newDay = df.string(from: day)
+                        let newDay = StoreReader.localDayKey(day)
                         // Carry the existing time-of-day onto the new date, if the session had one.
                         var newTime: Date?
                         if let t = proposal.time {
@@ -782,8 +780,7 @@ struct PlanRescheduleSheet: View {
                 }
             }
             .onAppear {
-                let df = DateFormatter(); df.dateFormat = "yyyy-MM-dd"
-                day = df.date(from: proposal.day) ?? Date()
+                day = StoreReader.localDay(fromKey: proposal.day) ?? Date()
             }
         }
     }

@@ -359,7 +359,7 @@ extension AICoachEngine {
     private static func parseSetupDay(_ text: String) -> Date? {
         let parts = text.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 3 else { return nil }
-        return Calendar.autoupdatingCurrent.date(from: DateComponents(year: parts[0], month: parts[1],
+        return Calendar.autoupdatingCurrent.gregorianForDayKeys.date(from: DateComponents(year: parts[0], month: parts[1],
                                                                        day: parts[2], hour: 12))
     }
 }

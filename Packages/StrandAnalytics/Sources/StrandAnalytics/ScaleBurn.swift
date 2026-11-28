@@ -1,4 +1,5 @@
 import Foundation
+import WhoopStore
 
 /// The real burn from food and weight, the one scale reading of it (owner decisions 2026-11-27, Q20 and Q21).
 ///
@@ -53,7 +54,8 @@ public enum ScaleBurn {
     /// `strapByDay` the strap's burn per day before any scale correction. Today and later are left out.
     public static func estimate(completeIntake: [String: Double], weighIns: [(day: String, kg: Double)],
                                 strapByDay: [String: Double], today: String, kcalPerKg: Double,
-                                gates: Gates = .full, calendar: Calendar = .current) -> Outcome {
+                                gates: Gates = .full, calendar deviceCalendar: Calendar = .current) -> Outcome {
+        let calendar = deviceCalendar.gregorianForDayKeys
         func date(_ day: String) -> Date? {
             let parts = day.split(separator: "-").compactMap { Int($0) }
             guard parts.count == 3 else { return nil }
@@ -248,7 +250,8 @@ public struct BurnCorrection: Codable, Equatable, Sendable {
     static func upper(_ basal: Bool) -> Double { basal ? range.upperBound : 1.5 }
     static func lower(_ basal: Bool) -> Double { basal ? range.lowerBound : 0.5 }
 
-    static func days(from: String, to: String, calendar: Calendar) -> Int? {
+    static func days(from: String, to: String, calendar deviceCalendar: Calendar) -> Int? {
+        let calendar = deviceCalendar.gregorianForDayKeys
         func date(_ day: String) -> Date? {
             let parts = day.split(separator: "-").compactMap { Int($0) }
             guard parts.count == 3 else { return nil }

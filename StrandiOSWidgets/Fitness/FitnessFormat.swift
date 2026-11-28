@@ -26,7 +26,7 @@ enum FitnessFormat {
     static func day(_ key: String) -> String {
         let parts = key.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 3,
-              let date = Calendar.current.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
+              let date = WidgetSnapshot.dayKeyCalendar(.current).date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))
         else { return key }
         return date.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated))
     }
