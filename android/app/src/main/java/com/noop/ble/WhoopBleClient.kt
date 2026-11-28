@@ -1457,6 +1457,28 @@ class WhoopBleClient(
         fun shouldReArmRealtimeAfterDrop(droppedCmd: CommandNumber?): Boolean =
             droppedCmd == CommandNumber.TOGGLE_REALTIME_HR
 
+        /** At most this many alarm re-reconciles per link after a dropped alarm write. */
+        const val MAX_ALARM_REDO_PER_LINK = 3
+
+        /** How long after a dropped alarm write the alarm is reconciled again: past the busy spell. */
+        const val ALARM_REDO_DELAY_MS = 30_000L
+
+        /** A second identical disarm within this window is the same intent queued twice, not a new one. */
+        const val ALARM_DISARM_DEDUP_MS = 5_000L
+
+        /**
+         * Whether a dropped write should reconcile the strap alarm again (a tester's log, 2026-11-27: four
+         * DISABLE_ALARM writes dropped on reconnect, and nothing re-sent them until the next connection, so a
+         * strap meant to be quiet could stay armed). Only the alarm's own writes, and a bounded number per
+         * link, so a stack that stays busy costs three retries, never a loop.
+         */
+        fun shouldReconcileAlarmAfterDrop(droppedCmd: CommandNumber?, redoneThisLink: Int): Boolean =
+            (droppedCmd == CommandNumber.DISABLE_ALARM || droppedCmd == CommandNumber.SET_ALARM_TIME) &&
+                redoneThisLink < MAX_ALARM_REDO_PER_LINK
+
+        /** Whether a disarm repeats one queued [sinceLastMs] ago on the same link and can be skipped. */
+        fun isDuplicateDisarm(sinceLastMs: Long?): Boolean = sinceLastMs != null && sinceLastMs in 0 until ALARM_DISARM_DEDUP_MS
+
         /**
          * The LiveState the teardown path publishes after the link drops (#314). Pure model of the
          * `connected = false` + biometrics-cleared transition so a test can assert the UI flips to
@@ -3172,6 +3194,10 @@ class WhoopBleClient(
      *  Fired from the NON-gesture EVENT branch: event 57 is NOT a gesture, so routing it through the
      *  gesture path (freshness-gated, gesture `when`) would swallow it entirely. */
     var onSmartAlarmFired: (() -> Unit)? = null
+
+    /** Invoked (on the main looper, [ALARM_REDO_DELAY_MS] after the drop) when an alarm write was dropped by a
+     *  busy stack, so the ViewModel reconciles the strap alarm again. Wired by AppViewModel. */
+    var onAlarmWriteDropped: (() -> Unit)? = null
 
     /** In-memory ring buffer of the strap log so it can be exported from the UI for bug reports.
      *  `log()` always writes here (under [logBuffer]'s monitor); logcat mirroring is opt-in via
@@ -6792,6 +6818,14 @@ class WhoopBleClient(
         // would still buzz. (reconcileStrapAlarm already re-runs on the bond edge, so a deferred disarm is
         // re-issued once the link is up — Android never had the iOS gap where that re-apply was skipped.)
         val willReach = commandChannelReady
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (willReach && isDuplicateDisarm(lastDisarmQueuedMs?.let { now - it })) {
+            // The connect path reconciled twice in one second (seen in a tester's log, 2026-11-27): the second
+            // disarm only crowded the GATT queue while the subscriptions were still being written.
+            log("Alarm: disarm already queued on this link — duplicate skipped")
+            return
+        }
+        if (willReach) lastDisarmQueuedMs = now
         val notSent = "Alarm: disarm NOT sent — not connected; will retry on connect (strap may still be armed)"
         if (connectedFamily == DeviceFamily.WHOOP5) {
             // 5/MG DISABLE_ALARM is REVISION_2 [0x02, 0xFF]. Sent unconditionally (clearing is safe
@@ -7775,6 +7809,7 @@ class WhoopBleClient(
                     offloadGravity.set(0); offloadResp.set(0); offloadSkinTemp.set(0)
                     offloadSpo2.set(0); offloadSteps.set(0); offloadChunks.set(0)
                     realtimeArmedThisLink = false
+                    alarmRedoneThisLink = 0; lastDisarmQueuedMs = null
                     // A connect succeeded → clear the stale-bond re-pair guide UNLESS we are in a known
                     // bond-loop (#617). In that loop the strap "connects" every ~3 s before timing out
                     // again, so clearing here wiped the guide on EVERY cycle: it flashed for ~1 s and
@@ -8475,6 +8510,10 @@ class WhoopBleClient(
      *  applies. The frame/byte counters above are deliberately plain - ++ is not atomic whatever we
      *  annotate them with, and an approximate count still answers "did anything arrive at all". */
     @Volatile private var realtimeArmedThisLink = false
+    /** Alarm re-reconciles after a dropped alarm write on this link ([shouldReconcileAlarmAfterDrop]). */
+    @Volatile private var alarmRedoneThisLink = 0
+    /** When this link last queued a disarm, for [isDuplicateDisarm]; cleared when an alarm write is dropped. */
+    @Volatile private var lastDisarmQueuedMs: Long? = null
 
     private fun onInbound(uuid: UUID, bytes: ByteArray) {
         // Count BEFORE any routing below, so the tally covers every inbound frame including ones no branch
@@ -11003,6 +11042,13 @@ class WhoopBleClient(
                 // reconcile detects the edge and re-sends the CURRENT want (recovers a dropped ARM *or* a
                 // dropped disarm) within ~30s. Bounded by construction: the re-send rides the keep-alive
                 // cadence, not this drop path, so a persistently-busy stack retries once per tick, never in a loop.
+                if (shouldReconcileAlarmAfterDrop(item.cmd, alarmRedoneThisLink)) {
+                    alarmRedoneThisLink++
+                    lastDisarmQueuedMs = null
+                    log("alarm write ${item.cmd?.name} dropped — reconciling the strap alarm again in " +
+                        "${ALARM_REDO_DELAY_MS / 1000}s ($alarmRedoneThisLink/$MAX_ALARM_REDO_PER_LINK)")
+                    handler.postDelayed({ if (commandChannelReady) onAlarmWriteDropped?.invoke() }, ALARM_REDO_DELAY_MS)
+                }
                 if (shouldReArmRealtimeAfterDrop(item.cmd)) {
                     realtimeArmed = !realtimeArmed
                     if (realtimeArmed) realtimeArmedThisLink = true   // #1809: per-link latch

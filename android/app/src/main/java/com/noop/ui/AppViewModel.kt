@@ -1104,6 +1104,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // #577 — surface the strap's smart-alarm wake as a local notification too (iOS AppModel.postSmartAlarm
         // twin), so a pocketed phone doesn't miss the wrist buzz. Self-gates on the wrist-alerts master.
         ble.onSmartAlarmFired = { com.noop.notif.SmartAlarmNotifier.onFired(appContext) }
+        // A dropped alarm write (busy GATT stack) reconciles again, bounded per link in the client.
+        ble.onAlarmWriteDropped = { reconcileStrapAlarm() }
         // Smooth HR from each LiveState emission, and re-arm the strap's firmware alarm whenever it
         // (re)bonds. A smart-alarm time changed while the strap was away never reached it — the send
         // is gated on bond — so the strap kept the OLD time and fired at it (#59). Gated on enabled so

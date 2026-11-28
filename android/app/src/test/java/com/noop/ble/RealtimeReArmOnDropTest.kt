@@ -40,4 +40,24 @@ class RealtimeReArmOnDropTest {
     fun `an untagged (null-command) dropped frame does not re-arm`() {
         assertFalse(WhoopBleClient.shouldReArmRealtimeAfterDrop(null))
     }
+
+    @Test
+    fun `a dropped alarm write reconciles again, three times a link at most`() {
+        for (cmd in listOf(CommandNumber.DISABLE_ALARM, CommandNumber.SET_ALARM_TIME)) {
+            assertTrue(WhoopBleClient.shouldReconcileAlarmAfterDrop(cmd, redoneThisLink = 0))
+            assertTrue(WhoopBleClient.shouldReconcileAlarmAfterDrop(cmd, redoneThisLink = 2))
+            assertFalse(WhoopBleClient.shouldReconcileAlarmAfterDrop(cmd, redoneThisLink = 3))
+        }
+        assertFalse(WhoopBleClient.shouldReconcileAlarmAfterDrop(CommandNumber.TOGGLE_REALTIME_HR, 0))
+        assertFalse(WhoopBleClient.shouldReconcileAlarmAfterDrop(null, 0))
+    }
+
+    @Test
+    fun `a second disarm within five seconds is the same one`() {
+        assertTrue(WhoopBleClient.isDuplicateDisarm(0))
+        assertTrue(WhoopBleClient.isDuplicateDisarm(4_999))
+        assertFalse(WhoopBleClient.isDuplicateDisarm(5_000))
+        assertFalse(WhoopBleClient.isDuplicateDisarm(null))
+        assertFalse("a clock that went backwards is not a duplicate", WhoopBleClient.isDuplicateDisarm(-1))
+    }
 }
