@@ -344,13 +344,42 @@ final class LaneEngineTests: XCTestCase {
 
         XCTAssertEqual(verdict(.muchHigher, .rising, recovery: .holding), .status(.productive))
         XCTAssertEqual(verdict(.muchHigher, .rising, recovery: .strained), .status(.overreaching))
-        XCTAssertEqual(verdict(.muchHigher, .rising, recovery: .unknown), .status(.overreaching))
-        XCTAssertEqual(verdict(.muchHigher, .unclear, recovery: .holding), .status(.unproductive))
-        XCTAssertEqual(verdict(.muchHigher, .unclear, recovery: .unknown), .status(.overreaching))
+        XCTAssertEqual(verdict(.muchHigher, .rising, recovery: .unknown), .status(.productive))
+        XCTAssertEqual(verdict(.muchHigher, .unclear, recovery: .holding), .loadOnly(.muchHigher))
+        XCTAssertEqual(verdict(.muchHigher, .unclear, recovery: .unknown), .loadOnly(.muchHigher))
+        XCTAssertEqual(verdict(.muchHigher, .unclear, recovery: .strained), .status(.overreaching))
         XCTAssertEqual(verdict(.muchHigher, .falling, recovery: .holding), .status(.overreaching))
         XCTAssertEqual(verdict(.muchHigher, .none, recovery: .strained), .status(.overreaching))
         XCTAssertEqual(verdict(.muchHigher, .none, recovery: .holding), .loadOnly(.muchHigher))
         XCTAssertEqual(verdict(.muchHigher, .none, recovery: .unknown), .loadOnly(.muchHigher))
+    }
+
+    /// Missing data is not a bad outcome (Training Load plan, phase 2, Q1). A heavy week of walking whose
+    /// efficiency line shows no direction read "unproductive" for a wearer losing weight, and a week with
+    /// the strap off at night read "overreaching" while the lifts were rising. Neither an unclear line nor
+    /// an unknown recovery may produce a negative verdict, and an unknown recovery reads exactly like one
+    /// that holds.
+    func testMissingEvidenceOrRecoveryNeverReadsAsFailure() {
+        for band in [RelativeLoadBand.below, .usual, .higher, .muchHigher] {
+            for high in [false, true] {
+                for below in [0, 30] {
+                    for lane in TrainingLaneKind.allCases {
+                        for evidence in [LaneEvidence.rising, .unclear, .falling, .none] {
+                            XCTAssertEqual(verdict(band, evidence, recovery: .unknown, high: high, below: below, lane: lane),
+                                           verdict(band, evidence, recovery: .holding, high: high, below: below, lane: lane),
+                                           "\(band) \(evidence) \(high) \(below) \(lane)")
+                        }
+                        for evidence in [LaneEvidence.unclear, .none] {
+                            for recovery in [RecoveryState.holding, .unknown] {
+                                let v = verdict(band, evidence, recovery: recovery, high: high, below: below, lane: lane)
+                                XCTAssertFalse([.status(.unproductive), .status(.overreaching)].contains(v),
+                                               "\(band) \(evidence) \(recovery) \(high) \(below) \(lane) gave \(v)")
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// The table's promise: a judgement that the training is working, holding or wasted needs evidence.

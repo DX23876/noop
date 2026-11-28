@@ -2226,3 +2226,25 @@ untouched install). Each choice now carries its own plain-words explanation unde
 asked that a reader can tell what the check does without the background above.
 
 Analysis migration required: no (a Lab choice, default standard; switching it restages the history itself)
+
+## 2026-11-28 — Training Load phase 2, step 1: missing data no longer reads as a bad outcome
+
+The verdict table read two kinds of missing data as failures. A week well above usual whose performance line
+showed no direction was called unproductive while recovery held. Walking, the commonest way to train for weight
+loss, almost never yields a clear heart-rate-efficiency line, so a wearer losing weight by walking a lot was told
+the training was wasted. And a recovery that could not be judged (fewer than four nights with a recovery signal,
+as when the strap stays off at night) counted like a strained one in the well-above row, so rising lifts read as
+overreaching, while the no-evidence column of the same row already read it as holding.
+
+Now a well-above week with an unclear line is described as "much more than usual" and called overreaching only
+when recovery is strained; with a rising line it is productive unless recovery is strained. An unknown recovery
+reads exactly like one that holds in every cell (`LaneEngineTests.testMissingEvidenceOrRecoveryNeverReadsAsFailure`).
+The header of `TrainingLoad.swift` named Edwards for the cardio lane, which has been Banister since AI-9.
+
+This is the first of five steps decided in five grilling rounds the same day (43 questions,
+`docs/fork/TRAINING_LOAD_PLAN.md` §8): verdicts measured against the wearer's goal and written in everyday
+words, an "enough?" measure from the WHO minutes beside the "too much?" one, one morning advice in the core that
+the Effort target, the coach and the suggestion chips all read, offers in minutes and sets, new performance
+instruments in the Lab behind a pre-registered check, and the food log as explanation only.
+
+Analysis migration required: no (read-time only; nothing stored changes)

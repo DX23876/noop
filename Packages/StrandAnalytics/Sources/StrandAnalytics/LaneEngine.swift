@@ -437,13 +437,21 @@ public enum LaneEngine {
     /// | below      | maintaining                   | maintaining → detraining†        | detraining    | "less than usual" → detraining†      |
     /// | usual      | productive                    | maintaining                      | unproductive  | "as usual"                           |
     /// | above      | productive                    | maintaining                      | unproductive  | "more than usual"                    |
-    /// | well above | productive if recovery holds, | unproductive if recovery holds,  | overreaching  | overreaching if recovery is strained,|
-    /// |            | otherwise overreaching        | otherwise overreaching           |               | otherwise "much more than usual"     |
+    /// | well above | productive, or overreaching   | "much more than usual", or       | overreaching  | "much more than usual", or           |
+    /// |            | if recovery is strained       | overreaching if it is strained   |               | overreaching if it is strained       |
     ///
     /// † once the lane has been below usual for `detrainingAfterDays` — 21 days for strength (Bosquet et
     /// al. 2013), 14 for cardio (Mujika & Padilla 2000). Below usual straight after a high phase is
     /// `recovering` whatever the evidence says. Without evidence the table describes the load and claims
     /// nothing about what it did: "productive" needs a measured improvement, never load alone.
+    ///
+    /// Missing data is never read as a bad outcome (Training Load plan, phase 2, Q1). An unclear
+    /// performance line is not a failing one: a heavy week whose lifts or heart-rate efficiency do not
+    /// show a direction is described as heavy, not called unproductive — walking, the commonest way to
+    /// train for weight loss, almost never yields a clear efficiency line. And an unknown recovery (fewer
+    /// than `TrainingStatusModel.minimumRecoveryNights` nights read, as when the strap stays off at night)
+    /// is not a strained one: only a strained recovery turns a heavy week into overreaching, the rule the
+    /// no-evidence column already followed.
     public static func verdict(band: RelativeLoadBand, evidence: LaneEvidence, recovery: RecoveryState,
                                followsHighPhase: Bool, daysBelowUsual: Int,
                                lane: TrainingLaneKind) -> LaneVerdict {
@@ -465,12 +473,12 @@ public enum LaneEngine {
             case .none: return .loadOnly(band)
             }
         case .muchHigher:
-            let holding = recovery == .holding
+            let strained = recovery == .strained
             switch evidence {
-            case .rising: return .status(holding ? .productive : .overreaching)
-            case .unclear: return .status(holding ? .unproductive : .overreaching)
+            case .rising: return .status(strained ? .overreaching : .productive)
+            case .unclear: return strained ? .status(.overreaching) : .loadOnly(.muchHigher)
             case .falling: return .status(.overreaching)
-            case .none: return recovery == .strained ? .status(.overreaching) : .loadOnly(.muchHigher)
+            case .none: return strained ? .status(.overreaching) : .loadOnly(.muchHigher)
             }
         }
     }

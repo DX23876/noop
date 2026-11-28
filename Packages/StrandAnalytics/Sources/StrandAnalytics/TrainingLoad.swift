@@ -9,7 +9,8 @@ import Foundation
 //
 // So there are three figures, deliberately separate:
 //
-//   • CARDIOVASCULAR LOAD — classic Edwards TRIMP, kept separate from Effort.
+//   • CARDIOVASCULAR LOAD — Banister TRIMP over the heart-rate reserve (analysis recipe AI-9), kept
+//     separate from Effort.
 //   • STRENGTH LOAD — working sets, weighted by how close each went to failure.
 //   • SESSION LOAD — session RPE × duration (Foster 1998), the athlete's own verdict on the whole
 //     session. Not a fallback for the other two: a different question, answerable on days the set
