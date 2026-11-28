@@ -263,15 +263,19 @@ struct ForgeFocusView: View {
 /// One focus tile on the Health tab: the area's symbol, name and what it holds.
 struct ForgeFocusTile: View {
     let area: ForgeFocusArea
+    /// The symbol grows with the text size, as the title under it does (not private, so the memberwise
+    /// initialiser stays internal).
+    @ScaledMetric(relativeTo: .title2) var markSize: CGFloat = 24
+    @ScaledMetric(relativeTo: .title2) var markHeight: CGFloat = 28
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // The area's symbol alone in its colour, as Apple Health lists its categories (owner, 2026-11-28): a
             // white symbol on a coloured square in every tile read as generated art, like the sparkles before it.
             Image(systemName: area.symbol)
-                .font(.system(size: 24, weight: .bold))
+                .font(.system(size: markSize, weight: .bold))
                 .foregroundStyle(area.tint)
-                .frame(height: 28, alignment: .leading)
+                .frame(height: markHeight, alignment: .leading)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
                 Text(area.title).font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text)

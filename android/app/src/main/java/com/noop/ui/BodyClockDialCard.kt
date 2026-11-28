@@ -61,6 +61,9 @@ fun BodyClockDialCard(
     estimate: CircadianEngine.PhaseEstimate,
     actualBedHour: Double,
     actualWakeHour: Double,
+    // iOS `BodyClockDialCard(bare:)`: the Sleep tab's form states the verdict at headline size, not as a second
+    // page title (owner, 2026-11-28).
+    bare: Boolean = false,
 ) {
     // One hue for both arcs, told apart by dash and weight rather than by a second colour. Two blues
     // competed with the background image; a single legible one plus a dashed, lighter reference does not.
@@ -244,7 +247,7 @@ fun BodyClockDialCard(
 
             DialLegend(hue)
 
-            Text(alignment, style = NoopType.title2, color = Palette.textPrimary)
+            Text(alignment, style = if (bare) NoopType.headline else NoopType.title2, color = Palette.textPrimary)
 
             CircadianEngine.chronotype(estimate)?.let { c ->
                 Text(chronotypeText(c), style = NoopType.footnote, color = Palette.textTertiary)

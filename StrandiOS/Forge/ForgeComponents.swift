@@ -40,6 +40,10 @@ struct ForgeRow: View {
     var compact = false
     /// The symbol alone in its colour, as the Health tab's focus tiles above it (owner, 2026-11-28).
     var plainMark = false
+    /// The plain mark's symbol and frame, grown with the text size beside them. Not private: a private stored
+    /// property would make the memberwise initialiser every caller uses private too.
+    @ScaledMetric(relativeTo: .callout) var plainMarkSize: CGFloat = 20
+    @ScaledMetric(relativeTo: .callout) var plainMarkFrame: CGFloat = 28
 
     var body: some View {
         HStack(spacing: 12) {
@@ -48,9 +52,9 @@ struct ForgeRow: View {
             Group {
                 if plainMark {
                     Image(systemName: systemImage)
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(.system(size: plainMarkSize, weight: .semibold))
                         .foregroundStyle(tint)
-                        .frame(width: 28, height: 28)
+                        .frame(width: plainMarkFrame, height: plainMarkFrame)
                 } else if compact {
                     Image(systemName: systemImage)
                         .font(.system(.footnote, weight: .semibold))

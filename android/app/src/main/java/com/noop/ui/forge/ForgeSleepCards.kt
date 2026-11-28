@@ -220,22 +220,24 @@ internal fun ForgeSleepMarkCard(viewModel: com.noop.ui.AppViewModel) {
                 val needed = marks.maxOf { (_, _, label) ->
                     with(density) { measurer.measure(label, labelStyle).size.width.toDp() } + 18.dp + 8.dp + 48.dp
                 }
-                val button: @Composable (Modifier, Triple<com.noop.analytics.SleepMarkType, androidx.compose.ui.graphics.vector.ImageVector, String>) -> Unit = { mod, (type, icon, label) ->
+                // One line side by side; stacked, a label at a large font scale may take its second line (iOS
+                // `markButtons(multiline:)`).
+                val button: @Composable (Modifier, Int, Triple<com.noop.analytics.SleepMarkType, androidx.compose.ui.graphics.vector.ImageVector, String>) -> Unit = { mod, lines, (type, icon, label) ->
                     androidx.compose.material3.Button(onClick = { mark(type) }, modifier = mod.heightIn(min = 48.dp),
                         colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = colors.inset,
                                                                                         contentColor = colors.text)) {
                         androidx.compose.material3.Icon(icon, null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(label, style = labelStyle, maxLines = 1)
+                        Text(label, style = labelStyle, maxLines = lines)
                     }
                 }
                 if (needed <= half) {
                     Row(horizontalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
-                        marks.forEach { button(Modifier.weight(1f), it) }
+                        marks.forEach { button(Modifier.weight(1f), 1, it) }
                     }
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
-                        marks.forEach { button(Modifier.fillMaxWidth(), it) }
+                        marks.forEach { button(Modifier.fillMaxWidth(), 2, it) }
                     }
                 }
             }

@@ -14,8 +14,6 @@ import WhoopStore
 /// Reads the SAME `SleepPresentationStore` model the shipped Sleep screen draws, so both agree.
 struct ForgeSleepView: View {
     let onProfile: () -> Void
-    var onAsk: (String) -> Void = { _ in }
-    @AppStorage(CoachFeaturePrefs.enabledKey) private var coachFeatureEnabled = false
 
     @EnvironmentObject private var repo: Repository
     @EnvironmentObject private var router: NavRouter
@@ -216,7 +214,7 @@ struct ForgeSleepView: View {
             }
             NavigationLink(value: TabRoute.metric("sleep_total_min")) {
                 ForgeMetricTile(label: String(localized: "Sleep duration"),
-                                value: ForgeTodayView.hoursMinutes(night.stages.asleep), unit: "h",
+                                value: ForgeTodayView.hoursMinutes(night.stages.asleep), unit: String(localized: "h"),
                                 trend: asleepWeek.count > 1 ? asleepWeek : nil, tint: ForgeColor.rest,
                                 badge: (String(localized: "Need \(ForgeTodayView.hoursMinutes(need)) h"), .attention),
                                 axisLabels: weekdayLabels(7))
@@ -373,7 +371,8 @@ struct ForgeSleepView: View {
     /// "8:13 h": every length on the page in one form, as the summary tiles and the stage rows write it
     /// (owner, 2026-11-28; "8h 13m" beside "8:00 h" read as two different measures).
     static func durationText(_ minutes: Double) -> String {
-        "\(ForgeTodayView.hoursMinutes(minutes)) h"
+        // Through the catalogue's "%@ h", so Russian reads "ч" and Chinese "小时", as the old "7ч 47м" did.
+        String(localized: "\(ForgeTodayView.hoursMinutes(minutes)) h")
     }
 
     static func percentText(_ value: Double?) -> String {
@@ -536,10 +535,10 @@ struct ForgeSleepView: View {
                 .forgeCard(radius: ForgeRadius.card, padding: 16)
             }
             if let night, let phase = appModel.circadianPhase, phase.confidence != .unreadable {
-                BodyClockDialCard(estimate: phase,
-                                  actualBedHour: SleepView.localClockHour(night.session.effectiveStartTs),
-                                  actualWakeHour: SleepView.localClockHour(night.session.endTs), bare: true)
-                    .forgeCard(radius: ForgeRadius.card, padding: 16)
+                let clock = BodyClockDialCard(estimate: phase,
+                                              actualBedHour: SleepView.localClockHour(night.session.effectiveStartTs),
+                                              actualWakeHour: SleepView.localClockHour(night.session.endTs), bare: true)
+                if clock.drawsDial { clock.forgeCard(radius: ForgeRadius.card, padding: 16) }
             }
             GoalsContextCard(context: .sleep)
             DeletedSleepNightsSection()

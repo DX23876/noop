@@ -90,6 +90,8 @@ enum CoreSleepDebt {
     /// 2026-11-28), and the estimate stated without the "≈" mark, as the new design states it on the iPhone.
     static func duration(_ minutes: Double) -> String {
         let m = max(0, Int(minutes.rounded()))
-        return "\(m / 60):\(String(format: "%02d", m % 60)) h"
+        // The catalogue's "%@ h", so a Russian wearer reads "ч" and a Chinese one "小时".
+        let clock = "\(m / 60):\(String(format: "%02d", m % 60))"
+        return String(localized: "\(clock) h")
     }
 }

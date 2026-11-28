@@ -5074,8 +5074,6 @@
     <string name="forge_sleep_nav">%1$s · %2$s–%3$s</string>
     <string name="forge_sleep_days">с %1$s по %2$s</string>
     <string name="forge_sleep_duration_tile">Длительность сна</string>
-    <string name="forge_sleep_discuss">Обсудить ночь с коучем</string>
-    <string name="forge_sleep_discuss_prompt">Посмотри на мой сон прошлой ночью и скажи, что выделялось и что изменить сегодня вечером.</string>
     <string name="forge_tw_this_week">На этой неделе</string>
     <string name="forge_tw_none">Тренировок пока нет</string>
     <string name="forge_tw_min">%1$d мин.</string>
@@ -5691,7 +5689,6 @@
     <string name="food_item_grams_kcal">%1$s · %2$s г · %3$s ккал</string>
     <string name="forge_sl_tonight">Сегодня ночью</string>
     <string name="forge_sl_full_recovery">для полного восстановления</string>
-    <string name="forge_sl_bedtime_word">отбой</string>
     <string name="forge_sl_need_alarm">Нужно %1$s ч · будильник %2$s</string>
     <string name="forge_sl_bed_counts">Время отхода ко сну рассчитано на %1$s ч, как задано в Будильниках.</string>
     <string name="forge_sl_this_night">Эта ночь</string>
@@ -5716,11 +5713,11 @@
     <string name="forge_sl_month">Месяц</string>
     <string name="forge_sl_year">Год</string>
     <string name="forge_sl_need">Нужно %1$s ч</string>
-    <string name="forge_sl_alarms">Будильники</string>
     <string name="forge_sl_smart_alarm">Умный будильник</string>
     <string name="forge_sl_smart_alarm_sub">Будит в лёгкой фазе, будильник %1$s</string>
     <string name="forge_sl_bedtime">Время отхода ко сну</string>
     <string name="forge_sl_wind_down">Подготовка ко сну</string>
+    <string name="forge_sl_hours">%1$s ч</string>
     <string name="forge_sl_reminder_at">Напоминание в %1$s</string>
     <string name="forge_sl_off">Выкл.</string>
     <string name="forge_sl_stages">Стадии</string>
@@ -5733,8 +5730,6 @@
     <string name="forge_sl_breathing">Частота дыхания</string>
     <string name="forge_sl_per_min">/мин</string>
     <string name="forge_sl_usual">обычный %1$d</string>
-    <string name="forge_sl_sleep_debt">Недосып</string>
-    <string name="forge_sl_body_clock">Биологические часы</string>
     <string name="forge_sl_hours_night">Часы сна по ночам</string>
     <string name="forge_tr_planned_today">Запланировано на сегодня</string>
     <string name="forge_tr_your_week">Ваша неделя</string>
@@ -6499,7 +6494,6 @@
     <string name="forge_md_one_day">1 день</string>
     <string name="forge_md_ask_coach_about">Спросить тренера о %1$s</string>
     <string name="forge_sl_need_h">Нужно %1$s ч</string>
-    <string name="forge_sl_running_balance">текущий баланс</string>
     <string name="forge_ex_what_this_means">Что это значит</string>
     <string name="forge_ex_night_title">Как проходит ночь</string>
     <string name="forge_ex_night_text">Сон идёт циклами примерно по 90 минут. Глубокий сон бывает в основном в начале ночи, REM ближе к утру, а короткие пробуждения нормальны. Ваша ночь может выглядеть иначе.</string>

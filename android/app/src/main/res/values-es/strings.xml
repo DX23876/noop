@@ -5167,8 +5167,6 @@
     <string name="forge_sleep_nav">%1$s · %2$s a %3$s</string>
     <string name="forge_sleep_days">del %1$s al %2$s</string>
     <string name="forge_sleep_duration_tile">Duración del sueño</string>
-    <string name="forge_sleep_discuss">Hablar de anoche con el coach</string>
-    <string name="forge_sleep_discuss_prompt">Mira mi sueño de anoche y dime qué destacó y qué podría cambiar esta noche.</string>
     <string name="forge_tw_this_week">Esta semana</string>
     <string name="forge_tw_none">Aún no hay entrenamientos</string>
     <string name="forge_tw_min">%1$d min</string>
@@ -5712,7 +5710,6 @@
     <string name="food_item_grams_kcal">%1$s · %2$s g · %3$s kcal</string>
     <string name="forge_sl_tonight">Esta noche</string>
     <string name="forge_sl_full_recovery">para recuperarte del todo</string>
-    <string name="forge_sl_bedtime_word">hora de dormir</string>
     <string name="forge_sl_need_alarm">Necesitas %1$s h · alarma %2$s</string>
     <string name="forge_sl_bed_counts">La hora de acostarse cuenta con %1$s h, como en Alarmas.</string>
     <string name="forge_sl_this_night">Esta noche</string>
@@ -5737,11 +5734,11 @@
     <string name="forge_sl_month">Mes</string>
     <string name="forge_sl_year">Año</string>
     <string name="forge_sl_need">Necesidad %1$s h</string>
-    <string name="forge_sl_alarms">Alarmas</string>
     <string name="forge_sl_smart_alarm">Alarma inteligente</string>
     <string name="forge_sl_smart_alarm_sub">Te despierta en una fase ligera, alarma %1$s</string>
     <string name="forge_sl_bedtime">Hora de acostarse</string>
     <string name="forge_sl_wind_down">Relajación</string>
+    <string name="forge_sl_hours">%1$s h</string>
     <string name="forge_sl_reminder_at">Recordatorio a las %1$s</string>
     <string name="forge_sl_off">Desactivado</string>
     <string name="forge_sl_stages">Fases</string>
@@ -5754,8 +5751,6 @@
     <string name="forge_sl_breathing">Frecuencia respiratoria</string>
     <string name="forge_sl_per_min">/min</string>
     <string name="forge_sl_usual">habitual %1$d</string>
-    <string name="forge_sl_sleep_debt">Deuda de sueño</string>
-    <string name="forge_sl_body_clock">Reloj biológico</string>
     <string name="forge_sl_hours_night">Horas dormidas noche a noche</string>
     <string name="forge_tr_planned_today">Previsto para hoy</string>
     <string name="forge_tr_your_week">Tu semana</string>
@@ -6521,7 +6516,6 @@
     <string name="forge_md_one_day">1 día</string>
     <string name="forge_md_ask_coach_about">Preguntar al coach sobre %1$s</string>
     <string name="forge_sl_need_h">Necesidad %1$s h</string>
-    <string name="forge_sl_running_balance">balance acumulado</string>
     <string name="forge_ex_what_this_means">Qué significa esto</string>
     <string name="forge_ex_night_title">Cómo transcurre una noche</string>
     <string name="forge_ex_night_text">El sueño avanza en ciclos de unos 90 minutos. El sueño profundo llega sobre todo al principio de la noche, el REM hacia la mañana, y los despertares breves son normales. Tu noche puede ser distinta.</string>

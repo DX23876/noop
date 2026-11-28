@@ -1,7 +1,6 @@
 package com.noop.ui.forge
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,8 +16,6 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -186,7 +183,9 @@ internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: Zone
             Text(stringResource(R.string.forge_sl_no_stages), style = Forge.type.body, color = colors.textSecondary)
             return@ForgeCard
         }
-        NightFigures(night, days, isOura)
+        // Without the make-up bar the card ends at the lanes, or at the figures, with no gap of its own (iOS ends at
+        // its chart).
+        NightFigures(night, days, isOura, trailingGap = showMakeUp || night.stages.isNotEmpty())
         // The lanes need the stretches themselves; a night stored only as minutes per stage keeps the bar and totals.
         if (night.stages.isNotEmpty()) {
         StageLanes(night)
@@ -197,7 +196,7 @@ internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: Zone
             Spacer(Modifier.weight(1f))
             Text(at(night.endTs), style = Forge.type.caption, color = colors.textTertiary)
         }
-        Spacer(Modifier.height(ForgeMetrics.space3))
+        if (showMakeUp) Spacer(Modifier.height(ForgeMetrics.space3))
         }
         // The night's make-up as one bar, in the lanes' own stage colours. The new Sleep page leaves it to the
         // Stages card below it, as iOS's `nightCard` (owner, 2026-11-28).
@@ -243,7 +242,7 @@ internal fun SleepNightCard(night: CoreRead.Night, isLatest: Boolean, zone: Zone
  * were reachable only through Health, Sleep, Sleep details. Every number is the core's (`NightFacts`).
  */
 @Composable
-internal fun NightFigures(night: CoreRead.Night, days: List<DailyMetric>, isOura: Boolean) {
+internal fun NightFigures(night: CoreRead.Night, days: List<DailyMetric>, isOura: Boolean, trailingGap: Boolean = true) {
     val colors = Forge.colors
     val facts = rememberNightFacts(night, days) ?: return
     val efficiency = facts.efficiencyPct?.roundToInt()
@@ -269,11 +268,12 @@ internal fun NightFigures(night: CoreRead.Night, days: List<DailyMetric>, isOura
         NightFigure(stringResource(R.string.forge_sl_restorative), facts.restorativeMin,
                     facts.typicalRestorativeMin, colors.sleepRem, Modifier.weight(1f))
     }
-    Spacer(Modifier.height(ForgeMetrics.space3))
+    if (trailingGap) Spacer(Modifier.height(ForgeMetrics.space3))
 }
 
 /** "8:13 h": a length as the Sleep page writes every one, iOS's `ForgeSleepView.durationText` (owner, 2026-11-28). */
-internal fun hoursText(minutes: Double): String = "${TodayTimeline.hoursMinutes(minutes)} h"
+@Composable
+internal fun hoursText(minutes: Double): String = stringResource(R.string.forge_sl_hours, TodayTimeline.hoursMinutes(minutes))
 
 @Composable
 private fun NightFigure(label: String, minutes: Double, typical: Double?, tint: Color, modifier: Modifier) {
@@ -505,64 +505,6 @@ private fun ShapedRow(r: Shaped) {
                     val x = (size.width * (t / 100).coerceIn(0.0, 1.0)).toFloat()
                     drawRoundRect(colors.text.copy(alpha = 0.65f), Offset(x - 1.dp.toPx(), 0f), Size(2.dp.toPx(), size.height),
                                   CornerRadius(1.dp.toPx(), 1.dp.toPx()))
-                }
-            }
-        }
-    }
-}
-
-private data class Highlight(val title: String, val detail: String, val more: Boolean)
-
-/** What this night did differently from the usual, ten minutes or more, as iOS's `highlights`: one page each. */
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-internal fun SleepHighlights(night: CoreRead.Night, model: com.noop.ui.SleepModel?) {
-    val s = SleepSummary.of(night)
-    val m = s.minutesByStage
-    val rows = listOf(
-        Triple(stringResource(R.string.forge_sl_time_asleep), s.asleepMin.toDouble(), model?.typicalTotalMin),
-        Triple(stringResource(R.string.forge_sl_deep_sleep), (m["deep"] ?: 0).toDouble(), model?.typicalDeepMin),
-        Triple(stringResource(R.string.forge_sl_rem_sleep), (m["rem"] ?: 0).toDouble(), model?.typicalRemMin),
-        Triple(stringResource(R.string.forge_sl_light_sleep), (m["light"] ?: 0).toDouble(), model?.typicalLightMin),
-    )
-    val items = rows.mapNotNull { (title, value, typical) ->
-        if (typical == null || abs(value - typical) < 10) null
-        else Highlight(title, stringResource(R.string.forge_sl_usually, TodayTimeline.hoursMinutes(value), TodayTimeline.hoursMinutes(typical)),
-                       value > typical)
-    }
-    if (items.isEmpty()) return
-    val colors = Forge.colors
-    val pager = rememberPagerState { items.size }
-    Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
-        SleepSectionTitle(stringResource(R.string.forge_sl_highlights))
-        ForgeCard(Modifier.fillMaxWidth()) {
-            HorizontalPager(pager, Modifier.fillMaxWidth()) { i ->
-                val item = items[i]
-                Column(Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(38.dp).background(colors.rest.copy(alpha = 0.15f), CircleShape), contentAlignment = Alignment.Center) {
-                            Icon(Icons.Rounded.Schedule, contentDescription = null, tint = colors.rest, modifier = Modifier.size(18.dp))
-                        }
-                        Spacer(Modifier.width(ForgeMetrics.space3))
-                        Column(Modifier.weight(1f)) {
-                            Text(item.title, style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold), color = colors.text)
-                            Text(item.detail, style = Forge.type.caption, color = colors.textSecondary)
-                        }
-                        val tone = if (item.more) colors.charge else colors.effort
-                        Text(stringResource(if (item.more) R.string.forge_sl_more else R.string.forge_sl_less),
-                             style = Forge.type.caption.copy(fontWeight = FontWeight.SemiBold), color = tone,
-                             modifier = Modifier.background(tone.copy(alpha = 0.14f), CircleShape).padding(horizontal = 10.dp, vertical = 4.dp))
-                    }
-                    Spacer(Modifier.height(ForgeMetrics.space3))
-                    Text(stringResource(R.string.forge_sl_n_of, i + 1, items.size), style = Forge.type.caption, color = colors.textTertiary)
-                }
-            }
-            if (items.size > 1) {
-                Row(Modifier.fillMaxWidth().padding(top = ForgeMetrics.space2), horizontalArrangement = Arrangement.Center) {
-                    items.indices.forEach { i ->
-                        Box(Modifier.padding(horizontal = 3.dp).size(6.dp)
-                                .background(if (i == pager.currentPage) colors.text else colors.textTertiary.copy(alpha = 0.4f), CircleShape))
-                    }
                 }
             }
         }

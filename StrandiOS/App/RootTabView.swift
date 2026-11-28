@@ -887,7 +887,7 @@ struct RootTabView: View {
     }
 
     private var forgeSleepRoot: some View {
-        ForgeSleepView(onProfile: { showAllFeatures = true }, onAsk: askCoach)
+        ForgeSleepView(onProfile: { showAllFeatures = true })
     }
 
     private var forgeNutritionRoot: some View {

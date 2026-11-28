@@ -27,11 +27,8 @@ struct SleepDebtLedgerCard: View {
         let ledger = model.sleepDebtLedger
         if bare {
             VStack(alignment: .leading, spacing: NoopMetrics.space4) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text("Sleep balance").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
-                    Spacer(minLength: NoopMetrics.space2)
-                    Text("Last 14 nights").font(StrandFont.footnote).foregroundStyle(StrandPalette.textSecondary)
-                }
+                // The balance alone: the footer counts the nights, and a fixed "Last 14 nights" was wrong with fewer.
+                Text("Sleep balance").font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
                 content(ledger)
             }
         } else {
@@ -168,7 +165,7 @@ struct SleepDebtLedgerCard: View {
 
     /// Signed "+1h 20m" / "−2h 10m" / "0m" balance string.
     private func debtSigned(_ minutes: Double) -> String {
-        if abs(minutes) < 1 { return bare ? "0:00 h" : String(localized: "0m") }
+        if abs(minutes) < 1 { return bare ? durationText(0) : String(localized: "0m") }
         let sign = minutes >= 0 ? "+" : "−"
         return "\(sign)\(durationText(abs(minutes)))"
     }
@@ -177,7 +174,11 @@ struct SleepDebtLedgerCard: View {
     /// renders identically whether hosted in Today or shown in the Sleep tab.
     private func durationText(_ minutes: Double) -> String {
         let m = Swift.max(0, Int(minutes.rounded()))
-        if bare { return "\(m / 60):\(String(format: "%02d", m % 60)) h" }
+        // The catalogue's "%@ h", so Russian reads "ч" and Chinese "小时".
+        if bare {
+            let clock = "\(m / 60):\(String(format: "%02d", m % 60))"
+            return String(localized: "\(clock) h")
+        }
         if m < 60 { return String(localized: "\(m)m") }
         return String(localized: "\(m / 60)h \(m % 60)m")
     }

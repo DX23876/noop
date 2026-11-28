@@ -35,6 +35,10 @@ struct BodyClockDialCard: View {
         return d <= 0 ? d + 24 : d
     }
 
+    /// Whether the card draws at all, so a host that frames it can leave the frame out too: an empty `.forgeCard`
+    /// stood in the Sleep tab where a night of no length or a full day gave no ideal window.
+    var drawsDial: Bool { ideal != nil }
+
     private var ideal: (bedHour: Double, wakeHour: Double)? {
         CircadianEngine.idealSleepWindow(tempMinHour: estimate.tempMinHour, durationHours: durationHours)
     }

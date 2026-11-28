@@ -431,7 +431,7 @@ private fun SleepSummaryTiles(night: CoreRead.Night, rest: Double?, model: Sleep
                                                                     else -> ForgeBadgeTone.Attention }
                        }, axisLabels = weekdays, onClick = onRest)
         ForgeTrendTile(stringResource(R.string.forge_sleep_duration_tile),
-                       asleep.takeIf { it > 0 }?.let { TodayTimeline.hoursMinutes(it.toDouble()) }, "h", asleepWeek, colors.rest,
+                       asleep.takeIf { it > 0 }?.let { TodayTimeline.hoursMinutes(it.toDouble()) }, stringResource(R.string.forge_goals_u_h), asleepWeek, colors.rest,
                        Modifier.weight(1f),
                        badge = stringResource(R.string.forge_sl_need_h, TodayTimeline.hoursMinutes(need)) to ForgeBadgeTone.Attention,
                        axisLabels = weekdays, onClick = onDuration)
@@ -712,9 +712,9 @@ private fun SleepDebtLedger() {
     ForgeCard(Modifier.fillMaxWidth()) {
         androidx.compose.foundation.layout.Row(Modifier.padding(bottom = ForgeMetrics.space3),
                                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            // The balance alone: the footer counts the nights, and a fixed "Last 14 nights" was wrong with fewer.
             Text(stringResource(R.string.forge_sd_title), style = Forge.type.headline, color = Forge.colors.text,
                  modifier = Modifier.weight(1f))
-            Text(stringResource(R.string.forge_sd_last14), style = Forge.type.footnote, color = Forge.colors.textSecondary)
         }
         if (l.nightCount == 0) {
             Text(stringResource(R.string.forge_sd_empty), style = Forge.type.subhead, color = Forge.colors.textTertiary)
@@ -904,8 +904,11 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
         SleepThisNight(days, key, hasStageMinutes(night))
     }
     // Tonight: when to go to bed, the balance behind it, the alarm and the night's marks.
-    SleepSectionTitle(stringResource(R.string.forge_sl_tonight))
-    SleepTonightCard(viewModel, need, onAlarms)
+    // The title sits with its card as every section title on the page does, not a section gap above it.
+    Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+        SleepSectionTitle(stringResource(R.string.forge_sl_tonight))
+        SleepTonightCard(viewModel, need, onAlarms)
+    }
     SleepDebtLedger()
     SleepAlarms(viewModel, onAlarms)
     ForgeSleepMarkCard(viewModel)
@@ -917,7 +920,7 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
         val tokens = remember(forgeColors) { hostedTokens(forgeColors) }
         com.noop.ui.HostedPalette(tokens, forgeColors.dark) {
             com.noop.ui.BodyClockDialCard(bodyClock, com.noop.ui.localClockHour(night.startTs),
-                                          com.noop.ui.localClockHour(night.endTs))
+                                          com.noop.ui.localClockHour(night.endTs), bare = true)
         }
     }
     ForgeGoalsContextCard("sleep")

@@ -5128,8 +5128,6 @@
     <string name="forge_sleep_nav">%1$s · %2$s 至 %3$s</string>
     <string name="forge_sleep_days">%1$s 至 %2$s</string>
     <string name="forge_sleep_duration_tile">睡眠时长</string>
-    <string name="forge_sleep_discuss">和教练聊聊昨晚</string>
-    <string name="forge_sleep_discuss_prompt">看看我昨晚的睡眠，告诉我有什么突出之处，今晚可以改变什么。</string>
     <string name="forge_tw_this_week">本周</string>
     <string name="forge_tw_none">暂无锻炼记录</string>
     <string name="forge_tw_min">%1$d 分钟</string>
@@ -5672,7 +5670,6 @@
     <string name="food_item_grams_kcal">%1$s · %2$s 克 · %3$s 大卡</string>
     <string name="forge_sl_tonight">今晚</string>
     <string name="forge_sl_full_recovery">以完全恢复</string>
-    <string name="forge_sl_bedtime_word">就寝时间</string>
     <string name="forge_sl_need_alarm">需要 %1$s 小时 · 闹钟 %2$s</string>
     <string name="forge_sl_bed_counts">就寝时间按“闹钟”中设置的 %1$s 小时计算。</string>
     <string name="forge_sl_this_night">这一晚</string>
@@ -5697,11 +5694,11 @@
     <string name="forge_sl_month">月</string>
     <string name="forge_sl_year">年</string>
     <string name="forge_sl_need">需要 %1$s 小时</string>
-    <string name="forge_sl_alarms">闹钟</string>
     <string name="forge_sl_smart_alarm">智能闹钟</string>
     <string name="forge_sl_smart_alarm_sub">在浅睡阶段叫醒你，闹钟 %1$s</string>
     <string name="forge_sl_bedtime">就寝时间</string>
     <string name="forge_sl_wind_down">放松</string>
+    <string name="forge_sl_hours">%1$s 小时</string>
     <string name="forge_sl_reminder_at">%1$s 提醒</string>
     <string name="forge_sl_off">关闭</string>
     <string name="forge_sl_stages">阶段</string>
@@ -5714,8 +5711,6 @@
     <string name="forge_sl_breathing">呼吸频率</string>
     <string name="forge_sl_per_min">/分钟</string>
     <string name="forge_sl_usual">通常 %1$d</string>
-    <string name="forge_sl_sleep_debt">睡眠债</string>
-    <string name="forge_sl_body_clock">生物钟</string>
     <string name="forge_sl_hours_night">每晚的睡眠小时数</string>
     <string name="forge_tr_planned_today">今天的计划</string>
     <string name="forge_tr_your_week">你的一周</string>
@@ -6480,7 +6475,6 @@
     <string name="forge_md_one_day">1 天</string>
     <string name="forge_md_ask_coach_about">向教练询问%1$s</string>
     <string name="forge_sl_need_h">需要 %1$s 小时</string>
-    <string name="forge_sl_running_balance">累计结余</string>
     <string name="forge_ex_what_this_means">这意味着什么</string>
     <string name="forge_ex_night_title">一夜如何度过</string>
     <string name="forge_ex_night_text">睡眠以约 90 分钟为一个周期。深睡多在前半夜,快速眼动多在清晨前,短暂醒来很正常。你的夜晚可能有所不同。</string>

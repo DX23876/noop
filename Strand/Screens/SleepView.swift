@@ -2156,6 +2156,7 @@ private struct SleepPerformanceNightScene: View {
 struct SleepMarkCard: View {
     @EnvironmentObject private var repo: Repository
     @EnvironmentObject private var live: LiveState
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     /// The most recent sleep-mark the user tapped, shown as a transient confirmation line under the
     /// two buttons. Drives the SwiftUI haptic landing too. LOGGING-ONLY: a mark never feeds the sleep
@@ -2176,8 +2177,9 @@ struct SleepMarkCard: View {
                     // both labels fit on one line, else one above the other: "Schlafen gehen" broke over two
                     // lines in a half-width button (owner, 2026-11-28).
                     ViewThatFits(in: .horizontal) {
-                        HStack(spacing: NoopMetrics.gap) { markButtons }
-                        VStack(spacing: NoopMetrics.space2) { markButtons }
+                        HStack(spacing: NoopMetrics.gap) { markButtons(multiline: false) }
+                        // At an accessibility text size even a full-width label may need its second line.
+                        VStack(spacing: NoopMetrics.space2) { markButtons(multiline: typeSize.isAccessibilitySize) }
                     }
                     if let lastMark {
                         Text(lastMark.confirmation)
@@ -2194,17 +2196,20 @@ struct SleepMarkCard: View {
         .strandHaptic(.success, trigger: lastMark?.tsMs ?? 0)
     }
 
+    /// The two marks; `multiline` lets a label take two lines, for the stacked form at an accessibility text size.
+    @ViewBuilder private func markButtons(multiline: Bool) -> some View {
+        NoopButton("Going to sleep", systemImage: "moon.zzz.fill", kind: .secondary, fullWidth: true,
+                   multiline: multiline) { logMark(.bedtime) }
+            .accessibilityLabel("Log going to sleep")
+        NoopButton("I'm awake", systemImage: "sun.max.fill", kind: .secondary, fullWidth: true,
+                   multiline: multiline) { logMark(.wake) }
+            .accessibilityLabel("Log waking up")
+    }
+
     /// Persist + log a tapped mark. Optimistically shows the confirmation immediately, fires the
     /// haptic via `lastMark`, appends the human-readable strap-log line, then writes the metric-series
     /// row through the repo's live store handle (no new Repository API, no schema change). The write is
     /// idempotent by (deviceId, day, key). (#461)
-    @ViewBuilder private var markButtons: some View {
-        NoopButton("Going to sleep", systemImage: "moon.zzz.fill", kind: .secondary, fullWidth: true) { logMark(.bedtime) }
-            .accessibilityLabel("Log going to sleep")
-        NoopButton("I'm awake", systemImage: "sun.max.fill", kind: .secondary, fullWidth: true) { logMark(.wake) }
-            .accessibilityLabel("Log waking up")
-    }
-
     private func logMark(_ type: SleepMarkType) {
         let mark = SleepMark(type: type)
         withAnimation(.easeOut(duration: 0.2)) { lastMark = mark }
