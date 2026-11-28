@@ -25,6 +25,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.WineBar
+import androidx.compose.material.icons.rounded.Cake
+import androidx.compose.material.icons.rounded.LunchDining
 import androidx.compose.material.icons.rounded.Grain
 import androidx.compose.material.icons.rounded.Opacity
 import androidx.compose.material.icons.rounded.SetMeal

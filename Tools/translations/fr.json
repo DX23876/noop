@@ -4928,5 +4928,14 @@
   "New month tomorrow": "Nouveau mois demain",
   "%lld days left · then a new week": "Encore %lld jours · puis nouvelle semaine",
   "%lld days left · then a new month": "Encore %lld jours · puis nouveau mois",
-  "No heart rate from today yet. It appears once your strap syncs.": "Pas encore de pouls aujourd'hui. Il apparaît dès que ton bracelet se synchronise."
+  "No heart rate from today yet. It appears once your strap syncs.": "Pas encore de pouls aujourd'hui. Il apparaît dès que ton bracelet se synchronise.",
+  "Added sugar": "Sucres ajoutés",
+  "Sausage and cured meat": "Charcuterie et viandes fumées",
+  "Days that count, logged with at least a third of your usual food.": "Jours qui comptent, enregistrés avec au moins un tiers de ton alimentation habituelle.",
+  "Nothing off up to 350 g a week": "Rien en moins jusqu’à 350 g par semaine",
+  "Nothing off up to a tenth of your calories": "Rien en moins jusqu’à un dixième de tes calories",
+  "Nothing off up to a twentieth of your calories": "Rien en moins jusqu’à un vingtième de tes calories",
+  "Nothing off up to about 4 g salt a day": "Rien en moins jusqu’à environ 4 g de sel par jour",
+  "The note counts from a third of your usual day: %@ of %@ kcal so far.": "La note compte à partir d’un tiers de ta journée habituelle : %1$@ de %2$@ kcal jusqu’ici.",
+  "Nothing off without sausage and cured meat": "Rien en moins sans charcuterie ni viandes fumées"
 }

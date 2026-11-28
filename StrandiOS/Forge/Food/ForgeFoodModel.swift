@@ -105,6 +105,8 @@ final class ForgeFoodModel {
     var badges: FoodBadges.Summary?
     /// Group and processing class of foods whose id does not carry them, looked up once.
     @ObservationIgnored var factsById: [String: FoodScore.FoodFacts] = [:]
+    /// Whether a visit is classifying the wearer's kept foods, so two visits never ask the coach twice.
+    @ObservationIgnored var classifyingKept = false
     /// The basal rate behind the goal's floor.
     @ObservationIgnored var basalKcal: Double?
     /// The whole log as last loaded, for the notifications' content.

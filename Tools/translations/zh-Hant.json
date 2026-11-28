@@ -5082,5 +5082,14 @@
   "New month tomorrow": "明天開始新的一月",
   "%lld days left · then a new week": "還剩 %lld 天 · 然後開始新的一週",
   "%lld days left · then a new month": "還剩 %lld 天 · 然後開始新的一月",
-  "No heart rate from today yet. It appears once your strap syncs.": "今天還沒有心率。手環同步後會顯示在這裡。"
+  "No heart rate from today yet. It appears once your strap syncs.": "今天還沒有心率。手環同步後會顯示在這裡。",
+  "Added sugar": "添加糖",
+  "Sausage and cured meat": "香腸和醃肉",
+  "Days that count, logged with at least a third of your usual food.": "算進去的日子：至少記錄了平常飲食的三分之一。",
+  "Nothing off up to 350 g a week": "每週不超過 350 克不扣分",
+  "Nothing off up to a tenth of your calories": "不超過熱量的十分之一不扣分",
+  "Nothing off up to a twentieth of your calories": "不超過熱量的二十分之一不扣分",
+  "Nothing off up to about 4 g salt a day": "每天不超過約 4 克鹽不扣分",
+  "The note counts from a third of your usual day: %@ of %@ kcal so far.": "評分從平常一天的三分之一起算：目前 %1$@ / %2$@ 千卡。",
+  "Nothing off without sausage and cured meat": "沒有香腸和醃肉就不扣分"
 }

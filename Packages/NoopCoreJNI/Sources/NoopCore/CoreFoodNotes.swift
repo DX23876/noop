@@ -127,7 +127,7 @@ enum CoreFoodNotes {
         let all = (try? await store.foodLogEntries(from: "2000-01-01", to: today)) ?? []
         var facts: [String: FoodScore.FoodFacts] = [:]
         for id in Set(all.compactMap(\.foodId)) where !id.hasPrefix("bls:") {
-            if let item = await FoodLibrary.item(store: store, id: id) { facts[id] = .init(group: item.group, nova: item.nova) }
+            if let item = await FoodLibrary.item(store: store, id: id) { facts[id] = item.scoreFacts }
         }
         let sex = string("sex").lowercased()
         let male: Bool? = sex == "male" ? true : sex == "female" ? false : nil

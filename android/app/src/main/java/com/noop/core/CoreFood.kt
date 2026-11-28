@@ -259,6 +259,12 @@ object CoreFood {
         return items(json).takeIf { it.size == items.size }
     }
 
+    /**
+     * The wearer's own foods kept before the coach classified products, classified once each, a few per call
+     * (`AICoachEngine.classifyingKeptFoods`). Returns how many were, so the page knows to work its notes out again.
+     */
+    fun coachClassifyKept(): Int = call("coach.foodClassifyKept")?.optInt("classified") ?: 0
+
     fun coachReadsPhotos(): Boolean = call("coach.foodPhotos")?.optBoolean("reads") == true
 
     /** A described or photographed meal as cart lines and the foods the coach named but the phone did not find. */

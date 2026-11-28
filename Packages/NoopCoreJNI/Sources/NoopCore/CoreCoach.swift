@@ -18,7 +18,7 @@ enum CoreCoach {
     static let freshDataOps: Set<String> = [
         "coach.send", "coach.sendPhoto", "coach.brief", "coach.regenerate", "coach.deeper", "coach.card",
         "coach.morning", "coach.morning.set", "coach.morning.confirmWake", "coach.morning.decide",
-        "coach.plan.compare", "coach.foodEnrich", "coach.foodCart",
+        "coach.plan.compare", "coach.foodEnrich", "coach.foodClassifyKept", "coach.foodCart",
     ]
 
     /// The engine for this store and strap, made on first use and kept for the process, so the transcript and a
@@ -74,6 +74,12 @@ enum CoreCoach {
             }
             let fillGaps = args["fillGaps"] as? Bool ?? false
             return CoreRead.json(["items": await coach.enriching(items, store: reader.store, fillGaps: fillGaps)])
+        }
+        if op == "coach.foodClassifyKept" {
+            // The wearer's own foods kept before the coach classified products, once each, a few per call
+            // (`AICoachEngine.classifyingKeptFoods`). Answers how many were classified, so the screen knows to
+            // work its notes out again.
+            return CoreRead.json(["classified": await coach.classifyingKeptFoods(store: reader.store)])
         }
         if op == "coach.foodPhotos" { return CoreRead.json(["reads": coach.readsFoodPhotos]) }
         if op == "coach.foodCart" {

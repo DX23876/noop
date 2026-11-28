@@ -25,14 +25,20 @@ public struct FoodClassification: Equatable, Sendable, Codable {
     /// How much of the food's sugar is free sugar as the WHO means it (added sugar, honey, syrup, juice sugar,
     /// never the sugar inside milk or whole fruit), 0 to 1.
     public var freeSugarShare: Double
+    /// How processed the food is, as NOVA counts it (1 unprocessed, 2 a culinary ingredient, 3 processed, 4 ultra-
+    /// processed), judged from the ingredient list. Open Food Facts works its class out by rule from single
+    /// ingredient markers, and called a protein bread and seasoned chicken strips ultra-processed beside products
+    /// that are (owner, 2026-11-28). Nil when the product does not let anyone tell; the label's class then stands.
+    public var processing: Int?
     public var author: Author
     public var version: Int
 
     public init(shares: [FoodScore.Group: Double] = [:], wholeGrainShare: Double = 0, freeSugarShare: Double = 0,
-                author: Author = .coach, version: Int = FoodClassification.currentVersion) {
+                processing: Int? = nil, author: Author = .coach, version: Int = FoodClassification.currentVersion) {
         self.shares = Dictionary(uniqueKeysWithValues: shares.map { ($0.key.rawValue, $0.value) })
         self.wholeGrainShare = wholeGrainShare
         self.freeSugarShare = freeSugarShare
+        self.processing = processing
         self.author = author
         self.version = version
     }
@@ -48,9 +54,10 @@ public struct FoodClassification: Equatable, Sendable, Codable {
         return out
     }
 
-    /// What the score reads, with the stored group and processing class the entry already had.
+    /// What the score reads, with the stored group the entry already had. The processing class judged here
+    /// stands above the label's, which Open Food Facts derives by rule.
     public func facts(group: String?, nova: Int?) -> FoodScore.FoodFacts {
-        FoodScore.FoodFacts(group: group, nova: nova, shares: groupShares.isEmpty ? nil : groupShares,
+        FoodScore.FoodFacts(group: group, nova: processing ?? nova, shares: groupShares.isEmpty ? nil : groupShares,
                             wholeGrainShare: wholeGrainShare.clamped(0, 1),
                             freeSugarShare: freeSugarShare.clamped(0, 1))
     }
@@ -62,7 +69,8 @@ public struct FoodClassification: Equatable, Sendable, Codable {
         guard values.allSatisfy({ $0.isFinite && $0 >= 0 && $0 <= 1 }), values.reduce(0, +) <= 1.0001,
               shares.count <= Self.maximumShares, shares.keys.allSatisfy({ FoodScore.Group(rawValue: $0) != nil }),
               wholeGrainShare.isFinite, (0...1).contains(wholeGrainShare),
-              freeSugarShare.isFinite, (0...1).contains(freeSugarShare) else { return false }
+              freeSugarShare.isFinite, (0...1).contains(freeSugarShare),
+              processing.map({ (1...4).contains($0) }) ?? true else { return false }
         return true
     }
 

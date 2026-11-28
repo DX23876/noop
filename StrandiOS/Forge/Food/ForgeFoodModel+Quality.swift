@@ -20,6 +20,17 @@ extension ForgeFoodModel {
                      floorKcal: FoodGoalState.floorKcal(basalKcal: basalKcal, male: male, goalKcal: kcal))
     }
 
+    /// The wearer's kept foods without a classification, classified once (`AICoachEngine.classifyingKeptFoods`), then
+    /// the notes worked out again with what they are made of. Only with the coach switched on.
+    func classifyKeptFoods(repo: Repository, coach: AICoachEngine) async {
+        guard CoachFeaturePrefs.isEnabled, !classifyingKept, let store = await repo.storeHandle() else { return }
+        classifyingKept = true
+        defer { classifyingKept = false }
+        guard await coach.classifyingKeptFoods(store: store) > 0 else { return }
+        factsById = [:]
+        await loadQuality(store: store)
+    }
+
     func loadQuality(store: WhoopStore) async {
         let today = Repository.localDayKey(.now)
         let all = (try? await store.foodLogEntries(from: "2000-01-01", to: today)) ?? []

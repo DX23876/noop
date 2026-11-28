@@ -17,6 +17,7 @@ struct ForgeFoodView: View {
 
     @EnvironmentObject private var repo: Repository
     @EnvironmentObject private var profile: ProfileStore
+    @EnvironmentObject private var coach: AICoachEngine
     @State private var model = ForgeFoodModel()
     /// Set once the arrival sheet has been shown, so coming back from a subpage does not open it again.
     @State private var openedAdd = false
@@ -190,6 +191,8 @@ struct ForgeFoodView: View {
         .task {
             followToday()
             await model.load(repo: repo, profile: Repository.analyticsProfile(profile))
+            // Foods kept before the coach classified products count once it has (`classifyKeptFoods`).
+            await model.classifyKeptFoods(repo: repo, coach: coach)
         }
         .onChange(of: scenePhase) { _, phase in if phase == .active { followToday() } }
         .onChange(of: model.day) { Task { await model.reload(repo: repo) } }

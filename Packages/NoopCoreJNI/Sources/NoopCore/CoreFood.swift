@@ -114,7 +114,7 @@ enum CoreFood {
             if args["score"] as? Bool == true {
                 var facts: [String: FoodScore.FoodFacts] = [:]
                 for id in Set(entries.compactMap(\.foodId)) where !id.hasPrefix("bls:") {
-                    if let found = await FoodLibrary.item(store: store, id: id) { facts[id] = .init(group: found.group, nova: found.nova) }
+                    if let found = await FoodLibrary.item(store: store, id: id) { facts[id] = found.scoreFacts }
                 }
                 let sex = string("sex").lowercased()
                 score = FoodScore.week(entries: entries, lastDay: last, facts: facts,

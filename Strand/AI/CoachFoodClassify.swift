@@ -15,7 +15,7 @@ enum CoachFoodClassify {
     static let system = """
         You work out what a packaged food is made of, so a nutrition score can count it. Reply with JSON only, \
         shares between 0 and 1, never grams: \
-        {"groups": {"vegetables": 0.3, "nuts": 0.2}, "whole_grain": 0.4, "free_sugar": 0.8}
+        {"groups": {"vegetables": 0.3, "nuts": 0.2}, "whole_grain": 0.4, "free_sugar": 0.8, "processing": 3}
         Rules:
         - "groups" holds at most three of: vegetables (also mushrooms, not potatoes or corn), fruit (whole fruit, \
         not juice and not dried), nuts (nuts, seeds, nut butter), legumes (beans, lentils, peas, soy), red_meat \
@@ -30,6 +30,17 @@ enum CoachFoodClassify {
         sugar, honey, syrup, concentrate and juice sugar. The sugar inside milk, plain yoghurt and whole fruit is \
         not free sugar, so plain milk is 0 and a sweetened yoghurt is between 0 and 1. Judge it from the \
         ingredient list when there is one.
+        - "processing" is the NOVA group, 1 to 4, judged from the ingredient list by NOVA's own definitions. \
+        1: unprocessed or minimally processed (oats, plain milk, eggs, plain meat or fish, frozen vegetables, \
+        seeds, plain yoghurt). 2: a culinary ingredient (oil, butter, sugar, salt, flour). 3: processed, a food \
+        made from group 1 and 2 ingredients by ordinary means (cheese, bread of flour, water, salt and yeast, \
+        canned vegetables, simple cured meat, a granola of oats, nuts, honey and oil). 4: ultra-processed, an \
+        industrial formulation whose character comes from substances not used in a home kitchen (protein \
+        isolates, modified starch, hydrogenated fat, flavourings, emulsifiers, sweeteners, colours), such as \
+        soft drinks, packaged snacks, instant noodles or reconstituted meat. One preservative, an acid, a \
+        vitamin or a starter culture does not make a food ultra-processed: ask what the product mostly is. The \
+        class the label database gives is worked out by rule from single markers and is often too strict; \
+        decide for yourself.
         - Judge by what the food is made of, never by whether it is healthy. Leave a figure out when the product \
         does not let you tell.
         """
@@ -39,7 +50,7 @@ enum CoachFoodClassify {
         if let brand = item.brand { text += " (\(brand))" }
         if let group = item.group { text += "\nCategory: \(group)" }
         if let categories = item.categories { text += "\nCategory tags: \(categories)" }
-        if let nova = item.nova { text += "\nProcessing class (NOVA): \(nova)" }
+        if let nova = item.nova { text += "\nProcessing class (NOVA) from the label database, by rule: \(nova)" }
         if let ingredients = item.ingredients?.trimmingCharacters(in: .whitespacesAndNewlines), !ingredients.isEmpty {
             text += "\nIngredients: \(ingredients.prefix(600))"
         }
@@ -62,7 +73,11 @@ enum CoachFoodClassify {
         }
         let whole = (object["whole_grain"] as? NSNumber)?.doubleValue ?? 0
         let free = (object["free_sugar"] as? NSNumber)?.doubleValue ?? 0
-        let out = FoodClassification(shares: shares, wholeGrainShare: whole, freeSugarShare: free, author: .coach)
+        // A processing class outside NOVA's four is left out, so the label's class stands, rather than refusing the
+        // whole answer over it.
+        let processing = (object["processing"] as? NSNumber).map(\.intValue).flatMap { (1...4).contains($0) ? $0 : nil }
+        let out = FoodClassification(shares: shares, wholeGrainShare: whole, freeSugarShare: free,
+                                     processing: processing, author: .coach)
         // An empty answer is a real answer ("this is a cheese"), so only an unsound one is refused.
         return out.isSound ? out : nil
     }
@@ -86,5 +101,31 @@ extension AICoachEngine {
         var out = item
         out.classification = classification
         return out
+    }
+}
+
+extension AICoachEngine {
+    /// How many of the wearer's own foods one pass classifies, so a long history is worked through over a few
+    /// visits instead of one burst of model calls.
+    static let keptFoodsPerPass = 10
+
+    /// The wearer's own foods kept before the coach classified products, or while it was off, classified once so
+    /// their weight counts in the score (owner, 2026-11-28: many foods were counted as nothing). Never a food that
+    /// already has a classification, the wearer's own above all, never a BLS row or a recipe, which say what they
+    /// are through their ids. Returns how many were classified. Both platforms call it: iOS from the Food page,
+    /// Android through `coach.foodClassifyKept`.
+    func classifyingKeptFoods(store: WhoopStore) async -> Int {
+        guard isConfigured else { return 0 }
+        let today = StoreReader.localDayKey(Date())
+        let entries = (try? await store.foodLogEntries(from: "2000-01-01", to: today)) ?? []
+        var pending: [FoodItem] = []
+        for id in Set(entries.compactMap(\.foodId)).sorted() where id.hasPrefix("own:") {
+            guard let item = await FoodLibrary.item(store: store, id: id), item.classification == nil,
+                  item.source != .recipe else { continue }
+            pending.append(item)
+            if pending.count == Self.keptFoodsPerPass { break }
+        }
+        guard !pending.isEmpty else { return 0 }
+        return await enriching(pending, store: store, fillGaps: false).filter { $0.classification != nil }.count
     }
 }

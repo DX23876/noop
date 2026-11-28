@@ -292,6 +292,16 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
         shownOnce = true
     }
     fun reload() { revision++ }
+    // Foods kept before the coach classified products count once it has, a few per visit, as iOS's
+    // `classifyKeptFoods` (owner, 2026-11-28: many foods counted as nothing in the score).
+    LaunchedEffect(Unit) {
+        if (!com.noop.ui.NoopPrefs.coachEnabled(context)) return@LaunchedEffect
+        val classified = withContext(Dispatchers.IO) {
+            CoreRead.open(context)
+            CoreFood.coachClassifyKept()
+        }
+        if (classified > 0) reload()
+    }
 
     // A badge earned since the page last celebrated one; a log from before badges existed is taken as seen.
     LaunchedEffect(quality?.earned) {
