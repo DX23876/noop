@@ -23,6 +23,7 @@
   <a href="https://github.com/DX23876/noop_forge/releases/latest"><img alt="Release 13.0" src="https://img.shields.io/badge/release-13.0-C8902F?style=for-the-badge"></a>
   <img alt="iPhone, iPad, Mac, Apple Watch and Android" src="https://img.shields.io/badge/iPhone%20%C2%B7%20iPad%20%C2%B7%20Mac%20%C2%B7%20Watch%20%C2%B7%20Android-234F9E?style=for-the-badge">
   <a href="LICENSE"><img alt="License: PolyForm Noncommercial 1.0.0" src="https://img.shields.io/badge/license-PolyForm%20NC-6B737B?style=for-the-badge"></a>
+  <a href="https://ko-fi.com/dx23876"><img alt="Support NOOP Forge on Ko-fi" src="https://img.shields.io/badge/Ko--fi-support%20Forge-FF7FA8?style=for-the-badge&logo=kofi&logoColor=white"></a>
   <a href="https://discord.com/invite/wKgyqVdjrP"><img alt="Discord: Noop Community" src="https://img.shields.io/badge/Discord-Noop%20Community-5865F2?style=for-the-badge&logo=discord&logoColor=white"></a>
 </p>
 
@@ -36,6 +37,12 @@
 > 5.0 and MG, firmware **50.43.1.0** and **50.43.2.0** are reported to hold back data from independent
 > apps, and there is no way back. Never connect the strap to the WHOOP app again and uninstall it.
 > [What has been reported and how to check your strap](https://dx23876.github.io/forge/firmware/).
+
+> [!TIP]
+> **Forge is free. A WHOOP membership costs $199 to $359 a year.** Forge is built by one person in spare time:
+> 2,086 changes on 107 different days since July 2026 and 14 releases, for iPhone, Mac, Apple Watch and Android.
+> If it saves you a membership, the price of one month on [Ko-fi](https://ko-fi.com/dx23876) keeps it moving.
+> [Why it helps](https://dx23876.github.io/forge/support/)
 
 ## What it is
 
@@ -167,8 +174,8 @@ The Bluetooth work builds on community research, with thanks to
 > NOOP Forge is not a medical device. Its scores, ECG readings and health values are estimates for
 > personal use, not medical advice or a diagnosis. If you have health concerns, talk to a doctor.
 
-NOOP Forge is free. If it saves you a subscription, you can
-[buy me a coffee on Ko-fi](https://ko-fi.com/dx23876). The app works exactly the same either way.
+NOOP Forge is free and stays free. If it saves you a membership, you can
+[support it on Ko-fi](https://ko-fi.com/dx23876). The app works exactly the same either way and never nags you about it.
 
 ## License
 
