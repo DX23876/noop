@@ -62,6 +62,10 @@ struct ForgeSleepView: View {
                         ForgeSearchButton()
                     }.id("forge-sleep-top")
                     VStack(alignment: .leading, spacing: 14) {
+                        // While last night is not in yet: syncing, being worked out, a failed sync, no sync yet,
+                        // or no night found, decided by the shared `SleepFreshness` as on Android and the
+                        // classic page. Held until the page has read its nights, so it never flashes.
+                        if loaded { SleepFreshnessNote(latestWakeTs: model?.night.session.endTs) }
                         if let model, let night {
                             nightNavigator(night)
                             summaryTiles(model, night: night)

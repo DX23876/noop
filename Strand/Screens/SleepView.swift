@@ -2224,58 +2224,36 @@ struct SleepMarkCard: View {
     }
 }
 
-/// The "Syncing strap history…" note, shown only while a historical offload is running (#77). Owns the
-/// `LiveState` observation so the chunk count ticks without re-rendering the rest of the Sleep screen.
-enum SleepFreshnessStatus: Equatable {
-    case syncing, calculating, syncFailed, awaitingSync, notDetected
-}
+/// The Sleep status note's states, decided in the shared core (`SleepFreshness`) so both phones say the same.
+typealias SleepFreshnessStatus = SleepFreshness.Status
 
-/// Pure priority ladder behind the Sleep status banner. "Missing" is deliberately held until morning so
-/// opening Sleep during the night does not claim a still-in-progress night was missed.
+/// Pure priority ladder behind the Sleep status banner, now `SleepFreshness.resolve` in the shared core.
 func resolveSleepFreshness(hasCurrentNight: Bool, morningReady: Bool, syncing: Bool,
                            calculating: Bool, syncedSinceDayStart: Bool,
                            syncFailed: Bool) -> SleepFreshnessStatus? {
-    if syncing { return .syncing }
-    // #2108: a night already in hand outranks .calculating. It used to sit below, so `hasCurrentNight`
-    // could only silence the missing-night states and a finished night was structurally unable to
-    // silence this one: the banner said "detecting and staging the night now" directly above that same
-    // night scored, timed and staged on screen. A note that contradicts the content beside it is worse
-    // than no note, and one that is always on is read by nobody the day it matters. .syncing stays
-    // above, because data still arriving can genuinely change what is shown.
-    if hasCurrentNight { return nil }
-    if calculating { return .calculating }
-    if !morningReady { return nil }
-    if syncFailed { return .syncFailed }
-    return syncedSinceDayStart ? .notDetected : .awaitingSync
+    SleepFreshness.resolve(hasCurrentNight: hasCurrentNight, morningReady: morningReady, syncing: syncing,
+                           calculating: calculating, syncedSinceDayStart: syncedSinceDayStart, syncFailed: syncFailed)
 }
 
 /// Explicit state for the expected current night. Older sleep can remain available underneath, but it is
 /// never left to impersonate today's result while a sync, calculation, or failed detection is unresolved.
-private struct SleepFreshnessNote: View {
+struct SleepFreshnessNote: View {
     @EnvironmentObject private var live: LiveState
     @EnvironmentObject private var intelligence: IntelligenceEngine
     let latestWakeTs: Int?
 
     var body: some View {
-        let calendar = Calendar.current
-        let now = Date()
-        let start = calendar.startOfDay(for: now)
-        let current = latestWakeTs.map {
-            calendar.isDate(Date(timeIntervalSince1970: TimeInterval($0)), inSameDayAs: now)
-        } ?? false
         // The scoring pass does not start when the sync stamps `lastSyncedAt`: it waits for the chunks to
         // stop arriving, because one chain is many sessions (see `PostBackfillPacing`). This used to
         // treat "`lastSyncedAt` is under five seconds old" as calculation, which was tuned to the old
         // two-second debounce and would now expire in the middle of the wait, flashing the final "wasn't
         // detected" verdict while the night was still being offloaded. `analyzingHistory` is that state,
         // published by the pass itself rather than guessed at from a timestamp.
-        let calculationQueued = live.analyzingHistory
-        let status = resolveSleepFreshness(
-            hasCurrentNight: current,
-            morningReady: calendar.component(.hour, from: now) >= 6,
+        let status = SleepFreshness.resolve(
+            latestWakeTs: latestWakeTs, now: Date(),
             syncing: live.backfilling,
-            calculating: intelligence.computing || calculationQueued,
-            syncedSinceDayStart: (live.lastSyncedAt ?? 0) >= start.timeIntervalSince1970,
+            calculating: intelligence.computing || live.analyzingHistory,
+            lastSyncedAt: live.lastSyncedAt,
             syncFailed: live.lastSyncError != nil
         )
         switch status {

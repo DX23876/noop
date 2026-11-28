@@ -375,6 +375,8 @@ public enum CoreCall {
         if op.hasPrefix("profile."), let answer = await CoreProfile.run(op, args) { return answer }
         // The alert settings' decisions (Training Load alert, heart-rate ceiling) are pure too.
         if op.hasPrefix("alerts."), let answer = CoreAlerts.run(op, args) { return answer }
+        // The Sleep page's note while last night is not in yet, pure as well.
+        if op == "sleep.freshness" { return CoreSleepFreshness.run(args) }
         guard let (store, _) = ShadowSession.storeAndPath, let reader = ShadowSession.reader else {
             return #"{"error":"noStore"}"#
         }

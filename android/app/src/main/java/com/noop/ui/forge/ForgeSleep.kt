@@ -31,6 +31,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ChatBubbleOutline
 import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.Insights
+import androidx.compose.material.icons.rounded.SyncProblem
+import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.WbSunny
@@ -244,6 +247,8 @@ fun ForgeSleepScreen(padding: PaddingValues, width: ForgeWidth, viewModel: com.n
                 .padding(horizontal = ForgeMetrics.screenPadding).padding(top = ForgeMetrics.space5),
             verticalArrangement = Arrangement.spacedBy(ForgeMetrics.sectionGap),
         ) {
+        // While last night is not in yet, the page says why, as iOS's Sleep pages (`SleepFreshnessNote`).
+        if (model != null) SleepFreshnessCard(viewModel, nights.lastOrNull()?.endTs)
         if (model != null && night == null) {
             ForgeCard(Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.forge_no_nights), style = Forge.type.body, color = Forge.colors.textSecondary)
@@ -949,4 +954,40 @@ private fun NewDesignSleep(viewModel: com.noop.ui.AppViewModel, night: CoreRead.
     SleepAlarms(viewModel, onAlarms)
     ForgeSleepMarkCard(viewModel)
     DeletedSleepWindows(viewModel)
+}
+
+/**
+ * The note while last night is not on screen yet: syncing, being worked out, a failed sync, no sync since the day
+ * began, or no night found. The shared core decides and words it (`CoreSleepFreshness`), as on iOS.
+ */
+@Composable
+private fun SleepFreshnessCard(viewModel: com.noop.ui.AppViewModel, latestWakeTs: Long?) {
+    val live by viewModel.live.collectAsState()
+    val syncing = rememberDebouncedSyncing(live.backfilling)
+    val note by produceState<com.noop.core.CoreSleepFreshness.Note?>(null, latestWakeTs, syncing, live.analyzingHistory,
+                                                                      live.lastSyncAt, live.lastSyncError, live.syncChunksThisSession) {
+        value = withContext(Dispatchers.IO) {
+            com.noop.core.CoreSleepFreshness.note(latestWakeTs, syncing, live.analyzingHistory, live.lastSyncAt,
+                                                  live.lastSyncError != null, live.syncChunksThisSession)
+        }
+    }
+    val shown = note ?: return
+    val icon = when (shown.status) {
+        "syncing", "awaitingSync" -> Icons.Rounded.Sync
+        "syncFailed" -> Icons.Rounded.SyncProblem
+        "calculating" -> Icons.Rounded.Insights
+        else -> Icons.Rounded.Bedtime
+    }
+    ForgeCard(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.Top) {
+            Icon(icon, contentDescription = null, tint = Forge.colors.accent, modifier = Modifier.size(22.dp))
+            Spacer(Modifier.width(ForgeMetrics.space3))
+            Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space1)) {
+                Text(shown.title, style = Forge.type.headline, color = Forge.colors.text)
+                if (shown.message.isNotEmpty()) {
+                    Text(shown.message, style = Forge.type.subhead, color = Forge.colors.textSecondary)
+                }
+            }
+        }
+    }
 }
