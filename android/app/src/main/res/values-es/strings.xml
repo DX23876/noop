@@ -5255,7 +5255,6 @@
     <string name="food_save_food">Guardar alimento</string>
     <string name="food_delete">Eliminar</string>
     <string name="food_delete_meal">Eliminar comida</string>
-    <string name="food_copy_tomorrow">Copiar a mañana</string>
     <string name="food_remove">Eliminar</string>
     <string name="food_protein">Proteína</string>
     <string name="food_carbs">Carbohidratos</string>
@@ -7870,4 +7869,17 @@ Trazar cada serie como cambio respecto a su propia primera medición los pone en
     <string name="forge_lab_sleep_recipe_restless_detail">Como Estándar, con una comprobación más. En el sueño REM el cuerpo está casi quieto. Si la pulsera se mueve ligeramente durante más de unos segundos, ese tiempo cuenta como sueño ligero en lugar de REM, porque estar acostado con inquietud se confundía a menudo con REM. Nunca te marca como despierto. Vale la pena probarlo si tu REM suele pasar del 30 %. Comprobado con registros de laboratorio del sueño.</string>
     <string name="forge_lab_sleep_recipe_trained_detail">Aprendido de registros de laboratorio del sueño de otros dispositivos de muñeca y aún no comprobado en noches de WHOOP. Algunas noches muestra muy poco REM. Solo para pruebas.</string>
     <string name="forge_lab_sleep_recipe_detail">Qué método divide tu noche en ligero, profundo, REM y despierto. Al cambiar se recalculan todas las noches; tus datos registrados y tus correcciones del sueño se mantienen.</string>
+    <string name="food_copy_days">Copiar a otros días</string>
+    <string name="food_copy_title">Copiar a</string>
+    <string name="food_copy_go">Copiar</string>
+    <string name="food_copy_prev_month">Mes anterior</string>
+    <string name="food_copy_next_month">Próximo mes</string>
+    <string name="food_copy_chosen">Días elegidos: %d</string>
+    <string name="food_copy_repeat">Repetir</string>
+    <string name="food_copy_until">Hasta</string>
+    <string name="food_copy_select">Elegir estos días</string>
+    <string name="food_copy_note">Elige cada día de la semana marcado después de este día hasta la fecha. Quita días sueltos en el calendario.</string>
+    <string name="food_meal_pictures">Imágenes de las comidas</string>
+    <string name="food_meal_pictures_note">Un dibujo del alimento principal sobre cada comida.</string>
+    <string name="food_meal_pictures_show">Mostrar sobre cada comida</string>
 </resources>

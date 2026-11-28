@@ -5251,7 +5251,6 @@
     <string name="food_save_food">Enregistrer l\'aliment</string>
     <string name="food_delete">Supprimer</string>
     <string name="food_delete_meal">Supprimer le repas</string>
-    <string name="food_copy_tomorrow">Copier à demain</string>
     <string name="food_remove">Supprimer</string>
     <string name="food_protein">Protéines</string>
     <string name="food_carbs">Glucides</string>
@@ -7867,4 +7866,17 @@ Tracer chaque série comme évolution par rapport à sa propre première mesure 
     <string name="forge_lab_sleep_recipe_restless_detail">Comme Standard, avec une vérification en plus. En sommeil REM, le corps reste presque immobile. Quand le bracelet bouge légèrement pendant plus de quelques secondes, ce temps compte comme sommeil léger au lieu de REM, car rester couché agité était souvent pris pour du REM. Elle ne te compte jamais comme éveillé. À essayer si ton REM dépasse souvent 30 %. Vérifié sur des enregistrements de laboratoire du sommeil.</string>
     <string name="forge_lab_sleep_recipe_trained_detail">Appris sur des enregistrements de laboratoire du sommeil d\'autres appareils au poignet et pas encore vérifié sur des nuits WHOOP. Certaines nuits, il affiche très peu de REM. Uniquement pour tester.</string>
     <string name="forge_lab_sleep_recipe_detail">La méthode qui répartit ta nuit en léger, profond, REM et éveil. Changer recalcule toutes les nuits ; tes données enregistrées et tes corrections de sommeil sont conservées.</string>
+    <string name="food_copy_days">Copier vers d\'autres jours</string>
+    <string name="food_copy_title">Copier vers</string>
+    <string name="food_copy_go">Copier</string>
+    <string name="food_copy_prev_month">Mois précédent</string>
+    <string name="food_copy_next_month">Mois prochain</string>
+    <string name="food_copy_chosen">Jours choisis : %d</string>
+    <string name="food_copy_repeat">Répéter</string>
+    <string name="food_copy_until">Jusqu’au</string>
+    <string name="food_copy_select">Choisir ces jours</string>
+    <string name="food_copy_note">Choisit chaque jour de la semaine coché après ce jour jusqu’à la date. Décochez des jours isolés dans le calendrier.</string>
+    <string name="food_meal_pictures">Images des repas</string>
+    <string name="food_meal_pictures_note">Un dessin de l’aliment principal au-dessus de chaque repas.</string>
+    <string name="food_meal_pictures_show">Afficher au-dessus de chaque repas</string>
 </resources>

@@ -5215,7 +5215,6 @@
     <string name="food_save_food">保存食物</string>
     <string name="food_delete">删除</string>
     <string name="food_delete_meal">删除这一餐</string>
-    <string name="food_copy_tomorrow">复制到明天</string>
     <string name="food_remove">移除</string>
     <string name="food_protein">蛋白质</string>
     <string name="food_carbs">碳水</string>
@@ -7812,4 +7811,17 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="forge_lab_sleep_recipe_restless_detail">与标准相同，另加一项检查。REM 睡眠时身体几乎不动。当手环持续轻微移动超过几秒钟，这段时间会算作浅睡而不是 REM，因为躺着不安以前常被误认为 REM。它从不把你标记为清醒。如果你的 REM 经常超过 30%，值得一试。已用睡眠实验室记录核对。</string>
     <string name="forge_lab_sleep_recipe_trained_detail">从其他腕戴设备的睡眠实验室记录中学习，尚未在 WHOOP 夜晚上验证。某些夜晚显示的 REM 很少。仅供测试。</string>
     <string name="forge_lab_sleep_recipe_detail">将你的夜晚划分为浅睡、深睡、REM 和清醒的方法。切换后会重新计算所有夜晚；你记录的数据和睡眠修正会保留。</string>
+    <string name="food_copy_days">复制到其他日期</string>
+    <string name="food_copy_title">复制到</string>
+    <string name="food_copy_go">复制</string>
+    <string name="food_copy_prev_month">上个月</string>
+    <string name="food_copy_next_month">下个月</string>
+    <string name="food_copy_chosen">已选天数：%d</string>
+    <string name="food_copy_repeat">重复</string>
+    <string name="food_copy_until">截止日期</string>
+    <string name="food_copy_select">选择这些日期</string>
+    <string name="food_copy_note">选择此日之后到该日期为止所有勾选的星期几。可在日历中取消单个日期。</string>
+    <string name="food_meal_pictures">餐食图片</string>
+    <string name="food_meal_pictures_note">每餐上方显示其主要食物的插图。</string>
+    <string name="food_meal_pictures_show">在每餐上方显示</string>
 </resources>

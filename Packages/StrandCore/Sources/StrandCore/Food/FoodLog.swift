@@ -234,6 +234,24 @@ public enum FoodLog {
         return out
     }
 
+    /// The most days one repeat fills in, a year of them.
+    public static let maxRepeatDays = 366
+
+    /// The days after `day` up to and including `until` that fall on one of `weekdays` (the calendar's
+    /// weekday numbers, 1 = Sunday to 7 = Saturday), at most `maxRepeatDays`. This serves copying one
+    /// breakfast to every weekday for months at a time (tester request 2026-11-28).
+    public static func repeatDays(after day: String, through until: String, weekdays: Set<Int>,
+                                  calendar: Calendar = .autoupdatingCurrent) -> [String] {
+        guard !weekdays.isEmpty, var date = WeightSeries.date(forDay: day),
+              let end = WeightSeries.date(forDay: until) else { return [] }
+        var out: [String] = []
+        while out.count < maxRepeatDays, let next = calendar.date(byAdding: .day, value: 1, to: date), next <= end {
+            date = next
+            if weekdays.contains(calendar.component(.weekday, from: next)) { out.append(StoreReader.localDayKey(next)) }
+        }
+        return out
+    }
+
     // MARK: Recipes
 
     /// A recipe from logged entries (Bevel's "turn selected foods into a recipe"). Quick entries carry no

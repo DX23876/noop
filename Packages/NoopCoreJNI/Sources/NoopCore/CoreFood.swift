@@ -177,6 +177,11 @@ enum CoreFood {
             let copies = FoodLog.copies(of: originals, toDays: args["days"] as? [String] ?? [])
             guard !copies.isEmpty, await FoodLog.save(store: store, copies) else { return #"{"error":"invalid"}"# }
             return entries(copies)
+        case "food.repeatDays":
+            // `weekdays` in the Apple calendar's numbering, 1 = Sunday to 7 = Saturday.
+            let weekdays = Set((args["weekdays"] as? [Any] ?? []).compactMap { ($0 as? NSNumber)?.intValue })
+            return CoreRead.json(["days": FoodLog.repeatDays(after: string("day"), through: string("until"),
+                                                             weekdays: weekdays)])
         case "food.setHealthId":
             let linked = (try? await store.setFoodLogHealthId(entryId: string("id"),
                                                               healthId: args["healthId"] as? String)) != nil

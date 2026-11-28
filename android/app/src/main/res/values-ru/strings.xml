@@ -5234,7 +5234,6 @@
     <string name="food_save_food">Сохранить продукт</string>
     <string name="food_delete">Удалить</string>
     <string name="food_delete_meal">Удалить приём пищи</string>
-    <string name="food_copy_tomorrow">Копировать на завтра</string>
     <string name="food_remove">Удалить</string>
     <string name="food_protein">Белки</string>
     <string name="food_carbs">Углеводы</string>
@@ -7879,4 +7878,17 @@ NOOP не задаёт фиксированный порог, а берёт ег
     <string name="forge_lab_sleep_recipe_restless_detail">Как «Стандарт», но с одной дополнительной проверкой. Во сне REM тело почти неподвижно. Если браслет слегка двигается дольше нескольких секунд, это время считается лёгким сном, а не REM, потому что беспокойное лежание раньше часто принималось за REM. Бодрствующим эта проверка вас никогда не отмечает. Стоит попробовать, если REM у вас часто выше 30 %. Проверено на записях сомнологических лабораторий.</string>
     <string name="forge_lab_sleep_recipe_trained_detail">Обучена на записях сомнологических лабораторий с других наручных устройств и на ночах WHOOP пока не проверена. В некоторые ночи показывает очень мало REM. Только для тестирования.</string>
     <string name="forge_lab_sleep_recipe_detail">Какой метод делит вашу ночь на лёгкий и глубокий сон, REM и бодрствование. Переключение пересчитывает все ночи; записанные данные и ваши исправления сна сохраняются.</string>
+    <string name="food_copy_days">Копировать на другие дни</string>
+    <string name="food_copy_title">Копировать в</string>
+    <string name="food_copy_go">Копировать</string>
+    <string name="food_copy_prev_month">Предыдущий месяц</string>
+    <string name="food_copy_next_month">Следующий месяц</string>
+    <string name="food_copy_chosen">Выбрано дней: %d</string>
+    <string name="food_copy_repeat">Повторять</string>
+    <string name="food_copy_until">До</string>
+    <string name="food_copy_select">Выбрать эти дни</string>
+    <string name="food_copy_note">Выбирает каждый отмеченный день недели после этого дня до указанной даты. Отдельные дни можно снять в календаре.</string>
+    <string name="food_meal_pictures">Картинки к приёмам пищи</string>
+    <string name="food_meal_pictures_note">Рисунок основного продукта над каждым приёмом пищи.</string>
+    <string name="food_meal_pictures_show">Показывать над каждым приёмом пищи</string>
 </resources>

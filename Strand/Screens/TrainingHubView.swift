@@ -1448,6 +1448,8 @@ struct NativeWorkoutLoggerView: View {
     @State private var sessionRpe: Double?
     @State private var confirmingDiscard = false
     @FocusState private var focusedSetField: TrainingSetField?
+    /// What is typed into the focused decimal field, kept as typed until focus moves on.
+    @State private var typedDecimals: [TrainingSetField: String] = [:]
     @State private var historyRequest: TrainingHistoryRequest?
     @State private var effortRequest: EffortPickerRequest?
     @State private var restRequest: TrainingRestRequest?
@@ -1520,6 +1522,8 @@ struct NativeWorkoutLoggerView: View {
                 // their exercises every set and stay put, which would otherwise jump on every check.
                 // The pad covers the lower half; the row being typed moves to the middle.
                 .onChangeCompat(of: focusedSetField) { field in
+                    // A field starts from its stored value each time it gains focus.
+                    typedDecimals.removeAll()
                     guard let field else { return }
                     withAnimation(reduceMotion ? nil : .snappy) { proxy.scrollTo(field.setId, anchor: .center) }
                 }
@@ -2689,12 +2693,25 @@ struct NativeWorkoutLoggerView: View {
         return TrainingPreferences.weightStep(for: equipment)
     }
 
-    /// Typed entry commits when the field loses focus or the keyboard's Done button is pressed; the
-    /// number format follows the reader's locale, including its decimal separator.
+    /// While the field has focus it shows exactly what was typed, so "12." stays on the screen on the way
+    /// to "12.5". A field bound to the number re-rendered "12." as "12" after each keystroke and "12.5"
+    /// became 125 (tester report 2026-11-28). Every keystroke that reads as a number is stored at once,
+    /// with "," and "." both taken as the decimal separator, whichever the keypad offers. Without focus
+    /// the field shows the stored value in the reader's locale, without grouping, so an edit cannot read
+    /// a thousands separator as a decimal one.
     private func decimalField(_ value: Double?, field: TrainingSetField, suggested: Bool = false,
                               onCommit: @escaping (Double?) -> Void) -> some View {
-        TextField("—", value: Binding(get: { value }, set: { onCommit($0) }),
-                  format: .number.precision(.fractionLength(0...2)))
+        let stored = value.map { $0.formatted(.number.grouping(.never).precision(.fractionLength(0...2))) } ?? ""
+        return TextField("—", text: Binding(
+            get: { focusedSetField == field ? (typedDecimals[field] ?? stored) : stored },
+            set: { typed in
+                typedDecimals[field] = typed
+                if typed.trimmingCharacters(in: .whitespaces).isEmpty {
+                    onCommit(nil)
+                } else if let number = LiftFormat.number(typed) {
+                    onCommit(number)
+                }
+            }))
             .trainingNumberKeyboard(decimal: true)
             .focused($focusedSetField, equals: field)
 

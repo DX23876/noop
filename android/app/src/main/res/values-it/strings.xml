@@ -5222,7 +5222,6 @@
     <string name="food_save_food">Salva alimento</string>
     <string name="food_delete">Elimina</string>
     <string name="food_delete_meal">Elimina pasto</string>
-    <string name="food_copy_tomorrow">Copia a domani</string>
     <string name="food_remove">Rimuovi</string>
     <string name="food_protein">Proteine</string>
     <string name="food_carbs">Carboidrati</string>
@@ -7837,4 +7836,17 @@ Tracciare ogni serie come variazione rispetto alla propria prima misurazione le 
     <string name="forge_lab_sleep_recipe_restless_detail">Come Standard, con un controllo in più. Nel sonno REM il corpo resta quasi immobile. Se il bracciale si muove leggermente per più di qualche secondo, quel tempo conta come sonno leggero invece che REM, perché stare a letto agitati veniva spesso scambiato per REM. Non ti segna mai come sveglio. Da provare se il tuo REM supera spesso il 30 %. Verificato su registrazioni di laboratorio del sonno.</string>
     <string name="forge_lab_sleep_recipe_trained_detail">Appreso da registrazioni di laboratorio del sonno di altri dispositivi da polso e non ancora verificato su notti WHOOP. In alcune notti mostra pochissimo REM. Solo per test.</string>
     <string name="forge_lab_sleep_recipe_detail">Quale metodo divide la tua notte in leggero, profondo, REM e sveglio. Cambiare ricalcola tutte le notti; i dati registrati e le tue correzioni del sonno restano.</string>
+    <string name="food_copy_days">Copia in altri giorni</string>
+    <string name="food_copy_title">Copia in</string>
+    <string name="food_copy_go">Copia</string>
+    <string name="food_copy_prev_month">Mese precedente</string>
+    <string name="food_copy_next_month">Prossimo mese</string>
+    <string name="food_copy_chosen">Giorni scelti: %d</string>
+    <string name="food_copy_repeat">Ripeti</string>
+    <string name="food_copy_until">Fino al</string>
+    <string name="food_copy_select">Scegli questi giorni</string>
+    <string name="food_copy_note">Sceglie ogni giorno della settimana spuntato dopo questo giorno fino alla data. Togli i singoli giorni nel calendario.</string>
+    <string name="food_meal_pictures">Immagini dei pasti</string>
+    <string name="food_meal_pictures_note">Un disegno dell\'alimento principale sopra ogni pasto.</string>
+    <string name="food_meal_pictures_show">Mostra sopra ogni pasto</string>
 </resources>

@@ -5316,7 +5316,6 @@
     <string name="food_save_food">Save food</string>
     <string name="food_delete">Delete</string>
     <string name="food_delete_meal">Delete meal</string>
-    <string name="food_copy_tomorrow">Copy to tomorrow</string>
     <string name="food_remove">Remove</string>
     <string name="food_protein">Protein</string>
     <string name="food_carbs">Carbs</string>
@@ -7912,4 +7911,17 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="forge_lab_sleep_recipe_restless_detail">Like Standard, with one check added. In REM sleep the body lies almost still. When the strap keeps moving slightly for longer than a few seconds, that time counts as light sleep instead of REM, because lying restless was often mistaken for REM. It never marks you as awake. Worth trying if your REM is often above 30 %. Checked against sleep-lab recordings.</string>
     <string name="forge_lab_sleep_recipe_trained_detail">Learned from sleep-lab recordings of other wrist devices and not yet checked on WHOOP nights. On some nights it shows very little REM. For testing only.</string>
     <string name="forge_lab_sleep_recipe_detail">Which method sorts your night into light, deep, REM and awake. Switching recalculates all nights; your recorded data and your sleep corrections stay.</string>
+    <string name="food_copy_days">Copy to other days</string>
+    <string name="food_copy_title">Copy to</string>
+    <string name="food_copy_go">Copy</string>
+    <string name="food_copy_prev_month">Previous month</string>
+    <string name="food_copy_next_month">Next month</string>
+    <string name="food_copy_chosen">Days chosen: %d</string>
+    <string name="food_copy_repeat">Repeat</string>
+    <string name="food_copy_until">Until</string>
+    <string name="food_copy_select">Select these days</string>
+    <string name="food_copy_note">Selects every ticked weekday after this day up to the date. Untick single days in the calendar.</string>
+    <string name="food_meal_pictures">Meal pictures</string>
+    <string name="food_meal_pictures_note">A drawing of each meal\'s main food above it.</string>
+    <string name="food_meal_pictures_show">Show above each meal</string>
 </resources>

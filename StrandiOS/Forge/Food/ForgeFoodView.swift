@@ -38,6 +38,7 @@ struct ForgeFoodView: View {
     /// A badge earned since the page last celebrated one.
     @State private var celebrating: FoodBadges.Earned?
     @AppStorage(FoodReminders.invitedKey) private var reminderInvited = false
+    @AppStorage(FoodTargets.Keys.mealPictures) private var mealPictures = true
     @State private var planning = false
     @State private var editing: FoodLogEntry?
     @State private var copying: FoodEntryBatch?
@@ -120,7 +121,7 @@ struct ForgeFoodView: View {
                 }
                 if let summary = model.summary, !summary.entries.isEmpty {
                     ForEach(summary.meals) { meal in
-                        FoodMealCard(meal: meal, picture: model.picture(for: meal), onEdit: { editing = $0 }, onCopy: { copying = FoodEntryBatch(entries: $0) },
+                        FoodMealCard(meal: meal, picture: mealPictures ? model.picture(for: meal) : nil, onEdit: { editing = $0 }, onCopy: { copying = FoodEntryBatch(entries: $0) },
                                      onRecipe: { recipeFrom = FoodEntryBatch(entries: $0) }, onKeep: keep, onDelete: delete)
                             .transition(.opacity.combined(with: .move(edge: .top)))
                     }

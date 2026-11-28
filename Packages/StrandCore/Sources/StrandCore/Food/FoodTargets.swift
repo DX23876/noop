@@ -46,6 +46,8 @@ extension FoodTargets {
         public static let fatPercent = "food.goal.fatPercent"
         /// Up to four nutrients shown on the Food page, comma-separated raw values.
         public static let pinned = "food.pinnedNutrients"
+        /// Whether each meal on the Food page carries its picture (its own photo or a still life); on by default.
+        public static let mealPictures = "food.mealPictures"
     }
 
     /// Default split: inside the acceptable ranges of the Institute of Medicine (protein 10 to 35, carbohydrate

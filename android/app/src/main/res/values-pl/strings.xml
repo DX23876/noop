@@ -5275,7 +5275,6 @@
     <string name="food_save_food">Zapisz produkt</string>
     <string name="food_delete">Usuń</string>
     <string name="food_delete_meal">Usuń posiłek</string>
-    <string name="food_copy_tomorrow">Kopiuj na jutro</string>
     <string name="food_remove">Usunąć</string>
     <string name="food_protein">Białko</string>
     <string name="food_carbs">Węglowodany</string>
@@ -7923,4 +7922,17 @@ Wykreślenie każdej serii jako zmiany względem jej własnego pierwszego pomiar
     <string name="forge_lab_sleep_recipe_restless_detail">Jak Standardowe, z jednym dodatkowym sprawdzeniem. W fazie REM ciało leży niemal nieruchomo. Gdy opaska porusza się lekko dłużej niż kilka sekund, ten czas liczy się jako sen płytki zamiast REM, bo niespokojne leżenie często brano za REM. Nigdy nie oznacza cię jako przebudzonego. Warto spróbować, jeśli twój REM często przekracza 30 %. Sprawdzone na nagraniach z laboratoriów snu.</string>
     <string name="forge_lab_sleep_recipe_trained_detail">Nauczony na nagraniach z laboratoriów snu z innych urządzeń na nadgarstek i jeszcze niesprawdzony na nocach WHOOP. W niektóre noce pokazuje bardzo mało REM. Tylko do testów.</string>
     <string name="forge_lab_sleep_recipe_detail">Która metoda dzieli twoją noc na sen płytki, głęboki, REM i czuwanie. Zmiana przelicza wszystkie noce; zapisane dane i twoje poprawki snu zostają.</string>
+    <string name="food_copy_days">Kopiuj na inne dni</string>
+    <string name="food_copy_title">Kopiuj do</string>
+    <string name="food_copy_go">Kopiuj</string>
+    <string name="food_copy_prev_month">Poprzedni miesiąc</string>
+    <string name="food_copy_next_month">Następny miesiąc</string>
+    <string name="food_copy_chosen">Wybrane dni: %d</string>
+    <string name="food_copy_repeat">Powtarzaj</string>
+    <string name="food_copy_until">Do</string>
+    <string name="food_copy_select">Wybierz te dni</string>
+    <string name="food_copy_note">Wybiera każdy zaznaczony dzień tygodnia po tym dniu aż do daty. Pojedyncze dni odznacz w kalendarzu.</string>
+    <string name="food_meal_pictures">Obrazy posiłków</string>
+    <string name="food_meal_pictures_note">Rysunek głównego produktu nad każdym posiłkiem.</string>
+    <string name="food_meal_pictures_show">Pokazuj nad każdym posiłkiem</string>
 </resources>

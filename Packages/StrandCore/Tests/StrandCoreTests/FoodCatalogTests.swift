@@ -234,6 +234,18 @@ final class FoodLogTests: XCTestCase {
         XCTAssertEqual(Calendar.current.component(.minute, from: Date(timeIntervalSince1970: TimeInterval(copies[0].loggedAt))), 15)
     }
 
+    func testRepeatDaysPickTheWeekdaysAfterTheDayUpToTheEnd() {
+        // 2026-11-27 is a Friday. Monday to Friday through 2026-12-08 (a Tuesday).
+        let days = FoodLog.repeatDays(after: "2026-11-27", through: "2026-12-08", weekdays: [2, 3, 4, 5, 6])
+        XCTAssertEqual(days, ["2026-11-30", "2026-12-01", "2026-12-02", "2026-12-03", "2026-12-04",
+                              "2026-12-07", "2026-12-08"])
+        XCTAssertEqual(FoodLog.repeatDays(after: "2026-11-27", through: "2026-11-27", weekdays: [6]), [])
+        XCTAssertEqual(FoodLog.repeatDays(after: "2026-11-27", through: "2026-12-31", weekdays: []), [])
+        let years = FoodLog.repeatDays(after: "2026-01-01", through: "2030-01-01", weekdays: Set(1...7))
+        XCTAssertEqual(years.count, FoodLog.maxRepeatDays)
+        XCTAssertEqual(years.first, "2026-01-02")
+    }
+
     func testRecipeIsPer100gOfThePot() throws {
         let milk = FoodItem(id: "bls:M111000", source: .bls, name: "Milch", per100g: NutrientAmounts([.energyKcal: 64]))
         let entries = [FoodLog.entry(for: oats, grams: 80, at: Date(), origin: .search),

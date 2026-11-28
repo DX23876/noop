@@ -4805,5 +4805,12 @@
   "The usual method. It reads your heart rate, how much it varies, your breathing rhythm and how you move. Recommended if you have no reason to switch.": "Das übliche Verfahren. Es liest deinen Puls, wie stark er schwankt, deinen Atemrhythmus und wie du dich bewegst. Empfohlen, wenn du keinen Grund zum Wechseln hast.",
   "Like Standard, with one check added. In REM sleep the body lies almost still. When the strap keeps moving slightly for longer than a few seconds, that time counts as light sleep instead of REM, because lying restless was often mistaken for REM. It never marks you as awake. Worth trying if your REM is often above 30 %. Checked against sleep-lab recordings.": "Wie Standard, mit einer zusätzlichen Prüfung. Im REM-Schlaf liegt der Körper fast still. Bewegt sich der Strap länger als ein paar Sekunden leicht, zählt diese Zeit als Leichtschlaf statt als REM, weil unruhiges Liegen oft für REM gehalten wurde. Als wach wertet sie dich nie. Einen Versuch wert, wenn dein REM oft über 30 % liegt. Geprüft an Schlaflabor-Aufnahmen.",
   "Learned from sleep-lab recordings of other wrist devices and not yet checked on WHOOP nights. On some nights it shows very little REM. For testing only.": "An Schlaflabor-Aufnahmen anderer Geräte am Handgelenk gelernt und auf WHOOP-Nächten noch nicht geprüft. In manchen Nächten zeigt es sehr wenig REM. Nur zum Testen.",
-  "Which method sorts your night into light, deep, REM and awake. Switching recalculates all nights; your recorded data and your sleep corrections stay.": "Welches Verfahren deine Nacht in leicht, tief, REM und wach einteilt. Umschalten berechnet alle Nächte neu; deine aufgezeichneten Daten und deine Schlafkorrekturen bleiben."
+  "Which method sorts your night into light, deep, REM and awake. Switching recalculates all nights; your recorded data and your sleep corrections stay.": "Welches Verfahren deine Nacht in leicht, tief, REM und wach einteilt. Umschalten berechnet alle Nächte neu; deine aufgezeichneten Daten und deine Schlafkorrekturen bleiben.",
+  "Days chosen: %lld": "Ausgewählte Tage: %lld",
+  "Repeat": "Wiederholen",
+  "Until": "Bis",
+  "Select these days": "Diese Tage auswählen",
+  "Selects every ticked weekday after this day up to the date. Untick single days in the calendar.": "Wählt jeden markierten Wochentag nach diesem Tag bis zum Datum aus. Einzelne Tage nimmst du im Kalender wieder heraus.",
+  "Meal pictures": "Bilder zu Mahlzeiten",
+  "A picture above each meal: your own photo, or a drawing of its main food.": "Ein Bild über jeder Mahlzeit: dein eigenes Foto oder eine Zeichnung ihres wichtigsten Lebensmittels."
 }

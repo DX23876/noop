@@ -177,6 +177,9 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
     var favouritePick by remember { mutableStateOf<CoreFood.Item?>(null) }
     var buildingMeal by remember { mutableStateOf<com.noop.core.CoreFoodNotes.Meal?>(null) }
     var keepingIds by remember { mutableStateOf<List<String>?>(null) }
+    var copyingMeal by remember { mutableStateOf<CoreFood.Meal?>(null) }
+    // Read on every pass, so a change in the food settings shows when they close.
+    val mealPictures = com.noop.ui.NoopPrefs.of(context).getBoolean(MEAL_PICTURES, true)
     var invited by remember { mutableStateOf(FoodReminders.invited(context) || FoodReminders.on(context, FoodReminders.MORNING)) }
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
 
@@ -305,6 +308,15 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
                 reload()
             }
         }
+    }
+    copyingMeal?.let { meal ->
+        FoodCopyDialog(day, onDismiss = { copyingMeal = null }, onCopy = { days ->
+            copyingMeal = null
+            scope.launch {
+                withContext(Dispatchers.IO) { FoodHealthConnect.wrote(context, CoreFood.copy(meal.entries.map { it.id }, days)) }
+                reload()
+            }
+        })
     }
     keepingIds?.let { ids ->
         var name by remember(ids) { mutableStateOf(mealNameText(context, summary?.meals?.firstOrNull { m -> m.entries.any { it.id in ids } }?.kind ?: "snack")) }
@@ -501,15 +513,9 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
             }
             if (s != null && s.meals.isNotEmpty()) {
                 s.meals.forEach { meal ->
-                    MealCard(meal, onEdit = { editing = it }, onKeep = { keepingIds = meal.entries.filter { it.grams != null }.map { it.id } }, onCopyTomorrow = {
-                        scope.launch {
-                            withContext(Dispatchers.IO) {
-                                val copies = CoreFood.copy(meal.entries.map { it.id }, listOf(day.plusDays(1).toString()))
-                                FoodHealthConnect.wrote(context, copies)
-                            }
-                            reload()
-                        }
-                    }, onDelete = {
+                    MealCard(meal, showPicture = mealPictures, onEdit = { editing = it },
+                             onKeep = { keepingIds = meal.entries.filter { it.grams != null }.map { it.id } },
+                             onCopy = { copyingMeal = meal }, onDelete = {
                         scope.launch {
                             withContext(Dispatchers.IO) { FoodHealthConnect.removed(context, CoreFood.delete(meal.entries.map { it.id })) }
                             reload()
@@ -753,13 +759,16 @@ internal fun FoodSectionHeader(title: String, onOpen: (() -> Unit)? = null) {
     }
 }
 
+/** iOS's `FoodTargets.Keys.mealPictures`: whether each meal card carries its picture, on by default. */
+internal const val MEAL_PICTURES = "food.mealPictures"
+
 @Composable
-private fun MealCard(meal: CoreFood.Meal, onEdit: (CoreFood.Entry) -> Unit, onKeep: () -> Unit = {}, onCopyTomorrow: () -> Unit, onDelete: () -> Unit) {
+private fun MealCard(meal: CoreFood.Meal, showPicture: Boolean, onEdit: (CoreFood.Entry) -> Unit, onKeep: () -> Unit = {}, onCopy: () -> Unit, onDelete: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
     val time = Instant.ofEpochSecond(meal.start).atZone(ZoneId.systemDefault()).toLocalTime()
         .format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(Locale.getDefault()))
     ForgeCard(Modifier.fillMaxWidth()) {
-        foodMotifDrawable(meal.motif)?.let { res ->
+        foodMotifDrawable(meal.motif)?.takeIf { showPicture }?.let { res ->
             FoodMotifPicture(res, Modifier.fillMaxWidth().height(132.dp))
             Spacer(Modifier.height(ForgeMetrics.space3))
         }
@@ -774,7 +783,7 @@ private fun MealCard(meal: CoreFood.Meal, onEdit: (CoreFood.Entry) -> Unit, onKe
                     if (meal.entries.any { it.grams != null }) {
                         DropdownMenuItem(text = { Text(stringResource(R.string.food_keep_as_favourite)) }, onClick = { menu = false; onKeep() })
                     }
-                    DropdownMenuItem(text = { Text(stringResource(R.string.food_copy_tomorrow)) }, onClick = { menu = false; onCopyTomorrow() })
+                    DropdownMenuItem(text = { Text(stringResource(R.string.food_copy_days)) }, onClick = { menu = false; onCopy() })
                     DropdownMenuItem(text = { Text(stringResource(R.string.food_delete_meal)) }, onClick = { menu = false; onDelete() })
                 }
             }
@@ -1440,6 +1449,13 @@ internal fun FoodExtrasCards() {
                 }
                 Switch(estimateMissing, { estimateMissing = it; prefs.estimateMissing = it })
             }
+        }
+    }
+    var mealPictures by remember { mutableStateOf(com.noop.ui.NoopPrefs.of(context).getBoolean(MEAL_PICTURES, true)) }
+    ForgeTitledCard(stringResource(R.string.food_meal_pictures), stringResource(R.string.food_meal_pictures_note)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(stringResource(R.string.food_meal_pictures_show), style = Forge.type.body, color = Forge.colors.text, modifier = Modifier.weight(1f))
+            Switch(mealPictures, { mealPictures = it; com.noop.ui.NoopPrefs.of(context).edit().putBoolean(MEAL_PICTURES, it).apply() })
         }
     }
     ForgeTitledCard(stringResource(R.string.food_health_connect), stringResource(R.string.food_health_connect_note)) {

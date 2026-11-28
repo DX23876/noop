@@ -4781,5 +4781,12 @@
   "The usual method. It reads your heart rate, how much it varies, your breathing rhythm and how you move. Recommended if you have no reason to switch.": "Обычный метод. Он учитывает ваш пульс, насколько он меняется, ритм дыхания и ваши движения. Рекомендуется, если нет причин менять.",
   "Like Standard, with one check added. In REM sleep the body lies almost still. When the strap keeps moving slightly for longer than a few seconds, that time counts as light sleep instead of REM, because lying restless was often mistaken for REM. It never marks you as awake. Worth trying if your REM is often above 30 %. Checked against sleep-lab recordings.": "Как «Стандарт», но с одной дополнительной проверкой. Во сне REM тело почти неподвижно. Если браслет слегка двигается дольше нескольких секунд, это время считается лёгким сном, а не REM, потому что беспокойное лежание раньше часто принималось за REM. Бодрствующим эта проверка вас никогда не отмечает. Стоит попробовать, если REM у вас часто выше 30 %. Проверено на записях сомнологических лабораторий.",
   "Learned from sleep-lab recordings of other wrist devices and not yet checked on WHOOP nights. On some nights it shows very little REM. For testing only.": "Обучена на записях сомнологических лабораторий с других наручных устройств и на ночах WHOOP пока не проверена. В некоторые ночи показывает очень мало REM. Только для тестирования.",
-  "Which method sorts your night into light, deep, REM and awake. Switching recalculates all nights; your recorded data and your sleep corrections stay.": "Какой метод делит вашу ночь на лёгкий и глубокий сон, REM и бодрствование. Переключение пересчитывает все ночи; записанные данные и ваши исправления сна сохраняются."
+  "Which method sorts your night into light, deep, REM and awake. Switching recalculates all nights; your recorded data and your sleep corrections stay.": "Какой метод делит вашу ночь на лёгкий и глубокий сон, REM и бодрствование. Переключение пересчитывает все ночи; записанные данные и ваши исправления сна сохраняются.",
+  "Days chosen: %lld": "Выбрано дней: %lld",
+  "Repeat": "Повторять",
+  "Until": "До",
+  "Select these days": "Выбрать эти дни",
+  "Selects every ticked weekday after this day up to the date. Untick single days in the calendar.": "Выбирает каждый отмеченный день недели после этого дня до указанной даты. Отдельные дни можно снять в календаре.",
+  "Meal pictures": "Картинки к приёмам пищи",
+  "A picture above each meal: your own photo, or a drawing of its main food.": "Картинка над каждым приёмом пищи: ваше фото или рисунок его основного продукта."
 }

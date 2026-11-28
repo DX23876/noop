@@ -17,6 +17,7 @@ struct FoodDataSettingsView: View {
     @State private var morningOn = FoodReminders.morningOn
     @State private var eveningOn = FoodReminders.eveningOn
     @AppStorage(FoodReminders.warnKey) private var warnOn = true
+    @AppStorage(FoodTargets.Keys.mealPictures) private var mealPictures = true
     @State private var remindersDenied = false
     /// With a diet plan the goals live in the plan, one place for them (decision 2026-11-09).
     @AppStorage(DietPlan.storageKey) private var planRaw = ""
@@ -78,6 +79,11 @@ struct FoodDataSettingsView: View {
                     Toggle("Write meals to Apple Health", isOn: $writeHealth)
                 } footer: {
                     Text("Each meal goes to Apple Health with its nutrients. Forge does not read its own meals back, so nothing is counted twice.")
+                }
+                Section {
+                    Toggle("Meal pictures", isOn: $mealPictures)
+                } footer: {
+                    Text("A picture above each meal: your own photo, or a drawing of its main food.")
                 }
                 Section {
                     Toggle("Morning look back", isOn: $morningOn)

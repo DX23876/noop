@@ -4805,5 +4805,12 @@
   "The usual method. It reads your heart rate, how much it varies, your breathing rhythm and how you move. Recommended if you have no reason to switch.": "La méthode habituelle. Elle lit ta fréquence cardiaque, ses variations, ton rythme respiratoire et tes mouvements. Recommandé si tu n'as pas de raison de changer.",
   "Like Standard, with one check added. In REM sleep the body lies almost still. When the strap keeps moving slightly for longer than a few seconds, that time counts as light sleep instead of REM, because lying restless was often mistaken for REM. It never marks you as awake. Worth trying if your REM is often above 30 %. Checked against sleep-lab recordings.": "Comme Standard, avec une vérification en plus. En sommeil REM, le corps reste presque immobile. Quand le bracelet bouge légèrement pendant plus de quelques secondes, ce temps compte comme sommeil léger au lieu de REM, car rester couché agité était souvent pris pour du REM. Elle ne te compte jamais comme éveillé. À essayer si ton REM dépasse souvent 30 %. Vérifié sur des enregistrements de laboratoire du sommeil.",
   "Learned from sleep-lab recordings of other wrist devices and not yet checked on WHOOP nights. On some nights it shows very little REM. For testing only.": "Appris sur des enregistrements de laboratoire du sommeil d'autres appareils au poignet et pas encore vérifié sur des nuits WHOOP. Certaines nuits, il affiche très peu de REM. Uniquement pour tester.",
-  "Which method sorts your night into light, deep, REM and awake. Switching recalculates all nights; your recorded data and your sleep corrections stay.": "La méthode qui répartit ta nuit en léger, profond, REM et éveil. Changer recalcule toutes les nuits ; tes données enregistrées et tes corrections de sommeil sont conservées."
+  "Which method sorts your night into light, deep, REM and awake. Switching recalculates all nights; your recorded data and your sleep corrections stay.": "La méthode qui répartit ta nuit en léger, profond, REM et éveil. Changer recalcule toutes les nuits ; tes données enregistrées et tes corrections de sommeil sont conservées.",
+  "Days chosen: %lld": "Jours choisis : %lld",
+  "Repeat": "Répéter",
+  "Until": "Jusqu’au",
+  "Select these days": "Choisir ces jours",
+  "Selects every ticked weekday after this day up to the date. Untick single days in the calendar.": "Choisit chaque jour de la semaine coché après ce jour jusqu’à la date. Décochez des jours isolés dans le calendrier.",
+  "Meal pictures": "Images des repas",
+  "A picture above each meal: your own photo, or a drawing of its main food.": "Une image au-dessus de chaque repas : votre propre photo ou un dessin de son aliment principal."
 }

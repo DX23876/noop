@@ -166,6 +166,15 @@ object CoreFood {
     fun copy(ids: List<String>, days: List<String>): List<Entry> =
         entries(call("food.copy", JSONObject().put("ids", JSONArray(ids)).put("days", JSONArray(days))))
 
+    /** The days after [day] up to and including [until] on one of [weekdays] (Apple numbering, 1 = Sunday), from
+     *  the core's `FoodLog.repeatDays`. */
+    fun repeatDays(day: String, until: String, weekdays: List<Int>): List<String> {
+        val json = call("food.repeatDays", JSONObject().put("day", day).put("until", until).put("weekdays", JSONArray(weekdays)))
+            ?: return emptyList()
+        val days = json.optJSONArray("days") ?: return emptyList()
+        return (0 until days.length()).map { days.getString(it) }
+    }
+
     fun setHealthId(id: String, healthId: String?) {
         call("food.setHealthId", JSONObject().put("id", id).put("healthId", healthId ?: JSONObject.NULL))
     }

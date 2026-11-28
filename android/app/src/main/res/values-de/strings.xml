@@ -5269,7 +5269,6 @@
     <string name="food_save_food">Lebensmittel sichern</string>
     <string name="food_delete">Löschen</string>
     <string name="food_delete_meal">Mahlzeit löschen</string>
-    <string name="food_copy_tomorrow">Auf morgen kopieren</string>
     <string name="food_remove">Entfernen</string>
     <string name="food_protein">Eiweiß</string>
     <string name="food_carbs">Kohlenhydrate</string>
@@ -7886,4 +7885,17 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="forge_lab_sleep_recipe_restless_detail">Wie Standard, mit einer zusätzlichen Prüfung. Im REM-Schlaf liegt der Körper fast still. Bewegt sich der Strap länger als ein paar Sekunden leicht, zählt diese Zeit als Leichtschlaf statt als REM, weil unruhiges Liegen oft für REM gehalten wurde. Als wach wertet sie dich nie. Einen Versuch wert, wenn dein REM oft über 30 % liegt. Geprüft an Schlaflabor-Aufnahmen.</string>
     <string name="forge_lab_sleep_recipe_trained_detail">An Schlaflabor-Aufnahmen anderer Geräte am Handgelenk gelernt und auf WHOOP-Nächten noch nicht geprüft. In manchen Nächten zeigt es sehr wenig REM. Nur zum Testen.</string>
     <string name="forge_lab_sleep_recipe_detail">Welches Verfahren deine Nacht in leicht, tief, REM und wach einteilt. Umschalten berechnet alle Nächte neu; deine aufgezeichneten Daten und deine Schlafkorrekturen bleiben.</string>
+    <string name="food_copy_days">Auf andere Tage kopieren</string>
+    <string name="food_copy_title">Kopieren nach</string>
+    <string name="food_copy_go">Kopieren</string>
+    <string name="food_copy_prev_month">Vorheriger Monat</string>
+    <string name="food_copy_next_month">Nächster Monat</string>
+    <string name="food_copy_chosen">Ausgewählte Tage: %d</string>
+    <string name="food_copy_repeat">Wiederholen</string>
+    <string name="food_copy_until">Bis</string>
+    <string name="food_copy_select">Diese Tage auswählen</string>
+    <string name="food_copy_note">Wählt jeden markierten Wochentag nach diesem Tag bis zum Datum aus. Einzelne Tage nimmst du im Kalender wieder heraus.</string>
+    <string name="food_meal_pictures">Bilder zu Mahlzeiten</string>
+    <string name="food_meal_pictures_note">Eine Zeichnung des wichtigsten Lebensmittels über jeder Mahlzeit.</string>
+    <string name="food_meal_pictures_show">Über jeder Mahlzeit zeigen</string>
 </resources>

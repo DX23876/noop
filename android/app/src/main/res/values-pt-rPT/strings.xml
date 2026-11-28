@@ -5247,7 +5247,6 @@
     <string name="food_save_food">Guardar alimento</string>
     <string name="food_delete">Eliminar</string>
     <string name="food_delete_meal">Eliminar refeição</string>
-    <string name="food_copy_tomorrow">Copiar para amanhã</string>
     <string name="food_remove">Remover</string>
     <string name="food_protein">Proteína</string>
     <string name="food_carbs">Carboidratos</string>
@@ -7862,4 +7861,17 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="forge_lab_sleep_recipe_restless_detail">Como Padrão, com uma verificação extra. No sono REM o corpo fica quase imóvel. Quando a pulseira se mexe ligeiramente durante mais de alguns segundos, esse tempo conta como sono leve em vez de REM, porque estar deitado inquieto era muitas vezes confundido com REM. Nunca te marca como acordado. Vale a pena experimentar se o teu REM passa muitas vezes dos 30 %. Verificado com gravações de laboratório do sono.</string>
     <string name="forge_lab_sleep_recipe_trained_detail">Aprendido com gravações de laboratório do sono de outros dispositivos de pulso e ainda não verificado em noites WHOOP. Em algumas noites mostra muito pouco REM. Apenas para testes.</string>
     <string name="forge_lab_sleep_recipe_detail">Que método divide a tua noite em leve, profundo, REM e acordado. Mudar recalcula todas as noites; os teus dados registados e as tuas correções do sono mantêm-se.</string>
+    <string name="food_copy_days">Copiar para outros dias</string>
+    <string name="food_copy_title">Copiar para</string>
+    <string name="food_copy_go">Copiar</string>
+    <string name="food_copy_prev_month">Mês anterior</string>
+    <string name="food_copy_next_month">Próximo mês</string>
+    <string name="food_copy_chosen">Dias escolhidos: %d</string>
+    <string name="food_copy_repeat">Repetir</string>
+    <string name="food_copy_until">Até</string>
+    <string name="food_copy_select">Escolher estes dias</string>
+    <string name="food_copy_note">Escolhe cada dia da semana assinalado depois deste dia até à data. Desmarca dias soltos no calendário.</string>
+    <string name="food_meal_pictures">Imagens das refeições</string>
+    <string name="food_meal_pictures_note">Um desenho do alimento principal por cima de cada refeição.</string>
+    <string name="food_meal_pictures_show">Mostrar por cima de cada refeição</string>
 </resources>
