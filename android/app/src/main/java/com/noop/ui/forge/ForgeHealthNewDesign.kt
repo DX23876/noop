@@ -98,7 +98,7 @@ internal enum class FocusArea(val titleRes: Int, val subRes: Int, val icon: Imag
         Vitals -> Forge.colors.heart
         Body -> Forge.colors.charge
         Mind -> ForgeTokens.Color.systemTeal.resolve()
-        More -> Forge.colors.accent
+        More -> Forge.colors.textSecondary
     }
 }
 
@@ -112,11 +112,9 @@ internal fun HealthFocusGrid(onOpen: (FocusArea) -> Unit) {
                 pair.forEach { area ->
                     val tint = area.tint()
                     ForgeCard(Modifier.weight(1f).heightIn(min = 112.dp).clickable(role = Role.Button) { onOpen(area) }) {
-                        // The symbol on its colour, as iOS's focus tiles and Apple Health's categories (owner, 2026-11-25).
-                        Box(Modifier.size(40.dp).background(tint, androidx.compose.foundation.shape.RoundedCornerShape(10.dp)),
-                            contentAlignment = Alignment.Center) {
-                            Icon(area.icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
-                        }
+                        // The symbol alone in its colour, as iOS's focus tiles and Apple Health's category list (owner,
+                        // 2026-11-28: a white symbol on a coloured square in every tile read as generated art).
+                        Icon(area.icon, contentDescription = null, tint = tint, modifier = Modifier.size(26.dp))
                         Spacer(Modifier.height(ForgeMetrics.space3))
                         Text(stringResource(area.titleRes), style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold),
                              color = colors.text, maxLines = 2)

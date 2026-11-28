@@ -32,25 +32,29 @@ enum ForgeFocusArea: String, CaseIterable, Hashable, Identifiable {
         }
     }
 
+    /// Apple Health's category symbols. The tile draws them bold, so the two figures carry as much weight as the
+    /// filled heart, moon and head beside them (owner, 2026-11-28).
     var symbol: String {
         switch self {
         case .fitness: return "figure.run"
         case .sleep: return "moon.fill"
         case .vitals: return "heart.fill"
-        case .body: return "figure.stand"
-        case .mind: return "brain.head.profile"
+        case .body: return "figure"
+        case .mind: return "brain.head.profile.fill"
         case .more: return "square.grid.2x2.fill"
         }
     }
 
+    /// The app's own colours (Effort, Rest, the heart, Charge), teal for the mind as Apple Health's
+    /// Mental Wellbeing, and none for More, which is a way on rather than a category.
     var tint: Color {
         switch self {
         case .fitness: return ForgeColor.effort
         case .sleep: return ForgeColor.rest
-        case .vitals: return ForgeColor.charge
-        case .body: return .purple
+        case .vitals: return StrandPalette.liquidHeart
+        case .body: return ForgeColor.charge
         case .mind: return .teal
-        case .more: return ForgeColor.accent
+        case .more: return ForgeColor.secondary
         }
     }
 
@@ -261,16 +265,22 @@ struct ForgeFocusTile: View {
     let area: ForgeFocusArea
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // The area's symbol on its colour, as Apple Health marks a category (owner, 2026-11-25): the sparkles
-            // and glow around it read as generated art.
-            TrendsChangeSummary.categoryMark(area.symbol, tint: area.tint, size: 40)
-            Text(area.title).font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text)
-                .lineLimit(2).multilineTextAlignment(.leading)
-            Text(area.subtitle).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
-                .lineLimit(2).multilineTextAlignment(.leading)
+        VStack(alignment: .leading, spacing: 12) {
+            // The area's symbol alone in its colour, as Apple Health lists its categories (owner, 2026-11-28): a
+            // white symbol on a coloured square in every tile read as generated art, like the sparkles before it.
+            Image(systemName: area.symbol)
+                .font(.system(size: 24, weight: .bold))
+                .foregroundStyle(area.tint)
+                .frame(height: 28, alignment: .leading)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(area.title).font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    .lineLimit(2).multilineTextAlignment(.leading)
+                Text(area.subtitle).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    .lineLimit(2).multilineTextAlignment(.leading)
+            }
         }
-        .frame(maxWidth: .infinity, minHeight: 128, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 120, alignment: .topLeading)
         .forgeCard(radius: ForgeRadius.card, padding: 16)
         .accessibilityElement(children: .combine)
     }
