@@ -4,6 +4,7 @@ import XCTest
 /// "Last night" names only the night that woke on today's logical day (design critique 2026-11-28). The
 /// newest stored night is older while the strap has not synced, and the Sleep tab called it "Last night"
 /// right under a banner waiting for last night. Twin of the Kotlin `LastNightTest`.
+@MainActor
 final class LastNightLabelTests: XCTestCase {
     private let cal = Calendar.current
 
