@@ -86,6 +86,9 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         lifecycleScope.launch(Dispatchers.IO) { runCatching { com.noop.widget.WeightWidgets.refresh(applicationContext) } }
+        // The fitness and energy widgets too, as the iPhone publishes them with its main glance (2026-11-28).
+        lifecycleScope.launch(Dispatchers.IO) { runCatching { com.noop.widget.FitnessWidgets.refresh(applicationContext) } }
+        lifecycleScope.launch(Dispatchers.IO) { runCatching { com.noop.widget.DayWidgets.refreshEnergy(applicationContext) } }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
