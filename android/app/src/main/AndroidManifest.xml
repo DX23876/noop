@@ -279,7 +279,7 @@
              gated by the Notifications-screen settings. Does nothing until access is granted + enabled. -->
         <service
             android:name="com.noop.notif.NoopNotificationListener"
-            android:label="NOOP wrist alerts"
+            android:label="@string/notif_listener_label"
             android:exported="false"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
@@ -364,7 +364,7 @@
         <receiver
             android:name="com.noop.widget.CoachBriefWidgetReceiver"
             android:exported="true"
-            android:label="Coach Brief">
+            android:label="@string/widget_coach_brief_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>

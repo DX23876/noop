@@ -377,6 +377,7 @@ public enum CoreCall {
         if op.hasPrefix("alerts."), let answer = CoreAlerts.run(op, args) { return answer }
         // The Sleep page's note while last night is not in yet, pure as well.
         if op == "sleep.freshness" { return CoreSleepFreshness.run(args) }
+        if op == "workout.sportName" { return CoreRead.json(["name": CoreSportName.name(args["sport"] as? String ?? "")]) }
         guard let (store, _) = ShadowSession.storeAndPath, let reader = ShadowSession.reader else {
             return #"{"error":"noStore"}"#
         }

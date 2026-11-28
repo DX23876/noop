@@ -32,8 +32,6 @@ struct ForgeTrainingView: View {
     }
 
     @State private var recent: [WorkoutRow] = []
-    /// The names of the sessions in `recent` ("Push day"), so a row does not read only "Strength Training".
-    @State private var recentTitles: [String: String] = [:]
     /// False until the first read: "nothing recorded" and "0 workouts" only once that is known, not while loading.
     @State private var recentLoaded = false
     @State private var vo2max: [Double] = []
@@ -405,7 +403,7 @@ struct ForgeTrainingView: View {
                 .frame(width: 38, height: 38)
                 .background(Circle().fill(tint.opacity(ForgeOpacity.wash)))
             VStack(alignment: .leading, spacing: 1) {
-                Text(Repository.sessionName(row, titles: recentTitles))
+                Text(Repository.sessionName(row, titles: repo.sessionTitles))
                     .font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text).lineLimit(1)
                 Text(detail(row)).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary).lineLimit(1)
             }
@@ -525,7 +523,6 @@ struct ForgeTrainingView: View {
     private func load(force: Bool = false) async {
         await hub.load(repo: repo, session: session, weekStartsOn: weekStart, force: force)
         recent = (await repo.workoutRows(days: 30, reconcileHrCap: 0)).sorted { $0.startTs > $1.startTs }
-        recentTitles = await repo.sessionTitles(days: 31)
         vo2max = (await repo.exploreSeries(key: "vo2max_est", source: Repository.whoopSource, days: 120)).map(\.value)
         recentLoaded = true
     }

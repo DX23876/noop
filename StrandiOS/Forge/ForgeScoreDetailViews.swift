@@ -115,7 +115,7 @@ struct ForgeEffortDetailView: View {
         let minutes = Int((row.durationS ?? Double(row.endTs - row.startTs)) / 60)
         return HStack(alignment: .center, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(WorkoutSource.localizedDisplaySport(row.sport))
+                Text(Repository.sessionName(row, titles: repo.sessionTitles))
                     .font(.system(.callout)).foregroundStyle(ForgeColor.text)
                 Text("\(start.formatted(.dateTime.hour().minute().locale(AppLanguage.activeLocale))) · \(minutes) min")
                     .font(.system(.footnote)).foregroundStyle(ForgeColor.secondary)

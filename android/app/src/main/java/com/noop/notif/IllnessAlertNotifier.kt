@@ -98,13 +98,13 @@ object IllnessAlertNotifier {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         runCatching {
             val mgr = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (mgr.getNotificationChannel(CHANNEL_ID) != null) return
+            // Set every time, so a channel made in English earlier takes the wearer's language.
             mgr.createNotificationChannel(
                 NotificationChannel(
-                    CHANNEL_ID, "Illness early-warning",
+                    CHANNEL_ID, context.getString(R.string.notif_illness_channel_name),
                     NotificationManager.IMPORTANCE_DEFAULT,
                 ).apply {
-                    description = "A heads-up when resting HR, HRV, skin temp or respiration drift together vs your baseline."
+                    description = context.getString(R.string.notif_illness_channel_desc)
                 },
             )
         }

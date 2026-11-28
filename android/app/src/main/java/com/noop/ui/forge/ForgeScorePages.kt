@@ -260,7 +260,7 @@ internal fun ForgeEffortPage(viewModel: AppViewModel, effortStored: Double?, cha
                     Row(Modifier.fillMaxWidth().clickable(role = androidx.compose.ui.semantics.Role.Button) { openWorkout = row }
                             .padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
-                            Text(com.noop.ui.WorkoutEditing.displaySport(row.sport), style = Forge.type.body, color = colors.text)
+                            Text(rememberSessionName(row), style = Forge.type.body, color = colors.text)
                             Text(stringResource(R.string.forge_pair_words,
                                                 java.time.Instant.ofEpochSecond(row.startTs).atZone(ZoneId.systemDefault()).format(clock),
                                                 stringResource(R.string.forge_tw_min, minutes)),

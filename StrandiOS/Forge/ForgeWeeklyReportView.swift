@@ -204,7 +204,7 @@ struct ForgeWeeklyReportView: View {
                         highlightTile(String(localized: "Hardest session"), "dumbbell.fill", ForgeColor.effortInk,
                                       value: ForgeToday.effortText(strain, scale: effortScale),
                                       unit: DomainTheme.effort.productName,
-                                      detail: "\(WorkoutSource.localizedDisplaySport(row.sport)), \(day.formatted(.dateTime.weekday(.abbreviated).locale(AppLanguage.activeLocale)))")
+                                      detail: "\(Repository.sessionName(row, titles: repo.sessionTitles)), \(day.formatted(.dateTime.weekday(.abbreviated).locale(AppLanguage.activeLocale)))")
                     }
                     .buttonStyle(.plain)
                 }

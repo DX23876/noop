@@ -8133,4 +8133,34 @@ Plotting each series as change from its own first reading puts them on one scale
     <string name="wt_water_salty">Salty food or a party</string>
     <string name="wt_water_medicine">New medicine</string>
     <string name="wt_water_footer">A mark leaves this weigh-in out of your scale\'s burn: the water moved, not your body.</string>
+    <!-- Night audit 2026-11-28: notifications and system labels that were English only. -->
+    <string name="notif_winddown_channel_desc">An optional evening reminder to start winding down before bed.</string>
+    <string name="notif_import_channel_name">Import progress</string>
+    <string name="notif_import_channel_desc">How far a running data import has got.</string>
+    <string name="notif_illness_channel_desc">A heads-up when resting HR, HRV, skin temp or respiration drift together vs your baseline.</string>
+    <string name="notif_inactivity_channel_desc">A nudge to move after a long sedentary stretch.</string>
+    <string name="notif_reports_channel_name">Daily reports</string>
+    <string name="notif_reports_channel_desc">A morning recap and post-workout summary, after your strap syncs.</string>
+    <string name="notif_morning_title">Good morning: last night\'s recap</string>
+    <string name="notif_morning_suffix">Recovery from your strap, scored after it synced this morning.</string>
+    <string name="notif_workout_title">Workout logged: %1$s</string>
+    <string name="notif_workout_suffix">Summarised after your strap synced.</string>
+    <string name="notif_duration_under_minute">under a minute</string>
+    <string name="notif_duration_hours">%1$d h</string>
+    <string name="notif_duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="notif_listener_label">NOOP wrist alerts</string>
+    <string name="notif_winddown_title">Time to wind down</string>
+    <string name="notif_winddown_body">A calm hour now helps you hit your wake time well-rested.</string>
+    <string name="notif_illness_channel_name">Illness early-warning</string>
+    <string name="notif_inactivity_channel_name">Inactivity reminder</string>
+    <string name="notif_inactivity_body_minutes">You\'ve been seated for about %1$d min. Time to move.</string>
+    <string name="notif_inactivity_body">Time to move. You\'ve been seated a while.</string>
+    <string name="notif_strain_target_title">Optimal strain reached</string>
+    <string name="notif_strain_target_body">You\'ve hit today\'s optimal strain target of %1$d. Nice work — your recovery earned it.</string>
+    <string name="notif_morning_charge">Charge</string>
+    <string name="notif_morning_rest">Rest</string>
+    <string name="notif_workout_effort">Effort</string>
+    <string name="notif_avg_bpm">avg %1$d bpm</string>
+    <string name="notif_duration_minutes">%1$d min</string>
+    <string name="widget_coach_brief_name">Coach Brief</string>
 </resources>

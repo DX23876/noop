@@ -8083,4 +8083,34 @@ Traçar cada série como variação face à sua própria primeira medição colo
     <string name="wt_water_salty">Comida salgada ou uma festa</string>
     <string name="wt_water_medicine">Medicamento novo</string>
     <string name="wt_water_footer">Uma marca deixa esta pesagem fora do gasto da tua balança: mexeu-se a água, não o teu corpo.</string>
+    <!-- Night audit 2026-11-28: notifications and system labels that were English only. -->
+    <string name="notif_winddown_channel_desc">Um lembrete opcional à noite para começar a descontrair antes de dormir.</string>
+    <string name="notif_import_channel_name">Progresso da importação</string>
+    <string name="notif_import_channel_desc">Até onde chegou uma importação de dados em curso.</string>
+    <string name="notif_illness_channel_desc">Um aviso quando a FC em repouso, a VFC, a temperatura da pele ou a respiração se afastam em conjunto do seu valor habitual.</string>
+    <string name="notif_inactivity_channel_desc">Um lembrete para se mexer depois de muito tempo sentado.</string>
+    <string name="notif_reports_channel_name">Relatórios diários</string>
+    <string name="notif_reports_channel_desc">Um resumo de manhã e outro depois de cada treino, quando a alça sincroniza.</string>
+    <string name="notif_morning_title">Bom dia: resumo da noite passada</string>
+    <string name="notif_morning_suffix">Recuperação da sua alça, calculada depois de sincronizar esta manhã.</string>
+    <string name="notif_workout_title">Treino registado: %1$s</string>
+    <string name="notif_workout_suffix">Resumido depois de a alça sincronizar.</string>
+    <string name="notif_duration_under_minute">menos de um minuto</string>
+    <string name="notif_duration_hours">%1$d h</string>
+    <string name="notif_duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="notif_listener_label">NOOP alertas de pulso</string>
+    <string name="notif_winddown_title">Hora de relaxar</string>
+    <string name="notif_winddown_body">Uma hora calma ajuda-o agora a acordar bem descansado.</string>
+    <string name="notif_illness_channel_name">Alerta precoce de doença</string>
+    <string name="notif_inactivity_channel_name">Lembrete de inatividade</string>
+    <string name="notif_inactivity_body_minutes">Está sentado há cerca de %1$d min. Hora de mudar.</string>
+    <string name="notif_inactivity_body">Hora de mudar. Está sentado há algum tempo.</string>
+    <string name="notif_strain_target_title">Tensão ideal atingida</string>
+    <string name="notif_strain_target_body">Atingiu a meta de tensão ideal de hoje de %1$d. Bom trabalho – a tua recuperação valeu a pena.</string>
+    <string name="notif_morning_charge">Carga</string>
+    <string name="notif_morning_rest">Descanso</string>
+    <string name="notif_workout_effort">Esforço</string>
+    <string name="notif_avg_bpm">média %1$d bpm</string>
+    <string name="notif_duration_minutes">%1$d min</string>
+    <string name="widget_coach_brief_name">Resumo do Coach</string>
 </resources>

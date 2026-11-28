@@ -8107,4 +8107,34 @@ Jede Reihe als Veränderung gegenüber ihrer eigenen ersten Messung zu zeichnen 
     <string name="wt_water_salty">Salzig gegessen oder gefeiert</string>
     <string name="wt_water_medicine">Neues Medikament</string>
     <string name="wt_water_footer">Ein Zeichen lässt diese Wiegung aus der Waagenrechnung heraus: das Wasser hat sich bewegt, nicht dein Körper.</string>
+    <!-- Night audit 2026-11-28: notifications and system labels that were English only. -->
+    <string name="notif_winddown_channel_desc">Eine freiwillige Erinnerung am Abend, vor dem Schlafen runterzukommen.</string>
+    <string name="notif_import_channel_name">Importfortschritt</string>
+    <string name="notif_import_channel_desc">Wie weit ein laufender Datenimport ist.</string>
+    <string name="notif_illness_channel_desc">Ein Hinweis, wenn Ruhepuls, HRV, Hauttemperatur oder Atmung gemeinsam von deinem Normalwert abweichen.</string>
+    <string name="notif_inactivity_channel_desc">Ein Anstoß, dich nach langem Sitzen zu bewegen.</string>
+    <string name="notif_reports_channel_name">Tägliche Berichte</string>
+    <string name="notif_reports_channel_desc">Ein Rückblick am Morgen und eine Zusammenfassung nach dem Training, sobald dein Strap synchronisiert hat.</string>
+    <string name="notif_morning_title">Guten Morgen: deine letzte Nacht</string>
+    <string name="notif_morning_suffix">Erholung von deinem Strap, berechnet, nachdem er heute Morgen synchronisiert hat.</string>
+    <string name="notif_workout_title">Workout erfasst: %1$s</string>
+    <string name="notif_workout_suffix">Zusammengefasst, nachdem dein Strap synchronisiert hat.</string>
+    <string name="notif_duration_under_minute">unter einer Minute</string>
+    <string name="notif_duration_hours">%1$d h</string>
+    <string name="notif_duration_hours_minutes">%1$d h %2$d Min.</string>
+    <string name="notif_listener_label">NOOP-Handgelenkwarnungen</string>
+    <string name="notif_winddown_title">Zeit zum Runterkommen</string>
+    <string name="notif_winddown_body">Eine ruhige Stunde jetzt hilft dir, deine Aufwachzeit ausgeruht zu erreichen.</string>
+    <string name="notif_illness_channel_name">Krankheits-Frühwarnung</string>
+    <string name="notif_inactivity_channel_name">Inaktivitätserinnerung</string>
+    <string name="notif_inactivity_body_minutes">Du sitzt seit etwa %1$d Min. Zeit für Bewegung.</string>
+    <string name="notif_inactivity_body">Zeit für Bewegung. Du sitzt schon eine Weile.</string>
+    <string name="notif_strain_target_title">Optimale Belastung erreicht</string>
+    <string name="notif_strain_target_body">Du hast dein heutiges optimales Belastungsziel von %1$d erreicht. Stark — deine Erholung hat es ermöglicht.</string>
+    <string name="notif_morning_charge">Charge</string>
+    <string name="notif_morning_rest">Rest</string>
+    <string name="notif_workout_effort">Effort</string>
+    <string name="notif_avg_bpm">Ø %1$d bpm</string>
+    <string name="notif_duration_minutes">%1$d Min.</string>
+    <string name="widget_coach_brief_name">Coach-Brief</string>
 </resources>

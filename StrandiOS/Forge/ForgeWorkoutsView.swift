@@ -18,8 +18,6 @@ struct ForgeWorkoutsView: View {
     @AppStorage(UnitPrefs.distanceSystemKey) private var distanceSystemRaw = ""
     @AppStorage("training.weekStartsOn") private var weekStartRaw = TrainingWeekStart.monday.rawValue
     @State private var rows: [WorkoutRow] = []
-    /// The names of the sessions in `rows` ("Push day"), so a row does not read only "Strength Training".
-    @State private var titles: [String: String] = [:]
     @State private var scrolledPast = false
 
     private var effortScale: EffortScale { UnitPrefs.resolveEffortScale(effortScaleRaw) }
@@ -70,7 +68,6 @@ struct ForgeWorkoutsView: View {
         .forgeDetailBar(title: String(localized: "Workouts"), showsTitle: scrolledPast)
         .task(id: repo.refreshSeq) {
             rows = (await repo.workoutRows(days: 91, reconcileHrCap: 0)).sorted { $0.startTs > $1.startTs }
-            titles = await repo.sessionTitles(days: 92)
         }
         .sheet(item: $editor) { ForgeWorkoutEditor(target: $0) }
     }
@@ -186,7 +183,7 @@ struct ForgeWorkoutsView: View {
                 .frame(width: 38, height: 38)
                 .background(Circle().fill(tint.opacity(ForgeOpacity.wash)))
             VStack(alignment: .leading, spacing: 1) {
-                Text(Repository.sessionName(row, titles: titles))
+                Text(Repository.sessionName(row, titles: repo.sessionTitles))
                     .font(.system(.callout, weight: .semibold)).foregroundStyle(ForgeColor.text).lineLimit(1)
                 Text(parts.joined(separator: " · ")).font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary).lineLimit(1)
             }

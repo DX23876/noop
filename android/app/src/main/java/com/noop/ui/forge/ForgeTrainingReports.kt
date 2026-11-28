@@ -519,7 +519,7 @@ private fun CardioSessionRow(session: CoreTrainingReports.CardioSession, units: 
         }
         Spacer(Modifier.width(ForgeMetrics.space3))
         Column(Modifier.weight(1f)) {
-            Text(com.noop.ui.WorkoutEditing.displaySport(session.sport), style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold),
+            Text(com.noop.ui.WorkoutEditing.localizedSport(session.sport), style = Forge.type.body.copy(fontWeight = FontWeight.SemiBold),
                  color = colors.text, maxLines = 1)
             // Two lines, so a long readout keeps its unit instead of losing it at the edge.
             Text(parts.joinToString(" · "), style = Forge.type.caption, color = colors.textSecondary, maxLines = 2)

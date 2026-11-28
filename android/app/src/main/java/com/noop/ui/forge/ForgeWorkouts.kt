@@ -155,9 +155,13 @@ internal fun rememberSessionTitles(rows: List<WorkoutRow>): Map<String, String> 
     return titles
 }
 
+/** One row's name, for a page that shows a single session (Today, the reports): the same core read as the lists. */
+@Composable
+internal fun rememberSessionName(row: WorkoutRow): String = sessionName(row, rememberSessionTitles(listOf(row)))
+
 /** The row's own name when the wearer gave the session one, else its sport, as iOS's lists show it. */
 internal fun sessionName(row: WorkoutRow, titles: Map<String, String>): String =
-    titles[com.noop.core.CoreWorkoutRows.titleKey(row)] ?: WorkoutEditing.displaySport(row.sport)
+    titles[com.noop.core.CoreWorkoutRows.titleKey(row)] ?: WorkoutEditing.localizedSport(row.sport)
 
 /** The day and month skeleton for "Week of …", localised by `getBestDateTimePattern`. */
 private const val DAY_MONTH_ONLY = "dMMM"

@@ -68,7 +68,7 @@ class StrainTargetPolicyTest {
     }
 
     @Test fun copyUsesNoopWordingAndTheTarget() {
-        val (title, body) = StrainTargetPolicy.copy(target = 14)
+        val (title, body) = StrainTargetPolicy.copy(target = 14, text = EnglishNotifText)
         // NOOP's own copy — must NOT reproduce WHOOP's decompiled strings.
         assertTrue(title.contains("Optimal strain"))
         assertFalse(title.contains("Target Strain Reached"))

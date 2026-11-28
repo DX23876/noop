@@ -239,7 +239,7 @@ internal fun ForgeTodayTimeline(viewModel: AppViewModel, onSleep: () -> Unit) {
         val todayKey = com.noop.ui.logicalDayNow(zone)
         val sessions = workouts.count { Instant.ofEpochSecond(it.endTs).atZone(zone).toLocalDate() == todayKey }
         TodayTimeline.Entry.DayEnd(eveningStart, sessions, tomorrowPlan?.let { p ->
-            val sport = com.noop.ui.WorkoutEditing.displaySport(p.sport.ifEmpty { p.summary })
+            val sport = com.noop.ui.WorkoutEditing.localizedSport(p.sport.ifEmpty { p.summary })
             p.durationMin?.let { context.getString(R.string.forge_de_tomorrow_min, sport, it) } ?: context.getString(R.string.forge_de_tomorrow, sport)
         }, if (catchUp) bedtime else null)
     } else null
@@ -408,7 +408,7 @@ private fun WorkoutEntry(row: WorkoutRow) {
         row.distanceM?.takeIf { it > 0 }?.let { add(UnitFormatter.distanceFromMeters(it, system)) }
     }.joinToString(" · ")
     // Its sport's own symbol and colour, as iOS's `workoutCard`.
-    FactRow(com.noop.ui.sportIcon(row.sport), forgeSportTint(row.sport), WorkoutEditing.displaySport(row.sport), detail,
+    FactRow(com.noop.ui.sportIcon(row.sport), forgeSportTint(row.sport), rememberSessionName(row), detail,
             row.strain?.let { UnitFormatter.effortDisplay(it, scale).removeSuffix(".0") }, stringResource(R.string.forge_effort))
 }
 

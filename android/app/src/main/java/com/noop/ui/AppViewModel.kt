@@ -2557,23 +2557,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // A session with no scored strain still gets a summary (duration + HR), but without an Effort line.
         val scale = UnitPrefs.effortScale(appContext)
         val durMin = ((row.durationS ?: (row.endTs - row.startTs).toDouble()) / 60.0).roundToInt()
-        val (title, body) = if (row.strain != null) {
-            ScheduledReportPolicy.workoutCopy(
-                sportLabel = WorkoutEditing.displaySport(row.sport),
-                effortDisplay = UnitFormatter.effortDisplay(row.strain, scale),
-                effortMaxLabel = UnitFormatter.effortScaleMax(scale),
-                durationLabel = ScheduledReportPolicy.durationLabel(durMin),
-                avgHr = row.avgHr,
-            )
-        } else {
-            // No strain: a leaner summary that still tells the user the session landed.
-            val pieces = buildList {
-                add(ScheduledReportPolicy.durationLabel(durMin))
-                row.avgHr?.let { add("avg $it bpm") }
-            }
-            "Workout logged: ${WorkoutEditing.displaySport(row.sport)}" to
-                (pieces.joinToString(" · ") + ". Summarised after your strap synced.")
-        }
+        // No strain: a leaner summary (no Effort piece) that still tells the user the session landed.
+        val text = com.noop.notif.NotifText.of(appContext)
+        val (title, body) = ScheduledReportPolicy.workoutCopy(
+            sportLabel = WorkoutEditing.localizedSport(row.sport),
+            effortDisplay = row.strain?.let { UnitFormatter.effortDisplay(it, scale) },
+            effortMaxLabel = UnitFormatter.effortScaleMax(scale),
+            durationLabel = ScheduledReportPolicy.durationLabel(durMin, text),
+            avgHr = row.avgHr,
+            text = text,
+        )
         ScheduledReportNotifier.onWorkout(appContext, row.startTs, title, body)
     }
 

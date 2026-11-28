@@ -48,11 +48,8 @@ object StrainTargetPolicy {
 
     /** Title + body for the nudge. [target] is the optimal-band low on the 0-21 coupled axis. NOOP's OWN
      *  wording — the feature is reimplemented behaviour, not copied copy. */
-    fun copy(target: Int): Pair<String, String> {
-        val title = "Optimal strain reached"
-        val body = "You've hit today's optimal strain target of $target. Nice work — your recovery earned it."
-        return title to body
-    }
+    fun copy(target: Int, text: NotifText): Pair<String, String> =
+        text.get(R.string.notif_strain_target_title) to text.get(R.string.notif_strain_target_body, target)
 }
 
 object StrainTargetNotifier {
@@ -78,7 +75,7 @@ object StrainTargetNotifier {
             )
         ) return
         // Non-null: shouldNotify above required target != null before returning true.
-        val copy = StrainTargetPolicy.copy(target21!!)
+        val copy = StrainTargetPolicy.copy(target21!!, NotifText.of(context))
         runCatching {
             if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
             ensureChannel(context)
@@ -113,13 +110,13 @@ object StrainTargetNotifier {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         runCatching {
             val mgr = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (mgr.getNotificationChannel(CHANNEL_ID) != null) return
+            // Set every time, so a channel made in English earlier takes the wearer's language.
             mgr.createNotificationChannel(
                 NotificationChannel(
-                    CHANNEL_ID, "Daily reports",
+                    CHANNEL_ID, context.getString(R.string.notif_reports_channel_name),
                     NotificationManager.IMPORTANCE_LOW,
                 ).apply {
-                    description = "A morning recap and post-workout summary, after your strap syncs."
+                    description = context.getString(R.string.notif_reports_channel_desc)
                 },
             )
         }

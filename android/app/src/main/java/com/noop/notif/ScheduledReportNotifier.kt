@@ -89,15 +89,13 @@ object ScheduledReportPolicy {
     /** Title + body for the morning recap. Charge and Rest are each optional (a night can produce one
      *  without the other); absent ones are simply omitted — never shown as 0 or a guess. Returns null when
      *  neither is present (the caller shouldn't have been asked to build copy, but stay honest). */
-    fun morningCopy(chargePct: Int?, restPct: Int?): Pair<String, String>? {
+    fun morningCopy(chargePct: Int?, restPct: Int?, text: NotifText): Pair<String, String>? {
         val parts = ArrayList<String>(2)
-        chargePct?.let { parts.add("Charge $it") }
-        restPct?.let { parts.add("Rest $it") }
+        chargePct?.let { parts.add(text.get(R.string.notif_morning_charge) + " $it") }
+        restPct?.let { parts.add(text.get(R.string.notif_morning_rest) + " $it") }
         if (parts.isEmpty()) return null
-        val title = "Good morning: last night's recap"
-        val body = parts.joinToString(" · ") +
-            ". Recovery from your strap, scored after it synced this morning."
-        return title to body
+        val body = parts.joinToString(" · ") + ". " + text.get(R.string.notif_morning_suffix)
+        return text.get(R.string.notif_morning_title) to body
     }
 
     /** Title + body for the post-workout summary. [effortDisplay] is already formatted on the user's
@@ -105,27 +103,28 @@ object ScheduledReportPolicy {
      *  with no usable HR omits it rather than inventing one. */
     fun workoutCopy(
         sportLabel: String,
-        effortDisplay: String,
+        effortDisplay: String?,
         effortMaxLabel: String,
         durationLabel: String,
         avgHr: Int?,
+        text: NotifText,
     ): Pair<String, String> {
-        val title = "Workout logged: $sportLabel"
         val pieces = ArrayList<String>(3)
-        pieces.add("Effort $effortDisplay/$effortMaxLabel")
+        // A session with no scored Effort still gets its summary, without the Effort piece.
+        effortDisplay?.let { pieces.add(text.get(R.string.notif_workout_effort) + " $it/$effortMaxLabel") }
         pieces.add(durationLabel)
-        avgHr?.let { pieces.add("avg $it bpm") }
-        val body = pieces.joinToString(" · ") + ". Summarised after your strap synced."
-        return title to body
+        avgHr?.let { pieces.add(text.get(R.string.notif_avg_bpm, it)) }
+        val body = pieces.joinToString(" · ") + ". " + text.get(R.string.notif_workout_suffix)
+        return text.get(R.string.notif_workout_title, sportLabel) to body
     }
 
     /** "42 min" / "1 h 8 min" from a whole-minute duration; clamps a 0/negative span to "under a minute"
      *  so a mis-timed session never reads as "0 min". */
-    fun durationLabel(minutes: Int): String = when {
-        minutes <= 0 -> "under a minute"
-        minutes < 60 -> "$minutes min"
-        minutes % 60 == 0 -> "${minutes / 60} h"
-        else -> "${minutes / 60} h ${minutes % 60} min"
+    fun durationLabel(minutes: Int, text: NotifText): String = when {
+        minutes <= 0 -> text.get(R.string.notif_duration_under_minute)
+        minutes < 60 -> text.get(R.string.notif_duration_minutes, minutes)
+        minutes % 60 == 0 -> text.get(R.string.notif_duration_hours, minutes / 60)
+        else -> text.get(R.string.notif_duration_hours_minutes, minutes / 60, minutes % 60)
     }
 }
 
@@ -156,7 +155,7 @@ object ScheduledReportNotifier {
                 nowMinuteOfDay = java.time.LocalTime.now().let { it.hour * 60 + it.minute },
             )
         ) return
-        val copy = ScheduledReportPolicy.morningCopy(chargePct, restPct) ?: return
+        val copy = ScheduledReportPolicy.morningCopy(chargePct, restPct, NotifText.of(context)) ?: return
         runCatching {
             if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
             ensureChannel(context)
@@ -228,13 +227,13 @@ object ScheduledReportNotifier {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         runCatching {
             val mgr = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (mgr.getNotificationChannel(CHANNEL_ID) != null) return
+            // Set every time, so a channel made in English earlier takes the wearer's language.
             mgr.createNotificationChannel(
                 NotificationChannel(
-                    CHANNEL_ID, "Daily reports",
+                    CHANNEL_ID, context.getString(R.string.notif_reports_channel_name),
                     NotificationManager.IMPORTANCE_LOW,
                 ).apply {
-                    description = "A morning recap and post-workout summary, after your strap syncs."
+                    description = context.getString(R.string.notif_reports_channel_desc)
                 },
             )
         }

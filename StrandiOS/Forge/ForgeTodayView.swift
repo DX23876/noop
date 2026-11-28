@@ -1298,7 +1298,7 @@ struct ForgeTodayView: View {
                         .frame(width: 32, height: 32)
                         .background(Circle().fill(ForgeColor.fill))
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(WorkoutSource.localizedDisplaySport(row.sport))
+                        Text(Repository.sessionName(row, titles: repo.sessionTitles))
                             .font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
                         Text(workoutDetail(row)).font(.system(.caption)).foregroundStyle(ForgeColor.secondaryOnPicture)
                     }
@@ -1376,7 +1376,7 @@ struct ForgeTodayView: View {
             let tint = AppleInspiredColors.role(forSport: row.sport).color
             NavigationLink(value: ForgeRoute.workout(startTs: row.startTs, sport: row.sport)) {
                 factRow(icon: AnyView(WorkoutTypeIcon(workoutType: row.sport, size: 15, weight: .semibold, color: tint)),
-                        tint: tint, title: WorkoutSource.localizedDisplaySport(row.sport),
+                        tint: tint, title: Repository.sessionName(row, titles: repo.sessionTitles),
                         detail: [workoutDetail(row), versusUsual(row)].compactMap { $0 }.joined(separator: " · "),
                         time: time(entry), value: row.strain.map { ForgeToday.effortText($0, scale: effortScale) },
                         unit: DomainTheme.effort.productName)

@@ -1517,7 +1517,7 @@ internal fun WorkoutDetailSheet(vm: AppViewModel, row: WorkoutRow, onDismiss: ()
                 )
                 Spacer(Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(WorkoutEditing.displaySport(row.sport), style = NoopType.title2, color = Palette.textPrimary)
+                    Text(com.noop.ui.forge.rememberSessionName(row), style = NoopType.title2, color = Palette.textPrimary)
                     Text(dateLabel(row.startTs), style = NoopType.footnote, color = Palette.textTertiary)
                 }
                 val (srcLabel, srcTint) = row.sourceBadge

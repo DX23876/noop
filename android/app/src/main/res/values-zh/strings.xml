@@ -8029,4 +8029,34 @@ NOOP 不设定固定阈值，而是从你自己的序列中读取该部位连续
     <string name="wt_water_salty">吃得咸或聚会</string>
     <string name="wt_water_medicine">新药物</string>
     <string name="wt_water_footer">标记会让这次称重不计入体重秤的消耗计算：变化的是水分，不是身体。</string>
+    <!-- Night audit 2026-11-28: notifications and system labels that were English only. -->
+    <string name="notif_winddown_channel_desc">可选的晚间提醒，提示你睡前开始放松。</string>
+    <string name="notif_import_channel_name">导入进度</string>
+    <string name="notif_import_channel_desc">正在进行的数据导入进度。</string>
+    <string name="notif_illness_channel_desc">当静息心率、HRV、皮肤温度或呼吸一起偏离你的基线时提醒你。</string>
+    <string name="notif_inactivity_channel_desc">久坐之后提醒你活动一下。</string>
+    <string name="notif_reports_channel_name">每日报告</string>
+    <string name="notif_reports_channel_desc">手环同步后，提供早间回顾和运动后总结。</string>
+    <string name="notif_morning_title">早上好：昨晚回顾</string>
+    <string name="notif_morning_suffix">恢复情况来自你的手环，今早同步后计算。</string>
+    <string name="notif_workout_title">已记录锻炼：%1$s</string>
+    <string name="notif_workout_suffix">手环同步后汇总。</string>
+    <string name="notif_duration_under_minute">不到一分钟</string>
+    <string name="notif_duration_hours">%1$d 小时</string>
+    <string name="notif_duration_hours_minutes">%1$d 小时 %2$d 分钟</string>
+    <string name="notif_listener_label">NOOP 手腕震动提醒</string>
+    <string name="notif_winddown_title">该放松入睡了</string>
+    <string name="notif_winddown_body">现在安静一小时，有助于你在起床时间精力充沛地醒来。</string>
+    <string name="notif_illness_channel_name">疾病早期预警</string>
+    <string name="notif_inactivity_channel_name">久坐提醒</string>
+    <string name="notif_inactivity_body_minutes">你已经坐了约 %1$d 分钟。该动一动了。</string>
+    <string name="notif_inactivity_body">该动一动了。你已经坐了一阵子。</string>
+    <string name="notif_strain_target_title">最佳负荷已达到。</string>
+    <string name="notif_strain_target_body">您达到了今天最佳负荷目标%1$d。做得很好——您的恢复工作得到了回报。</string>
+    <string name="notif_morning_charge">能量</string>
+    <string name="notif_morning_rest">休息</string>
+    <string name="notif_workout_effort">消耗</string>
+    <string name="notif_avg_bpm">平均 %1$d bpm</string>
+    <string name="notif_duration_minutes">%1$d 分钟</string>
+    <string name="widget_coach_brief_name">Coach 简报</string>
 </resources>

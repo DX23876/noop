@@ -30,11 +30,8 @@ object InactivityNotifier {
     fun onNudged(context: Context, minutes: Int) {
         // Mirror the iOS master gate: the engine already honours it before buzzing, re-check anyway.
         if (!NotifPrefs.getBool(context, NotifPrefs.MASTER, false)) return
-        val body = if (minutes > 0) {
-            "You've been seated for about $minutes min. Time to move."
-        } else {
-            "Time to move. You've been seated a while."
-        }
+        val body = if (minutes > 0) context.getString(R.string.notif_inactivity_body_minutes, minutes)
+                   else context.getString(R.string.notif_inactivity_body)
         // Defensive: never let a notify() throw (revoked POST_NOTIFICATIONS, OEM quirk) crash the offload.
         runCatching {
             if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
@@ -61,13 +58,13 @@ object InactivityNotifier {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         runCatching {
             val mgr = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            if (mgr.getNotificationChannel(CHANNEL_ID) != null) return
+            // Set every time, so a channel made in English earlier takes the wearer's language.
             mgr.createNotificationChannel(
                 NotificationChannel(
-                    CHANNEL_ID, "Inactivity reminder",
+                    CHANNEL_ID, context.getString(R.string.notif_inactivity_channel_name),
                     NotificationManager.IMPORTANCE_DEFAULT,
                 ).apply {
-                    description = "A nudge to move after a long sedentary stretch."
+                    description = context.getString(R.string.notif_inactivity_channel_desc)
                 },
             )
         }

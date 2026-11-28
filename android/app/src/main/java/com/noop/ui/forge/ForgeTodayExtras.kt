@@ -283,7 +283,7 @@ private fun LatestWorkoutCard(workouts: List<com.noop.data.WorkoutRow>) {
                 }
                 Spacer(Modifier.width(ForgeMetrics.space3))
                 Column(Modifier.weight(1f)) {
-                    Text(com.noop.ui.WorkoutEditing.displaySport(row.sport), style = Forge.type.headline, color = colors.text, maxLines = 1)
+                    Text(rememberSessionName(row), style = Forge.type.headline, color = colors.text, maxLines = 1)
                     Text(stringResource(R.string.forge_lw_when, day, clockText(row.startTs), stringResource(R.string.forge_tw_min, minutes)),
                          style = Forge.type.caption, color = colors.textSecondary, maxLines = 1)
                 }
