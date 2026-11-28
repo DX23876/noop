@@ -39,10 +39,10 @@ released macOS and iOS targets.
 
 | Engine | File | Status in the app |
 |---|---|---|
-| `HRVAnalyzer` | `HRVAnalyzer.swift` | **Library-only** as a type. Live stress check-ins use the dedicated `StressOnsetDetector`. |
+| `HRVAnalyzer` | `HRVAnalyzer.swift` | **Live.** Its cleaning (range filter, Malik ectopic rejection, 20-beat gate, gap-aware RMSSD) builds the nightly HRV windows in `DailyAnalysis` and the on-demand HRV snapshot. Live stress check-ins use the dedicated `StressOnsetDetector`. |
 | `RecoveryScorer` | `RecoveryScorer.swift` | **Live.** Computes the **Charge** score. Runs inside `AnalyticsEngine.analyzeDay` via `Strand/Data/IntelligenceEngine.swift`; computed values are persisted under the `"<deviceId>-noop"` source and merged **under** any imported `recovery_score_pct` (imports always win). APPROXIMATE. |
-| `StrainScorer` | `StrainScorer.swift` | **Live.** Computes the **Effort** score (0–100). Day load is computed on-device for nights the strap offloaded; the imported `day_strain` column still wins for imported days. APPROXIMATE. |
-| `SleepStager` | `SleepStager.swift` | **Live.** Stages each offloaded night inside `analyzeDay`; the per-night stages feed the **Rest** composite. Computed sessions are persisted under the `"-noop"` source, with imported sleeps taking precedence. APPROXIMATE. |
+| `StrainScorer` | `StrainScorer.swift` | **Live.** Computes the **Effort** score (0–100) on the fitted curve, against the resolved maximum heart rate and the night's Effort resting rate. Day load is computed on-device for nights the strap offloaded; the imported `day_strain` column still wins for imported days. APPROXIMATE. |
+| `SleepStager` / `SleepStagerV2` | `SleepStager.swift`, `SleepStagerV2.swift` | **Live.** `SleepStager` detects each offloaded night inside `analyzeDay`; `SleepStagerV2` (the default staging recipe) stages it, and the stages feed the **Rest** composite. Computed sessions are persisted under the `"-noop"` source, with imported sleeps taking precedence. APPROXIMATE. |
 | `Baselines` | `Baselines.swift` | **Live.** Seeds the recovery baseline in `IntelligenceEngine.analyzeRecent` (two-pass cold-start). The illness early-warning in `AppModel` still uses its own trailing-window baseline math inline (see below). |
 | `WorkoutDetector` / `Calories` | `WorkoutDetector.swift` | **Live analytics helper.** Runs inside `AnalyticsEngine.analyzeDay`; its bouts contribute diagnostics and may fill missing metrics on an overlapping manual/imported workout. It no longer creates or reconciles generic `sport="detected"` rows. All intensity/calorie fields are APPROXIMATE. |
 | `AnalyticsEngine` | `AnalyticsEngine.swift` | **Live orchestrator.** `analyzeDay(...)` is called by `Strand/Data/IntelligenceEngine.swift` — every 15 minutes while connected, and from the Intelligence screen — and its `DailyMetric`, sleep sessions and detected workouts are persisted under the `"-noop"` source. |
@@ -68,6 +68,38 @@ Raw range reads no longer impose a semantic 200,000-row ceiling. Sorted slices a
 distribution replace the most expensive repeated full-array filters in sleep and recovery. The first
 run after a legacy fingerprint upgrade can still perform a CPU-heavy 21-day background refresh; fully
 cursor-paged raw reads and a three-UTC-day chunk cache remain future work.
+
+### Analysis recipe (AI-n) and the full rebuild
+
+Stored derived values carry the meaning of the **analysis recipe** that produced them
+(`AnalysisRecipe.currentVersion`, the fork's own lineage, shown as "AI-n"; **39** at the time of writing). A
+change that can leave stored values stale (scoring math, an input window, the meaning of a stored derived
+value, source precedence, baseline semantics, cache invalidation) bumps it; UI, logging and output-identical
+performance work do not. The version is never tied to the marketing or build version, and Settings' manual
+21-day reanalysis does not advance it.
+
+From AI-31 on, **every bump runs the same rebuild** (`AnalysisRecipe.RebuildStep`, in order): the legacy input
+repairs a store below AI-31 still owes, the AgeLess reset, the workout peaks (for the measured maximum heart
+rate), every day with raw strap data scored again, the weekly scores, NOOP's own stress proxy rows, the daily
+rhythm rows, workout heart-rate fills, the cardio-load ledger, the energy history and a final snapshot
+refresh. The rebuild resumes at the step it was in, writes the recipe cursor only after the last step, never
+erases raw samples and never replaces a value an import or the wearer supplied (a corrected night keeps its
+bed and wake times; only its derived stages are recomputed). At most one bump is made per release. Before
+AI-31 each bump re-scored a window chosen per recipe, mostly the last 21 days.
+
+What the recipes since AI-31 changed:
+
+| Recipe | What moved |
+|---|---|
+| AI-31 | The one rebuild rule itself; no formula changed. |
+| AI-32 | Maximum heart rate resolved in one place (`MaxHeartRate`); the new Effort curve; V3 conservative sleep onset on raw-backed history; breath-interval respiratory rate; off-wrist time cut out of kept sleep; deep held back 20 min after onset. |
+| AI-33 | No run merges across a data gap longer than `maxGapMin`; a SDNN segment failing the beat gates gives no daily SDNN; AgeLess sleep consistency of a night split by a wake; a short last stretch continuing a night is kept; the day cycle opens on an early bedtime. |
+| AI-34 | Superseded detected sleep rows are deleted when a night is detected again with a moved onset. |
+| AI-35 | Each day is judged by the nights before it (90-day Charge baselines, per-night Rest need and regularity), day windows cut at the day's own local midnight; Health Connect workouts get their Effort. |
+| AI-36 | Sessions recorded in Training get their average, peak and Effort. |
+| AI-37 | A session copied back into the health store under another sport name collapses into NOOP's own row (the energy model prices the day from the collapsed list). |
+| AI-38 | A deleted night blocks only nights that mostly lie inside it; the wearer's sleep marks bound the night they fall in; Effort's day rule and its resting heart rate; the evening sofa rule; the body mass a day is priced at decays per calendar day. |
+| AI-39 | Four `active_min_*` series per day (active minutes, see *Training Load phase 2*). |
 
 **In short:** the *interactive data-interrogation* engines (correlation, behavior effects, period comparison) are wired into screens, and the *recompute-from-raw-streams* engines that produce the three daily scores — Charge (recovery), Effort (strain), Rest (sleep), plus workout detection — run live too: `IntelligenceEngine` calls `analyzeDay` for every night the strap offloaded and persists the APPROXIMATE results under the `"-noop"` source, merged under any imported rows — a WHOOP export still wins wherever it covers a day. The live BLE app additionally runs four small inline analytics in `AppModel`: HR smoothing, RMSSD, HR-zone coaching, an illness/strain early-warning, and a resting-stress nudge.
 
@@ -121,25 +153,24 @@ Invalid or missing samples reset pending stability and anchor reminder time. A p
 the episode. Haptic ownership is ceiling > target-zone coach > adaptive Live Session; selecting a target
 keeps the Live Session's visual/stored adaptive analysis but suppresses its competing wrist cues.
 
-### 4. Illness / strain early-warning (`evaluateIllness`)
+### 4. Illness / strain early-warning (`evaluateIllness`, `IllnessSignalEngine`)
 
-This is the live, app-side version of the baseline-comparison idea. It recomputes whenever the daily history changes (`repo.$days`). It compares the **last ~2 days** against a **~28-day baseline ending 3 days ago** (so the recent window doesn't contaminate its own baseline):
+The live, app-side version of the baseline-comparison idea. It recomputes whenever the daily history changes (`repo.$days`) and only on today's row, with at least 14 days of history and `behavior.illnessWatch` on. The recent window is the **last 2 days**; the baseline is the **~28 days ending 3 days ago**, so the recent window does not contaminate its own baseline:
 
 ```swift
 let recent = Array(days.suffix(2))
 let base   = Array(days.suffix(31).dropLast(3))   // ~28 days ending 3 days ago
 ```
 
-It then flags anomalies against simple, explainable thresholds using `DailyMetric` fields:
+The earlier fixed-threshold rule (resting HR +5 bpm, HRV −20 %, skin temperature +0.6 °C, respiration +1.5 bpm, any two) is gone. `IllnessSignalEngine` replaced it with a score against the wearer's own baselines:
 
-| Signal | Field(s) | Anomaly condition |
-|---|---|---|
-| Resting HR ↑ | `restingHr` | recent mean ≥ baseline mean **+ 5 bpm** |
-| HRV ↓ | `avgHrv` | recent mean ≤ baseline mean **× 0.80** (−20%) |
-| Skin temp ↑ | `skinTempDevC` | recent mean deviation **≥ +0.6 °C** |
-| Respiration ↑ | `respRateBpm` | recent mean ≥ baseline mean **+ 1.5 bpm** |
+1. Each of four signals is z-scored (`Baselines.deviation`) against a baseline folded over the pre-recent history, oriented so that positive means illness-like: resting HR up, respiration up, skin-temperature deviation up (z against a zero-centred 0.3 °C spread), and HRV **down** (negated z). The two-night mean is used, and a signal counts only while the newest night also clears the same threshold (#2533).
+2. A signal *fires* at `|z| ≥ signalZThreshold = 2.0`. Its sub-score is `min(perSignalCap = 40, kZToScore = 22 × (z − 2))`; the composite is their sum, capped at 100.
+3. Nothing raises without a **trusted** baseline (at least 14 valid nights, not stale) and at least `minCorroboratingSignals = 2` firing signals; the composite must reach `mildThreshold = 25` to be heard at all and `raiseThreshold = 50` to be raised.
+4. **Confounders** from the last two days' journal (alcohol, stress, a hard or late workout, travel; `sauna` exists in the engine) multiply the score by `confounderDampen = 0.45` and downgrade the level to *suppressed*. A logged "feeling unwell" turns the message into a plain "rest up" (`alreadyUnwell`) whatever the score.
+5. Levels: quiet, mild (detail view only), raised (banner and notification), suppressed, alreadyUnwell.
 
-A banner appears only when **two or more** anomalies fire together — the classic early-illness signature is *RHR up + HRV down + skin-temp up*. Requires `behavior.illnessWatch` on and at least 14 days of history. On-device only; the message is a plain-English summary like *"Your body looks strained — resting HR +6 bpm, HRV −22%. Consider taking it easy."*
+A parallel Mahalanobis distance on the same z-vector (`IllnessDistance`, threshold 2.5, at least two deviating features) only supplies the "how strong" band on the Heads-Up card; it never gates the alert. On-device only; the copy is plain English and always ends in the not-a-diagnosis line.
 
 ---
 
@@ -192,7 +223,7 @@ Higher HRV versus your baseline means more Charge. Skin-temp folds in as a symme
 | Respiration vs baseline | lower → more | `wResp = 0.05` |
 | Skin-temp deviation | further from baseline → less | `wSkinTemp = 0.05` |
 
-The skin-temp term uses the absolute deviation already computed as `DailyMetric.skinTempDevC` (a z-like ±°C), entered as a symmetric penalty `−|dev|/scale`. SpO₂ folds in **only when real** (imported) as a small penalty below ~95%; it's never fabricated and never applied on a bare 5/MG day. HRV's weight dropped from `0.60` to `0.55` to make room for skin-temp; when skin-temp is absent the weights renormalize, so the score matches the older HRV-led composite.
+The skin-temp term uses the deviation already computed as `DailyMetric.skinTempDevC` (±°C from the personal baseline), entered as a symmetric penalty `−|dev| / skinTempScaleC` (1 °C). SpO₂ folds in **only when real** (imported) as a small penalty below ~95%; it's never fabricated and never applied on a bare 5/MG day. HRV's weight dropped from `0.60` to `0.55` to make room for skin-temp; when skin-temp is absent the weights renormalize, so the score matches the older HRV-led composite.
 
 Each metric is standardized to a **robust z-score** against the personal baseline (EWMA spread):
 
@@ -202,7 +233,7 @@ z = (value − mean) / (1.253 · spread)
 
 The `1.253` converts an EWMA mean-absolute-deviation into an approximate Gaussian σ (`E[|X−μ|] = σ·√(2/π) ≈ σ/1.253`). For "lower is better" drivers (RHR, resp) the z is inverted by swapping value and mean. The sleep term is centered directly: `(sleepPerf − 0.85) / 0.12`.
 
-Missing terms are dropped and weights renormalized. The weighted-mean z is squashed:
+Missing terms are dropped and weights renormalized (an optional baseline that is not yet usable, resting HR, respiration or Effort, is dropped the same way instead of entering with a synthetic midpoint). The weighted-mean z is squashed:
 
 ```
 score = 100 / (1 + exp(−logisticK · (z − logisticZ0)))
@@ -212,6 +243,10 @@ score = 100 / (1 + exp(−logisticK · (z − logisticZ0)))
 
 The `58%` anchor matches WHOOP's published population-average recovery (`populationMean = 58.0`).
 
+**Two further optional terms exist in `RecoveryScorer` and are not supplied by the app.** An overnight resting-HR decline slope (`recoveryIndexSlope`, weight `wRecoveryIndex = 0.05`, scale 2 bpm/h) and a previous-day-Effort term against its personal baseline (`priorDayEffort` with `effortBaseline`, weight `wActivityBalance = 0.05`) are tested library options; no production caller passes them, so the shipped Charge is the five-driver composite above.
+
+**Parasympathetic-saturation guard: detected and logged, not applied.** A night whose HRV z and resting-HR z are both at least 0.5 personal SD on the low side (`satEnterZ`) is flagged in the Charge trace and the driver verdict, together with the easing it *would* apply (up to `satMaxDampFraction = 0.5` of the HRV penalty, full strength at 1.5 SD). `recovery(...)` ignores it, because low HRV with low resting HR is also a reported sign of parasympathetic overreaching and no real saturation night has been observed.
+
 ### Which nights a day is scored against (AI-35)
 
 Each day is scored against the baselines of the nights **before** it: the wearer's own nights of the last
@@ -219,7 +254,7 @@ Each day is scored against the baselines of the nights **before** it: the wearer
 imported vendor nights seeding only until the own nights alone are trusted (#2525). The night being scored and
 every later night stay out, so a past day keeps its score when new nights arrive and a rebuild scores July
 against July's normal, not November's. The Charge configs add a 3-night spread half-life while the baseline is
-young (`MetricCfg.earlyHalfLifeS`), so the spread reaches the wearer's real night-to-night spread instead of
+young (`ChargeBaselines.earlySpreadHalfLife`, `MetricCfg.earlyHalfLifeS`), so the spread reaches the wearer's real night-to-night spread instead of
 staying near its floor. Every readout of a day's Charge (the driver rows, the calibration count, the confidence
 tier, the vitals' usual value, the coach) resolves that day's baselines through the same rule
 (`Repository.chargeBaselines(forDay:)`).
@@ -252,7 +287,7 @@ Source: `StrainScorer.swift`. Produces **Effort** — *"how hard did your heart 
 
 ### Pipeline
 
-1. **Heart-Rate Reserve (Karvonen 1957):** `HRR = HRmax − RHR`, with HRmax from the resolver below.
+1. **Heart-Rate Reserve (Karvonen 1957):** `HRR = HRmax − RHR`, with HRmax from the resolver below and RHR the night's **Effort resting rate** (see below), not the shown resting heart rate.
 2. **Per-sample intensity** as `x = %HRR = (HR − RHR) / HRR × 100`, clamped `[0, 100]` (`pctHRR`).
 3. **Weight of one minute** (`effortWeight`):
 
@@ -262,11 +297,15 @@ Source: `StrainScorer.swift`. Produces **Effort** — *"how hard did your heart 
 
    A minute at 55 %HRR (the middle of the old zone 1) weighs 1; each 10 %HRR more multiplies the weight by
    about 1.76; below 20 %HRR the logistic step fades it out.
-4. **Light activity counts inside workouts only.** A reading below **50 %HRR** (`effortOutsideWorkoutFloor`,
-   where the old zone 1 began) adds to the load only inside a recorded, imported or detected workout
-   (`LowIntensity.countedIn`). Hours of standing and walking around no longer add up to a moderate day.
-   Dismissed detected workouts do not count. Each reading is credited with at most 2 minutes, so a gap
-   cannot invent load.
+4. **A day counts nothing below 50 %HRR, and never sits below its strongest workout.** A reading below
+   **50 %HRR** (`effortOutsideWorkoutFloor`, where the old zone 1 began) adds nothing to a **day's** load,
+   inside a workout or not (`StrainScorer.LowIntensity.day`), so hours of standing and walking around do not
+   add up to a moderate day. A **workout's own** score counts every reading (`LowIntensity.counted`), and the
+   day is lifted to the load of its strongest workout scored that way. WHOOP keeps workout Strain and Day
+   Strain apart (a walk logged as a workout scores about 4 while a day of walking scores about 2, and a day
+   sits below its strongest workout on 1 of 368 days in two exports), and summing each workout's low time into
+   the day had overcounted. Dismissed detected workouts do not count. Each reading is credited with at most 2
+   minutes (`maxSampleGapMin`), so a gap cannot invent load.
 5. **Load → score** (`effortScore21`, `effortValue(load:)`):
 
    ```
@@ -290,12 +329,12 @@ are worth stating plainly:
 | | Display zones (`HRZones`) | Effort zones (`StrainScorer`) |
 |---|---|---|
 | Measured against | **% of HRmax** | **% of heart-rate RESERVE** (`(HR − RHR) / (HRmax − RHR)`) |
-| Boundaries | 50/60/70/80/90 by default, **user-definable** | none: a continuous weight `w(x)` over %HRR, with the fixed 50 %HRR floor outside workouts |
+| Boundaries | 50/60/70/80/90 by default, **user-definable** | none: a continuous weight `w(x)` over %HRR, with the fixed 50 %HRR floor for a day |
 | Drives | the live readout, in-workout card, Health hero, workout time-in-zone, haptic coaching, what the coach prescribes | the Effort score, and nothing else |
 
 They are not interchangeable, and the gap is large. With HRmax 190 and a resting HR of 50, the floor of
-**display** Zone 2 (60 % HRmax = 114 bpm) is only 46 %HRR — *below* the 50 %HRR floor, so outside a
-workout it earns nothing — while its top (70 % HRmax = 133 bpm) is 59 %HRR and weighs about 1.25.
+**display** Zone 2 (60 % HRmax = 114 bpm) is only 46 %HRR — *below* the 50 %HRR floor, so in the day's
+score it earns nothing — while its top (70 % HRmax = 133 bpm) is 59 %HRR and weighs about 1.25.
 
 Consequences that follow from this, both deliberate:
 
@@ -308,6 +347,20 @@ Consequences that follow from this, both deliberate:
   across the band rather than the weight at its midpoint, so a band that straddles the floor is not read
   as worth nothing.
 
+### The resting heart rate Effort is scored against (`EffortRestingHR`)
+
+The curve was fitted on WHOOP's Strain, which WHOOP computes from its own resting heart rate, a dynamic average
+weighted towards the night's last deep sleep, so a value between the night's lowest stretch and its mean. NOOP
+shows the night's lowest five minutes, which sits well below it (on one paired wearer WHOOP's value ran 4 to 6
+bpm above NOOP's lowest bin, the main night's mean about 10 above it). Scored against the lowest bin every
+reading sat higher in the reserve and light days were lifted most; against the mean, hard days fell about twice
+as far as expected. A night's Effort resting rate is therefore **halfway** between its lowest five-minute bin
+and its main-night mean (`towardsMean = 0.5`; both must lie in 30 to 130 bpm). The daily pass resolves each
+day once and stores it as `rhr_effort`; without a night the median of up to the last 7 nights' values within
+30 days stands in, then a device-supplied resting rate, then 60 bpm. Effort, its bouts and the workouts it is
+scored from read it; the shown resting heart rate and every other model keep theirs. The aim is ranges
+comparable with WHOOP's, not a copy of its number.
+
 ### 5/MG continuity
 
 Effort reads `COALESCE(measured HR, ppg_hr)` via hrBuckets, so 5-series users get Effort from live + PPG
@@ -318,8 +371,8 @@ HR. The former steps / active-energy floor is gone with AI-32: Effort comes from
 Live Effort, the stored day, heart-rate zones, AgeLess, energy and the coach read one resolved value:
 
 1. **The wearer's own setting**, exactly as entered, always wins.
-2. **The measured level:** the level held for five consecutive seconds in workouts, reached on **two
-   different days** of the **last 90**. A day reads only the peaks of the days before it, so its own
+2. **The measured level:** the level held by five consecutive readings within a minute in workouts
+   (`StrainScorer.sustainedPeak`), reached on **two different days** of the **last 90**. A day reads only the peaks of the days before it, so its own
    workouts cannot move its value. A peak more than **25 bpm** above the formula counts as an artefact,
    and after a quiet stretch the level falls slowly, with a slope set by age.
 3. **Gellish et al. (2007):** `192 − 0.007 × age²`, rounded to a whole bpm, until a level is confirmed.
@@ -330,7 +383,7 @@ Tanaka floor) remains only for the workout-type classifier.
 
 ### Guards & gates
 
-- Returns `nil` with fewer than `minReadings = 600` samples (≈ 10 min at 1 Hz) or when `HRmax ≤ RHR` (invalid HRR).
+- Returns `nil` with fewer than `minReadings = 600` samples (≈ 10 min at 1 Hz), unless a sparse stream has at least `minSparseReadings = 20` readings spanning `minSpanSeconds = 600` s (a strap that reports standard HR only about every 30 s), or when `HRmax ≤ RHR` (invalid HRR).
 - Per-sample duration is inferred from the first two timestamps, falling back to `1 s`.
 
 ### Denominator calibration (`fitStrainDenominator`, legacy)
@@ -415,7 +468,9 @@ Source: `SleepStager.swift`. Detects in-bed sessions from gravity/HR/RR/respirat
   default V3 preference separately and includes the method in detection and persisted-day cache keys.
 - A citable **te Lindert 30 s Cole–Kripke** index (`SI = 0.001 · Σ wᵢ·Aᵢ`, sleep iff `SI < 1`, weights `[106, 54, 58, 76, 230, 74, 67]`) is computed per epoch as a cross-check and to find onset / final-wake.
 
-### Stage 1 — per-epoch cardiorespiratory features
+- **Nap and stillness guards.** A window centred in the local daytime band (11:00 to 20:00) must run at least `daytimeMinSleepMin = 90` min and show a resting HR at or below `daytimeRestingHRMult = 0.95 ×` the day's baseline (#90), unless it resumes within `nightContinuationGapMin = 90` min of an overnight chain (the night's tail). A daytime block that begins within `morningStillnessWindowMin = 180` min after the night's wake is held to the stronger `morningReonsetRestingHRMult = 0.90` bar, or to the strap's own "asleep" band state in at least `morningReonsetBandAsleepFrac = 0.6` of its epochs (H7/H8, #531). The evening twin (H9, DX23876/noop#60) holds an evening block (centre from 20:00) that a longer sleep follows within `eveningStillnessWindowMin = 180` min to the same bar, so a still evening on the sofa is no longer a separate sleep; the first half of a genuinely split night dips far below the day's median and keeps its place. A single assembled run longer than `maxMainSleepSpanS` (16 h) is dropped as a clock artefact (H4), and off-wrist time inside a kept run is cut out of it (a run more than `maxOffWristSleepFraction = 0.5` off-wrist is refused).
+
+### Stage 1 — per-epoch cardiorespiratory features (classic stager, V1)
 
 Over a rolling 5-minute window per 30 s epoch:
 
@@ -450,6 +505,24 @@ Consecutive same-stage epochs are merged into `StageSegment`s tiling `[start, en
 
 - `SleepSession` — `start`, `end`, `efficiency` (AASM `asleep / in-bed`, where `asleep = in-bed − wake`), `stages`, per-session `restingHR` (lowest 5-min rolling-mean HR) and `avgHRV` (mean RMSSD over 5-min tumbling windows).
 - `hypnogramMetrics(_:)` — AASM-style roll-up: TIB / TST / SPT / SOL / REM latency / WASO / efficiency / disturbances, plus deep/REM/light minutes and percentages.
+
+### Default staging — `SleepStagerV2`, and the Lab recipes
+
+`SleepStager.Method` selects the detection and staging pipeline: **V3** (the default; V2 stages with the conservative-onset detection described above), V2, or the classic V1 whose Stages 1 to 3 are described above. Detection always comes from `SleepStager`; the recipe only re-stages a window already decided to be sleep. `SleepStagerV2` became the default over V1 after a 44-subject leave-one-subject-out benchmark (kappa 0.35 against 0.03, deep recall 55 % against 1 %); its coefficients are fixed a priori from sleep physiology and population base rates, not fitted to labels. Each 30 s epoch is staged from:
+
+1. per-night z-scored cardiorespiratory emissions (heart rate, heart-rate variability, movement);
+2. a per-night **deep gate** on the 11-minute heart-rate flatness percentile (deep is eligible only in the lowest `deepGateThresh = 0.25` of epochs);
+3. a soft sleep-cycle prior (deep concentrated early; REM rising through the night) with base log-priors light 0.50, REM 0.22, deep **0.15** (lowered from 0.18 against PSG hypnograms), awake 0.10, a **REM-latency guard** (3 log-odds at onset, decaying linearly to zero over 60 min) and a **deep-latency guard** (3 log-odds, decaying over 20 min, adopted from ayiskakov/noop);
+4. a peak-motion wake gate thresholded against the night's own quiescent jerk floor (moving above floor × 38, gate above floor × 55);
+5. an RR-derived respiration-regularity term (`respWeight = 0.6`: regular breathing to deep, irregular to REM);
+6. Viterbi smoothing with a sticky transition matrix.
+
+A motion-quiescent epoch cannot be called awake on raised heart rate alone (see *Motion-corroborated wake* below). The recipe is selectable in Settings › Lab (`SleepStager.StagingRecipe`, default `standard`, so a wearer who never touches it is staged exactly as before):
+
+- **`restless`** adds the restless-movement term (#59): small movements too weak for the "moving" threshold but sustained for at least 5 s (a per-second jerk above 5 × the quiet floor, only in runs of at least `restlessMinRun = 5`, longer than a REM twitch) argue against REM (`rem −= 0.5 · z⁺`, averaged over ±5 epochs and z-scored within the night). Only the REM-only form passed the sleep-lab guard on all three open PSG sets; the forms that also argued for wake over-called wake and were dropped.
+- **`trained`** (`SleepStagerTrained`, adopted from ayiskakov/noop) stages with two multinomial logistic-regression heads fitted to open polysomnography (Wearanize+, 88 nights; PhysioNet sleep-accel, 31 nights) plus a Viterbi pass, on night-relative features (and 5-minute HRV features when at least half the staged epochs have beat intervals). Agreement was measured on other wrist devices, not a WHOOP strap, and the stages remain approximations.
+
+A switch re-keys every stored day and every edited night (`signatureSuffix`).
 
 ### Per-session resting HR and HRV
 
@@ -492,10 +565,17 @@ Source: assembled in `AnalyticsEngine` from the `SleepStager` outputs above. Res
 | Restorative share (deep + REM) / asleep | 0.20 | how much of the night was restorative |
 | Consistency (sleep/wake regularity) | 0.10 | how consistent your sleep and wake timing is |
 
+- **Sub-scores** (each clamped to 0–1, the weighted sum scaled to 0–100): duration is `hours asleep ÷ need`;
+  efficiency is `asleep / in-bed`; the restorative share is `(deep + REM) ÷ asleep` against a 50 % target
+  (`restorativeTarget`), scaled by a **deep-adequacy factor**: full credit once deep is at least 13 % of
+  asleep time (`deepShareTarget`), ramping down to 0.5 (`deepFloorFactor`, never zero) as deep approaches
+  zero, so a night with normal REM and almost no deep cannot read near-full (a night with an unknown deep
+  split gets factor 1); consistency is the regularity below, or 0.5 (`neutralConsistency`) when unknown.
 - **Personal sleep need and regularity, per night (AI-35):** each night is scored with traits learned from the
   nights **before** it (`Rest.inputs(forDay:nights:age:)`): the need is the upper quartile of the last 90 days'
-  nights, floored at the age's population target (8 h for adults) and capped at 9.5 h; the regularity is
-  `1 − CV` of the last 28 nights' durations. Both are stored beside the score (`sleep_need_min` in minutes,
+  nights (at least `minNeedNights = 7` of them, else the population default), floored at the age's population
+  target (9 h under 18, 8 h otherwise) and capped at 9.5 h (`maxNeedHours`); the regularity is
+  `1 − CV` of the last 28 nights' durations (`VitalityEngine.sleepConsistency`, at least 3 nights). Both are stored beside the score (`sleep_need_min` in minutes,
   `sleep_consistency` in percent), and every Rest rebuilt from a daily row and every sleep need on screen reads
   them (`RestTraitLookup`). A night not yet scored carries the newest earlier night's traits; with none stored it
   is 8 h and a neutral regularity. The hours-vs-need term clamps at 100.
@@ -516,7 +596,7 @@ A robust, recency-weighted center with an EWMA-of-absolute-deviation spread trac
 
 - **Half-life → smoothing factor:** `λ = 1 − 0.5^(1/halfLife)`. Center half-life 14 nights; spread half-life 21 (slower). While young (fewer than `earlyAdaptNights = 8` valid nights) the center uses 3 nights, and a config with `earlyHalfLifeS` (only Charge's) uses it for the spread too.
 - **Sanity gate:** values outside `[minVal, maxVal]` (per-metric) → skip-and-hold.
-- **Hard outlier rejection:** once seeded, a value > `hardOutlierK = 5 ×` spread away is seen but not folded.
+- **Hard outlier rejection:** once seeded (`minNightsSeed`) and no longer young, a value > `hardOutlierK = 5 ×` spread away is seen but not folded.
 - **Winsor clamp:** fold only within `± winsorK = 3 ×` spread of the current baseline, so a single big night can't yank the center; the **spread** uses the unclamped deviation so real change is still tracked.
 
 ```swift
@@ -546,10 +626,27 @@ The simple, maximally auditable path: plain mean and sample SD (ddof = 1) over t
 | `resting_hr` | 30 | 120 | 2.0 | 14 / 21 |
 | `resp` | 4 | 40 | 0.5 | 14 / 21 |
 | `skin_temp` | 20 | 42 | 0.3 | 14 / 21 |
+| `strain` (Effort) | 0 | 100 | 5.0 | 14 / 21 |
+| `readiness_hrv_ln` (ln ms, hard-outlier rejection off) | 2.079 | 5.521 | 0.08 | 14 / 21 |
+| `daytime_hr` | 35 | 160 | 3.0 | 14 / 21 |
+| `daytime_rmssd` | 5 | 250 | 7.0 | 14 / 21 |
+
+`skinTempDeviationCfg` folds the nightly skin-temperature *deviation* (±5 °C bounds, floor 0.3, 14 / 21) for the cycle phases. The Charge baselines add the 3-night spread half-life while young (see *Which nights a day is scored against*). The `strain` config backs only the tested-but-unwired Activity-Balance Charge term, and the two `daytime_*` configs the baseline-relative stress mode (see *Stress*).
 
 ### Deviation
 
 `deviation(_:state:)` returns a robust z-score, a signed physical-units delta, a fractional ratio (`value/baseline − 1`), and an `inNormalRange` flag (`|z| ≤ 1`).
+
+---
+
+## Stress — a daily proxy, an hourly read and a check-in nudge
+
+Stress is an autonomic **proxy** (resting heart rate up and HRV down against the wearer's own baseline), never a diagnosis; no figure on this page is a measure of psychological stress. Four pieces exist, on one 0 to 3 scale where under 1 is low, under 2 medium and 2 or more high (`StressBand`).
+
+- **Daily proxy** (`StressMath`, `StressView`, stored under `stress`). `raw = (RHR − mean) / sd + (mean − HRV) / sd` over the **30 daily rows before the scored day**, using only nights after a manual "Recalibrate baseline" (HRV on its own epoch, resting HR on the recovery epoch, as Charge folds them), and `stress = 3 / (1 + e^(−raw))`, so a day on its baseline reads 1.5. A term with no spread (sd below 0.0001) drops out. The stored rows are written by the daily pass and rebuilt by the full rebuild (`proxyRebuild`, imported WHOOP days left alone); the chart and the live screen read one function, so they cannot disagree.
+- **Hourly read** (`DaytimeStress`). The same logistic at hour grain over waking hours 06:00 to 22:00, each hour needing at least `minHourHRSamples = 300` samples. Default mode is **day-relative**: the day's own calm reference is the lower quartile of hourly mean heart rate and the upper quartile of hourly RMSSD, and the day is its own baseline. A **baseline-relative** mode scores daytime heart rate against a personal cross-day baseline (`daytime_hr`, the 10th percentile of each day's daytime heart rate) with a validated margin of `baselineRelativeHighMarginBPM = 15` bpm over it (26-day Oura-reference correlation, heart rate only, r about 0.6); its daytime-RMSSD half exists and is tested but is switched off (`daytimeRMSSDScoringEnabled = false`) because daytime RMSSD off the wrist is artefact-dominated. **Motion gate:** an hour whose gravity shows ambulatory movement for at least `activityMaskFraction = 0.30` of its records is exertion, not stress, and is masked rather than scored; the single hour after one is masked too while its mean heart rate is still more than `postActivityShadowBPM = 8` above the calm reference. The display timeline slides the hour every `timelineStepSeconds = 1,800`. **Sustained high stress** needs the last `sustainedHours = 3` covered hours all at 2.0 or above and only drives a passive suggestion to breathe, never a notification. `calmShare` is the share of scored, unmasked hours under 1.0, counted once for both phones (the two-column Today tile).
+- **Baevsky Stress Index** (`StressIndex`, a descriptive lens with no baseline): `SI = AMo / (2 · Mo · MxDMn)` from the R-R histogram on the canonical 50 ms grid (Mo the modal bin in seconds, AMo its share in percent, MxDMn the range in seconds), at least 20 clean beats, nil when the range is degenerate. Frequency-domain HRV (`HRVFreqDomain`) sits beside it on the Advanced HRV card.
+- **Check-in nudge** (`StressOnsetDetector`): a fast RMSSD over the latest `fastWindowBeats = 60` beats against a slow baseline (EMA weight 0.98) dropping below `dropRatio = 0.6` of it, resting heart rate in 55 to 100 bpm and no recent motion, edge-triggered, and only once the dip has held for `sustainSeconds = 60` (the bare edge fired about 8.4 times a day on 40 days of real data, 13 % still low a minute later; the hold cuts that to about once). At most one nudge per `minSecondsBetweenFires = 900` s, a single confirming buzz and a passive card.
 
 ---
 
@@ -567,6 +664,10 @@ Active samples are grouped into runs (merging gaps < `mergeGapS = 150 s`), then 
 ### Calories (`Calories.estimateBoutCalories`)
 
 Per-second blend of **Keytel (2005)** active expenditure and **revised Harris–Benedict** BMR (resting), with sex-specific coefficients (`male` / `female` / `nonbinary`). Below a `RHR + 0.30 × HRR` threshold the resting rate is used; above it, the HR-driven active rate. Returns `(kcal, kJ)`. **Approximate** — not laboratory calorimetry. **Not used for lifting:** every figure NOOP stores for a session it scored itself — a live session at save (`AppModel.endWorkout`) and the post-sync rescore of an under-scored manual row (`ManualWorkoutRescore`) — goes through `WorkoutEnergyEstimate.boutKcal`, which integrates a resistance sport sample by sample on `WhoopEnergyModel.exerciseMET` (resistance share) plus basal and returns this Keytel integration for every other sport. Keytel was fitted on steady endurance exercise and reads lifting's pressor response as oxygen uptake. Figures already stored are left as they are: the manual sheet lets the wearer type kcal, so a stored value cannot be told apart from one NOOP computed.
+
+### `AutoWorkoutDetector` — the opt-in "did you just work out?" suggestion
+
+Source: `AutoWorkoutDetector.swift`. Separate from `WorkoutDetector`: it only ever *suggests* a workout through a dismissible Today card and never writes a row. A candidate is a contiguous span where HR stays at or above `RHR + elevatedMarginBPM (30)` for at least `minSustainedMin = 12` min, with dips of up to `maxDipS = 90` s tolerated and windows less than `mergeGapS = 5 min` apart merged. When a motion series is available the window must also show a mean per-second intensity of at least `motionConfirmMean = 0.05`; without one it runs HR-only. Resting HR falls back to 60 bpm. The 10- and 15-minute durations exist only as Test Centre shadow policies and drive nothing.
 
 ---
 
@@ -592,10 +693,13 @@ non-zero personal baseline exist.
   but is not used as load: high-rep volume can outweigh substantially harder low-rep work in kilograms
   without representing greater training demand.
 - **Cardio Load** sums each qualifying cardio session's Banister TRIMP (Banister 1991, analysis recipe
-  AI-9): every reading contributes its minutes × ΔHRR × 0.64 × e^(b·ΔHRR), where ΔHRR is the reading's
+  AI-9): every reading contributes its minutes × ΔHRR × k × e^(b·ΔHRR), where ΔHRR is the reading's
   share of heart-rate reserve and the resting rate is the median of the recorded days within three of the
-  session (widening to a month, then to every day read, then 60 bpm). b is 1.92 for a male profile, 1.67
-  for a female one and 1.795 — NOOP's choice, the mean of the two — for any other. Unlike the Edwards
+  session (then, for a week with no band or WHOOP reading, the Apple Watch's resting rate; widening to a month,
+  then to every day read, then 60 bpm). The published pair is used together: k = 0.64 with b = 1.92 for a male
+  profile (Morton, Fitz-Clarke and Banister 1990), k = 0.86 with b = 1.67 for a female one, and k = 0.75 with
+  b = 1.795 for any other — NOOP's choice (2026-10-30), the mean of each half of the two pairs. A gap longer
+  than two minutes contributes nothing. Unlike the Edwards
   zones used until AI-8 it is continuous: one beat across a zone edge no longer moves a whole weight
   step. Daily Effort is unchanged and keeps its own recipe. Moving time, distance and pace remain
   separate descriptive metrics. A day holding real training that could
@@ -886,16 +990,21 @@ The chat context and goal feasibility quote the same headline and Apple reading
 (`AICoachEngine.vo2maxDisplay`); they used to recompute Nes themselves, which gave the coach no value at
 all without a waist measurement while every screen showed the Uth estimate.
 
-**Training-based VO₂max — an experimental instrument.** Source: `ExerciseVO2max.swift`, behind a
-default-off switch (Settings › Experimental). It estimates VO₂max from what the wearer did: the ACSM
+**NOOP's weekly VO₂max estimate (`vo2max_est`).** Written once a week beside Fitness Age (`DailyAnalysis.fitnessAgeRows`): the Nes 2011 estimate from age, sex, resting heart rate, waist and a physical-activity index derived from the week's Effort, or, with no waist measurement, the Uth 2004 heart-rate ratio `15.3 × HRmax / RHR` (`Calories.vo2maxFor`, the maximum heart rate being the resolved one). Both are non-exercise estimates, which is why neither counts as performance evidence below.
+
+**Training-based VO₂max — an experimental instrument.** Source: `ExerciseVO2max.swift`, `TrainingVO2max.swift`, behind a
+default-off switch (Settings › Lab, "Training-based VO₂max"). It estimates VO₂max from what the wearer did: the ACSM
 metabolic equations turn a session's average speed into an oxygen cost (walking 0.1·S + 1.8·S·G + 3.5
 for 50–100 m/min, running 0.2·S + 0.9·S·G + 3.5 above 134 m/min; between the two the gait decides and
 NOOP cannot see it, so those sessions are left out), and %HRR = %VO₂R (Swain & Leutholtz 1997)
 extrapolates it to maximum. Sessions qualify on foot, ≥ 20 minutes, with distance, a measured heart-rate
 trace and an average of 40–85 % of heart-rate reserve; a week is the median of its sessions. **One
-departure from the published method:** grade is taken as zero, because routes are kept without altitude
-and there is no per-minute speed, so hills and stops read low and warm-up reads high — every surface
-says "grade assumed flat". It is shown beside the weekly estimate and never used as evidence until
+departure from the published method:** a session's average speed over its whole duration stands in for a
+steady pace, so stops read low and warm-up reads high. **Grade** enters only when the climb is known
+(NOOP's barometer, Apple Health's ascent or an imported file; AI-25): the uphill term is applied as the
+equations write it with descents counted as level, which makes it the metres climbed per minute (walking
+`0.1·S + 1.8·ascent/min + 3.5`, running `0.2·S + 0.9·ascent/min + 3.5`). Without a known climb grade is
+taken as zero, hills read low, and the surface says "grade assumed flat". It is shown beside the weekly estimate and never used as evidence until
 `ExerciseVO2max.validate` passes the rule fixed before looking at any data: at least 8 weeks paired with
 an Apple Watch reading within 7 days, a mean absolute difference of at most 3.5 ml/kg/min, and the
 direction of week-to-week change agreeing in at least 70 % of the steps where Apple moved by 0.5 or more.
@@ -963,15 +1072,68 @@ inside the same unreleased analysis recipe 5 as canonical-session fusion; its ex
 maintenance refreshes affected workout-derived outputs before committing the cursor. Raw workouts,
 sets, ratings and heart-rate samples are retained.
 
+### Training Load phase 2 — what the training is for, whether it was enough, and the morning advice
+
+Source: `TrainingGuidance.swift`, `MorningAdvice.swift` and `FitnessInstruments.swift` (decisions in
+`docs/fork/TRAINING_LOAD_PLAN.md` §8). All pure; every input is passed in and nothing reads a clock. The
+earlier lane bands and verdicts are unchanged; this adds the three questions they cannot answer alone.
+
+- **What for** (`TrainingFocusResolver`). Each lane is measured against a focus: lose weight, fitness, strength
+  or health. The wearer's choice wins; otherwise the diet plan's direction (lose, gain or recomposition, maintain),
+  else the weight goal's; a training goal speaks only for its own lane (endurance, running and fitness goals for
+  cardio, strength and hard-set goals for strength, consistency and activity goals for cardio as health).
+  Several candidates are settled by the nearest target date, then plan before weight goal before training goals;
+  with nothing to go by the focus is *health*, measured by the guideline. A goal younger than
+  `graceDays = 14` is only described. A goal paused for illness or pain rests the verdict.
+- **Enough?** The weekly floor is the WHO 2020 guideline: 150 to 300 moderate-equivalent minutes (vigorous
+  minutes count double) and two muscle-strengthening days; a *lose weight* focus asks 250 to 300 minutes (ACSM
+  2009), *strength* two to three strength days, and a weekly-minutes goal the wearer set wins. Under 18 there is
+  no adult target, and from 65 a balance-work hint is added. A week reached the minutes when its total hits the
+  low end; a goal is *carried* when at least `carriedWeeks = 3` of the last `windowWeeks = 4` complete weeks reached it.
+- **Active minutes** (`ActiveMinutes.day`, stored per day in AI-39 as four `active_min_*` series under the computed
+  id). A minute counts when its mean heart rate (at least `minimumSamplesPerMinute = 10` samples) is at 40 to 59 %
+  of heart-rate reserve (moderate) or from 60 % (vigorous), after ACSM. Inside a workout or recorded session heart
+  rate alone decides; outside one a minute counts only if the strap also counted at least
+  `movementTicksPerMinute = 30` step ticks in it, so a raised pulse at a desk (stress, heat, fever) never counts.
+  A session the heart rate cannot speak for counts by the wearer's rating: moderate from 4 of 10, vigorous from 7,
+  nothing when unrated or easier.
+- **Verdict against the goal** (`GoalOutcome`). For *lose weight* the cardio lane reads as carrying the loss when
+  the minutes were carried and recovery is not strained, and the strength lane as strength held when the main
+  lifts changed by no worse than `strengthHeldDrop = −5 %` over six weeks (a rising lane keeps its own, stronger
+  verdict); strength falling while weight falls faster than `fastLossPercentPerWeek = 1 %` a week and recovery is
+  strained asks the wearer to look at the load or the deficit. For *health* the cardio lane is met when the
+  guideline was carried. Overreaching and detraining are never overridden by a goal note.
+- **One morning advice** (`MorningAdvice.resolve`), the same on Today, the Effort target, the Training tab, the
+  coach and the morning notification, and without a language model. The first rule that applies decides: unwell,
+  rest; recovery strained while a lane is well above usual, rest; Charge under `lowCharge = 34`, easy; one lane
+  well above usual, easy for that lane; both, easy; a planned session, steady (shorter or lighter below Charge 67);
+  behind the goal with Charge from `highCharge = 67`, recovery not strained and not having eaten too little, push;
+  otherwise steady (without a measured night, never push). The first ready advice holds for the rest of the day;
+  only a raised illness signal or the night arriving afterwards may replace it. The Effort target is Charge's band
+  on WHOOP's 0 to 21 scale (14 to 18 from Charge 67, 10 to 14 from 34, else 4 to 10), capped by the advice (rest
+  4 to 10, easy at most 10 to 14) and shown on the stored 0 to 100 axis.
+- **Offers** (`TrainingOffers`): at most three, the plan's own session first, then cardio and strength sized to the
+  room left (minutes of the wearer's typical session of that sport, rounded down to 5, at least 10; 30 minutes of
+  brisk walking with no history; a rest day offers easy movement only).
+- **Lab instruments** (`FitnessInstruments`), never evidence until `InstrumentCheck.passes`: *pulse at the same
+  cadence* (strap step ticks per minute binned by 10, the wearer's most common bin, at least 5 minutes in it),
+  *pulse recovery* in the minute after a session that ended hard, and *pulse at the same pace* from the kilometre
+  splits of a NOOP GPS recording, flat ones only. Each reads a Theil–Sen line over a 56-day window, at least 4
+  sessions and a change of 3 bpm. The check, fixed before any real data: at least 8 week-on-week comparisons with
+  at least 70 % pointing the same way as an independent reference.
+
+**Analysis migration required:** yes for the stored active minutes (AI-39, written by the full rebuild); no for
+the focus, enough, verdict and advice rules, which are computed at read time.
+
 ---
 
 ## Daily energy — `EnergyEngine`, `WhoopEnergyModel`, Watch calibration, adaptive TDEE
 
-Source: `Packages/StrandAnalytics/Sources/StrandAnalytics/{EnergyEngine,WhoopEnergyModel,EnergyCalibrationEngine,EnergyValidation,AdaptiveExpenditureEngine}.swift`, all pure and DB-free. Together they answer "how much did I burn today?" (the **ENERGY** card in Control Center / Today, `Strand/Screens/EnergyCard.swift`) without ever silently adding two devices' measurements for the same body.
+Source: `Packages/StrandAnalytics/Sources/StrandAnalytics/{EnergyEngine,WhoopEnergyModel,CardioFitness,EnergyCalibrationEngine,EnergyValidation,Digestion,ScaleBurn,EnergyDensity,EnergyRange,BasalFormula}.swift` (and the superseded `AdaptiveExpenditureEngine.swift`), all pure and DB-free. Together they answer "how much did I burn today?" (the **ENERGY** card in Control Center / Today, `Strand/Screens/EnergyCard.swift`) without ever silently adding two devices' measurements for the same body.
 
 ### Basal rate — one formula for the whole history
 
-Every energy path (the day total, the strap bucket model, the day's timeline, the reference curves, a session's tile) reads basal through `Calories.bmrKcalPerDay(profile:)`, which evaluates `UserProfile.basalFormula` via `BasalRate`. `Repository.analyticsProfile` fills it from `BmrFormulaLog.current`: the wearer's choice on the Energy Plan, **Mifflin–St Jeor** until they choose (more accurate than revised Harris–Benedict for height/weight alone; earlier versions used Harris–Benedict). The choice applies to **every day**, past ones included, because it is a method rather than a change in the body — a formula that changed at a date would put a step into trends, 30-day means and the intake/weight comparison that reads as a metabolic change. Weight and body fat are still resolved per day from their own history. Katch–McArdle uses the body fat in force on each day (`Repository.bodyFatResolver`); days before the first reading use Mifflin–St Jeor, so the curve steps where the first reading begins. No wearable NOOP supports measures resting metabolism (that takes gas exchange); these are population regressions.
+Every energy path (the day total, the strap bucket model, the day's timeline, the reference curves, a session's tile) reads basal through `Calories.bmrKcalPerDay(profile:)`, which evaluates `UserProfile.basalFormula` via `BasalRate`. `Repository.analyticsProfile` fills it from `BmrFormulaLog.current`: the wearer's choice on the Energy Plan, **Mifflin–St Jeor** until they choose (more accurate than revised Harris–Benedict for height/weight alone; earlier versions used Harris–Benedict). The choice applies to **every day**, past ones included, because it is a method rather than a change in the body — a formula that changed at a date would put a step into trends, 30-day means and the intake/weight comparison that reads as a metabolic change. Weight and body fat are still resolved per day from their own history. Katch–McArdle uses the body fat in force on each day (`Repository.bodyFatResolver`); days before the first reading use Mifflin–St Jeor, so the curve steps where the first reading begins. No wearable NOOP supports measures resting metabolism (that takes gas exchange); these are population regressions. A fourth choice, **measured**, takes a resting rate the wearer had measured (indirect calorimetry): it is stored as its ratio to Mifflin–St Jeor for the body on the measurement day, so it follows the weight afterwards, it applies to the whole history like every formula choice, a value more than 40 % from the equation is asked about once, and a measurement older than a year is named as old but still used. The reason it exists: prediction equations miss a single body with a BMI over 50 by up to about 700 kcal either way.
 
 A strap day's active energy is the model's own stored figure (`DayInputs.strapActiveKcal`, the sum of the hourly rows written beside the buckets), not `strap total − basal`, so a formula change moves basal and total only. A switch re-prices the strap model's stored basal over its 120-day window (`scheduleEnergyRefresh`).
 
@@ -979,7 +1141,7 @@ A strap day's active energy is the model's own stored figure (`DayInputs.strapAc
 
 `EnergyEngine.summarize(_:profile:context:)` selects **one** source per day and, where possible, tops it up with the *modelled remainder* — it never adds two measured sources together:
 
-1. **`strapWornTime`** — the WHOOP total (from `whoopDailyEnergy`, or the legacy `DailyMetric.activeKcalEst`) whenever present. The total and its coverage denominator are always taken from the **same** model — `(rawTotalKcal, representedSeconds)` for v4 or `(activeKcalEst, energyCoverageSeconds)` for the legacy path, never crossed. `representedSeconds` is wall time whose basal share is already inside the bucket total; HR evidence remains separately available as `observedSeconds`. This is canonical: an optional Watch calibration factor may scale it, but Apple never replaces it. The worn-time total is topped up with `profile BMR × unrepresented seconds`, never a full day's BMR (that would double-count every represented second — the trap the file's header exists to prevent). The Watch factor scales **active energy only** — see "Calibrating active energy only" under `EnergyCalibrationEngine` below.
+1. **`strapWornTime`** — the WHOOP total (from `whoopDailyEnergy`, or the legacy `DailyMetric.activeKcalEst`) whenever present. The total and its coverage denominator are always taken from the **same** model — `(rawTotalKcal, representedSeconds)` for v4 or `(activeKcalEst, energyCoverageSeconds)` for the legacy path, never crossed. `representedSeconds` is wall time whose basal share is already inside the bucket total; HR evidence remains separately available as `observedSeconds`. This is canonical: an optional Watch calibration factor may scale it, but Apple never replaces it. The worn-time total is topped up with `profile BMR × unrepresented seconds`, never a full day's BMR (that would double-count every represented second — the trap the file's header exists to prevent). The Watch factor scales **active energy only** — see "Calibrating active energy only" under `EnergyCalibrationEngine` below. Since model v10 the strap total is the sum of three shares that add up to it again on every screen: **basal** (the profile rate for the elapsed time), the **everyday share** (awake still time above lying basal, plus digestion, never calibrated) and **active** (what the strap measured, times the Watch factor). Digestion and the scale's correction are described below.
 2. **`appleSplit`** — Apple's own `active_kcal` + `basal_kcal`, used only on a day with no WHOOP estimate.
 3. **`mixed`** — Apple active energy with no basal figure; basal is modelled from BMR × elapsed fraction.
 4. **`loggedActivity`** — no device measured the day, but sessions were logged. Each `ActivityContribution` carries a window and a source: the window places it (a session across midnight is split by time, and one beyond the elapsed edge is not counted yet), the source says whether its kcal still contains the bout's resting energy. Apple writes energy above resting; every other lane — and anything NOOP itself modelled — is gross, and has `BMR-rate × window` removed before it is added. Sessions and the step estimate describe overlapping time, so the step estimate is charged only for the hours `appleStepHour` shows steps in and no session covered; where the hourly stream is missing, the larger of the two stands alone rather than the sum. The share that came from sessions is reported as `loggedActivityKcal` so a screen can answer "were my workouts counted?" without arithmetic.
@@ -990,7 +1152,11 @@ Where a session arrived without energy of its own, the app prices it strongest-e
 
 `.loggedActivity` and `.stepsEstimate` are both `.calibrating`: a logged session measures an hour, not a day.
 
-The thermic effect of food (`EnergyPlanning.thermicEffect`) is deliberately **not** part of any of this. It is computed from logged intake — macro-specific where grams exist (25 % protein, 8 % carbohydrate, 4 % fat), 10 % of calories otherwise — and shown only on the planning page beside intake. No wearable measures digestion, and folding it into `totalBurnedSoFar` would change what that field means for every screen, the widget and the coach.
+**Digestion** (`Digestion`, the thermic effect of food) is part of the everyday share on strap days. Doubly-labelled-water measurements contain it and the bucket model does not: about a tenth of the day on a mixed diet (Westerterp 2004). A day the wearer marked as completely logged prices its own food: 25 % of protein energy, 7.5 % of carbohydrate, 2 % of fat and 10 % of the rest; every other day takes the standard tenth of the day (`standardShareOfRest = 1/9` of basal plus everyday plus active, because half a logged day would price only the half). An Apple day stays as Apple gives it. `EnergyPlanning.thermicEffect` (25 % / 8 % / 4 %, else 10 %) remains the planning page's own figure beside intake and is not what the day total uses.
+
+**The scale's correction** (`ScaleBurn`, `BurnCorrection`, `EnergyDensity`). Once eaten, weighed and burned have been logged long enough, the scale says what the body really burned and the Energy page offers to adjust the strap to it. The one scale estimate (`ScaleBurn`, read by the Energy page, the diet plan's expenditure and the nutrition page's adaptive estimate) takes eight weeks (`windowDays = 56`), only days marked as completely logged and only weigh-ins without a water mark, and a Theil–Sen weight slope over weigh-ins at least 7 days apart after a gate against the smoothed series. A figure is offered only when the data span 42 days with at least 21 completely logged days in 6 distinct weeks and 10 weigh-ins, and its own uncertainty is under 10 % of the burn (`maximumRelativeError`). What a kilogram of weight change holds follows the body (`EnergyDensity`: fat 9,440 and fat-free mass 1,816 kcal/kg after Hall 2008, the fat-free share of a change `10.4 / (10.4 + fat mass in kg)` after Forbes; body fat from a measurement, the tape method, else CUN-BAE, Gómez-Ambrosi et al. 2012), clamped to 4,500 to 9,300, in place of 7,700. A correction is only proposed past 3 %, only applied after the wearer agrees, from that day on, moves by at most 3 % a week and stays within 0.8 to 1.2; with a measured resting rate it leaves basal alone, and it is never applied to an Apple day. The scale always compares against the strap's figure before any correction. It holds still while the water balance settles (three weeks after a plan starts or its way of eating changes, four weeks after a weigh-in marked "creatine started", three weeks after strength training returns after a month off). After three weeks with twelve completely logged days and six weigh-ins (`ScaleBurn.Gates.early`) the Energy page shows only the direction the scale points, in words; it is never proposed and never applied.
+
+**A likely range for a finished day** (`EnergyRange`): the strap model's own error (`uncertaintyFraction`) and the basal formula's miss for one body (`formulaError = 0.10`, Frankenfield 2005) added in quadrature, at most 30 %; narrowed to the scale's 5 % once the wearer adjusted the strap to it. Today keeps its forecast range.
 
 Coverage (`EnergyCoverage.energy`) is the fraction of the elapsed local day the day's *actual* source represented: v4 context-bucket wall seconds, or — for an `appleSplit` day — `healthEnergyBucket.coverageSeconds` (max per bucket across sources, never summed; iOS only, see below). Confidence (`ScoreConfidence`) is `.solid` at ≥80% coverage (`solidCoverage`), `.building` at ≥40% (`buildingCoverage`), `.calibrating` below. Reporting both active and basal energy is not proof Apple covered the whole elapsed day, only that it covered whatever it saw. Where no coverage signal exists at all, `.appleSplit` keeps its previous `.solid`: an *absent* signal is not evidence of a *thin* one. Local-day seconds are calendar-derived (`Repository.energyDayContext`), not a fixed 86,400, so DST transitions don't skew basal accrual.
 
@@ -998,21 +1164,22 @@ Coverage (`EnergyCoverage.energy`) is the fraction of the elapsed local day the 
 
     projected = spent so far + basal for the hours left + the activity still expected
 
-Computed only for *today*, and only once ≥10 % of the day has elapsed (before that the rate is too noisy and a wild morning figure reads as a malfunction).
+Since v10 the awake hours still to come add their everyday share, and digestion and the scale's correction are priced the way the hours so far were. Computed only for *today*, and only once ≥10 % of the day has elapsed (before that the rate is too noisy and a wild morning figure reads as a malfunction).
 
-The last term used to be `active / elapsedFraction` — a linear extrapolation assuming activity arrives at a constant rate. It does not: an 08:00 workout made the forecast shoot far too high (a whole day extrapolated from the one hour containing all of it), and a quiet morning before an evening session made it read far too low. The divisor is now the fraction of a *typical* day's activity this person has normally banked by now:
+The last term used to be `active / elapsedFraction` — a linear extrapolation assuming activity arrives at a constant rate. It does not: an 08:00 workout made the forecast shoot far too high (a whole day extrapolated from the one hour containing all of it), and a quiet morning before an evening session made it read far too low. Dividing by a small personal-shape fraction had the same flaw, so the current form adds the person's own **historical median activity still expected in the remaining hours** (`ActivityShape.expectedActivity`, the median per local hour of their recent days), with a same-day adjustment only once enough of the routine has elapsed:
 
-    expected remaining activity = activeSoFar × (1 − f) / f
+    expected remaining activity = expected.remaining × adjustment
+    adjustment = clamp(activeSoFar / expected.toNow, 0.5 … 1.5)   when ≥ 25 % of the day has elapsed and the curve expects ≥ 20 % of the day's activity by now, else 1
 
-**With `shape == nil` the expected fraction IS `elapsedFraction`, and the formula collapses to exactly the previous arithmetic** — algebraically identical, not merely close, so a user without enough history keeps the old behaviour rather than a worse curve. `(1 − f)/f` is capped at `maxRemainingActivityMultiplier` (6.0). A curve legitimately reading *zero* is clamped **up** to `minimumShapeFraction` rather than discarded: "this person has normally done nothing by now" is the strongest signal the curve ever carries — it is what stops an evening routine being forecast as a quiet day — so the multiplier ceiling, not the floor, bounds the magnitude.
+Without a personal curve there is **no forecast** (`nil`); the old linear fallback is gone. The magnitude cap of 6.0 (`maxRemainingActivityMultiplier`) went with it.
 
 ### `ActivityShapeEngine` — the personal time-of-day curve
 
-Source: `ActivityShapeEngine.swift` (pure). Fits `f(t) ∈ [0,1]` — the cumulative fraction of a typical day's **active** energy burned by hour *t* — from `whoopEnergyHourly` (migration v48), which the same bucket pass that writes `whoopDailyEnergy` populates for free. Basal is excluded: it is flat by construction and would flatten the very shape this measures.
+Source: `ActivityShapeEngine.swift` (pure). Fits `f(t) ∈ [0,1]` — the cumulative fraction of a typical day's **active** energy burned by hour *t*, and the typical active kcal in each hour (`expectedActiveByHour`, which keeps magnitude) — from `whoopEnergyHourly` (migration v48), which the same bucket pass that writes `whoopDailyEnergy` populates for free. Basal is excluded: it is flat by construction and would flatten the very shape this measures.
 
 - **Each day is normalized to its own total *before* the days are combined.** The curve is a shape, not a magnitude, so one colossal day cannot redefine what a normal afternoon looks like.
 - **Per-hour combination is a median**, not a mean — the same robustness applied to the other axis.
-- Needs ≥`minimumDays` (14) usable days inside a 42-day window; a day below `minimumDailyActiveKcal` (50) is skipped, because dividing by a near-zero total manufactures a shape out of rounding. Below the threshold the engine returns `nil` and the projection stays linear.
+- Needs ≥`minimumDays` (7) usable days inside a `maximumWindowDays` (28) window; a day below `minimumDailyActiveKcal` (50) is skipped, because dividing by a near-zero total manufactures a shape out of rounding. Below the threshold the engine returns `nil` and there is no forecast.
 - Fitted from complete days only — today is still accruing, and including it would teach the curve that this person stops being active at whatever time it currently is.
 - Deliberately **not** split weekday/weekend yet: a real effect, but splitting doubles the history each arm needs, and the fallback is honest linear behaviour rather than a worse curve.
 
@@ -1026,16 +1193,18 @@ activity magnitude; until then the UI says that the forecast is learning.
 
 ### The forecast interval
 
-`projectedRangeKcal` is present whenever a forecast is. A bare `~2,650 kcal` claims a precision the model does not have; `2,400–2,900` says the same thing honestly and carries extra information. Two independent widths compose it: what the model already publishes about the energy it *has* measured (`uncertaintyFraction`, itself weighted by the observed/inferred/modeled evidence mix), plus a term for how much of the day is still unlived — no coverage figure can speak for hours that have not happened.
+`projectedRangeKcal` is present whenever a forecast is. A bare `~2,650 kcal` claims a precision the model does not have; `2,400–2,900` says the same thing honestly and carries extra information. Two independent widths add: what the model already publishes about the energy it *has* measured (`uncertaintyFraction`, itself weighted by the observed/inferred/modeled evidence mix; without one, `0.10 + 0.20 × (1 − coverage)`, else 0.20), plus `0.20 × (1 − elapsed fraction)` for the hours not yet lived — no coverage figure can speak for hours that have not happened. The half-width is clamped to 4 % to 50 % of the projection.
 
 ### `WhoopEnergyModel` — WHOOP-first bucket estimate
 
 A pure, Apple-Health-free model over five-minute `WhoopEnergyBucket`s (HR, motion intensity, steps, distance, stride, the strap's `activity_class`, and workout/sleep/off-wrist flags), producing a `WhoopDailyEnergyEstimate` with an explicit **evidence mix** per bucket:
 
-- **`observed`** — HR contributes inside an independently established workout or locomotion context. A workout uses `WhoopEnergyModel.exerciseMET`: ACSM's %HRR ≈ %VO2R relation (Swain & Leutholtz 1997), `MET = 1 + share · HRR · (peakMET − 1)`, with `peakMET` the Uth–Sørensen VO2max in METs (bounded 7–16) and `share` 1.0 endurance / 0.8 other / 0.6 resistance (heart rate runs ahead of oxygen uptake while lifting; Hurley et al. 1984), capped at 14.5 MET. Until v7 this was `1 + c·HRR²` (c = 11 / 9.5 / 8), which had no source and priced a 108-bpm lifting session at ~2 MET. Locomotion is movement-primary and HR may add at most 1.5 MET as a secondary correction; that nudge deliberately keeps the pre-v7 quadratic, because it applies to every walking minute of the day.
+- **`observed`** — HR contributes inside an independently established workout or locomotion context. A workout uses `WhoopEnergyModel.exerciseMET`: ACSM's %HRR ≈ %VO2R relation (Swain & Leutholtz 1997), `MET = 1 + share · HRR · (peakMET − 1)`, with `peakMET` the aerobic ceiling for the day from `PeakMETResolver` (since v8, in this order: a VO2max the wearer entered, for 183 days; a fresh Apple Watch reading, at most 183 days old since v9; else the Jurca et al. 2005 non-exercise estimate from sex, age, BMI, resting heart rate and a measured four-week activity category, bounded 3.5–16 MET against 3.5–25 for a measured value; a measured value is rescaled by the weight then over the weight now) and `share` 1.0 endurance / 0.8 other / 0.6 resistance (heart rate runs ahead of oxygen uptake while lifting; Hurley et al. 1984), capped at 14.5 MET. Until v7 this was `1 + c·HRR²` (c = 11 / 9.5 / 8), which had no source and priced a 108-bpm lifting session at ~2 MET. The ceiling had been Uth–Sørensen (15.3 · HRmax / HRrest, bounded 7–16 MET) until v8, which has no body term and is validated in trained men only: for a 212 kg wearer measured at 19 ml/kg/min it read 47 and priced walks at three times what the Watch and the ACSM walking equation give. A session on foot with movement evidence is priced by pace, and a workout with no ceiling yet from the sport's Compendium MET. Locomotion is movement-primary and HR may add at most 1.5 MET as a secondary correction; that nudge deliberately keeps the pre-v7 quadratic, because it applies to every walking minute of the day.
 - **`inferred`** — movement covers time without HR. Speed/cadence/activity class supplies the locomotion MET and basal is added underneath.
 - **`physiological`** — HR was observed but neither movement nor a trusted workout proves activity. It is retained as provenance (`unresolvedElevatedHR`) but contributes **zero active kcal**. Heart rate can grade confirmed activity; it cannot prove activity by itself.
 - **`modeled`** — off-wrist, sleep, sedentary-without-HR, or unknown signal: pure basal fill (`BMR/86,400 × seconds`).
+
+**The everyday share (model v10, 2026-11-27).** Awake still time used to be priced at lying basal, so the owner's days came to 1.25 times basal, below the 1.40 to 1.69 that doubly-labelled-water studies find for sedentary lives. It now costs `awakeStillFactor = 1.35` times the wearer's own basal rate (Mansoubi 2015: sitting 1.33 to 1.45, standing 1.59 times the measured resting rate; the strap cannot tell sitting from standing, so one value at the low edge of sitting, the smallest that passes six reference personas), relative to basal rather than to weight (a weight-based MET overstates a heavy body at rest, Byrne 2005). Sleep, heart-rate workouts and still time inside the wearer's usual sleep window earn none (`UsualSleepWindow`: the median bed and wake time of the last 14 main nights that ended by the day, 23:00 to 07:00 with fewer than three), so a night without the strap is not counted as sitting up; a walk's still seconds do count. The share is kept apart from basal and active energy and never reaches the Watch calibration.
 
 Context is selected **before** any calorie equation, in precedence order: off-wrist → sleep → confirmed workout → locomotion → sedentary/unresolved elevated HR → unknown. A high heart rate cannot promote its own bucket into a workout. Active kcal in every active branch is `max(0, met−1) × 3.5 × weightKg / 200 × minutes`.
 
@@ -1064,9 +1233,9 @@ Bucket movement is assembled in `Repository.stepMovementByBucket` (`Strand/Data/
 
 Each bucket carries the **previous** sample as well, because `stepsInWindow` needs a predecessor to form a delta and a slice starting cold silently drops the ticks accrued across every boundary — 288 small losses a day, all in the same direction. That predecessor is accepted only from within one bucket-width, though: `@57` is cumulative, so a sample from before a data gap (a charge break, a not-yet-offloaded stretch) carries every tick of that whole gap, `StepsCounter` accepts any delta below 512, and crediting it to the first bucket after the gap renders hours of absence as five minutes of brisk walking — which then feeds `movementMET` a cadence that never happened.
 
-`uncertaintyFraction` is duration-weighted from context-specific provisional widths (18% confirmed workout; 20–28% locomotion; 35% unresolved/sedentary physiological; 40–45% unknown; 20% sleep; 30% off-wrist), capped at 60%. These widths are engineering priors, not validated confidence intervals; the calorimetry gate below explicitly tests their coverage. Body weight is resolved **per day**, not from today's profile, via `CausalWeightResolver` — a 10-day EWMA (`α = 2/11`) over `bodyWeightEntry` + imported Health weights, manual entries winning ties on the same local day, valid for at most 90 days before falling back to the profile default. This prevents a new weigh-in from silently rewriting historical calorie totals.
+`uncertaintyFraction` is duration-weighted from context-specific provisional widths (18% confirmed workout; 20–28% locomotion; 35% unresolved/sedentary physiological; 40–45% unknown; 20% sleep; 30% off-wrist), capped at 60%. These widths are engineering priors, not validated confidence intervals; the calorimetry gate below explicitly tests their coverage. Body weight is resolved **per day**, not from today's profile, via `CausalWeightResolver` — a 10-day EWMA (`α = 2/11`) over `bodyWeightEntry` + imported Health weights, decaying **per calendar day** between weigh-ins (AI-38; applied once per weigh-in it moved the value by only 18 % after six weeks without one), manual entries winning ties on the same local day, valid for at most 90 days before falling back to the profile default. This prevents a new weigh-in from silently rewriting historical calorie totals.
 
-`AppModel.refreshWhoopEnergyModel` runs this after every completed strap offload (`Strand/App/AppModel.swift`) and recomputes 120 whole local days (the window starts at midnight; a mid-day start used to rewrite its oldest day from the afternoon alone). A saved, edited, merged, deleted or imported workout, and a Hevy sync that changed sessions, re-prices the days it touched through `Repository.scheduleEnergyRefresh` (coalesced, capped at the same 120 days), because the workout list is an input to this model and not only a display. Daily totals, hourly activity-shape rows and auditable five-minute timeline buckets are assembled first, then published in **one SQLite transaction** by `replaceWhoopEnergyWindow`; cancellation cannot expose mixed generations. Rows are keyed by `WhoopDailyEnergyEstimate.modelVersion` (currently `"whoop-bucket-v7"`), and reads filter to that exact version.
+`AppModel.refreshWhoopEnergyModel` runs this after every completed strap offload (`Strand/App/AppModel.swift`) and recomputes 120 whole local days (the window starts at midnight; a mid-day start used to rewrite its oldest day from the afternoon alone). A saved, edited, merged, deleted or imported workout, and a Hevy sync that changed sessions, re-prices the days it touched through `Repository.scheduleEnergyRefresh` (coalesced, capped at the same 120 days), because the workout list is an input to this model and not only a display. Daily totals, hourly activity-shape rows and auditable five-minute timeline buckets are assembled first, then published in **one SQLite transaction** by `replaceWhoopEnergyWindow`; cancellation cannot expose mixed generations. Rows are keyed by `WhoopDailyEnergyEstimate.modelVersion` (currently `"whoop-bucket-v10"`), and reads filter to that exact version.
 
 **A session's own energy tile** (`WorkoutEnergyEstimate.resolve`, shared by the Workouts list, the workout detail and the coach through `WorkoutEnergyDisplay`) takes, strongest first: the figure the session recorded; the strap model's figure for its window (`Repository.strapSessionEnergy` → `WorkoutEnergyEstimate.strapWindowKcal`: basal + active of the stored buckets, prorated at the edges, Watch factor on active only, answered only at ≥ 80 % coverage with ≥ 50 % of the covered time priced as `confirmedWorkout`); the average heart rate — Keytel, except for a resistance session, which is priced on `exerciseMET` with the resistance share plus the profile's basal rate, the arithmetic its buckets would use; the activity's MET value (`ActivityMETCatalog`, which now also knows the labels strength sessions actually arrive with — "Strength Training", Apple's two strength types — instead of pricing them at the unknown-sport default). All estimated steps are gross. The day's "Training" line is the active share of the same buckets, so the two differ by the window's basal energy and nothing else.
 
@@ -1098,7 +1267,9 @@ Algorithm tests prove invariants (monotonicity, no 50%-HRR jump, the 0.5-MET qui
 
 The pre-registered gate requires ≥20 held-out participants; ≥20 intervals each for sedentary, unresolved elevated HR, locomotion and confirmed workout; ≤15% overall WAPE; ≤10% absolute bias; ≤25% WAPE per required context; NOOP no more than three percentage points worse than Apple; and 80–99% empirical coverage of the published uncertainty intervals. The CLI exits non-zero while any condition is missing or fails. **No repository test or Watch calibration satisfies this gate, and v4 must not be described as “Apple-Watch-accurate” until a real held-out calorimetry dataset passes it.**
 
-### `AdaptiveExpenditureEngine` — retrospective TDEE from intake + weight trend
+### `AdaptiveExpenditureEngine` — retrospective TDEE from intake + weight trend *(superseded by `ScaleBurn`)*
+
+**Superseded (2026-11-27).** The Energy page's food-and-weight figure and the coach's adaptive comparison are now computed by `ScaleBurn` (see *The scale's correction* above): eight weeks, only completely logged days and unmarked weigh-ins, and an energy density that follows the body instead of 7,700 kcal/kg. `NutritionReads.adaptiveEstimate` keeps this engine's result type (`AdaptiveExpenditureEstimate`) as the shape the screens read, with a 95 % interval of 1.96 standard errors and confidence *high* at a relative error of 5 % or less, else *moderate*. The 28-day rules below are no longer called; `AdaptiveExpenditureEngine.estimate` remains in the package with its tests. What follows describes that earlier method.
 
 A **separate, retrospective** estimate — deliberately not an `EnergyEngine` input, and never used to calibrate or replace a wearable's daily total. Shown on the Energy detail screen only once it has enough data (`Repository.adaptiveExpenditureEstimate`).
 
@@ -1116,7 +1287,7 @@ Energy balance: `expenditure = intake − Δstored-energy`, using the convention
 
 ### Coach and widget surfaces
 
-`AICoachEngine.energyBalanceTool()` (`get_energy_balance`) reports today's total, source, coverage, calibration status/factor, model uncertainty, and — when available — the adaptive comparison range, with an explicit instruction never to turn either figure into diet/intake advice (NOOP holds no nutrition-recommendation logic). The iOS energy widget (`WidgetEnergySnapshot`) additionally carries the raw pre-calibration WHOOP figure, the uncertainty percentage, and the calibration factor (stored as an integer permille to keep snapshot-diffing exact).
+`AICoachEngine.energyBalanceTool()` (`get_energy_balance`) reports today's total, source, coverage, calibration status/factor, model uncertainty, the basal, everyday, digestion and active shares so far, the forecast range ("likely by tonight"), the scale correction when the wearer agreed to one, and — when available — the scale comparison range, with a note that it is not today's measurement. The tool reports expenditure only: what the user ate comes from `get_food_log`, and intake is never inferred from these estimates. The iOS energy widget (`WidgetEnergySnapshot`) additionally carries the raw pre-calibration WHOOP figure, the uncertainty percentage, and the calibration factor (stored as an integer permille to keep snapshot-diffing exact).
 
 ---
 
@@ -1173,10 +1344,10 @@ Source: `AnalyticsEngine.swift`. A pure function that ties the recompute engines
 
 1. `SleepStager.detectSleep` → keep sessions whose `end` falls on `day` (UTC) — a night ending that morning.
 2. Daily sleep aggregates (in-bed-weighted efficiency; deep/REM/light minutes; disturbances) via `hypnogramMetrics`.
-3. Daily resting HR = lowest per-session resting HR; daily avg HRV = in-bed-weighted mean of per-session HRV.
-4. **Rest** — the four-component sleep composite (duration vs need / efficiency / restorative share / consistency), stored under `sleep_performance`.
-5. **Charge** — `RecoveryScorer.recovery(...)` with the personal HRV/RHR/resp/skin-temp baselines and the Rest score as the sleep input, stored under `recovery`.
-6. **Effort** — `StrainScorer.strain(...)` over the full day's HR window (HRmax from the resolver: your setting, the measured level, then Gellish), on the 0–100 scale, stored under `strain`.
+3. Daily resting HR = the **primary** (longest) session's lowest 5-minute bin, so a nap never replaces the main night (AI-10/AI-11; the session's plain mean is kept as the `rhr_primary_session` shadow metric, and Effort reads `rhr_effort`, see *Effort*); daily avg HRV = in-bed-weighted mean of per-session HRV.
+4. **Rest** — the four-component sleep composite (duration vs need / efficiency / restorative share / consistency), with the night's own need and regularity, stored under `sleep_performance`.
+5. **Charge** — `RecoveryScorer.recovery(...)` with the personal HRV/RHR/resp baselines, the skin-temperature deviation and the Rest score as the sleep input, stored under `recovery`.
+6. **Effort** — `StrainScorer.strain(...)` over the full day's HR window (HRmax from the resolver: your setting, the measured level, then Gellish; resting rate from `EffortRestingHR`; the day rule with that day's workouts), on the 0–100 scale, stored under `strain`.
 7. `WorkoutDetector.detect(...)`.
 
 Each score is also tagged with its **confidence tier** (`ScoreConfidence`: Solid / Building / Calibrating — see below). It assembles a `DailyMetric` (the `WhoopStore` cache shape) plus rich `SleepSession`s and `CachedSleepSession` cache rows. Every derived value is **approximate** by construction.

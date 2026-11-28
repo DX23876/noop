@@ -1,23 +1,30 @@
 # Android status
 
-NOOP Forge for Android is **in testing**. It runs on the same shared Swift core as the iPhone and Mac
-apps, so it computes the same numbers from the same data. It stays labelled as a testing build, in the
-app and on the release, until three testers on different phones have confirmed pairing, live heart rate,
-the overnight sync and reconnecting, each with a strap log (decision D9 in
-[`fork/android/PLAN.md`](fork/android/PLAN.md)).
+NOOP Forge for Android is a released platform since 13.0 (28 November 2026), next to iPhone and iPad, Mac
+and Apple Watch. It runs on the same shared Swift core as the iPhone and Mac apps, so it computes the same
+numbers from the same data, with Android's own Bluetooth layer and Forge screens. It is the youngest of the
+platforms and has met far fewer phones and straps than the Apple apps, so a good problem report matters
+([how to write one](fork/android/TESTING.md)).
 
-If you want a finished Android app today, use [RyanBR's upstream NOOP](https://github.com/ryanbr/noop),
-which ships its own independent Kotlin implementation.
+If you prefer an Android app with its own independent Kotlin implementation, there is
+[RyanBR's upstream NOOP](https://github.com/ryanbr/noop).
 
-## Install and test
+## Install
 
-- Download `NOOP-Forge-android-<version>-testing.apk` from the newest
-  [release](https://github.com/DX23876/noop/releases) that has one. The release workflow can attach a
-  signed testing APK to a release (`android-release.yml`, called by `publish-ios-release.yml` or run by
-  hand with the tag); each release's notes say whether it carries one. Testing builds are published under
-  the rolling [`testing-latest`](https://github.com/DX23876/noop/releases/tag/testing-latest) tag.
-- Android 8.0 (API 26) or later and a WHOOP 4.0, 5.0 or MG.
-- What to confirm and how to report it: [`fork/android/TESTING.md`](fork/android/TESTING.md).
+- Download the Android APK from the newest [release](https://github.com/DX23876/noop_forge/releases). The
+  release workflow attaches a signed APK to each release (`android-release.yml`, called by
+  `publish-ios-release.yml` or run by hand with the tag). Builds for testers are published under the rolling
+  [`testing-latest`](https://github.com/DX23876/noop_forge/releases/tag/testing-latest) tag.
+- Android 8.0 (API 26) or later and a WHOOP 4.0, 5.0 or MG. The project website has a step-by-step
+  [install guide](https://dx23876.github.io/forge/install/).
+- Health Connect is the Android counterpart of Apple Health: it can feed heart rate, sleep, steps,
+  workouts and body data in, and NOOP can write its computed values back, each only for what you grant.
+- The new design is the default. **Settings → About → Classic screens** switches back to the earlier screens.
+- Not on Android: Live Activities, Siri and Shortcuts, an Apple Watch app, and the coach's on-device
+  semantic memory. Android adds its own set: a phone alarm with a wake window, wrist alerts for other apps
+  and calls, home-screen widgets and the Experimental self-hosted push (see [`SCOPE.md`](SCOPE.md)).
+- A problem or a question: [`fork/android/TESTING.md`](fork/android/TESTING.md) says what a useful report
+  contains.
 
 ## How it is built
 
@@ -42,7 +49,8 @@ Build prerequisites and commands: [`BUILD.md`](BUILD.md) and [`../android/README
 
 ## Where to read more
 
-- [`fork/android/STATUS.md`](fork/android/STATUS.md) — the running state and open steps.
+- [`fork/android/STATUS.md`](fork/android/STATUS.md) — the running state and open steps (what is still
+  unverified on a real strap is listed there).
 - [`fork/android/PLAN.md`](fork/android/PLAN.md) — the plan for Android on a shared Swift core (decided
   2026-10-24) and [`fork/android/PARITY-PLAN.md`](fork/android/PARITY-PLAN.md) for its continuation.
 - [`fork/android/INVENTORY.md`](fork/android/INVENTORY.md) — the iOS screen inventory the Android screens

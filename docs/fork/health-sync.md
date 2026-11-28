@@ -1,8 +1,9 @@
 # Apple Health synchronisation — implementation of 6 October 2026
 
 Analysis migration required: **yes**, recipe **AI-19**. No Android twin was needed: the fork shipped
-Apple platforms only at the time. Android (back since 2026-10-25) reads Health Connect in Kotlin and
-writes into the shared core; Apple Health itself is Apple-only.
+Apple platforms only at the time. Apple Health itself is iPhone-only (HealthKit is compiled for iOS only;
+the Mac imports an Apple Health export file and has no live link). Android, back since 2026-10-25, has its
+own Health Connect integration, described at the end of this page.
 
 Health → NOOP stores complete day windows together in one SQLite transaction. Outside that window,
 historical body values change only their own columns and series. A failed sleep, daily-value or
@@ -49,3 +50,27 @@ The automated checks cover regressions for rollback, history retention, UUID del
 restart, revisions, the device registry, more than 500 workouts and the analysis migration. iOS and macOS
 builds and package and app tests complement them. Permissions, background delivery, the Fitness
 presentation and workout and route matching still need a test on an iPhone.
+
+## Health Connect on Android
+
+Health Connect is the Android counterpart and is not a port of the Apple Health code above. It never leaves
+the phone: it is an on-device store, and no network request is involved (see
+[`PRIVACY_SECURITY.md`](../PRIVACY_SECURITY.md) §1.3).
+
+- **Import** (`HealthConnectImporter`, chosen per category in `HealthConnectCategorySelector`, also offered in
+  onboarding): Recovery (heart rate, resting heart rate, HRV, sleep, SpO₂, respiratory rate, hydration),
+  Steps, Training (workouts, distance, VO₂max, exercise routes), Calories (total and active) and Body
+  composition (weight, body fat, lean mass). Nutrition arrives as daily totals. Only what the wearer grants
+  in the system dialog is read, and older history needs the separate history permission. The profile can
+  take its weight from Health Connect.
+- **Write-back** (`HealthConnectWriter`, `HealthExportLedger`): resting heart rate, HRV (RMSSD), SpO₂,
+  respiratory rate, heart rate, sleep sessions, exercise with route and distance, VO₂max, weight and
+  nutrition. It is optional and off by default, idempotent by client record id, re-sends only changed
+  records, and exports computed days only, so imported records are never echoed back.
+- **Nutrition** goes through `FoodHealthConnect` (read and write permissions are requested from the Food
+  data page only); NOOP does not read its own meals back.
+
+The two integrations are separate code: Apple Health has live observers, hourly background delivery and an
+anchor-based import in Swift, while Health Connect is Kotlin that stores into the shared core. Neither
+Android path was exercised against a real phone for this page; it stays unverified until a strap and a
+Health Connect store are available (see [`android/STATUS.md`](android/STATUS.md)).

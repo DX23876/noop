@@ -33,22 +33,22 @@ interoperability work:
 
 ## Package overview
 
+Every directory under `Packages/` is a Swift package with its own `Package.swift`. The first five are
+documented in detail below; the others are summarised from their sources and manifests.
+
 | Package | Purpose | Pure / portable? | UI deps | External deps |
 |---|---|---|---|---|
-| **WhoopProtocol** | BLE frame parsing, CRC, command/event/packet decode (the reverse-engineering core) | ✅ Pure Foundation | none | none |
-| **WhoopStore** | GRDB/SQLite persistence: migrations, decoded streams, raw outbox, metric caches | ✅ Pure (server-free) | none | GRDB |
-| **StrandAnalytics** | HRV / recovery / strain / sleep / correlation math | ✅ Pure, deterministic | none | (WhoopProtocol, WhoopStore types) |
-| **StrandImport** | WHOOP CSV + Apple Health (`export.xml`, streaming) importers | ✅ Pure Foundation/XML | none | ZIPFoundation |
+| **WhoopProtocol** | BLE frame parsing, CRC, command/event/packet decode (the reverse-engineering core), plus the `whoop-decode`, `whoop-optical-experiment` and `whoop-re` CLIs | ✅ Pure Foundation | none | none |
+| **WhoopStore** | GRDB/SQLite persistence: migrations, decoded streams, raw outbox, metric caches, and the food, training, lift-log, Hevy, ECG and energy stores | ✅ Pure (server-free) | none | GRDB (+ WhoopProtocol, OuraProtocol, StrandTraining) |
+| **StrandAnalytics** | HRV / recovery / strain / sleep / correlation / energy math | ✅ Pure, deterministic | none | (WhoopProtocol, WhoopStore types) |
+| **StrandImport** | WHOOP CSV and Apple Health (`export.xml`, streaming) importers, plus Oura, Fitbit, Garmin and Xiaomi exports, FIT/GPX/TCX files, lab, nutrition and lifting sheets and Hevy payloads | ✅ Pure Foundation/XML | none | ZIPFoundation, GRDB (+ WhoopProtocol, WhoopStore) |
 | **StrandDesign** | SwiftUI design system (palette, components, charts) | SwiftUI only | SwiftUI | none |
-
-The five packages above are documented in detail below. The repository's `Packages/` directory also
-holds these, summarised here from their sources and `Package.swift`:
 
 | Package | Purpose | Pure / portable? | External deps |
 |---|---|---|---|
 | **OuraProtocol** | Oura BLE protocol decode (experimental support), plus the `oura-decode` CLI | ✅ Pure | none |
-| **PolarProtocol** | Clean-room Polar Measurement Data (PMD) decoder and control-point command builder, from Polar's public BLE SDK documentation; no BLE wiring | ✅ Pure | none |
-| **StrandTraining** | Training catalogue (bundled offline exercise catalogue), plans, routines, progression and the workout engine | ✅ Pure | none |
+| **PolarProtocol** | Clean-room Polar Measurement Data (PMD) decoder and control-point command builder, and Polar model identification, from Polar's public BLE SDK documentation; no BLE wiring | ✅ Pure | none |
+| **StrandTraining** | Training catalogue (bundled offline exercise catalogue and anatomy), plans, programs, routines, progression and the workout engine | ✅ Pure | none |
 | **StrandCore** (fork) | The platform-neutral app core shared by the Apple apps and Android: daily analysis and its host, `AnalysisRecipe`, raw collection and backfill, backup archive, metric resolver, energy, Hevy sync, exercise media, score provenance | ✅ No SwiftUI/Combine/StrandDesign; also builds for Android | GRDB, ZIPFoundation, swift-crypto (+ WhoopProtocol, WhoopStore, StrandAnalytics, StrandTraining, StrandImport) |
 | **NoopCoreJNI** (fork) | Android bridge: the dynamic `NoopCore` library (JNI entry points over plain Swift functions in `Bridge.swift`) and the `CJNI` header target; built for Android by `android/swift-core/build-swift-core.sh` | Android at runtime; tested on macOS | (StrandCore, SemanticMemory and the packages under them) |
 | **SemanticMemory** | Local Coach memory index (`SemanticIndexStore`, ranking) | ✅ Pure | GRDB |
@@ -56,38 +56,44 @@ holds these, summarised here from their sources and `Package.swift`:
 | **NoopLocalAccess** | `noop-local-access`: bounded, read-only local access to NOOP health data over MCP (stdio) or one-shot JSON queries; no network or write path | macOS 13+ | GRDB |
 
 All packages build with **swift-tools-version 5.9**, and each manifest declares its own platform floor:
-the five above declare iOS 16+ and macOS 13+ (`StrandAnalytics` and `StrandDesign` also watchOS 10+).
-The first four are platform-pure: they
-never import `CoreBluetooth`, `UIKit`, or `AppKit`, so they run unchanged in CLI
-tools, tests, and on any platform. `StrandDesign` is SwiftUI;
-it builds on both iOS and macOS, bridging through `UIColor`/`NSColor` only where
+
+| Platforms | Packages |
+|---|---|
+| iOS 16+, macOS 13+ | `WhoopProtocol`, `WhoopStore`, `StrandImport`, `StrandCore`, `StrandTraining`, `OuraProtocol`, `PolarProtocol` |
+| iOS 16+, macOS 13+, watchOS 10+ | `StrandAnalytics`, `StrandDesign` |
+| iOS 17+, macOS 13+ | `SemanticMemory`, `MuscleMap` |
+| macOS 13+ only | `NoopLocalAccess`, `NoopCoreJNI` (also Android arm64 at runtime) |
+
+`Package.swift` is authoritative. The protocol, store, analytics, import, training and core packages are
+platform-pure: they never import `CoreBluetooth`, `UIKit`, or `AppKit`, so they run unchanged in CLI
+tools, tests, and on any platform. `StrandDesign` and `MuscleMap` are SwiftUI;
+`StrandDesign` builds on both iOS and macOS, bridging through `UIColor`/`NSColor` only where
 unavoidable, guarded with `#if canImport(UIKit)` / `#if canImport(AppKit)`.
 
 ### Dependency graph
 
 ```
-WhoopProtocol  (no internal deps)
+WhoopProtocol  (no internal deps)      OuraProtocol, PolarProtocol, StrandTraining  (no internal deps)
       │
-      ├──────────────► WhoopStore        (+ GRDB)
+      ├──────────────► WhoopStore        (+ OuraProtocol, StrandTraining, GRDB)
       │                     │
       ▼                     ▼
 StrandAnalytics ◄───────────┘            (depends on WhoopProtocol + WhoopStore types)
 
-StrandImport   ──► WhoopProtocol, WhoopStore   (+ ZIPFoundation)
+StrandImport   ──► WhoopProtocol, WhoopStore   (+ ZIPFoundation, GRDB)
 
-StrandDesign   (standalone — SwiftUI only, no internal deps)
+StrandDesign, MuscleMap   (standalone — SwiftUI only, no internal deps)
+SemanticMemory, NoopLocalAccess   (standalone — GRDB only)
 
 StrandCore     ──► WhoopProtocol, WhoopStore, StrandAnalytics, StrandTraining, StrandImport
 NoopCoreJNI    ──► StrandCore, SemanticMemory (+ the packages above)
 ```
 
-(`WhoopStore` additionally depends on `OuraProtocol` and `StrandTraining`.)
-
 The reference app target (`Strand/`, macOS SwiftUI) is the integration layer: it
 owns the CoreBluetooth transport, wraps the protocol library's UUID *strings* in
 `CBUUID`, and wires the pure packages together. The released macOS and iOS apps consume these
 packages directly; the platform-neutral packages run unchanged across both Apple targets. In this
-fork the Android app (restored 2026-10-25, in testing) consumes them too: `NoopCoreJNI` cross-compiles
+fork the Android app (in testing) consumes them too: `NoopCoreJNI` cross-compiles
 `StrandCore` and the packages below it for Android, and the Kotlin app calls them over JNI. There is
 no Kotlin twin of this logic (see [`fork/android/STATUS.md`](fork/android/STATUS.md)).
 
@@ -261,7 +267,9 @@ thread on the actor's serial executor.
 
 **Sources:** `WhoopStore.swift`, `Database.swift` (the migrator),
 `StreamStore.swift`, `Reads.swift`, `RawOutbox.swift`, `Cursors.swift`,
-`MetricsCache.swift`, `JournalWorkoutAppleCache.swift`, `MetricSeriesStore.swift`.
+`MetricsCache.swift`, `JournalWorkoutAppleCache.swift`, `MetricSeriesStore.swift`, plus the
+feature stores (`DeviceRegistryStore`, `FoodLogStore`, `HevyStore`, `LiftLogStore`, `NativeTrainingStore`,
+`EcgReadingStore`, `WhoopDailyEnergyStore`, …).
 
 ### Depend on it
 
@@ -269,7 +277,7 @@ thread on the actor's serial executor.
 // Package.swift
 dependencies: [
     .package(path: "../WhoopProtocol"),
-    .package(url: "https://github.com/groue/GRDB.swift.git", from: "6.0.0"),
+    .package(path: "../WhoopStore"),
 ],
 targets: [
     .target(name: "MyTarget", dependencies: [
@@ -281,8 +289,9 @@ targets: [
 ### Schema
 
 The migrator (`WhoopStore.makeMigrator()`) currently runs through
-`v85-single-active-device`; the table below lists the core tables only (see
-[`DATA_MODEL.md`](DATA_MODEL.md)). The separate `WhoopStoreInfo.schemaVersion` constant is legacy
+`v94-weight-water-mark`; the table below lists the core tables only (every table and migration is in
+[`DATA_MODEL.md`](DATA_MODEL.md)). The package manifest pins GRDB.swift exactly (6.29.3) and depends on
+`WhoopProtocol`, `OuraProtocol` and `StrandTraining`. The separate `WhoopStoreInfo.schemaVersion` constant is legacy
 metadata and is not the migration authority. On open, the store enables WAL journal
 mode, `synchronous = NORMAL`, a 16 MB page cache, 256 MB mmap, and a 5-second
 busy timeout so two handles to the same file don't deadlock.
@@ -298,6 +307,8 @@ busy timeout so two handles to the same file don't deadlock.
 | `journal`, `workout`, `appleDaily` | journal + workouts + Apple-Health daily | various |
 | `metricSeries` | generic long-format (EAV) metric store | `(deviceId, day, key)` |
 | `scoreInputProvenance` | input provider for a NOOP-computed score | `(deviceId, day, key)` |
+| `pairedDevice`, `dayOwnership` | device registry and per-day score ownership | `id` / `day` |
+| energy, training, strength, food, ECG, Oura tables | see [`DATA_MODEL.md`](DATA_MODEL.md) | various |
 
 ### Key public API
 
@@ -375,7 +386,7 @@ let hr = try await store.hrSamples(deviceId: "AA:BB:CC",
 ## StrandAnalytics
 
 Pure, deterministic on-device analytics: HRV, recovery, strain, sleep staging,
-workout detection, baselines, and statistical comparison/correlation. **No
+workout detection, baselines, energy models, and statistical comparison/correlation. **No
 database access** — every entry point is a pure function over its inputs (it
 consumes the `WhoopProtocol` stream types and produces `WhoopStore` cache
 shapes, but performs no I/O). All derived values are explicitly **approximate**.
@@ -383,7 +394,8 @@ shapes, but performs no I/O). All derived values are explicitly **approximate**.
 **Sources:** `HRVAnalyzer.swift`, `RecoveryScorer.swift`, `StrainScorer.swift`,
 `HRZones.swift`, `Baselines.swift`, `SleepStager.swift`, `WorkoutDetector.swift`,
 `AnalyticsEngine.swift` (orchestrator), `CorrelationEngine.swift`,
-`ComparisonEngine.swift`, `BehaviorInsights.swift`.
+`ComparisonEngine.swift`, `BehaviorInsights.swift`, and the energy models
+(`WhoopEnergyModel.swift`, `EnergyCalibrationEngine.swift`, …) among the package's further files.
 
 ### Depend on it
 
@@ -443,15 +455,19 @@ print("recovery:", day.recovery ?? .nan, "strain:", day.strain ?? .nan)
 
 ## StrandImport
 
-Parsers for the two export formats a user can bring offline: **WHOOP CSV**
-exports and **Apple Health** exports (`export.zip` / `export.xml`, streamed so a
-multi-hundred-MB file never loads fully into memory). This layer is **parsing
+Parsers for the data a user can bring offline: **WHOOP CSV** exports and
+**Apple Health** exports (`export.zip` / `export.xml`, streamed so a
+multi-hundred-MB file never loads fully into memory), and further sources:
+Oura, Fitbit, Garmin and Xiaomi exports, FIT/GPX/TCX activity files, lab-report,
+nutrition and lifting-sheet imports, and Hevy API payloads. This layer is **parsing
 only** — it produces normalized Swift model arrays and an `ImportSummary` and
 does not touch the database, so the whole package is unit-testable.
 
 **Sources:** `ImportCoordinator.swift` (top-level + auto-detection),
 `AppleHealthImporter.swift`, `AppleHealthAggregator.swift`,
-`WhoopExportImporter.swift`, `CSVParsing.swift`, `ImportModels.swift`.
+`WhoopExportImporter.swift`, `CSVParsing.swift`, `ImportModels.swift`, and the
+per-source parsers beside them (`OuraExportParser`, `FitbitExportParser`, `GarminExportParser`,
+`ActivityFileImporter`, `LiftingImporter`, …).
 
 ### Depend on it
 
@@ -461,7 +477,6 @@ dependencies: [
     .package(path: "../WhoopProtocol"),
     .package(path: "../WhoopStore"),
     .package(path: "../StrandImport"),
-    .package(url: "https://github.com/weichsel/ZIPFoundation.git", from: "0.9.0"),
 ],
 targets: [
     .target(name: "MyTarget", dependencies: ["StrandImport"]),
@@ -608,7 +623,7 @@ struct RecoveryHeader: View {
 ## Reuse notes
 
 - **Pick only what you need.** `WhoopProtocol` is self-contained (no
-  dependencies); `WhoopStore` adds GRDB; `StrandImport` adds ZIPFoundation;
+  dependencies); `WhoopStore` adds GRDB; `StrandImport` adds ZIPFoundation and GRDB;
   `StrandAnalytics` consumes the first two's types but does no I/O. A headless
   tool can decode and analyze WHOOP data with no SwiftUI involved at all.
 - **Bring your own transport.** The protocol library never opens a Bluetooth

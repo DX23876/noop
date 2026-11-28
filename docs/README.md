@@ -1,22 +1,26 @@
 # Documentation map
 
-This index separates current guidance from historical records. The current fork ships iOS, macOS,
-widgets/Live Activity, and an optional watchOS companion; the latest release is 12.2.1 and 13.0.0 is in
-testing. Android is back since 2026-10-25 as a Kotlin shell around the shared Swift core and is in
-testing ([Android status](ANDROID.md)); for a finished Android app use
-[RyanBR's upstream NOOP](https://github.com/ryanbr/noop).
+This index separates current guidance from historical records. The current fork, NOOP Forge 13.0
+(28 November 2026), ships iPhone and iPad, Mac, an optional Apple Watch companion and Android, all on one
+shared Swift core. Android is a Kotlin shell around that core ([Android status](ANDROID.md)). The project
+website, [dx23876.github.io/forge](https://dx23876.github.io/forge/), has the
+[install guide](https://dx23876.github.io/forge/install/), the
+[feature tour](https://dx23876.github.io/forge/features/) and the
+[firmware status](https://dx23876.github.io/forge/firmware/) for WHOOP 5.0 and MG.
 
 ## Start here
 
 - [README](../README.md) — product overview and downloads.
+- [Project website](https://dx23876.github.io/forge/) — install guide, features, comparison with the other
+  apps and the firmware page.
 - [iOS installation](IOS.md) — AltStore/SideStore, Full IPA, and source builds.
-- [Android status](ANDROID.md) — the testing build, how it sits on the shared core, and where its plans
-  live.
-- [Testing NOOP Forge 13](fork/TESTING-13.0.0.md) — what to check in the current testing build, and
-  [Android testing](fork/android/TESTING.md) for the Android round.
+- [Android status](ANDROID.md) — the released Android app, how it sits on the shared core, and where its
+  plans live.
+- [Reporting a problem on Android](fork/android/TESTING.md) — what a useful report contains, and where to
+  send it.
 - [Build and release](BUILD.md) — XcodeGen, package/app builds, and publication.
 - [Features](FEATURES.md) — current product surfaces.
-- [FAQ](FAQ.md) — common score, privacy, and calibration questions.
+- [FAQ](FAQ.md) — common score, privacy, firmware and calibration questions.
 - [Privacy and security](PRIVACY_SECURITY.md) — exact local/network boundaries.
 - [Homebrew](HOMEBREW.md) — why there is no tap today, and how one would be published.
 
@@ -27,7 +31,8 @@ testing ([Android status](ANDROID.md)); for a finished Android app use
 - [Technical deep-dive](fork/DETAILS.md) — fork rationale, tool overview, prompt caching and the
   relationship to upstream.
 - [Fitness Age](FITNESS_AGE.md) — the VO₂max model behind it and its limits.
-- [Liquid Today](fork/LIQUID_TODAY_REDESIGN.md) — the default Today design and its animated rings.
+- [Liquid Today](fork/LIQUID_TODAY_REDESIGN.md) — the classic Today design (still the Mac design) and its
+  animated rings. On iPhone the new design is the only design since 2026-11-20.
 - [Health sync](fork/health-sync.md) — what is read from and written to Apple Health.
 - [Sleep heart-rate contrast](sleep-heart-rate-contrast.md) and
   [validation protocol](VALIDATION_PROTOCOL.md) — how new signals are checked before they are trusted.
@@ -94,8 +99,8 @@ current shared-core Android app.
 ## Historical records — do not rewrite as current behavior
 
 - `docs/releases/` — upstream-era release notes.
-- `docs/fork/releases/` — fork release notes, released up to 12.2.1; `v13.0.0.md` is the draft for the
-  release in testing.
+- `docs/fork/releases/` — fork release notes; `v13.0.0.md` belongs to the 13.0 release.
+- [Testing NOOP Forge 13](fork/TESTING-13.0.0.md) — the checklist of the 13.0 testing round, kept as a record.
 - `docs/fork/decisions.md` — chronological decisions; later rows may supersede earlier rows.
 - `docs/superpowers/` — dated plans and specifications.
 - `docs/fork/redesign-*`, `docs/fork/feature-spec.md` and `docs/fork/design/` — implementation inputs

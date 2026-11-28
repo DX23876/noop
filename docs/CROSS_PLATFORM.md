@@ -1,23 +1,26 @@
 # Platform architecture — macOS, iOS, watchOS and Android
 
-NOOP Forge targets macOS, iOS/iPadOS and watchOS, and Android on a shared Swift core (decided
-2026-10-24, see [`fork/android/PLAN.md`](fork/android/PLAN.md)). macOS and iOS share the same Swift
-packages and most app-layer code; the watchOS companion receives a bounded snapshot from the iPhone.
-Android was removed from this fork on 2026-08-14 and restored on 2026-10-25 as a Kotlin shell around
-the same Swift core; it is in **testing** and not yet a published release download. The upstream
-Kotlin parity contract (a byte-identical Kotlin twin of every formula) is retired here (2026-07-23):
-there is no Kotlin twin. See [`fork/AGENT_RULES.md`](fork/AGENT_RULES.md).
+NOOP Forge 13.0 (28 November 2026) ships on macOS, iOS/iPadOS, watchOS and Android. macOS and iOS share
+the same Swift packages and most app-layer code; the watchOS companion receives a bounded snapshot from
+the iPhone. Android is a Kotlin shell around the same Swift core (decided 2026-10-24, see
+[`fork/android/PLAN.md`](fork/android/PLAN.md)): it was removed from this fork on 2026-08-14 and restored
+on 2026-10-25. The upstream Kotlin parity contract (a byte-identical Kotlin twin of every formula) is
+retired here (2026-07-23): there is no Kotlin twin. See [`fork/AGENT_RULES.md`](fork/AGENT_RULES.md).
+
+Design: the new design is the only iPhone and iPad design since 2026-11-20; the Mac keeps the classic
+screens; Android has the new design by default with a **Classic screens** row in About. The iPhone tabs are
+Today, Training, Nutrition, Sleep and Health.
 
 ## Current targets
 
 | Target | Code home | Distribution | Role |
 |---|---|---|---|
 | macOS app (`Strand`) | `Strand/` + `Packages/` | Universal ZIP or Xcode | Reference desktop app |
-| iOS/iPadOS app (`NOOPiOS`) | `StrandiOS/`, shared `Strand/`, `Packages/` | Unsigned IPA or Xcode | Phone/tablet app |
+| iOS/iPadOS app (`NOOPiOS`) | `StrandiOS/`, shared `Strand/`, `Packages/` | Unsigned IPA (AltStore, SideStore) or Xcode | Phone/tablet app (one universal app) |
 | Widgets/Live Activity (`NOOPiOSWidgets`) | `StrandiOS/Widgets/` | Embedded in both iOS IPAs | Home/Lock Screen and Live Activity |
 | Watch app (`NOOPWatch`) | Watch sources selected by `project.yml` | Full IPA or Xcode | Companion surface |
 | Watch complication (`NOOPWatchComplications`) | Watch complication sources selected by `project.yml` | Full IPA or Xcode | Snapshot complication |
-| Android app (`io.github.dx23876.noop`, Android 8.0+) | `android/` (Kotlin, Compose) + `Packages/` via `NoopCoreJNI` | Testing APK ([`fork/android/TESTING.md`](fork/android/TESTING.md)) | Phone app on the shared core |
+| Android app (`io.github.dx23876.noop`, Android 8.0+) | `android/` (Kotlin, Compose) + `Packages/` via `NoopCoreJNI` | Signed APK on the release page ([status](ANDROID.md)) | Phone app on the shared core |
 
 `project.yml` is the authoritative target and source-membership definition. Generate
 `Strand.xcodeproj` with `xcodegen generate`; never hand-edit the generated project.

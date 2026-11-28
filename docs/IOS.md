@@ -1,25 +1,37 @@
 # iOS / iPadOS — install, sign, and build
 
-NOOP Forge 12.2.1, the current release, ships as an intentionally unsigned iOS release. You sign it with your own Apple ID
-through AltStore/SideStore or build it with Xcode. There is no App Store or TestFlight distribution
-and no project-owned signing identity.
+NOOP Forge ships as an intentionally unsigned iOS release (13.0 on 28 November 2026 is the current line).
+You sign it with your own Apple ID through AltStore or SideStore, or build it with Xcode. There is no App
+Store or TestFlight distribution and no project-owned signing identity. NOOP Forge runs on iPhone and iPad
+(iOS 17 or later) as one universal app. The project website has a step-by-step
+[install guide](https://dx23876.github.io/forge/install/), and a
+[signer in the browser](https://dx23876.github.io/forge/sign/) for the Full IPA.
+
+Since 2026-11-20 the new design is the only iPhone design; there is no switch for the earlier one. The tabs
+are Today, Training, Nutrition, Sleep and Health, and everything else is under More. (The Mac keeps the
+classic screens.)
 
 ## Choose an IPA
 
-The [12.2.1 release](https://github.com/DX23876/noop/releases/tag/v12.2.1-dx) publishes two variants:
+The [latest release](https://github.com/DX23876/noop_forge/releases/latest) publishes two variants, named
+with its version (`<version>` is for example `13.0.0`):
 
 | Artifact | Includes | Intended use |
 |---|---|---|
-| `NOOP-ios-unsigned-v12.2.1-dx.ipa` | iPhone/iPad app, Home/Lock Screen widgets, Live Activity | AltStore/SideStore, including free Apple IDs |
-| `NOOP-ios-full-unsigned-v12.2.1-dx.ipa` | Everything above plus Watch app and complication | A signer/developer team that can provision every nested target |
+| `NOOP-ios-unsigned-v<version>-dx.ipa` | iPhone/iPad app, Home/Lock Screen widgets, Live Activity | AltStore/SideStore, including free Apple IDs |
+| `NOOP-ios-full-unsigned-v<version>-dx.ipa` | Everything above plus Watch app and complication | A signer/developer team that can provision every nested target |
 
 Both IPAs are unsigned. The AltStore variant removes only the embedded Watch bundle; it keeps the
 widget extension and the capability template used to provision the shared App Group and HealthKit.
 
-The **testing build** of the next release (13.0.0 at the time of writing) is published under the rolling
-[`testing-latest`](https://github.com/DX23876/noop/releases/tag/testing-latest) tag as
-`NOOP-testing-ios-unsigned-v13.0.0.ipa`. It installs over NOOP Forge and keeps your data; make a backup first and
-see [`fork/TESTING-13.0.0.md`](fork/TESTING-13.0.0.md) for what to check.
+Updating keeps your data: the bundle identifiers, the App Group and the store path do not change, so an
+installed app keeps its data, Health permissions and update source. Make a backup first (**Settings →
+Backup & Sync → Back up now**); a release that changes a score recalculates your history once and says so
+in its notes.
+
+Builds meant for testers are published under the rolling
+[`testing-latest`](https://github.com/DX23876/noop_forge/releases/tag/testing-latest) tag as
+`NOOP-testing-ios-unsigned-v<version>.ipa`. They install over NOOP Forge the same way.
 
 ### If AltStore's Error Log says "Install NOOP Failed"
 
@@ -81,8 +93,9 @@ so it is written down here rather than left as a dead end.
 
 1. Install [AltStore](https://altstore.io) or [SideStore](https://sidestore.io) using its official
    setup guide and your own Apple ID.
-2. Download `NOOP-ios-unsigned-v12.2.1-dx.ipa` from the
-   [release page](https://github.com/DX23876/noop/releases/tag/v12.2.1-dx).
+2. Download `NOOP-ios-unsigned-v<version>-dx.ipa` from the
+   [latest release](https://github.com/DX23876/noop_forge/releases/latest), or add the update source below
+   and install from it.
 3. Open the IPA with the sideloader or import it from the sideloader's **My Apps** screen.
 4. If iOS asks, trust your Apple ID under **Settings → General → VPN & Device Management**.
 
@@ -90,7 +103,7 @@ so it is written down here rather than left as a dead end.
 
 Add this raw source URL once:
 
-`https://raw.githubusercontent.com/DX23876/noop/main/altstore-source.json`
+`https://raw.githubusercontent.com/DX23876/noop_forge/main/altstore-source.json`
 
 - AltStore: **Browse → + → Add Source**.
 - SideStore: **Browse/Sources → Add Source**.
@@ -183,8 +196,11 @@ data. Raw strap history, scores, and the local database remain on the device.
 
 The app is offline-first, not network-impossible: the optional Coach contacts the provider you
 configure, a source-built Oura history lane can pull your own Oura data in, the opt-in Hevy sync talks
-to your Hevy account, an optional exercise media pack is downloaded only when you ask for it, and the
-manual update check reads public GitHub release metadata. See [privacy and security](PRIVACY_SECURITY.md).
+to your Hevy account, an optional exercise media pack is downloaded only when you ask for it, a food
+lookup or food pack is fetched only if you choose one in the food setup, the update check reads public
+GitHub release metadata, and the Project page reads a public feed (roadmap, problems, wishes). Votes,
+wishes, problem reports and the raw-motion donation are sent only when you press send, and the switch
+**Send things from this device** turns all of them off. See [privacy and security](PRIVACY_SECURITY.md).
 
 ## Publishing
 
@@ -192,7 +208,7 @@ Maintainers publish from `main` with the manual
 [`publish-ios-release.yml`](../.github/workflows/publish-ios-release.yml) workflow. It validates the
 version and release notes, builds both IPAs, attaches the macOS ZIP, promotes the release only after
 all required jobs succeed, and then updates `altstore-source.json`. A follow-up job builds the signed
-Android testing APK and attaches it to the same release (`android-release.yml`).
+Android APK and attaches it to the same release (`android-release.yml`).
 
 See [build and release instructions](BUILD.md#publish-an-unsigned-apple-release) for the complete
 checklist.

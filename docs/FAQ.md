@@ -3,8 +3,10 @@
 Answers to the questions that come up most often in issues and on Discord. If your question isn't
 here, [ANALYTICS.md](ANALYTICS.md) documents how every score is computed,
 [PRIVACY_SECURITY.md](PRIVACY_SECURITY.md) covers what stays on your device, and the wiki has
-[Troubleshooting](https://github.com/DX23876/noop/wiki/Troubleshooting) (pairing, sync, "no data") and
-the [WHOOP 5.0 / MG status](https://github.com/DX23876/noop/wiki/WHOOP-5.0-and-MG-Status) page.
+[Troubleshooting](https://github.com/DX23876/noop_forge/wiki/Troubleshooting) (pairing, sync, "no data"),
+the [WHOOP 5.0 / MG status](https://github.com/DX23876/noop_forge/wiki/WHOOP-5.0-and-MG-Status) page and
+the [project website](https://dx23876.github.io/forge/) with the install guide and the
+[firmware status](https://dx23876.github.io/forge/firmware/).
 
 Something broken, or want to help? Jump to
 [Help, bug reports and support](#help-bug-reports-and-support).
@@ -57,9 +59,16 @@ on your device unless you explicitly export/share them. A few user-controlled pa
 network: the optional Coach sends your question and an approved compact text summary to the provider
 you configure; a source-built Oura lane pulls your own Oura history in; an optional Hevy connection
 reads your own Hevy workouts and routines with your key; the optional exercise media pack and a
-personal ExerciseDB source are downloaded only when you ask; and the update checker reads public
-release metadata from GitHub when you tap it or, when enabled, at most once per day. The update check
-never installs anything and can be disabled under Settings → About.
+personal ExerciseDB source are downloaded only when you ask; a food lookup or food pack is fetched only if
+you choose one in the food setup; the Project page (Roadmap, Problems, Wishes) reads a public feed; and the
+update checker reads public release metadata from GitHub when you tap it or, when enabled, at most once per
+day. The update check never installs anything and can be disabled under Settings → About.
+
+NOOP can also send a few things, but only when you press send: a vote on the roadmap, a wish, a problem
+report (with a log you review first, if you attach one) and a donated recording of raw wrist motion. The
+switch **Send things from this device** (Settings → Project) turns all of them off. On Android, an
+Experimental, default-off setting can push your data one way to a server you own and configure; it does not
+exist on iPhone, iPad or Mac.
 
 Two exports can carry your data off-device **when you choose where to send them**:
 
@@ -74,7 +83,7 @@ Both are user-initiated. See [docs/PRIVACY_SECURITY.md](PRIVACY_SECURITY.md).
 `UpstreamStoreUpgradeTests` open stores from upstream 11.5 and 11.7 with their history intact.
 
 **From NOOP Forge back to RyanBR's NOOP: not guaranteed.** Forge's database carries many more
-migrations than upstream's (v85 on the current main tree, the 13.0.0 testing build; upstream was at
+migrations than upstream's (v85 on the current main tree, the 13.0 release; upstream was at
 v47 at the last recorded comparison, the upstream sync of 2026-10-01), and some upstream migrations were
 renumbered when they were merged. GRDB ignores unknown later migrations, and
 `testV40DatabaseRemainsReadableByRyanbrV37Migrator` pins that for an older reader, but no test opens a
@@ -86,12 +95,27 @@ switching between forks, and restore with the same or a newer build of the same 
 
 ## Is there an Android version?
 
-Yes, in testing. The Android app runs on the same shared Swift core as the iPhone and Mac apps
-(scores, analysis, imports and backup are computed by the same code), with Android's own Bluetooth
-layer and screens. It needs Android 8.0 or later and is not yet published as a release download.
-How to install a testing APK and what testers are asked to confirm:
-[docs/fork/android/TESTING.md](fork/android/TESTING.md). What already works and what is still open:
-[docs/fork/android/STATUS.md](fork/android/STATUS.md).
+Yes, since 13.0 (28 November 2026). The Android app runs on the same shared Swift core as the iPhone and
+Mac apps (scores, analysis, imports and backup are computed by the same code), with Android's own Bluetooth
+layer and screens. It needs Android 8.0 or later; the APK is attached to each
+[release](https://github.com/DX23876/noop_forge/releases). It is the youngest platform and has met far fewer
+phones than the Apple apps, so a problem report with the strap log helps a lot:
+[docs/fork/android/TESTING.md](fork/android/TESTING.md). What is still unverified on a real strap:
+[docs/fork/android/STATUS.md](fork/android/STATUS.md). Android has Health Connect instead of Apple Health,
+and a **Classic screens** row in Settings → About that switches back to the earlier screens.
+
+## Should I update my WHOOP 5.0 or MG firmware?
+
+**Keep the strap away from the official WHOOP app.** The WHOOP app installs firmware updates by itself,
+and there is no downgrade. On WHOOP 5.0 and MG, firmware **50.43.1.0** and **50.43.2.0** are reported
+(November 2026) to hold back data from independent apps such as NOOP. A strap that is already on one of them
+cannot be put back, so the advice is: never connect the strap to the WHOOP app again, and uninstall the app
+from the phone you use with NOOP. NOOP never updates firmware and never sends a command that could.
+
+What has been reported, how to read your strap's firmware (its card on the Devices screen shows "FW" and the version) and what is
+known to work is kept current on the website's
+[firmware page](https://dx23876.github.io/forge/firmware/). If your strap is on one of these versions and
+data is missing, say so in a problem report together with the strap log.
 
 ## Which numbers are measured, and which are NOOP's own estimates?
 
@@ -141,8 +165,9 @@ Backup** (on the Mac, also in the **Data Sources** sidebar entry):
 - **Apple Health:** on iPhone, NOOP can read Apple Health directly (**Apple Health** in the same
   section). For your full history, import the export from the Health app (profile picture → *Export
   All Health Data*). Large exports take a minute or two.
-- **Others:** Strong, Hevy, FitNotes, nutrition CSVs from Cronometer or MacroFactor, Mi Band (Mi
-  Fitness export) and GPX, TCX and FIT routes.
+- **Others:** Hevy and Liftosaur files, Strong and FitNotes CSVs (iPhone, iPad and Mac), nutrition CSVs
+  from Cronometer or MacroFactor, Oura, Fitbit and Garmin exports, Mi Band (Mi Fitness export) and GPX,
+  TCX and FIT workout files. On Android, Health Connect brings in what other apps stored there.
 - **A backup from RyanBR's NOOP:** restore the `.noopbak` under Data & Backup; see the backup question
   above.
 
@@ -155,13 +180,16 @@ Backup**).
   there. With a free Apple ID the app must be refreshed every seven days, which the sideloader does
   in the background. Details are in the [iOS guide](IOS.md).
 - **Mac:** download the newest build from the
-  [latest release](https://github.com/DX23876/noop/releases/latest) and replace the app in your
+  [latest release](https://github.com/DX23876/noop_forge/releases/latest) and replace the app in your
   Applications folder.
+- **Android:** install the newer APK from the release over the old one; it keeps your data.
+
+The website's [install guide](https://dx23876.github.io/forge/install/) shows each step with pictures.
 
 Settings → **About** → **Check for updates** tells you whether a newer release exists, and **Check
 automatically** does that at most once a day. It only reads the public release information from
 GitHub; it never downloads or installs anything. What changed is in the release notes on the
-[releases page](https://github.com/DX23876/noop/releases).
+[releases page](https://github.com/DX23876/noop_forge/releases).
 
 ## Is NOOP a medical device?
 
@@ -178,18 +206,18 @@ so the questions below are about getting help quickly and about how to help back
 ## Where do I ask a question, and where do I report a bug?
 
 - **Questions, setup help, "is this normal?":** [Discord](https://discord.com/invite/wKgyqVdjrP), or
-  [GitHub Discussions](https://github.com/DX23876/noop/discussions). Please read this FAQ and the
-  [Troubleshooting](https://github.com/DX23876/noop/wiki/Troubleshooting) page first; most questions
+  [GitHub Discussions](https://github.com/DX23876/noop_forge/discussions). Please read this FAQ and the
+  [Troubleshooting](https://github.com/DX23876/noop_forge/wiki/Troubleshooting) page first; most questions
   are already answered there.
-- **Ideas and feature requests:** [GitHub Discussions](https://github.com/DX23876/noop/discussions).
-- **A confirmed bug:** a [GitHub issue](https://github.com/DX23876/noop/issues/new/choose), using the
+- **Ideas and feature requests:** [GitHub Discussions](https://github.com/DX23876/noop_forge/discussions).
+- **A confirmed bug:** a [GitHub issue](https://github.com/DX23876/noop_forge/issues/new/choose), using the
   bug template.
 
 Bugs reported only in Discord tend to get lost: nobody can read the whole chat in their free time to
 collect them. An issue is tracked until it is fixed.
 
 Before opening an issue, search the
-[existing issues](https://github.com/DX23876/noop/issues?q=is%3Aissue). If yours is already there, add
+[existing issues](https://github.com/DX23876/noop_forge/issues?q=is%3Aissue). If yours is already there, add
 a 👍 or add **new** information (another device, another strap, a log). A comment that only says "same
 here" changes nothing.
 
@@ -205,7 +233,9 @@ in the report. "X doesn't work" on its own cannot be investigated. Please includ
 - **the strap log**, which is the single most helpful thing you can attach:
   - iPhone, iPad and Mac: Settings → **Connection diagnostics** → *Strap log* → **Save…** (or
     **Copy**)
-  - Android test builds: Settings → **Help & Diagnostics** → **Share strap log**
+  - Android: Settings → **Help & Diagnostics** → **Share strap log**
+  - Or, in the app on any platform: Settings → **Project** → **Report a problem**. Nothing is sent until you
+    press send.
 
 Save the log soon after the problem happens, while the relevant part is still in it. The strap's
 serial number and Bluetooth addresses are masked automatically, but it is still your data, so have a
@@ -213,12 +243,13 @@ quick look before you post it publicly.
 
 ## Why is some text still in English?
 
-The interface is being rebuilt screen by screen into a clearer layout. Translations are completed on
-the new screens instead of being patched into old ones that are about to be replaced, so an older
-screen can still show English text for a while.
+The iPhone and iPad app was rebuilt into a new design that is the only design there since 2026-11-20 (tabs
+Today, Training, Nutrition, Sleep and Health). Translations were completed on the new screens first. The
+Mac keeps the classic screens for now, and on Android the **Classic screens** row in About shows them, so
+those older screens can still show English text.
 
 If a **new** screen shows untranslated text, that is worth reporting; say which screen and which
-language. Translation help is welcome too, and is easiest once a screen has been rebuilt.
+language. Translation help is welcome too.
 
 ## How can I help?
 
@@ -229,9 +260,9 @@ You do not need to be able to code. Any of these helps:
 - **Report well:** a complete bug report with a log, as described above, often saves days of
   back-and-forth.
 - **Give concrete feedback:** say what is confusing or hard to find and, ideally, suggest something
-  better. That matters most right now, while the interface is being rebuilt.
+  better.
 - **Help others:** answer questions on Discord or point people to the right FAQ entry.
-- **Translate:** help with a language you speak once a rebuilt screen lands.
+- **Translate:** help with a language you speak.
 - **Contribute code:** pull requests are welcome. Read [AGENTS.md](../AGENTS.md) and
   [CONTRIBUTING.md](CONTRIBUTING.md) first, keep one topic per pull request, and test on your own
   device before you submit. Untested patches have broken the app before.

@@ -1,7 +1,10 @@
 # AgeLess
 
-**Status:** fork feature, experimental, off by default (Settings → Experimental → AgeLess). While on, it
-takes Body Age's place on Health.
+**Status:** fork feature, beta, off by default. The switch is **Settings › Lab › AgeLess**. While on, it
+takes Body Age's place on Health (Vitality stays, and so does [Fitness Age](FITNESS_AGE.md), which has its
+own place on the Health page and is not switched by Lab). Its sibling **Daily rhythm** (a rhythm age for
+WHOOP 5.0 and MG) is a separate Lab switch, also off by default. Flipping the AgeLess switch on computes
+the card at once instead of waiting for the next analysis pass.
 
 ## What it is
 
@@ -93,6 +96,9 @@ against regressions rather than validating the age.
 
 ## Screens
 
+- **Where it lives:** iPhone More › Health & body › AgeLess (and Health tab › More); the Mac shows the card
+  in its Health section; Android has the same screen in its Forge Health & body area. All three appear only
+  while the Lab switch is on.
 - **Health card:** the age on a half-circle gauge spanning ten years either side of the actual age, the
   years younger or older, and Aging speed.
 - **AgeLess screen:** week switcher, Aging speed on its scale (leaf for slow, flame for fast), a status
