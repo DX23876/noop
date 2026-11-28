@@ -163,6 +163,23 @@ final class BackupSettingsTests: XCTestCase {
         XCTAssertNil(snap["profile.sex"])
     }
 
+    /// The diet plan and the Food page's goal cross a backup (2026-11-28): a restore used to drop them.
+    func testTheDietPlanAndTheFoodGoalSurviveARestore() throws {
+        let source = try freshDefaults()
+        source.set(#"{"form":"mediterranean","goalWeightKg":95}"#, forKey: "food.plan")
+        source.set(2_300.0, forKey: "food.goal.kcal")
+        source.set(30.0, forKey: "food.goal.proteinPercent")
+        source.set("score", forKey: "units.skinTempDisplay")
+        let encoded = try XCTUnwrap(BackupSettings.encode(BackupSettings.snapshot(from: source)))
+        let destination = try freshDefaults()
+        BackupSettings.apply(BackupSettings.decode(encoded), to: destination)
+        XCTAssertEqual(destination.string(forKey: "food.plan"), #"{"form":"mediterranean","goalWeightKg":95}"#)
+        XCTAssertEqual(destination.double(forKey: "food.goal.kcal"), 2_300)
+        XCTAssertEqual(destination.double(forKey: "food.goal.proteinPercent"), 30)
+        XCTAssertNil(destination.object(forKey: "food.goal.fatPercent"), "a goal never set stays unset")
+        XCTAssertEqual(destination.string(forKey: "units.skinTempDisplay"), "score")
+    }
+
     func testApplyWritesPlatformKeysAndLeavesUntouchedKeysAlone() throws {
         let defaults = try freshDefaults()
         defaults.set(175.0, forKey: "profile.heightCm") // pre-existing target value, not in payload

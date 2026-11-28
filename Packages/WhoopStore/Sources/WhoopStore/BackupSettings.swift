@@ -114,6 +114,16 @@ public enum BackupSettings {
         // blobs, so the app layer (`GoalBackupBundle`) packs and unpacks it. Apple-only fork state with no
         // Android twin; a reader that does not know the key ignores it, so older builds restore cleanly.
         "goals.bundle": .string,
+        // The diet plan (its JSON, as both platforms store it under `food.plan`) and the Food page's own goal:
+        // a fixed calorie goal (0 follows the energy plan) and its split. Lost in a restore, the Food page fell
+        // back to the energy plan's figures and the plan the wearer built was gone (found 2026-11-28).
+        "food.plan": .string,
+        "food.goal.kcal": .double,
+        "food.goal.proteinPercent": .double,
+        "food.goal.carbsPercent": .double,
+        "food.goal.fatPercent": .double,
+        // #1846: Android has carried it since then; the iPhone stores it under the same key.
+        "units.skinTempDisplay": .string,
     ]
 
     /// Canonical JSON key → this platform's UserDefaults key. Identity everywhere except
@@ -148,6 +158,12 @@ public enum BackupSettings {
         "profile.vo2maxManualDay": "profile.vo2maxManualDay",
         "profile.vo2maxManualWeightKg": "profile.vo2maxManualWeightKg",
         "profile.activityLevelOverride": "profile.activityLevelOverride",
+        "food.plan": "food.plan",
+        "food.goal.kcal": "food.goal.kcal",
+        "food.goal.proteinPercent": "food.goal.proteinPercent",
+        "food.goal.carbsPercent": "food.goal.carbsPercent",
+        "food.goal.fatPercent": "food.goal.fatPercent",
+        "units.skinTempDisplay": "units.skinTempDisplay",
     ]
 
     // MARK: - Snapshot / apply (UserDefaults boundary)

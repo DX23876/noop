@@ -102,6 +102,23 @@ class BackupSettingsCodecTest {
         assertEquals(28, back["profile.age"])
     }
 
+    /** The energy plan's settings, the diet plan and the Food page's goal cross a backup (2026-11-28). */
+    @Test fun energyAndFoodSettingsRideTheWhitelist() {
+        val json = requireNotNull(BackupSettingsCodec.encode(mapOf(
+            "energy.bmrFormulaLog" to "[{\"day\":\"2026-11-01\",\"formula\":\"measured\"}]",
+            "energy.scaleCorrection" to "{\"status\":\"active\"}",
+            "food.plan" to "{\"form\":\"mediterranean\"}",
+            "food.goal.kcal" to 2300.0,
+            "training.weightUnit" to "pounds",
+        )))
+        val back = BackupSettingsCodec.decode(json)
+        assertEquals("{\"form\":\"mediterranean\"}", back["food.plan"])
+        assertEquals(2300.0, back["food.goal.kcal"])
+        assertEquals("pounds", back["training.weightUnit"])
+        assertEquals("{\"status\":\"active\"}", back["energy.scaleCorrection"])
+        assertNull(BackupSettingsCodec.decode("""{"food.goal.kcal": "lots"}""")["food.goal.kcal"])
+    }
+
     @Test fun wrongTypedValuesAreDroppedNotCoerced() {
         val back = BackupSettingsCodec.decode(
             """{"profile.age": true, "profile.sex": 5, "profile.weightKg": "heavy", "profile.hrMax": 185}""",
