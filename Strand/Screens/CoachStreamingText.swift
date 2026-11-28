@@ -96,7 +96,7 @@ struct CoachStreamCaret: View {
         // state change and is dropped when the view leaves the render tree, so a caret that says "still
         // writing" could freeze while the reply went on arriving — the one cue the bubble has, stuck.
         if shouldAnimate {
-            TimelineView(.animation) { context in
+            TimelineView(.animation(minimumInterval: StrandMotion.clockFrameInterval)) { context in
                 caret(opacity: 0.15 + 0.85 * StrandMotion.breathPhase(at: context.date,
                                                                       period: Self.blinkPeriod))
             }

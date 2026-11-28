@@ -8,6 +8,11 @@ import StrandAnalytics
 @MainActor
 public final class FrameRouter {
     private let state: LiveState
+    /// True from an alarm arm until the readback that answers it (#2893). Only that readback may count a
+    /// "nothing stored" answer toward `alarm.rejectStreak`; one the wearer asks for later can find the alarm
+    /// gone because it was disarmed or already rang, which is not a refusal.
+    static let alarmReadbackOwedKey = "alarm.readbackOwed"
+
     /// Called when the strap pushes an EVENT packet (WHOOP's strap-as-clock catch-up signal). The
     /// BLEManager wires this to a rate-limited requestSync(.strap). nil in pure/unit contexts.
     /// #1193: the WHOOP 4.0 strap serial, decoded from the `GET_HELLO_HARVARD` (35) response. A 4.0 has
@@ -292,6 +297,8 @@ public final class FrameRouter {
                         // nothing and leaves the streak alone — advancing would warn about a strap that
                         // was never asked, clearing would hide a real refusal. An unattributed one is a
                         // different case, handled below.
+                        // This readback is the arm's answer, whatever it says; a later one is not.
+                        d.set(false, forKey: Self.alarmReadbackOwedKey)
                         if let sent = d.object(forKey: "alarm.lastArmSentEpoch") as? Int {
                             let verdict = AlarmReadback.verdict(
                                 sentEpoch: sent,
@@ -346,14 +353,21 @@ public final class FrameRouter {
                             reportedDeviceId: deviceId,
                             sentAt: defaults.object(forKey: "alarm.lastArmAt") as? Double,
                             reportedAt: Date().timeIntervalSince1970)
-                        let counted = defaults.object(forKey: "alarm.lastArmSentEpoch") != nil
+                        // Only the readback that answers an arm may count (`alarmReadbackOwedKey`, set by
+                        // the arm, spent here): a check the wearer asks for after a disarm, or after the
+                        // alarm already rang, finds nothing stored for a reason that is not a refusal.
+                        let owed = defaults.bool(forKey: Self.alarmReadbackOwedKey)
+                        defaults.set(false, forKey: Self.alarmReadbackOwedKey)
+                        let counted = owed && defaults.object(forKey: "alarm.lastArmSentEpoch") != nil
                             && AlarmReadback.countsAsRejection(verdict)
                         if counted {
                             defaults.set(defaults.integer(forKey: "alarm.rejectStreak") + 1,
                                          forKey: "alarm.rejectStreak")
                         }
-                        state.append(log: "Alarm: strap reports NO alarm currently stored (epoch 0) — the arm did not persist on the strap (raw \(raw))"
-                            + (counted ? "" : " — not attributed to an arm of ours, so it is not counted as a refusal"))
+                        state.append(log: owed
+                            ? "Alarm: strap reports NO alarm currently stored (epoch 0) — the arm did not persist on the strap (raw \(raw))"
+                                + (counted ? "" : " — not attributed to an arm of ours, so it is not counted as a refusal")
+                            : "Alarm: strap reports NO alarm currently stored (epoch 0) (raw \(raw)) — not the answer to an arm just sent, so it is not counted as a refusal")
                     } else {
                         state.append(log: "Alarm: strap answered the alarm readback with an unrecognised payload (raw \(Self.commandResponsePayloadHex(in: frame) ?? "empty")) - layout undocumented, log-only")
                     }

@@ -5820,7 +5820,7 @@ private struct RecordingStatusLight: View {
                         if motion.poseStill(reduceMotion) {
                             syncRing(phase: 0)
                         } else {
-                            TimelineView(.animation) { context in
+                            TimelineView(.animation(minimumInterval: StrandMotion.clockFrameInterval)) { context in
                                 syncRing(phase: StrandMotion.sweepPhase(at: context.date,
                                                                         period: Self.syncRingPeriod))
                             }

@@ -50,6 +50,18 @@ final class HandEnteredSleepVisibilityTests: XCTestCase {
         XCTAssertEqual(blocks.map(\.startTs), [day - 7 * 3_600])
     }
 
+    /// A CORRECTED computed night is `userEdited` too, and once an import covers the same hours the two are
+    /// one night read twice: the import wins, as it does for an uncorrected one, or the day shows two nights.
+    func testACorrectedComputedNightUnderAnImportStaysOut() async throws {
+        let store = try await WhoopStore.inMemory()
+        try await night(store, deviceId: "my-whoop-noop", start: day - 6 * 3_600, end: day + 900)
+        _ = try await store.applySleepEdit(deviceId: "my-whoop-noop", detectedStartTs: day - 6 * 3_600,
+                                           newStartTs: day - 6 * 3_600 - 1_800, newEndTs: day + 900)
+        try await night(store, deviceId: "my-whoop", start: day - 7 * 3_600, end: day + 1_800)
+        let blocks = await reader(store).allSleepSessions(from: day - 86_400, to: day + 86_400)
+        XCTAssertEqual(blocks.map(\.startTs), [day - 7 * 3_600], "one night, the imported one")
+    }
+
     /// And a day with no import at all still shows the computed night, hand-entered or not.
     func testADayWithNoImportStillShowsItsComputedNight() async throws {
         let store = try await WhoopStore.inMemory()

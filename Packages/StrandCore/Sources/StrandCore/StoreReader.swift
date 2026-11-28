@@ -185,6 +185,12 @@ public struct StoreReader: Sendable {
     /// was stored, the day's figures moved with it, and the list it should appear in never showed it, so the
     /// app told the wearer there was no nap on a day they had just described (#49). A hand-entered block is
     /// a statement, not a second reading of one.
+    ///
+    /// But `userEdited` is also set by every bed or wake correction of a computed night, so the exception is
+    /// held to blocks that lie over NO imported block. A night the wearer corrected and an import that later
+    /// covers the same hours are two readings of one night, and the import wins as it does everywhere else;
+    /// keeping both would show the night twice. A hand-entered sleep passes, because "Add a sleep" refuses
+    /// hours a sleep already holds.
     public func allSleepSessions(from: Int, to: Int, suppressedWakeDays: Set<String> = []) async -> [CachedSleepSession] {
         func endDayKey(_ s: CachedSleepSession) -> String {
             let offsetSec = TimeZone.current.secondsFromGMT(for: Date(timeIntervalSince1970: TimeInterval(s.endTs)))
@@ -199,7 +205,12 @@ public struct StoreReader: Sendable {
             cal.startOfDay(for: Date(timeIntervalSince1970: TimeInterval(s.endTs)))
         }
         let importedDays = Set(imported.map(endDay))
-        let computedKept = computed.filter { $0.userEdited || !importedDays.contains(endDay($0)) }
+        let computedKept = computed.filter { block in
+            guard importedDays.contains(endDay(block)) else { return true }
+            return block.userEdited && !imported.contains {
+                $0.effectiveStartTs < block.endTs && $0.endTs > block.effectiveStartTs
+            }
+        }
         return (imported + computedKept).sorted { $0.effectiveStartTs < $1.effectiveStartTs }
     }
 

@@ -119,7 +119,7 @@ public struct ConnectionDot: View {
                     // non-animating path drew before.
                     halo(phase: 0)
                 } else {
-                    TimelineView(.animation) { context in
+                    TimelineView(.animation(minimumInterval: StrandMotion.clockFrameInterval)) { context in
                         halo(phase: StrandMotion.breathPhase(at: context.date))
                     }
                 }

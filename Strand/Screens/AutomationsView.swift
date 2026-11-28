@@ -41,6 +41,9 @@ struct AutomationsView: View {
     /// Short-nap review (#49): the opt-in switch and the queue it feeds, read when the screen appears.
     @AppStorage(NapReviewPrefs.enabledKey) private var napDetectionEnabled = false
     @State private var pendingNaps: [PendingNap] = []
+    /// What the last answer to a found nap came to when it was not simply kept: already stored, not a valid
+    /// window, or a write the store refused. The same sentences "Add a sleep" says for the same outcomes.
+    @State private var napReviewNote: String?
     @AppStorage(FertileReminder.enabledKey) private var fertileReminder = false
     @AppStorage(FertileReminder.discreetKey) private var fertileDiscreet = true
     /// Inactivity reminder (#419) — UI-local store, persisted in UserDefaults. The buzz itself fires
@@ -422,7 +425,19 @@ struct AutomationsView: View {
                 ToggleRow(label: String(localized: "Look for naps after a sync"),
                           help: String(localized: "Off by default. A found nap waits here for your yes or no."),
                           isOn: $napDetectionEnabled)
+                    // Detection starts when the switch does: a nap taken between switching on and the next
+                    // sync is still asked about. Seeding the mark at that first sync instead dropped it.
+                    .onChangeCompat(of: napDetectionEnabled) { on in
+                        if on { NapReviewPrefs.setHighWater(Int(Date().timeIntervalSince1970)) }
+                    }
                 if napDetectionEnabled {
+                    if let napReviewNote {
+                        Text(napReviewNote)
+                            .font(StrandFont.footnote)
+                            .foregroundStyle(StrandPalette.textSecondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.top, 8)
+                    }
                     if pendingNaps.isEmpty {
                         Text("Nothing waiting. A nap NOOP finds after a sync shows up here.")
                             .font(StrandFont.footnote)
@@ -444,29 +459,51 @@ struct AutomationsView: View {
     @ViewBuilder
     private func napReviewRow(_ nap: PendingNap) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(Night.clockString(nap.start) + "-" + Night.clockString(nap.end))
+            Text("\(Night.clockString(nap.start)) to \(Night.clockString(nap.end))")
                 .font(StrandFont.body)
                 .foregroundStyle(StrandPalette.textPrimary)
-            Text("\(nap.durationMin) min" + (nap.meanHr.map { ", \($0) bpm" } ?? ""))
-                .font(StrandFont.footnote)
-                .foregroundStyle(StrandPalette.textTertiary)
-            HStack(spacing: 12) {
-                Button("Keep this nap") {
-                    Task {
-                        await model.repo.addManualNap(startTs: nap.start, endTs: nap.end)
-                        pendingNaps = NapReviewStore.remove(id: nap.id)
-                        await model.intelligence.analyzeRecent(maxDays: 3, force: true,
-                                                               allowDayReuse: true, reason: .semanticChange)
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                Button("Not a nap") { pendingNaps = NapReviewStore.dismiss(id: nap.id) }
-                    .buttonStyle(.bordered)
+            HStack(spacing: 8) {
+                Text("\(nap.durationMin) min")
+                if let bpm = nap.meanHr { Text("\(bpm) bpm") }
             }
-            .font(StrandFont.subhead)
+            .font(StrandFont.footnote)
+            .foregroundStyle(StrandPalette.textTertiary)
+            HStack(spacing: 12) {
+                Button { Task { await keep(nap) } } label: { Text("Keep this nap") }
+                    .buttonStyle(NoopButtonStyle(.primary))
+                Button { pendingNaps = NapReviewStore.dismiss(id: nap.id); napReviewNote = nil } label: {
+                    Text("Not a nap")
+                }
+                .buttonStyle(NoopButtonStyle(.secondary))
+            }
         }
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Keeping a found nap goes through the same gate and the same write as "Add a sleep": a nap that lies
+    /// over a sleep already stored is not written again (the detector looks at motion and heart rate, not at
+    /// what the sleep pass already found, so this is where the duplicate is caught), and a write the store
+    /// refused leaves the question where it was instead of dropping it unanswered.
+    private func keep(_ nap: PendingNap) async {
+        switch await model.repo.manualSleepPreflight(startTs: nap.start, endTs: nap.end) {
+        case .invalidWindow:
+            pendingNaps = NapReviewStore.remove(id: nap.id)
+            napReviewNote = String(localized: "Those times aren't a valid sleep window, so nothing was added.")
+        case .blocked(let start, let end):
+            pendingNaps = NapReviewStore.remove(id: nap.id)
+            let span = SleepNightEditing.spanText(start: start, end: end)
+            napReviewNote = String(localized: "You already have a sleep from \(span). Two sleeps over the same hours would count those hours twice.")
+        case .noRawData, .ok:
+            let outcome = await SleepNightEditing.commitAdded(bedTs: nap.start, wakeTs: nap.end,
+                                                              repo: model.repo, appModel: model)
+            if outcome == .success {
+                pendingNaps = NapReviewStore.remove(id: nap.id)
+                napReviewNote = nil
+            } else {
+                napReviewNote = String(localized: "Adding this sleep failed. Nothing was changed; try again.")
+            }
+        }
     }
 
     private var inactivityCard: some View {

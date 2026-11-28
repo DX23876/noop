@@ -6297,6 +6297,10 @@ public final class BLEManager: NSObject, ObservableObject {
         // this epoch against a readback that on a multi-strap install may be a different device.
         d.set(deviceId, forKey: "alarm.lastArmDeviceId")
         d.set(Date().timeIntervalSince1970, forKey: "alarm.lastArmAt")
+        // #2893: the next readback answers THIS arm. Only that one may count a "nothing stored" answer as a
+        // refusal; a readback the wearer asks for later ("Check what the strap has stored") can find the
+        // alarm gone because it was disarmed or has already rung, which is no refusal at all.
+        d.set(true, forKey: FrameRouter.alarmReadbackOwedKey)
         d.set(commandChannelReady, forKey: "alarm.lastArmConnected")   // #613: true only if the arm actually went out
         // #34: the strap-clock skew (its own RTC minus wall, seconds) AT THE MOMENT we armed. A wrong RTC
         // is a top cause of the firmware alarm never firing, and knowing the clock state at arm — not just
@@ -6320,6 +6324,8 @@ public final class BLEManager: NSObject, ObservableObject {
         // #34: clear the "strap keeps rejecting the alarm" streak/warning — it's about an ACTIVE arm being
         // refused, and there's nothing armed to refuse once disarmed.
         UserDefaults.standard.set(0, forKey: "alarm.rejectStreak")
+        // Nothing armed means no readback answers an arm: a check after this must not count as a refusal.
+        UserDefaults.standard.set(false, forKey: FrameRouter.alarmReadbackOwedKey)
         // #730: report the OUTCOME, not the intent — using the SAME `commandChannelReady` gate the arm
         // path already uses (it reports "queued" rather than a false "armed"). The disarm never adopted
         // it: `send` drops the write when the link isn't up and logs "ignored — not connected", then this

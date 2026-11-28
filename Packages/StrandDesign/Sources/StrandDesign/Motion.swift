@@ -88,6 +88,15 @@ public enum StrandMotion {
         return 1 - (1 - t) * (1 - t) * (1 - t)
     }
 
+    /// The shortest step between two frames of a pulse drawn from the clock (`breathPhase`, `sweepPhase`).
+    ///
+    /// A `TimelineView(.animation)` re-evaluates its view on the main thread at the display's own rate, 60 to
+    /// 120 times a second, for as long as it is on screen, and these pulses sit there through whole offloads.
+    /// The motion they draw is slow (a 3.2-second breath, a 1.1-second sweep), so thirty steps a second reads
+    /// the same and halves to quarters that work. The started animation they replace ran on the render
+    /// server; this keeps the clock's correctness without paying full frame rate for it.
+    public static let clockFrameInterval: Double = 1.0 / 30.0
+
     /// Looping breathe animation, suppressed when Reduce Motion is on. Returns
     /// `nil` (no animation) when reduced so call sites collapse to the resting
     /// frame instead of an indefinite loop. Honours Apple's Reduce Motion HIG.
