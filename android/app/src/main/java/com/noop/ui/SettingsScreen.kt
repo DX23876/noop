@@ -1,5 +1,6 @@
 package com.noop.ui
 
+import androidx.annotation.StringRes
 import android.app.Activity
 import android.content.ActivityNotFoundException
 import android.content.ComponentName
@@ -173,6 +174,16 @@ import com.noop.analytics.ClockFormatPreference
 
 
 // MARK: - Screen
+
+/** The four scaling modes in words. One function, because the picker and the preview show the same
+ *  four and had their own copy of them. */
+@StringRes
+private fun fillModeLabel(mode: BackgroundFillMode): Int = when (mode) {
+    BackgroundFillMode.FILL -> R.string.settings_fill_fill
+    BackgroundFillMode.FIT -> R.string.settings_fill_fit
+    BackgroundFillMode.STRETCH -> R.string.settings_fill_stretch
+    BackgroundFillMode.TILE -> R.string.settings_fill_tile
+}
 
 @Composable
 fun SettingsScreen(
@@ -828,9 +839,9 @@ fun SettingsScreen(
                         Spacer(Modifier.height(6.dp))
                         Text(
                             text = if (profile.hrMaxOverride > 0) {
-                                "Manual override"
+                                stringResource(R.string.settings_hr_manual)
                             } else {
-                                "Auto · ${profile.hrMaxAuto} bpm (Tanaka)"
+                                stringResource(R.string.settings_hr_auto, profile.hrMaxAuto)
                             },
                             style = NoopType.footnote,
                             color = if (profile.hrMaxOverride > 0) Palette.accent else Palette.textTertiary,
@@ -1443,7 +1454,7 @@ fun SettingsScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(uiString(R.string.cx_transparent_cards), style = NoopType.subhead, color = Palette.textPrimary)
                     Text(
-                        "Let the background show through every card. Tune how much just below.",
+                        stringResource(R.string.settings_background_through),
                         style = NoopType.footnote,
                         color = Palette.textTertiary,
                     )
@@ -1635,7 +1646,7 @@ fun SettingsScreen(
         // controls + the live backdrop update the instant an image is set, removed, or re-scaled.
         SettingsCard(
             icon = Icons.Outlined.Image,
-            title = "Background image",
+            title = stringResource(R.string.settings_background_image),
             blurb = "Optional. Use your own photo behind every tab, in place of the day-cycle sky. " +
                 "Stored only on this phone. Pair it with Transparent cards above to let it show through.",
         ) {
@@ -1700,12 +1711,7 @@ fun SettingsScreen(
                         items = BackgroundFillMode.entries,
                         selection = BackgroundImageStore.fillMode,
                         label = { mode ->
-                            when (mode) {
-                                BackgroundFillMode.FILL -> "Fill"
-                                BackgroundFillMode.FIT -> "Fit"
-                                BackgroundFillMode.STRETCH -> "Stretch"
-                                BackgroundFillMode.TILE -> "Tile"
-                            }
+                            uiString(fillModeLabel(mode))
                         },
                         onSelect = { BackgroundImageStore.setFillMode(context, it) },
                         // Four segments share the row width equally so the labels can't widen the card.
@@ -2654,9 +2660,11 @@ fun SettingsScreen(
                         onClick = { vm.ble.enableWhoop5DeepData() },
                     )
                     Text(
-                        if (!live.encryptedBond) "Needs the full encrypted bond: close the official WHOOP app and pair the strap to NOOP first (a live-HR-only link can't carry the unlock)."
-                        else if (!live.worn) "Put the strap on first. The deep stream is on-wrist only."
-                        else "Wear the strap, tap once, then let it sync and share your strap log.",
+                        stringResource(when {
+                            !live.encryptedBond -> R.string.settings_deep_need_bond
+                            !live.worn -> R.string.settings_deep_wear
+                            else -> R.string.settings_deep_tap
+                        }),
                         style = NoopType.caption,
                         color = Palette.textTertiary,
                     )
@@ -2859,7 +2867,7 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Text(
-                        "Blood Oxygen: strap estimate",
+                        stringResource(R.string.settings_spo2_title),
                         style = NoopType.subhead,
                         color = Palette.textPrimary,
                         modifier = Modifier.weight(1f),
@@ -2905,7 +2913,7 @@ fun SettingsScreen(
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Text(
-                        "Stress: personal daytime baseline",
+                        stringResource(R.string.settings_stress_title),
                         style = NoopType.subhead,
                         color = Palette.textPrimary,
                         modifier = Modifier.weight(1f),
@@ -4133,12 +4141,7 @@ private fun BackgroundRecentThumb(
             }
         }
         Text(
-            text = when (mode) {
-                BackgroundFillMode.FILL -> "Fill"
-                BackgroundFillMode.FIT -> "Fit"
-                BackgroundFillMode.STRETCH -> "Stretch"
-                BackgroundFillMode.TILE -> "Tile"
-            },
+            text = uiString(fillModeLabel(mode)),
             style = NoopType.caption,
             color = if (active) Palette.accent else Palette.textTertiary,
         )

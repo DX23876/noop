@@ -410,6 +410,29 @@ public enum SleepStager {
         return mx
     }
 
+    /// The hours a day's night can occupy, either side of its local midnight: noon before the day
+    /// through noon on it. Wide enough for any ordinary night, whatever time the wearer went to bed;
+    /// someone who sleeps through an afternoon falls outside it and is read as a day without a night,
+    /// the same answer the engine gave before this existed.
+    public static let nightSpanSeconds = 12 * 3_600
+
+    /// How many gravity rows lie in the night THIS day owns.
+    ///
+    /// The day's read window is 54 hours wide (`dayStart − 30 h` through the night, `StreamReadCap`),
+    /// because the streams either side of a night are needed to score it. "Is there motion to stage this
+    /// night with" is a different question, and counting the window answers it wrongly: gravity reaches
+    /// the store only through the history offload, so a strap whose offload stalls keeps rows from the day
+    /// before yesterday in the window while the night itself has none. Every following night then scored
+    /// as nothing at all, because the heart-rate-only fallback is gated on there being no motion and the
+    /// window said there was some (#2890, reported 2026-11-17).
+    ///
+    /// Unsorted input is counted correctly: the store hands rows ascending, but the count must not depend
+    /// on that.
+    public static func nightMotionRows(_ grav: [GravitySample], dayStart: Int) -> Int {
+        let low = dayStart - nightSpanSeconds, high = dayStart + nightSpanSeconds
+        return grav.reduce(into: 0) { n, g in if g.ts >= low && g.ts <= high { n += 1 } }
+    }
+
     /// True when gravity is too sparse for the gravity-only spine to be trusted across gaps:
     /// the gravity timespan covers < sparseGravitySpanFrac of the HR-sample timespan, OR the
     /// LARGEST gravity inter-sample gap exceeds maxGapMin. The largest-gap test (not just the

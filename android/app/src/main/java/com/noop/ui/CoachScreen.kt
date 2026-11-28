@@ -184,12 +184,8 @@ private fun CoachSetup(vm: CoachViewModel) {
                 Text(uiString(R.string.l10n_coach_screen_connect_a_provider_6967f288), style = NoopType.headline, color = Palette.textPrimary)
             }
             Text(
-                if (isCustom)
-                    "Point the coach at any OpenAI-compatible server: a local model (Ollama, LM " +
-                        "Studio, llama.cpp) keeps everything on your device; an API key is optional."
-                else
-                    "Bring your own API key. It is stored encrypted on this device and only used to " +
-                        "send your question plus a short summary of your metrics to the provider you pick.",
+                stringResource(if (isCustom) R.string.coach_connect_custom
+                               else R.string.coach_connect_key),
                 style = NoopType.subhead, color = Palette.textSecondary,
             )
 
@@ -265,7 +261,7 @@ private fun CoachSetup(vm: CoachViewModel) {
                     value = keyInput,
                     onValueChange = { keyInput = it },
                     placeholder = if (isCustom) uiString(R.string.cx_only_if_your_server_requires)
-                                  else "Paste your ${provider.displayName} key",
+                                  else stringResource(R.string.coach_paste_key, provider.displayName),
                 )
             }
 
@@ -1290,7 +1286,8 @@ internal fun RefreshModelsButton(
             )
         }
         Text(
-            if (refreshing) "Fetching…" else stringResource(R.string.cx_coach_refresh_models),
+            stringResource(if (refreshing) R.string.coach_fetching
+                           else R.string.cx_coach_refresh_models),
             style = NoopType.caption,
             color = if (active) Palette.textPrimary else Palette.textTertiary,
         )
@@ -1563,12 +1560,8 @@ private fun PrivacyNote(local: Boolean = false) {
     ) {
         Icon(Icons.Filled.Lock, contentDescription = null, tint = Palette.textTertiary, modifier = Modifier.size(13.dp))
         Text(
-            if (local)
-                "The coach talks only to the server URL you set. Point it at a local model to " +
-                    "keep everything on your device. Nothing is sent until you ask."
-            else
-                "Private by default: only your question and a short metrics summary are sent, " +
-                    "and only after you set a key.",
+            stringResource(if (local) R.string.coach_privacy_local
+                           else R.string.coach_privacy_default),
             style = NoopType.footnote,
             color = Palette.textTertiary,
         )

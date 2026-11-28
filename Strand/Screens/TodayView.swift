@@ -5752,13 +5752,17 @@ private struct RecordingStatusLight: View {
     let selectedDayOffset: Int
     let onTap: () -> Void
 
-    /// Drives the syncing pulse; toggled in `.task` while an offload runs (never during body eval).
-    @State private var pulsing = false
+    /// How long one sweep of the sync ring takes. The ring is drawn from the CLOCK
+    /// (`StrandMotion.sweepPhase`) rather than from a started animation: a `repeatForever` has to be
+    /// kicked off by a state change and is dropped when the view leaves the render tree, so the ring
+    /// stopped reporting an offload that was still running — switch tab, come back, and a still dot sat
+    /// beside a chunk counter that went on climbing (#48). The `.task` that started it did re-run on
+    /// re-appear, but it set a flag that was already set, so nothing moved.
+    private static let syncRingPeriod: Double = 1.1
 
-    /// This `repeatForever` ring had NO motion gate of any kind — it pulsed under system Reduce
-    /// Motion too, which was already a bug (the Android twin's ConnectionDot had the same one, fixed
-    /// in #911). It also ran precisely while the strap was offloading history, i.e. while the app was
-    /// already busy. Gated on all three quiet signals now.
+    /// The ring ran under system Reduce Motion too, which was already a bug (the Android twin's
+    /// ConnectionDot had the same one, fixed in #911). It also runs precisely while the strap is
+    /// offloading history, i.e. while the app is already busy. Gated on all three quiet signals.
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject private var motion = NoopMotionState.shared
 
@@ -5811,11 +5815,16 @@ private struct RecordingStatusLight: View {
                 ZStack {
                     if syncing {
                         // Expanding, fading accent ring behind a steady accent dot — a "pulling data" beat.
-                        Circle()
-                            .stroke(StrandPalette.accent, lineWidth: 2)
-                            .frame(width: 10, height: 10)
-                            .scaleEffect(pulsing ? 2.6 : 1.0)
-                            .opacity(pulsing ? 0.0 : 0.9)
+                        // Quiet motion settles it at the resting frame; the steady dot still says
+                        // "syncing", so the information survives, only the sweep stops.
+                        if motion.poseStill(reduceMotion) {
+                            syncRing(phase: 0)
+                        } else {
+                            TimelineView(.animation) { context in
+                                syncRing(phase: StrandMotion.sweepPhase(at: context.date,
+                                                                        period: Self.syncRingPeriod))
+                            }
+                        }
                         Circle().fill(StrandPalette.accent).frame(width: 10, height: 10)
                     } else {
                         Circle()
@@ -5836,14 +5845,17 @@ private struct RecordingStatusLight: View {
         .buttonStyle(.plain)
         .disabled(state == nil && !syncing)
         .accessibilityLabel(accessibilityLabel(state: state, syncing: syncing))
-        // Run the repeating pulse only while syncing AND nothing is asking for quiet motion; the
-        // `.task(id:)` auto-cancels when the flag flips, so there is no timer left running once the
-        // offload ends (or Today goes away). Without the pulse the steady accent dot still says
-        // "syncing" — the information survives, only the loop stops.
-        .task(id: syncing) {
-            guard syncing, !motion.poseStill(reduceMotion) else { pulsing = false; return }
-            withAnimation(.easeOut(duration: 1.1).repeatForever(autoreverses: false)) { pulsing = true }
-        }
+    }
+
+    /// The sweep at one point of its cycle: the ring at full size and nearly opaque at rest, 2.6× and
+    /// gone at the end — the two frames the animation used to travel between. Nothing is drawn at all
+    /// unless the strap is offloading, so a still dot costs no per-frame work.
+    private func syncRing(phase: Double) -> some View {
+        Circle()
+            .stroke(StrandPalette.accent, lineWidth: 2)
+            .frame(width: 10, height: 10)
+            .scaleEffect(1.0 + 1.6 * phase)
+            .opacity(0.9 * (1 - phase))
     }
 
     /// Combines the recording state and the sync text into one VoiceOver read-out, so nothing that used

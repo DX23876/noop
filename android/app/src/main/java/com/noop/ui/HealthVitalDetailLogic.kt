@@ -225,6 +225,11 @@ internal data class VitalReadingRow(
     val time: String,
     val value: String,
     val source: DisplayText,
+    /** Where this reading sits between the window's smallest and largest, 0 at the low and 1 at the high,
+     *  for the hairline under the row. Carried HERE rather than worked out beside the rows, so the bar and
+     *  the figure next to it come from one reading by construction and cannot end up a row apart. A window
+     *  whose readings are all equal has no position to state and answers 0, which draws the empty track. */
+    val share: Double,
 )
 
 /**
@@ -241,14 +246,42 @@ internal fun vitalReadingRows(
     unit: String,
     strapDeviceId: String,
     format: (Double) -> String,
-): List<VitalReadingRow> =
-    readings.asReversed().map { reading ->
+): List<VitalReadingRow> {
+    val low = readings.minOfOrNull { it.value } ?: 0.0
+    val high = readings.maxOfOrNull { it.value } ?: 0.0
+    return readings.asReversed().map { reading ->
+        // A length of time counted in minutes is written the way the rest of the app writes one once it
+        // passes an hour: nobody reads "526 min" as eight and three quarter hours (reported 2026-11-17).
+        // The Apple twin takes the same decision from the descriptor's unit.
+        val value = metricDurationSpelling(unit, reading.value)
+            ?: "${format(reading.value)} $unit".trim()
         VitalReadingRow(
             time = vitalReadingDateLabel(reading.day),
-            value = "${format(reading.value)} $unit".trim(),
+            value = value,
             source = provenanceDisplayLabel(reading.source, strapDeviceId),
+            share = if (high > low) ((reading.value - low) / (high - low)).coerceIn(0.0, 1.0) else 0.0,
         )
     }
+}
+
+/**
+ * A value written in hours and minutes when it IS a length of time counted in minutes and runs past the
+ * hour, and null for everything else, which is left to the metric's own formatter.
+ *
+ * One decision for a whole metric screen: the headline, the figures, the scrub read-out and the readings
+ * table all state the same night, so they go through this one rule rather than each carrying its own. A
+ * night was "443 min" in the headline above a table that read "7h 23m" (reported 2026-11-17). Below the
+ * hour there is nothing to convert, so a short nap stays in minutes. Twin of Swift's
+ * `metricDurationSpelling`.
+ */
+internal fun metricDurationSpelling(unit: String, value: Double): String? =
+    if (unit == "min" && value >= 60) vitalReadingDurationText(value) else null
+
+/** Minutes as hours and minutes, in the app's own spelling. Only used past the hour. */
+internal fun vitalReadingDurationText(minutes: Double): String {
+    val total = kotlin.math.max(0, kotlin.math.round(minutes).toInt())
+    return "${total / 60}h ${total % 60}m"
+}
 
 /** Include the weekday so a recovery reading can be matched to a training day without counting dates.
  *  Keep Today/Yesterday as context, and format the calendar date in the device's active locale. */

@@ -232,6 +232,20 @@ public enum SleepStageTotals {
         public var asleepMinutes: Double { Double(asleepSeconds) / 60.0 }
     }
 
+    /// Whether a block starting at `start` is BRIDGED onto a block ending at `previousEnd`: the day's one
+    /// two-tier rule, in one place. A negative gap never bridges (pinned legacy semantics), a gap under
+    /// `gapBridgeMaxMin` always does, and a gap under `nightTailBridgeMaxMin` does only while the onset is
+    /// still in the overnight band (#861).
+    ///
+    /// It is a function rather than inline copies because the main-night grouping and the daily total ask
+    /// the SAME question, and a second copy of the test would be a second opinion about one fact.
+    public static func bridges(start: Int, previousEnd: Int, offsetSec: Int) -> Bool {
+        let gap = start - previousEnd
+        return gap >= 0
+            && (gap < gapBridgeMaxMin * 60
+                || (gap < nightTailBridgeMaxMin * 60 && isOvernightOnset(start, offsetSec: offsetSec)))
+    }
+
     /// True when a block's onset falls in the cold-start overnight band (≥ `overnightStartHour` or
     /// < `overnightEndHour`, local). Retained for callers/tests that still ask the binary question, but
     /// the scored selector no longer GATES on it — it only feeds the cold-start alignment bonus.
@@ -330,8 +344,6 @@ public enum SleepStageTotals {
         guard !blocks.isEmpty else { return [] }
         // Sort indices by onset so bridging sees neighbours, exactly as `bridgeAdjacent` sorts the blocks.
         let order = blocks.indices.sorted { blocks[$0].start < blocks[$1].start }
-        let bridgeS = gapBridgeMaxMin * 60
-        let nightTailBridgeS = nightTailBridgeMaxMin * 60
         // Build the bridged spans AND the original indices that compose each one, in one pass over `order`.
         var bridged: [NightBlock] = []
         var groups: [[Int]] = []
@@ -340,16 +352,10 @@ public enum SleepStageTotals {
             let b = blocks[idx]
             if let last = bridged.last {
                 let gap = b.start - last.end
-                // Unconditional short-wake bridge (< gapBridgeMaxMin), byte-identical to `bridgeAdjacent`.
-                // Then a WIDER bridge for a true overnight night-tail (#861): a gap in
-                // [gapBridgeMaxMin, nightTailBridgeMaxMin) folds the fragment in ONLY when its onset is
-                // still in the overnight band: a real mid-night wake, not an isolated daytime nap. This
-                // stops one overnight sleep being split into a nap + a main sleep, while a daytime nap
-                // (daytime onset, or a gap at/over nightTailBridgeMaxMin) still stands as its own block.
-                let bridges = gap >= 0
-                    && (gap < bridgeS
-                        || (gap < nightTailBridgeS && isOvernightOnset(b.start, offsetSec: offsetSec)))
-                if bridges {
+                // The one bridge rule (`bridges`): unconditional under gapBridgeMaxMin, then the wider
+                // overnight night-tail window (#861). Called rather than restated so this pass and the
+                // daily total cannot drift apart.
+                if bridges(start: b.start, previousEnd: last.end, offsetSec: offsetSec) {
                     if gap > 0 {
                         gaps[gaps.count - 1].append(.init(start: last.end, end: b.start))
                     }
@@ -624,24 +630,16 @@ public enum SleepStageTotals {
         }
         // Order by effective onset so bridging sees neighbours.
         let order = blocks.indices.sorted { onset(blocks[$0]) < onset(blocks[$1]) }
-        let bridgeS = gapBridgeMaxMin * 60
-        let nightTailBridgeS = nightTailBridgeMaxMin * 60
         // Bridged groups of ORIGINAL indices, plus the representative (startTs, stages) the score reads.
         var groups: [[Int]] = []
         var groupEnd: [Int] = []     // running effective end of each bridged group
         for idx in order {
             let b = blocks[idx]
             if let last = groupEnd.last {
-                let gap = onset(b) - last
-                // Same two-tier bridge as `mainNightGroupIndices` so the summed daily total folds in EXACTLY
-                // the fragments the Sleep tab folds into the main night (no nap/total divergence): the
-                // unconditional short-wake bridge (< gapBridgeMaxMin), then the wider overnight night-tail
-                // bridge ([gapBridgeMaxMin, nightTailBridgeMaxMin) only when the fragment's onset is still in
-                // the overnight band) that stops one night being split into a nap + a main sleep. (#861)
-                let bridges = gap >= 0
-                    && (gap < bridgeS
-                        || (gap < nightTailBridgeS && isOvernightOnset(onset(b), offsetSec: offsetSec)))
-                if bridges {
+                // Same two-tier bridge as `mainNightGroupIndices`, through the one `bridges` rule, so the
+                // summed daily total folds in EXACTLY the fragments the Sleep tab folds into the main
+                // night (no nap/total divergence). (#861)
+                if bridges(start: onset(b), previousEnd: last, offsetSec: offsetSec) {
                     groups[groups.count - 1].append(idx)
                     groupEnd[groupEnd.count - 1] = max(last, effEnd(b))
                     continue

@@ -2525,3 +2525,229 @@ messages as raw Swift strings, so a German phone reads "This device can't use Bl
 in English. `Tools/i18n_audit.py` does not scan `Strand/BLE`, which is why no gate says so.
 
 Analysis migration required: no
+
+## 2026-11-17 — A night is staged from the heart rate when THAT night has no motion, not when the window has none
+
+Reported at ryanbr/noop#2890. Nights with heart rate right through scored as nothing at all. The
+heart-rate-only fallback (`SleepStager.hrOnlySessions`, #1801) is gated on the day having no motion,
+and the gate counted gravity across the whole **read window** — `dayStart − 30 h` through the night,
+54 hours (`StreamReadCap`). Gravity reaches the store only through the history offload, never from
+the live stream, so a strap whose offload stalls keeps the rows it delivered earlier in that window
+while every night after it has none: the gate saw motion, the fallback stayed shut, and the night
+was lost. The reporter arrived there through a firmware that stopped serving history; the defect is
+ours and is not particular to any firmware.
+
+The gate now counts the rows in the night the day owns, noon before the day through noon on it
+(`SleepStager.nightMotionRows`, `nightSpanSeconds`). A night with motion of its own is untouched, a
+device that streams none (an Oura ring, #804) answers as before, and someone who sleeps through an
+afternoon falls outside the span and is read as a day without a night, which is the answer the
+engine gave before this existed.
+
+Half-covered nights were considered and deliberately left alone: `isGravitySparse` already detects
+motion that covers only part of the night and frees the heart-rate-vouched bridge in `buildRuns`. A
+second coverage rule in the gate would be a second opinion about one fact.
+
+The trace line carries both numbers now (`grav=<night> windowGrav=<window>`), because after this
+change the window count no longer explains the verdict beside it. The Kotlin `IntelligenceEngine`
+keeps its own window-counting gate: on this fork the shared core scores every day (`coreOwnsScores`)
+and that path is reached only by its own JVM tests.
+
+Analysis migration required: yes (AI-35). It rides on AI-35 rather than taking a number of its own,
+which is the one-bump-per-release rule: AI-35 is in no release and no testing build.
+
+## 2026-11-17 — A strap that answers "I have no alarm stored" is refusing, and is counted as refusing
+
+Reported at ryanbr/noop#2893, with logs: `Alarm: armed for Wed 07:28` and immediately under it
+`Alarm: strap reports NO alarm currently stored (epoch 0)`. Two faults, one layer apart.
+
+The Alarms screen already warns about a strap that will not keep an alarm, after two refusals in a
+row (`alarm.rejectStreak`, `SmartAlarmView`). Refusals were counted only where a reported time could
+be compared with the sent one (`AlarmReadback.verdict`). The strap's "nothing stored" sentinel took a
+different branch and only logged, so the plainest refusal a strap can give counted for nothing and
+the warning never reached the people whose straps say so outright. It has its own verdict now
+(`reportsNoAlarm`), passes the same three guards as every other readback — attribution, same strap,
+not older than the arm — and counts. Unattributed, it stays log-only and says so, because a
+diagnosis may only assert what it can attribute. It is not folded into `mismatch`: routing the
+sentinel through the timed comparison would read as "the strap stored 1970" rather than "the strap
+stored nothing".
+
+The arm line itself said `armed` the instant the frame went out, which proves only that NOOP
+transmitted it. Both platforms now say `sent` and point at the readback, which is the thing that
+knows. The countdown on the screen is deliberately not gated on the readback: the WHOOP 4.0 response
+layout is undocumented and that path never steers behaviour. The warning card sits above the
+countdown.
+
+The alarm protocol itself is untouched — that needs a strap on a wrist.
+
+Analysis migration required: no.
+
+## 2026-11-17 — A backup is made from a snapshot, and the database inside it is checked
+
+Reported at ryanbr/noop#2885, with evidence: two daily backups in a row restored to a database failing
+`PRAGMA quick_check`, while the live store on the phone was healthy. The ZIPs were complete and passed
+the container check.
+
+The exporter streamed the LIVE `whoop.sqlite` into the archive with the app's GRDB pool still open. A WAL
+checkpoint landing during that read rewrites pages in the main file under the reader, so the archive can
+hold a mix of pages from before and after it. The reporter reproduced the mechanism off-device six times
+out of six with a plain byte copy under a committing writer, and zero times out of six through SQLite's
+online backup API. Nothing ever looked at the database INSIDE the archive: `verifyWritten` checks that
+the container is complete, which is a different question, and the only `quick_check` ran on the live file
+BEFORE the copy.
+
+`BackupArchive.writeVerified` now takes a consistent snapshot first (`LiveDatabaseCopy`, SQLite's own
+backup API, which writers do not disturb), checks THAT file, and archives it. The snapshot is removed
+afterwards.
+
+Android's guard (#1014) holds Room's write transaction for the length of the copy. That is equally
+correct and needs no extra room, but it blocks every strap write until the archive is written — minutes
+on a large store — so Apple takes the snapshot instead.
+
+The cost is honest and stated: a snapshot needs free space of about the size of the store. When it cannot
+be taken the backup FAILS, with a message that says so, rather than writing a file that will not restore.
+The owner's own store is 4.9 GB, so this is a real limit, not a theoretical one.
+
+Analysis migration required: no.
+
+## 2026-11-17 — A nap the wearer enters is suggested where a nap can exist, and the sheet says what the window will become
+
+The ryanbr/noop fork issue #49 asked for automatic detection of short naps. Measured against the
+reporter's own archive it does not work: inside a window they named as a false positive the strap's own
+band state read 60 % "asleep" and 17.5 % "up", and the only signal that separated it from a real nap was
+heart rate against the sleep level, by about one beat per minute. So the answer is the wearer's: a nap can
+be entered, edited and deleted by hand, on both platforms, and the detector stays an opt-in review queue
+that proposes and never writes.
+
+Entering one by hand turned out to need three fixes, each of them a rule stated twice.
+
+**The display rule hid the entry.** `SleepNight.naps` dropped any block off the main night with under ten
+staged asleep minutes. A hand-entered window is stored honestly as one awake block until the stager
+re-stages it, so the app took the entry, moved the day's figures with it, and then told the wearer the day
+had no nap. A block the wearer entered is now kept whatever its stages say. The same floor was hiding
+blocks the stager has not reached at all (no stages, not zero sleep): for one of those the floor is read
+against the window's span instead, because "not staged yet" is not "no sleep".
+
+**The suggested window could not become a nap.** The sheet opened an hour after the wake, which is inside
+the selector's night-tail bridge for the whole morning ([20:00, 11:00), gaps under 90 minutes), so the
+entry was folded into the night and was never a nap at all. Reproduced in the simulator: woken 07:25,
+suggested 08:25, stored, figures moved, card empty. The suggestion now comes from the shared core
+(`SleepStageTotals.napEntrySeed`): half an hour in the early afternoon, never less than two hours after
+the wake, which clears both bridge windows whatever the hour, and never ahead of the clock while a past
+slot exists.
+
+**The wearer could still pick such a window, and nothing said so.** The sheet now resolves what the
+chosen window will become through one shared rule (`napEntryVerdict`) and says it in a line: a nap, a
+correction of that night, or a stretch counted as part of the night. It is not a refusal, because all
+three are legitimate writes. Both the line and the write read the same picker value, so they cannot
+describe different windows.
+
+Three second opinions were removed with it, in the spirit of the "two readouts of one fact" rule: the
+bridge test itself (two copies per platform, now one function each, called by the grouping passes), the
+Coach's own nap list (no floor at all, under a doc comment claiming it agreed with the card — it calls
+`SleepNight.naps` now), and the timeline's nap row, which printed "0:00 h asleep" for a window nobody had
+measured and now prints no figure at all.
+
+Not done: the daytime guard that rejected the reporter's false positive stays at its present threshold.
+Moving it needs a counter-example from a real nap, and the archive has none; the one candidate signal
+separates the two cases by about a beat per minute, which is not a threshold worth moving on.
+
+Analysis migration required: no. The nap rule, the suggestion and the verdict are read-side only; nothing
+derives or stores a score from them.
+
+## 2026-11-17 — Today's Effort is taken over one window, the one the stored row was scored over
+
+Fork issue #41: "Effort shows 4.9 on liquid dashboard but 6.5 on classic dashboard, and it also takes too
+much time to show updated Effort." Two Today screens, two numbers, one day.
+
+The stored `strain` only moves when the daily pass runs, so every Today screen re-scores today's raw heart
+rate and floors the result at the stored row (`StrainScorer.effectiveEffort`). The part that has to match
+is not the arithmetic but the parameters, and three of them differed.
+
+**The window.** `LiveEffortScore.window` took the logical day's midnight. The pass does not: when the
+wearer's day starts at sleep onset — which is the DEFAULT (`DayCycleMode.persisted(nil) == .sleepOnset`) —
+`DayCycleIntelligenceIntegration` re-scores the day's Effort over the CYCLE, onset to now. So the live
+figure and the stored figure it is floored against covered different hours, and `effectiveEffort` returned
+the larger of two numbers over two spans, which is a number over no span at all. It also explains the
+reporter's second sentence: the live figure misses the pre-midnight hours, so on an active evening it sits
+below the stale stored one and nothing visibly moves until the pass runs. The live window now comes from
+the pass's own onset markers through the pass's own resolver (`DayCycleResolver.activeWindow`, including
+its cap past which an open cycle becomes a synthetic midnight). The markers exist only in sleep-onset mode
+— the pass clears them in midnight mode — so their presence is the mode, and no preference has to be read
+in a second place and kept in step.
+
+**The HR-max yardstick and the workout spans.** The Android classic dashboard computed its live Effort in
+Kotlin: the age formula where an override or a measured maximum existed, and `CoreMath.strain` without
+workout spans, which drops every minute below 50 % of heart-rate reserve. The Forge screen read the core.
+Both Android Today screens now call `CoreLiveEffort`, so the Kotlin copy of the window rule
+(`activeDayCycleStart`) is gone with its test rather than left as a second opinion.
+
+Named, not fixed: the live read passes no dismissed detected bouts, so a bout the wearer dismissed still
+counts its low-intensity minutes in the live figure but not in the stored one. The dismissal list is a
+host preference the shared read has no access to; closing that needs it threaded through, and it moves
+figures only on a day with a dismissed auto-detected session.
+
+Analysis migration required: no. Nothing stored changes; this is the live read's window.
+
+## 2026-11-18 — The stress tile reaches Android's Today, and the release notes stop printing their own markup
+
+Two findings from putting the two Today screens side by side (iOS in the simulator, Android in the
+emulator), after the night's own work was done.
+
+**The release notes printed `**`.** Every changelog item is written `**Lead.** rest`. iOS hands the string
+to `LocalizedStringKey`, which renders the markup and looks the entry up in the String Catalog; the comment
+there records that a plain `Text(String)` had printed the asterisks on the card. The Kotlin twin was never
+brought along, so Android showed `**Effort, recalibrated.** One curve, fitted on 3,760 workouts…` on the
+first screen a wearer sees after an update. It now renders through `parseInline`, the inline Markdown the
+Coach bubbles already use, for the item and for the release title. The entries are translated before they
+get there (`uiString`), so only the markup was missing.
+
+**Stress was not offered on Today.** iOS seeds a new install with six measure tiles (hrv, rhr, steps, sleep,
+stress, weight). Android seeded five and carried a comment saying it had no stress tile. It has the data
+(the banked `stress` series both the Stress screen and the Health tile read), the colour (`colors.effort`),
+the icon and the word, so the tile is a tile, not a feature: the word rather than the figure, no unit
+("/3" beside "Medium" says nothing — iOS made the same call), the last 30 days as the trend, the usual
+range over 60 when it is two columns wide.
+
+Two things were deliberate. The word comes from `StressBand.forScore`, the Stress screen's own band, not
+from a second copy of the 1.0 / 2.0 thresholds; the Health tile had such a copy and now reads the same
+helper, so no two surfaces can put one score in different bands. That is narrower than it sounds, and the
+first draft of this entry claimed more: the two tiles read the banked series, while the Stress screen's own
+headline takes today's stored row, else derives one, else 1.5 (`StressModel.build`). On a day with nothing
+banked yet the tile can read Low and the page behind it Medium. iOS is arranged the same way — the widget
+reads the series, the screen builds the model — and the tile is the one that only reports what was banked,
+so the behaviour stays; what was wrong was the claim beside it.
+
+And the tile opens the Stress screen rather than iOS's generic metric page, as Android's Health tile already
+does: it is the page that explains the day's hours, and one measure opens one page on this platform.
+
+Both gates read the two sources, because neither call shape is reachable from the other platform's suite:
+`test_release_notes_render_their_markup` and `test_today_first_widget_set` in
+`Tools/test_android_ios_parity.py`, which runs unfiltered on every push. The seeded list is compared through
+a translation table, since Android stores a `KeyMetric` raw where iOS stores the catalog key.
+
+Analysis migration required: no. Both are display: one renders markup that was already stored, the other
+draws a series that is already banked.
+
+## 2026-11-28 — The 2026-11-17 sleep and sync branch reaches main, where main had moved past it
+
+`fix/sync-pulse-honesty` was finished on 2026-11-18 and never merged. In the ten days after, main solved two of
+its problems again, more thoroughly, and the merge keeps main's answer for those and takes the rest of the
+branch as written.
+
+**Kept from main.** Today's Effort window is `CycleDayWindow` (2026-11-19, Refs #2438), which reads the stored
+onsets AND the nights already in the store, where the branch read the onsets alone; the branch's
+`LiveEffortScore.cycleStart` and its two onset readers are dropped. Adding a sleep is main's "Add a sleep"
+(2026-11-20), on both phones, with the core's seed (`ManualSleepPlan.seed`), its preflight and the jump to a
+sleep that is in the way; the branch's separate "Add a nap" button, its seed and its verdict line are dropped
+rather than shown as a second way to do one thing. The verdict ("this counts as part of the night, not a nap")
+is a good idea for main's sheet and is left as a follow-up there, not carried as code nobody calls. Main's
+stress tile and its gallery replace the branch's.
+
+**Taken from the branch.** A night with no motion of its own is staged from heart rate (#2890, riding on
+AI-39, which has not shipped); the bridge rule is one function the main-night grouping and the daily total
+both call; a block the wearer entered counts as a nap whatever its stages say (`SleepNight.isNap`) and stays
+visible on a day an import covers; the alarm refusal, the snapshot backup, the clock-driven sync pulse and
+caret, the sleep mark that says when the store refused it, the metric page's shape, the opt-in nap review, the
+Classic Today's Effort through the core, Android's first Today set with stress as on iOS, and the translations.
+A stored onset marker that is not a finite positive time is now ignored by `CycleDayWindow` instead of trapping
+in `Int(_:)`, the branch's guard moved onto main's reader.

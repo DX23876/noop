@@ -25,16 +25,20 @@ enum CoachNapContext {
         let asleepMin: Double?
     }
 
-    /// Split each day's blocks into its main night and its naps with the SAME selector the Sleep tab and the
-    /// analytics rollup use (`SleepNight.mainGroup`, which `SleepView.mainNightGroup` reads), so a block is a
-    /// nap here exactly when the Naps card calls it one. A day with one block has a night and no nap.
+    /// Split each day's blocks into its main night and its naps through the SHARED rule the Naps card, the
+    /// Today timeline and Android all read (`SleepNight.naps` over `SleepNight.mainGroup`), so a block is a
+    /// nap here exactly when the card calls it one. A day with one block has a night and no nap.
+    ///
+    /// It calls that rule rather than restating it: this function used to apply no floor of its own, so a
+    /// detector crumb the card hid was still described to the wearer as a nap, under a doc comment that
+    /// claimed the two agreed.
     static func naps(dayGroups: [[CachedSleepSession]], habitualMidsleepSec: Int?,
                      offsetSec: Int = TimeZone.current.secondsFromGMT(), dayKey: (Int) -> String) -> [Nap] {
         var out: [Nap] = []
         for blocks in dayGroups {
-            let mainStarts = Set(SleepNight.mainGroup(blocks, offsetSec: offsetSec,
-                                                      habitualMidsleepSec: habitualMidsleepSec).map(\.startTs))
-            for b in blocks where !mainStarts.contains(b.startTs) {
+            let main = SleepNight.mainGroup(blocks, offsetSec: offsetSec,
+                                            habitualMidsleepSec: habitualMidsleepSec)
+            for b in SleepNight.naps(blocks, mainGroup: main) {
                 let asleep = SleepNight.asleepMinutes(b.stagesJSON, effectiveStartTs: b.effectiveStartTs)
                 out.append(Nap(day: dayKey(b.endTs), startTs: b.effectiveStartTs, endTs: b.endTs,
                                asleepMin: b.stagesJSON == nil ? nil : asleep))

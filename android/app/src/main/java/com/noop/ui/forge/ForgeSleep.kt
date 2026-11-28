@@ -509,7 +509,11 @@ private fun clock(ts: Long, zone: ZoneId, format: DateTimeFormatter): String =
 private fun DayNaps(night: CoreRead.Night, wakeDay: java.time.LocalDate, zone: ZoneId,
                     onDelete: ((CoreRead.Nap) -> Unit)? = null) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val naps by produceState(emptyList<CoreRead.Nap>(), night.endTs, wakeDay) {
+    // Keyed on the core's data revision as every other read on this page is: without it a nap the wearer
+    // just added (or deleted) stayed invisible until the page was rebuilt, which is how it looked on the
+    // emulator — written to the store, absent from the card.
+    val napRevision by com.noop.core.CoreShadow.dataRevision.collectAsState()
+    val naps by produceState(emptyList<CoreRead.Nap>(), night.endTs, wakeDay, napRevision) {
         val end = wakeDay.plusDays(1).atStartOfDay(zone).toEpochSecond()
         value = withContext(Dispatchers.IO) { CoreRead.open(context); CoreRead.naps(night.endTs, end) }
     }
@@ -551,8 +555,11 @@ private fun DayNaps(night: CoreRead.Night, wakeDay: java.time.LocalDate, zone: Z
                         Text(stringResource(R.string.l10n_sleep_screen_deleted_sleep_window_range_7bc5f027,
                                             clock(nap.startTs, zone, clockFormat), clock(nap.endTs, zone, clockFormat)),
                              style = Forge.type.subhead.copy(fontWeight = FontWeight.SemiBold), color = Forge.colors.text)
-                        Text(TodayTimeline.hoursMinutes(nap.asleepMinutes), style = Forge.type.caption,
-                             color = Forge.colors.textSecondary)
+                        // The WINDOW's length, as iOS's `napRow` prints: a nap the wearer entered has no
+                        // staged sleep in it until the raw lands, and "0:00" under its own clock times
+                        // states a measurement nobody took (#49).
+                        Text(TodayTimeline.hoursMinutes((nap.endTs - nap.startTs) / 60.0),
+                             style = Forge.type.caption, color = Forge.colors.textSecondary)
                     }
                     // A wrongly detected nap goes with the shared editor's delete and its undo (iOS `napRow`),
                     // and, as there, only after it has been asked for: one tap on a bin recomputes the day.

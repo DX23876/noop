@@ -68,19 +68,48 @@ public enum BackupArchive {
         case incomplete
         /// The written file could not be read back to check it; it was left in place.
         case unverified
+        /// The consistent snapshot of the live store could not be taken (#2885) — most often no room for
+        /// it. Nothing was written: a backup that cannot be made correctly fails instead of producing a
+        /// file that will not restore.
+        case snapshot(complaint: String)
     }
 
     /// The production export path: verify the source, archive it, then read the archive back (#1014). Archiving
     /// an already-corrupt database writes a `.noopbak` that only fails the import-side gate months later; a torn
     /// write is deleted rather than left masquerading as a good snapshot; a write that cannot be read back is left
     /// in place, since failing to look is no evidence against it.
+    ///
+    /// #2885: the LIVE file is never the one that goes into the archive. Streaming it while the app's pool
+    /// stayed open let a WAL checkpoint rewrite pages under the reader, so the ZIP came out complete — the
+    /// container check happily passed — around a database that failed `quick_check` at restore. Two daily
+    /// backups were lost that way before anyone noticed, because nothing looked at the database INSIDE the
+    /// archive. A snapshot is taken first (`LiveDatabaseCopy`, SQLite's own backup API, which writers do not
+    /// disturb), that snapshot is checked, and the snapshot is what is archived. The copy needs free space of
+    /// about the size of the store; when there is not enough it fails here rather than writing a backup that
+    /// will not restore.
     public static func writeVerified(dbURL: URL, to dest: URL, settingsJSON: Data?, manifestJSON: Data,
                                      extraJSON: [String: Data] = [:],
                                      scratchRoot: URL) throws {
         if let complaint = DatabaseIntegrity.quickCheckFailure(atPath: dbURL.path) {
             throw WriteError.integrity(complaint: complaint)
         }
-        try writeZip(dbURL: dbURL, to: dest, settingsJSON: settingsJSON, manifestJSON: manifestJSON,
+        let snapshot = scratchRoot.appendingPathComponent("backup-snapshot-\(UUID().uuidString).sqlite")
+        defer {
+            for suffix in ["", "-wal", "-shm"] {
+                try? FileManager.default.removeItem(atPath: snapshot.path + suffix)
+            }
+        }
+        do {
+            try LiveDatabaseCopy.copy(fromPath: dbURL.path, toPath: snapshot.path)
+        } catch {
+            throw WriteError.snapshot(complaint: error.localizedDescription)
+        }
+        // The snapshot is checked on its own, not the live file again: the live file was whole a moment ago
+        // and this is the one that will be restored from. Before #2885 nothing asked this question at all.
+        if let complaint = DatabaseIntegrity.quickCheckFailure(atPath: snapshot.path) {
+            throw WriteError.integrity(complaint: complaint)
+        }
+        try writeZip(dbURL: snapshot, to: dest, settingsJSON: settingsJSON, manifestJSON: manifestJSON,
                      extraJSON: extraJSON, scratchRoot: scratchRoot)
         switch verifyWritten(at: dest) {
         case .intact:

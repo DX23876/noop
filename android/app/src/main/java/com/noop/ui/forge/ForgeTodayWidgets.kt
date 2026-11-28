@@ -196,6 +196,8 @@ internal data class TodayWidget(
 
     companion object {
         const val SLEEP_KEY = "sleep_total_min"
+        /** Day stress, read by its catalogue key rather than as a [KeyMetric]: it is a series, not a daily row. */
+        const val STRESS_KEY = "stress"
         /** Charge, Effort and Rest as the catalogue keys them; iOS's `wholeRowMeasures`. */
         val WHOLE_ROW_MEASURES = setOf("recovery", "strain", "sleep_performance")
         /**
@@ -219,9 +221,9 @@ internal object TodayWidgets {
     const val KEY = "forge.today.widgets"
     private const val SEEDED_KEY = "forge.today.widgetsSeeded"
 
-    /** iOS's first set (hrv, rhr, steps, sleep, stress, weight) without stress, which Android has no tile for. */
+    /** iOS's first set, in iOS's order (`ForgeTodayWidgets`): hrv, rhr, steps, sleep, stress, weight. */
     val firstSet: List<TodayWidget> = listOf(KeyMetric.HRV.raw, KeyMetric.RESTING_HR.raw, KeyMetric.STEPS.raw,
-                                             TodayWidget.SLEEP_KEY, KeyMetric.WEIGHT.raw)
+                                             TodayWidget.SLEEP_KEY, TodayWidget.STRESS_KEY, KeyMetric.WEIGHT.raw)
         .map { TodayWidget(kind = TodayWidget.Kind.Measure, key = it) }
 
     /**

@@ -1,6 +1,7 @@
 import XCTest
 import GRDB
 import StrandCore
+import WhoopProtocol
 import WhoopStore
 
 /// A `.noopbak` written by the core restores through the core, on every platform the core runs on: the archive
@@ -56,6 +57,57 @@ final class BackupArchiveTests: XCTestCase {
         let restored = try await WhoopStore(path: live.path)
         let days = try await restored.dailyMetrics(deviceId: "my-whoop", from: "2026-01-01", to: "2026-12-31")
         XCTAssertEqual(days.map(\.day), ["2026-10-01"], "the backup's rows replaced the live store's")
+    }
+
+    /// #2885: a backup written while the app keeps writing holds a database that opens.
+    ///
+    /// The exporter used to stream the LIVE file into the archive with the pool open, so a WAL checkpoint
+    /// could rewrite pages under the reader and the archive ended up around a torn database — complete ZIP,
+    /// passing container check, failing `quick_check` at restore. Nothing looked inside the archive, which is
+    /// why two daily backups were lost before anyone noticed. The write now archives a consistent snapshot,
+    /// and this pins the promise that failed: a backup that finishes restores.
+    func testABackupWrittenWhileTheStoreIsBusyRestores() async throws {
+        let source = try await store(at: "busy.sqlite", day: "2026-09-01")
+        let store = try await WhoopStore(path: source.path)
+        // Writes land all through the archive write, exactly as a strap sync does during a daily backup.
+        let writing = Task {
+            for second in 0..<400 {
+                _ = try? await store.insert(Streams(hr: [HRSample(ts: 1_760_000_000 + second, bpm: 60)]),
+                                            deviceId: "my-whoop")
+            }
+        }
+        let backup = dir.appendingPathComponent("busy.noopbak")
+        try BackupArchive.writeVerified(dbURL: source, to: backup, settingsJSON: nil,
+                                        manifestJSON: BackupArchive.manifestJSON(appVersion: "1", appBuild: "1",
+                                                                                 platform: "test"),
+                                        scratchRoot: dir)
+        await writing.value
+
+        XCTAssertEqual(BackupArchive.verifyWritten(at: backup), .intact)
+        // The point: the database INSIDE the archive, which is what nobody checked before.
+        let live = dir.appendingPathComponent("restored.sqlite")
+        let outcome = BackupArchive.restore(from: backup, toDatabaseAt: live.path, scratchRoot: dir,
+                                            willReplaceDatabase: {}, applySettings: { _ in })
+        guard case .imported = outcome else { return XCTFail("restore failed: \(outcome)") }
+        XCTAssertNil(DatabaseIntegrity.quickCheckFailure(atPath: live.path),
+                     "the archived database is whole, not a mix of pages from before and after a checkpoint")
+        let restored = try await WhoopStore(path: live.path)
+        let days = try await restored.dailyMetrics(deviceId: "my-whoop", from: "2026-01-01", to: "2026-12-31")
+        XCTAssertEqual(days.map(\.day), ["2026-09-01"], "the snapshot holds what was committed before the write began")
+    }
+
+    /// No snapshot is left behind in the scratch directory once the archive is written: a copy of the whole
+    /// store sitting around would cost as much room again, on a device that just needed it.
+    func testTheSnapshotIsRemovedAfterTheWrite() async throws {
+        let source = try await store(at: "tidy.sqlite", day: "2026-10-02")
+        let backup = dir.appendingPathComponent("tidy.noopbak")
+        try BackupArchive.writeVerified(dbURL: source, to: backup, settingsJSON: nil,
+                                        manifestJSON: BackupArchive.manifestJSON(appVersion: "1", appBuild: "1",
+                                                                                 platform: "test"),
+                                        scratchRoot: dir)
+        let leftovers = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+            .filter { $0.hasPrefix("backup-snapshot-") }
+        XCTAssertEqual(leftovers, [], "the snapshot is cleaned up: \(leftovers)")
     }
 
     /// The rollback copy kept beside a restore holds the live store as it stood, including rows committed into

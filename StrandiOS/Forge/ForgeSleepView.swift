@@ -408,8 +408,9 @@ struct ForgeSleepView: View {
     /// The day's blocks outside the main night, each removable when it was detected wrongly. The delete, its
     /// confirmation and its undo are the shared night editor's, as on the full Sleep screen.
     @ViewBuilder private func naps(_ night: Night) -> some View {
-        // One nap rule with the Today timeline and Android (owner, 2026-11-11): a block off the main night with at least
-        // ten minutes asleep (`SleepNight.naps`).
+        // One nap rule with the Today timeline, the Coach's context and Android (owner, 2026-11-11):
+        // `SleepNight.naps` — a block off the main night that the wearer entered, or that has ten minutes
+        // of sleep in it (an unstaged block: ten minutes of span).
         let main = SleepView.mainNightGroup(night.sourceBlocks, habitualMidsleepSec: presentation?.habitualMidsleepSec)
         let blocks = SleepNight.naps(night.sourceBlocks, mainGroup: main)
         if !blocks.isEmpty {

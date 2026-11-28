@@ -45,8 +45,11 @@ public enum CycleDayWindow {
     /// then, and rolling early would drop the evening out of the figure the wearer last looked at.
     public static func current(onsets: [MetricPoint], sleeps: [CachedSleepSession],
                                now: Int, offsetSec: Int) -> Cycle? {
+        // Compared as Double before converting: `Int(_:)` TRAPS on a value outside its range, and these
+        // come out of a stored series. A corrupt marker must leave the window alone, not stop the app.
         let stored = onsets
-            .filter { Int($0.value) <= now && now - Int($0.value) <= lookbackSeconds }
+            .filter { $0.value.isFinite && $0.value > 0 && $0.value <= Double(now) }
+            .filter { now - Int($0.value) <= lookbackSeconds }
             .max(by: { $0.value < $1.value })
             .map { Cycle(onset: Int($0.value), wakeDay: $0.day) }
         let slept = sleeps

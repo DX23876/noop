@@ -56,9 +56,22 @@ final class SleepStagerHrOnlyTraceTests: XCTestCase {
         XCTAssertEqual(
             SleepStager.GateTrace.hrOnlyGateLine(day: "2026-09-23", attempted: true,
                                                  reason: "no-motion-no-hypnogram",
-                                                 gravRows: 0, storedNights: 0),
+                                                 gravRows: 0, windowGravRows: 0, storedNights: 0),
             "[sleep] hr-only gate day=2026-09-23 attempted=true reason=no-motion-no-hypnogram "
-                + "grav=0 stored=0"
+                + "grav=0 windowGrav=0 stored=0"
+        )
+    }
+
+    /// The case the gate was wrong about (#2890): the window holds motion, the night holds none, and the
+    /// line must show both — the first number is the one the verdict rests on, the second says why a
+    /// reader looking at the raw streams will nevertheless find gravity in the day's window.
+    func testTheGateLineSeparatesTheNightFromTheWindow() {
+        XCTAssertEqual(
+            SleepStager.GateTrace.hrOnlyGateLine(day: "2026-11-16", attempted: true,
+                                                 reason: "no-motion-no-hypnogram",
+                                                 gravRows: 0, windowGravRows: 4_812, storedNights: 0),
+            "[sleep] hr-only gate day=2026-11-16 attempted=true reason=no-motion-no-hypnogram "
+                + "grav=0 windowGrav=4812 stored=0"
         )
     }
 

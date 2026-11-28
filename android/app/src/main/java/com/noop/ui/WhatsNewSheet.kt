@@ -195,13 +195,16 @@ private fun ReleaseCard(release: AppChangelog.Release, isLatest: Boolean = false
             ) {
                 SourceBadge("v${release.version}")
                 Text(
-                    release.title,
+                    parseInline(release.title, Palette.textPrimary),
                     style = NoopType.headline,
                     color = Palette.textPrimary,
                     modifier = Modifier.weight(1f),
                 )
                 Text(release.date, style = NoopType.caption, color = Palette.textTertiary)
             }
+            // Through [parseInline], as iOS renders the same entries through `LocalizedStringKey`: every
+            // item is written `**Lead.** rest`, and a plain Text() prints those asterisks on the card.
+            // The strings are already translated here (`uiString`), so only the markup is left to render.
             release.items.forEach { item ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -216,7 +219,7 @@ private fun ReleaseCard(release: AppChangelog.Release, isLatest: Boolean = false
                             .background(Palette.accent),
                     )
                     Text(
-                        item,
+                        parseInline(item, Palette.textSecondary),
                         style = NoopType.subhead,
                         color = Palette.textSecondary,
                         modifier = Modifier.weight(1f),

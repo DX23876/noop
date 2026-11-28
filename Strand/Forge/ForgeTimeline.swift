@@ -279,8 +279,12 @@ enum ForgeTimeline {
                                  title: "", detail: "", value: s.minutesAsleep, sourceId: nil))
         }
         for n in input.naps where n.end <= now {
+            // No figure for a nap with no staged sleep in it — one the wearer entered by hand, or one the
+            // stager has not reached yet. The row's figure is asleep minutes, and printing "0:00 h asleep"
+            // for an unstaged window states a measurement that was never taken (#49).
             entries.append(Entry(id: "nap-\(Int(n.end.timeIntervalSince1970))", date: n.end, kind: .nap,
-                                 title: "", detail: "", value: n.minutesAsleep, sourceId: nil))
+                                 title: "", detail: "", value: n.minutesAsleep > 0 ? n.minutesAsleep : nil,
+                                 sourceId: nil))
         }
         for w in input.weights where w.date <= now {
             entries.append(Entry(id: "weight-\(Int(w.date.timeIntervalSince1970))", date: w.date, kind: .weight,

@@ -1141,6 +1141,10 @@ object IntelligenceEngine {
             // night" is checked rather than assumed. A day that HAS stored sessions is left alone whoever
             // owns it: inferring a night from heart rate when the device recorded a real one would be
             // strictly worse evidence replacing better.
+            // The fork scores through the shared core (`coreOwnsScores` returns early above), so this
+            // gate is reached only by this package's own JVM tests. The core asks the question the right
+            // way round — motion in the NIGHT, not in the 54-hour window (#2890, `nightMotionRows`) — and
+            // this copy is left as it was rather than half-fixed in a path the app never runs.
             val providedSleep: List<DetectedSleep> = if (grav.size < 2) {
                 val stored = repo.sleepSessionsForDevice(owner, from, to, 4000)
                     .mapNotNull { AnalyticsEngine.sleepSessionFromProvided(it) }
@@ -1148,7 +1152,7 @@ object IntelligenceEngine {
                     owner != importedDeviceId && stored.isNotEmpty() -> {
                         dayDiag(SleepStagerTrace.hrOnlyGateLine(
                             day = day, attempted = false, reason = "stored-hypnogram",
-                            gravRows = grav.size, storedNights = stored.size,
+                            gravRows = grav.size, windowGravRows = grav.size, storedNights = stored.size,
                         ))
                         stored
                     }
@@ -1158,7 +1162,7 @@ object IntelligenceEngine {
                         // so the heart-rate fallback stays out of it.
                         dayDiag(SleepStagerTrace.hrOnlyGateLine(
                             day = day, attempted = false, reason = "stored-sessions-exist",
-                            gravRows = grav.size, storedNights = stored.size,
+                            gravRows = grav.size, windowGravRows = grav.size, storedNights = stored.size,
                         ))
                         emptyList()
                     }
@@ -1172,7 +1176,7 @@ object IntelligenceEngine {
                         // [DetectedSleep.hrOnly] like every other.
                         dayDiag(SleepStagerTrace.hrOnlyGateLine(
                             day = day, attempted = true, reason = "no-motion-no-hypnogram",
-                            gravRows = grav.size, storedNights = 0,
+                            gravRows = grav.size, windowGravRows = grav.size, storedNights = 0,
                         ))
                         SleepStager.hrOnlySessions(day, hr, rr, resp, traceSink = ::dayDiag)
                     }

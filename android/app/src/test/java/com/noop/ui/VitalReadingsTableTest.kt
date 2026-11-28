@@ -127,3 +127,87 @@ class VitalReadingsTableTest {
         }
     }
 }
+
+/**
+ * A night read in minutes. "526 min" is a true figure nobody reads as eight and three quarter hours,
+ * reported on 2026-11-17. Twin of `VitalReadingsTableTests` on Apple.
+ */
+class VitalReadingDurationTest {
+
+    private fun rows(value: Double, unit: String) = vitalReadingRows(
+        readings = listOf(VitalReading(day = "2026-01-01", value = value, source = "my-whoop")),
+        unit = unit,
+        strapDeviceId = "my-whoop",
+        format = { String.format(java.util.Locale.US, "%.0f", it) },
+    )
+
+    @org.junit.Test
+    fun `a minute reading past an hour reads as hours and minutes`() {
+        org.junit.Assert.assertEquals("8h 46m", rows(526.0, "min").first().value)
+    }
+
+    @org.junit.Test
+    fun `under an hour it stays in minutes`() {
+        org.junit.Assert.assertEquals("47 min", rows(47.0, "min").first().value)
+    }
+
+    @org.junit.Test
+    fun `an exact hour says both parts`() {
+        org.junit.Assert.assertEquals("1h 0m", rows(60.0, "min").first().value)
+    }
+
+    @org.junit.Test
+    fun `other units are untouched`() {
+        org.junit.Assert.assertEquals("96 %", rows(96.0, "%").first().value)
+    }
+}
+
+/**
+ * The share each row carries for its hairline, and the one duration rule the whole metric page asks.
+ * Swift twins: `VitalReadingShareTests` and `MetricDurationSpellingTests`.
+ */
+class VitalReadingShareTest {
+
+    private fun rows(values: List<Double>) = vitalReadingRows(
+        readings = values.mapIndexed { i, v ->
+            VitalReading(day = String.format(Locale.US, "2026-01-%02d", i + 1), value = v, source = "my-whoop")
+        },
+        unit = "",
+        strapDeviceId = "my-whoop",
+        format = { String.format(Locale.US, "%.0f", it) },
+    )
+
+    /** Newest first, so the LAST reading is the first row; the window's lowest sits at 0, its highest at 1. */
+    @Test
+    fun `the lowest is empty and the highest is full`() {
+        val out = rows(listOf(400.0, 500.0, 450.0))
+        assertEquals(listOf("450", "500", "400"), out.map { it.value })
+        assertEquals(0.5, out[0].share, 0.0001)
+        assertEquals(1.0, out[1].share, 0.0001)
+        assertEquals(0.0, out[2].share, 0.0001)
+    }
+
+    /** A window where nothing moved has no position to state, so every row draws the bare track. */
+    @Test
+    fun `a flat window states nothing`() {
+        assertEquals(listOf(0.0, 0.0, 0.0), rows(listOf(420.0, 420.0, 420.0)).map { it.share })
+    }
+
+    @Test
+    fun `one reading is flat too`() {
+        assertEquals(0.0, rows(listOf(443.0)).first().share, 0.0)
+    }
+
+    @Test
+    fun `a minute metric past an hour is spelled out`() {
+        assertEquals("7h 23m", metricDurationSpelling("min", 443.0))
+        assertEquals("1h 0m", metricDurationSpelling("min", 60.0))
+    }
+
+    @Test
+    fun `under an hour and other units decline`() {
+        assertEquals(null, metricDurationSpelling("min", 59.0))
+        assertEquals(null, metricDurationSpelling("%", 96.0))
+        assertEquals(null, metricDurationSpelling("", 443.0))
+    }
+}

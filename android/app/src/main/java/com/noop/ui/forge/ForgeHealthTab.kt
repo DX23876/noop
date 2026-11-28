@@ -547,7 +547,7 @@ private fun MeasureTile(viewModel: AppViewModel, key: String, modifier: Modifier
     }
     val last = values.lastOrNull()
     val text = last?.let { v -> when (key) {
-        "stress" -> stringResource(when { v < 1.0 -> R.string.forge_vt_low; v < 2.0 -> R.string.forge_vt_medium; else -> R.string.forge_vt_high })
+        "stress" -> stressWord(v)
         "steps" -> java.text.NumberFormat.getIntegerInstance().format(Math.round(v))
         "ageless" -> Math.round(v).toString()
         else -> "%.1f".format(java.util.Locale.getDefault(), v)

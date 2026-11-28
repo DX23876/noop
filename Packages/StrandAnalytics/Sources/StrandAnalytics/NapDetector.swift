@@ -17,6 +17,12 @@ public enum NapDetector {
         /// 0...1 ordering confidence; not a probability, not a diagnosis.
         public let confidence: Double
         public var durationS: Int { end - start }
+
+        /// Public so a platform can build a candidate for its own review queue and its tests — the queue
+        /// is where the wearer answers, and it must be testable without running a detection first.
+        public init(start: Int, end: Int, meanHr: Int?, confidence: Double) {
+            self.start = start; self.end = end; self.meanHr = meanHr; self.confidence = confidence
+        }
     }
 
     public struct Decision: Equatable, Sendable {

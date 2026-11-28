@@ -2475,19 +2475,24 @@ public final class DailyAnalysis {
                 // night" is checked rather than assumed. A day that HAS stored sessions is left alone
                 // whoever owns it.
                 let providedSleep: [SleepSession]
-                if grav.count < 2 {
+                // The NIGHT, not the window. The window reaches 30 hours back, so a strap whose history
+                // offload stalled kept rows from the day before yesterday in it while this night had none
+                // — and the fallback below, which exists for exactly that night, stayed shut (#2890,
+                // reported 2026-11-17). `nightMotionRows` asks what this gate always meant to ask.
+                let nightGrav = SleepStager.nightMotionRows(grav, dayStart: dayStart)
+                if nightGrav < 2 {
                     let persisted = (try? await store.sleepSessions(deviceId: owner, from: from, to: to,
                                                                     limit: 4000)) ?? []
                     let stored = persisted.compactMap { AnalyticsEngine.sleepSession(fromProvided: $0) }
                     if owner != MetricResolver.whoopSource, !stored.isEmpty {
                         traceSink?(SleepStager.GateTrace.hrOnlyGateLine(
                             day: day, attempted: false, reason: "stored-hypnogram",
-                            gravRows: grav.count, storedNights: stored.count))
+                            gravRows: nightGrav, windowGravRows: grav.count, storedNights: stored.count))
                         providedSleep = stored
                     } else if !stored.isEmpty {
                         traceSink?(SleepStager.GateTrace.hrOnlyGateLine(
                             day: day, attempted: false, reason: "stored-sessions-exist",
-                            gravRows: grav.count, storedNights: stored.count))
+                            gravRows: nightGrav, windowGravRows: grav.count, storedNights: stored.count))
                         providedSleep = []
                     } else {
                         // Reachable for ANY owner now, which widens this past the 5/MG it was built for:
@@ -2496,7 +2501,7 @@ public final class DailyAnalysis {
                         // gravity, so it never reaches this gate.
                         traceSink?(SleepStager.GateTrace.hrOnlyGateLine(
                             day: day, attempted: true, reason: "no-motion-no-hypnogram",
-                            gravRows: grav.count, storedNights: 0))
+                            gravRows: nightGrav, windowGravRows: grav.count, storedNights: 0))
                         providedSleep = SleepStager.hrOnlySessions(day: day, hr: hr, rr: rr, resp: resp,
                                                                    traceSink: traceSink,
                                                                    stagingRecipe: settings.sleepStagingRecipe)

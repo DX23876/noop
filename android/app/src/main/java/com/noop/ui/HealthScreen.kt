@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.CompareArrows
@@ -338,22 +339,20 @@ private fun SyncStatusSection(vm: AppViewModel, onSyncNow: () -> Unit) {
                 // HealthView.swift's `NoopButton(..., kind: .secondary, fullWidth: true)`. Disabled unless
                 // connected+bonded and not already syncing; the gated BLE entry point is a safe no-op
                 // otherwise. (Total pending records are unknowable from the protocol, so no progress %.)
+                // Read out here, not inside the semantics lambda: that lambda is not a composable and
+                // cannot reach the resources.
+                val syncDescription = stringResource(when {
+                    canSync -> R.string.health_sync_now_a11y
+                    live.backfilling -> R.string.health_sync_now_busy_a11y
+                    else -> R.string.health_sync_now_nostrap_a11y
+                })
                 NoopButton(
                     text = if (live.backfilling) uiString(R.string.cx_syncing) else uiString(R.string.cx_sync_now),
                     leadingIcon = Icons.Filled.Sync,
                     kind = NoopButtonKind.Secondary,
                     fullWidth = true,
                     enabled = canSync,
-                    modifier = Modifier.semantics {
-                        contentDescription = if (canSync) {
-                            "Sync now. Pulls your strap's stored history immediately, without waiting " +
-                                "for the next automatic sync."
-                        } else if (live.backfilling) {
-                            "Sync now. A sync is already in progress."
-                        } else {
-                            "Sync now. Connect your strap first."
-                        }
-                    },
+                    modifier = Modifier.semantics { contentDescription = syncDescription },
                     onClick = onSyncNow,
                 )
 
@@ -864,8 +863,13 @@ private fun VitalityHero(
                         color = Palette.textPrimary,
                     )
                     Text(
-                        if (delta == 0) "about your age"
-                        else "${kotlin.math.abs(delta)} ${yearWord(delta)} ${if (younger) "younger" else "older"}",
+                        // One plural per direction rather than number + word + word: "3 years younger"
+                        // is English grammar built in Kotlin, and no other language takes it apart the
+                        // same way.
+                        if (delta == 0) stringResource(R.string.health_age_same)
+                        else pluralStringResource(
+                            if (younger) R.plurals.health_age_younger else R.plurals.health_age_older,
+                            kotlin.math.abs(delta), kotlin.math.abs(delta)),
                         style = NoopType.footnote,
                         color = if (delta == 0) Palette.textSecondary
                         else if (younger) Palette.statusPositive else Palette.statusWarning,
@@ -1387,16 +1391,16 @@ private fun HeartRateSection(vm: AppViewModel, hrMax: Int) {
                         Text(uiString(R.string.l10n_health_screen_heart_rate_dde6e8f7), style = NoopType.headline, color = Palette.textPrimary)
                         Text(
                             text = when {
-                                derived -> "Estimated from R-R interval"
-                                hasLiveHr -> "Streaming live"
-                                else -> "Awaiting strap"
+                                derived -> stringResource(R.string.health_hr_derived)
+                                hasLiveHr -> stringResource(R.string.health_hr_streaming)
+                                else -> stringResource(R.string.health_hr_waiting)
                             },
                             style = NoopType.footnote,
                             color = Palette.textSecondary,
                         )
                     }
                     Text(
-                        text = if (hasLiveHr) "$displayHr bpm" else "—",
+                        text = if (hasLiveHr) stringResource(R.string.health_hr_bpm, displayHr.toString()) else "—",
                         style = NoopType.metricInline,
                         color = if (hasLiveHr) zoneColor else Palette.textTertiary,
                     )
@@ -1404,15 +1408,17 @@ private fun HeartRateSection(vm: AppViewModel, hrMax: Int) {
 
                 // Hero chart: a tall HR line tinted to the current zone, with a status
                 // pill floated top-trailing. Falls back to a big number when R-R is sparse.
+                val hrChartDescription = stringResource(R.string.health_hr_chart_a11y, displayHr.toString(), zone.toString())
+                val hrChartEmptyDescription = stringResource(R.string.health_hr_chart_empty_a11y)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(Metrics.chartHeight)
                         .semantics {
                             contentDescription = if (hasLiveHr) {
-                                "Live heart rate over time, $displayHr beats per minute, zone $zone"
+                                hrChartDescription
                             } else {
-                                "Live heart rate over time, no data"
+                                hrChartEmptyDescription
                             }
                         },
                 ) {
@@ -2053,7 +2059,8 @@ fun VitalDetailScreen(vm: AppViewModel, key: String, onAskCoach: ((title: String
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Overline("Latest")
                         Text(
-                            text = uiString(R.string.l10n_health_screen_detail_format_one_second_detail_unit_6fde90d3, detail.format(one.second), detail.unit).trim(),
+                            text = metricDurationSpelling(detail.unit, one.second)
+                                ?: uiString(R.string.l10n_health_screen_detail_format_one_second_detail_unit_6fde90d3, detail.format(one.second), detail.unit).trim(),
                             style = NoopType.chartValueLarge,
                             color = detail.color,
                         )
@@ -2138,7 +2145,9 @@ fun VitalDetailScreen(vm: AppViewModel, key: String, onAskCoach: ((title: String
                     Column(modifier = Modifier.weight(1f)) {
                         Overline(uiString(R.string.steps_latest))
                         Text(
-                            text = uiString(R.string.l10n_health_screen_detail_format_latest_second_detail_unit_9664278b, detail.format(latest.second), detail.unit).trim(),
+                            // The page's headline asks the same duration rule as its table and figures.
+                            text = metricDurationSpelling(detail.unit, latest.second)
+                                ?: uiString(R.string.l10n_health_screen_detail_format_latest_second_detail_unit_9664278b, detail.format(latest.second), detail.unit).trim(),
                             style = NoopType.chartValueLarge,
                             color = detail.color,
                         )
@@ -2223,6 +2232,7 @@ fun VitalDetailScreen(vm: AppViewModel, key: String, onAskCoach: ((title: String
                                     if (it.granularity == com.noop.analytics.StepsDetailGranularity.DAILY) stepsBucketValueLabel(value, it.granularity)
                                     else uiString(R.string.steps_chart_mean, java.text.NumberFormat.getIntegerInstance().format(value))
                                 }
+                                    ?: metricDurationSpelling(detail.unit, value)
                                     ?: "${detail.format(value)} ${detail.unit}".trim()
                             },
                         )
@@ -2260,7 +2270,9 @@ fun VitalDetailScreen(vm: AppViewModel, key: String, onAskCoach: ((title: String
                     // row below renders. Without it the scrub read-out falls back to LineChart's
                     // default, which prints a decimal for any non-integer, so a rounded metric answered
                     // "72.4" on tap with "72 ms" written directly underneath.
-                    formatValue = { "${detail.format(it)} ${detail.unit}".trim() },
+                    formatValue = {
+                        metricDurationSpelling(detail.unit, it) ?: "${detail.format(it)} ${detail.unit}".trim()
+                    },
                     // VO2max breaks on an estimator change; every other metric breaks on a missing day,
                     // so the line stops asserting a value for days that were never measured.
                     // Only VO2max breaks, on an estimator change. Breaking on a missing DAY was tried and
@@ -2306,7 +2318,10 @@ fun VitalDetailScreen(vm: AppViewModel, key: String, onAskCoach: ((title: String
                         Column(modifier = Modifier.weight(1f)) {
                             Overline(label, color = Palette.textTertiary)
                             Text(
-                                text = metric?.let { "${detail.format(it)} ${detail.unit}".trim() } ?: "—",
+                                text = metric?.let {
+                                    metricDurationSpelling(detail.unit, it)
+                                        ?: "${detail.format(it)} ${detail.unit}".trim()
+                                } ?: "—",
                                 style = NoopType.bodyNumber,
                                 color = Palette.textPrimary,
                             )
@@ -2336,11 +2351,20 @@ fun VitalDetailScreen(vm: AppViewModel, key: String, onAskCoach: ((title: String
                                                             effectiveRange == VitalDetailRange.ALL, revision.toInt())
                 }
             }
-            val withUnit = { v: Double -> "${detail.format(v)} ${detail.unit}".trim() }
+            // One spelling for the whole page: the figures, the readings table and the scrub read-out
+            // state the same night, so they all ask the same rule whether it is a length of time
+            // (`metricDurationSpelling`). Without it the tiles said "443 min" over a table reading
+            // "7h 23m" (reported 2026-11-17). Swift twin: `MetricDetailView.fmt`.
+            val withUnit = { v: Double ->
+                metricDurationSpelling(detail.unit, v) ?: "${detail.format(v)} ${detail.unit}".trim()
+            }
             val signed = { d: Double ->
                 val magnitude = if (key == "skin") String.format(java.util.Locale.getDefault(), "%.1f",
                     abs(d) * if (tempUnit == TemperatureUnit.FAHRENHEIT) 1.8 else 1.0) else detail.format(abs(d))
-                "${if (d >= 0) "+" else "−"}$magnitude ${detail.unit}".trim()
+                // A difference in minutes is spelled like every other length of time on the page, so an
+                // extra hour and a half of sleep reads "+1h 30m" rather than "+90 min".
+                metricDurationSpelling(detail.unit, abs(d))?.let { "${if (d >= 0) "+" else "−"}$it" }
+                    ?: "${if (d >= 0) "+" else "−"}$magnitude ${detail.unit}".trim()
             }
             insights?.let { ins ->
                 VitalStatTiles(ins, values, effectiveRange, withUnit(latest.second), latestLabel, detail.color,
@@ -2366,10 +2390,10 @@ fun VitalDetailScreen(vm: AppViewModel, key: String, onAskCoach: ((title: String
                 }
             }
             if (!isStepsDetail) VitalCorrelationsCard(detail.title, insights?.correlations)
-            VitalReadingsTable(rows = readingRows)
+            VitalReadingsTable(rows = readingRows, tint = detail.color)
             if (isStepsDetail) VitalCorrelationsCard(detail.title, insights?.correlations)
         } else {
-            VitalReadingsTable(rows = readingRows)
+            VitalReadingsTable(rows = readingRows, tint = detail.color)
         }
     }
 }
@@ -2378,7 +2402,7 @@ fun VitalDetailScreen(vm: AppViewModel, key: String, onAskCoach: ((title: String
  *  its day, formatted value, and source (tinted by [provenanceLabelTint], so the same source reads the
  *  same colour as the Today rings). Empty [rows] render nothing. */
 @Composable
-private fun VitalReadingsTable(rows: List<VitalReadingRow>) {
+private fun VitalReadingsTable(rows: List<VitalReadingRow>, tint: androidx.compose.ui.graphics.Color = Palette.accent) {
     if (rows.isEmpty()) return
     NoopCard {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -2409,6 +2433,7 @@ private fun VitalReadingsTable(rows: List<VitalReadingRow>) {
                 )
             }
             rows.forEachIndexed { index, row ->
+                Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -2428,13 +2453,44 @@ private fun VitalReadingsTable(rows: List<VitalReadingRow>) {
                         is DisplayText.Resource -> uiString(source.id, *source.args.toTypedArray())
                         is DisplayText.Dynamic -> source.value
                     }
-                    Text(
-                        sourceLabel,
-                        style = NoopType.footnote,
-                        color = provenanceLabelTint(row.source),
-                        textAlign = TextAlign.End,
+                    // The source as a dot and a grey word rather than a coloured word: the colour marks
+                    // the source without tinting the prose, which kept three different hues of running
+                    // text in one column. Swift twin: `readingSourceChip`.
+                    Row(
                         modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(5.dp, Alignment.End),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .background(provenanceLabelTint(row.source), CircleShape),
+                        )
+                        Text(
+                            sourceLabel,
+                            style = NoopType.footnote,
+                            color = Palette.textSecondary,
+                        )
+                    }
+                }
+                // Where this reading sits between the window's smallest and largest. A column of numbers
+                // hides the pattern the chart above draws; one thin bar per row gives it back without a
+                // second chart. The share rides on the row itself, so it belongs to this figure and not
+                // to a neighbour. Swift twin: `readingShareBar`.
+                Box(modifier = Modifier.fillMaxWidth().height(2.dp)) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .background(Palette.hairline, CircleShape),
                     )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(row.share.toFloat().coerceAtLeast(0.01f))
+                            .height(2.dp)
+                            .background(tint.copy(alpha = 0.55f), CircleShape),
+                    )
+                }
                 }
                 if (index < rows.size - 1) {
                     Box(

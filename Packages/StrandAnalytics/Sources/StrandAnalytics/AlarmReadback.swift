@@ -43,6 +43,39 @@ public enum AlarmReadback {
         /// The readback on hand is OLDER than the arm it is being compared against, so it answered an
         /// EARLIER arm. Same strap, but not the same question, and nothing can be concluded.
         case staleReadback
+        /// Same strap, same arm, and the strap answers that it has NO alarm stored at all (the epoch
+        /// field decodes to 0). The plainest refusal a strap can give — it kept nothing — and it is
+        /// counted as one. It arrives on its own branch because there is no reported time to compare:
+        /// treating the sentinel as a time would make it a 1970 "mismatch", which reads as a strap that
+        /// stored the wrong moment rather than one that stored nothing.
+        case reportsNoAlarm
+    }
+
+    /// Whether this pair can be compared at all, and why not when it cannot. ONE place, because every
+    /// entry point below has to ask the same three questions in the same order; a second copy is how the
+    /// two start answering differently (#1635, #2322).
+    private static func unusable(sentDeviceId: String?, reportedDeviceId: String?,
+                                 sentAt: Double?, reportedAt: Double?) -> Verdict? {
+        guard let sentDeviceId, !sentDeviceId.isEmpty,
+              let reportedDeviceId, !reportedDeviceId.isEmpty else { return .unattributed }
+        guard sentDeviceId == reportedDeviceId else { return .differentStrap }
+        // Ordered AFTER attribution on purpose: a cross-strap pair is unusable whether or not it is also
+        // stale, and naming the strap problem first sends the reader to the real one.
+        if let sentAt, let reportedAt, sentAt > 0, reportedAt > 0, reportedAt < sentAt {
+            return .staleReadback
+        }
+        return nil
+    }
+
+    /// The verdict for a strap that answered the readback with its "nothing stored" sentinel.
+    ///
+    /// Same guards as every other readback: without attribution, from another strap, or older than the
+    /// arm it would be judging, it concludes nothing. A diagnosis may only assert what it can attribute,
+    /// and "this strap refused the alarm you just set" is exactly such an assertion.
+    public static func noAlarmVerdict(sentDeviceId: String?, reportedDeviceId: String?,
+                                      sentAt: Double? = nil, reportedAt: Double? = nil) -> Verdict {
+        unusable(sentDeviceId: sentDeviceId, reportedDeviceId: reportedDeviceId,
+                 sentAt: sentAt, reportedAt: reportedAt) ?? .reportsNoAlarm
     }
 
     /// `sentAt` and `reportedAt` are WALL-CLOCK arrival stamps for the two halves, in whatever unit this
@@ -62,14 +95,8 @@ public enum AlarmReadback {
         sentAt: Double? = nil,
         reportedAt: Double? = nil
     ) -> Verdict {
-        guard let sentDeviceId, !sentDeviceId.isEmpty,
-              let reportedDeviceId, !reportedDeviceId.isEmpty else { return .unattributed }
-        guard sentDeviceId == reportedDeviceId else { return .differentStrap }
-        // Ordered AFTER attribution on purpose: a cross-strap pair is unusable whether or not it is also
-        // stale, and naming the strap problem first sends the reader to the real one.
-        if let sentAt, let reportedAt, sentAt > 0, reportedAt > 0, reportedAt < sentAt {
-            return .staleReadback
-        }
+        if let unusable = unusable(sentDeviceId: sentDeviceId, reportedDeviceId: reportedDeviceId,
+                                   sentAt: sentAt, reportedAt: reportedAt) { return unusable }
         return abs(reportedEpoch - sentEpoch) > toleranceS ? .mismatch : .matches
     }
 
@@ -81,13 +108,20 @@ public enum AlarmReadback {
         case .differentStrap: return "  (readback is from a different strap — not comparable)"
         case .unattributed: return "  (no strap recorded for one of these — not comparable)"
         case .staleReadback: return "  (readback predates this arm — not comparable)"
+        case .reportsNoAlarm: return "  ⚠️ strap reports NO alarm stored"
         }
     }
 
     /// Whether this verdict may advance the consecutive-rejection streak. Only a proven same-strap,
     /// same-arm disagreement counts: an unattributed, cross-strap or stale reading must leave the streak
     /// untouched rather than reset it, since none of the three is evidence either way.
-    public static func countsAsRejection(_ verdict: Verdict) -> Bool { verdict == .mismatch }
+    /// `reportsNoAlarm` counts for the same reason `mismatch` does, and more plainly: the strap was asked
+    /// what it has armed and answered "nothing". Before this it fell outside the streak entirely, so the
+    /// Alarms screen's warning — built for a strap that will not keep an alarm — never appeared to the
+    /// people whose straps say so outright (#2893, reported 2026-11-17).
+    public static func countsAsRejection(_ verdict: Verdict) -> Bool {
+        verdict == .mismatch || verdict == .reportsNoAlarm
+    }
 
     /// Whether this verdict is evidence the strap DID accept, which clears the streak.
     public static func clearsRejectionStreak(_ verdict: Verdict) -> Bool { verdict == .matches }

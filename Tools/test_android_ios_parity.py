@@ -190,6 +190,80 @@ class AndroidIOSParityTest(unittest.TestCase):
         witness = {n: (lambda a=a: a in drawn) for n, a in SLEEP_ANDROID.items() if n not in SLEEP_GAPS}
         self.check(ios, witness, {}, SLEEP_GAPS, "Sleep")
 
+    def test_today_first_widget_set(self):
+        """Both Today screens start a new install with the same six measure tiles, in the same order.
+
+        The set is seeded once per install, so a tile missing here is missing for good unless the wearer
+        goes looking in the gallery. Android shipped five of iOS's six: stress was left out with a comment
+        saying Android had no tile for it, and nothing failed when one was built. The keys differ by
+        namespace (Android stores a `KeyMetric` raw where iOS stores the catalog key), so the table below
+        is the translation, and an iOS key that is not in it fails rather than passing unseen.
+        """
+        swift = (ROOT / "Strand/Forge/ForgeTodayTileSeed.swift").read_text(encoding="utf-8")
+        m = re.search(r"static let firstSet = \[([^\]]*)\]", swift)
+        self.assertIsNotNone(m, "iOS's seeded widget list is gone; this gate reads it by name")
+        ios = [k.strip().strip('"') for k in m.group(1).split(",")]
+        kotlin = android(f"{FORGE}/ForgeTodayWidgets.kt")
+        first = re.search(r"val firstSet: List<TodayWidget> = listOf\((.*?)\)\s*\n\s*\.map", kotlin, re.S)
+        self.assertIsNotNone(first, "Android's firstSet is gone; this gate reads it by name")
+        android_keys = [t.strip() for t in first.group(1).split(",") if t.strip()]
+        self.assertEqual([FIRST_SET_ANDROID.get(k, k) for k in android_keys], ios,
+                         "the seeded Today tiles differ between the platforms")
+
+    def test_today_widget_kinds(self):
+        """Every kind of Today widget iOS offers can be placed on Android too.
+
+        The sibling of the seeded-set gate above, for the cards rather than the measures: the twenty kinds
+        agree today, and a kind added on one side only would otherwise be noticed by whoever happened to
+        compare the two gallery screens.
+        """
+        swift = (ROOT / "StrandiOS/Forge/ForgeTodayWidgets.swift").read_text(encoding="utf-8")
+        start = swift.index("enum Kind: String, Codable, CaseIterable {")
+        body = swift[start:swift.index("}", start)]
+        ios = [c.strip() for line in body.splitlines() if line.strip().startswith("case ")
+               for c in line.strip()[len("case "):].split(",")]
+        self.assertGreaterEqual(len(ios), 20, "iOS's widget kinds did not parse; this gate reads them by name")
+        kotlin = android(f"{FORGE}/ForgeTodayWidgets.kt")
+        # The entries alone. Read to the end of the file instead and this gate goes quietly false-green: the
+        # same pattern picks up `o.optString("kind")` and its siblings further down, so four JSON keys would
+        # stand in as witnesses, and the next kind whose name happens to match a stored key would pass while
+        # Android could not draw the card. Bounded twice, so neither the companion object nor a reformat that
+        # drops the `;` can widen it again.
+        tail = kotlin[kotlin.index("enum class Kind(val raw: String) {"):]
+        entries = tail[:tail.index("\n    }")].split("companion object", 1)[0]
+        raws = set(re.findall(r'\w+\("(\w+)"\)', entries))
+        for name in ios:
+            self.assertIn(name, raws, f"Today widget kind '{name}' is on iOS and not on Android")
+
+    def test_release_notes_render_their_markup(self):
+        """Both What's New sheets must render the entries' markup, not print it.
+
+        Every changelog item is written `**Lead.** rest`. iOS renders it by handing the string to
+        `LocalizedStringKey`; Android printed the asterisks on the card for one release after the Apple
+        side was fixed, which is what a reader saw first after updating. The Kotlin side now goes through
+        `parseInline`. Neither call shape is reachable from the other's test suite, so the gate reads both.
+        """
+        swift = (ROOT / "Strand/Screens/WhatsNewView.swift").read_text(encoding="utf-8")
+        self.assertIn("Text(LocalizedStringKey(item))", swift,
+                      "iOS stopped rendering release items as markup; the asterisks are back on the card")
+        kotlin = android("android/app/src/main/java/com/noop/ui/WhatsNewSheet.kt")
+        self.assertIn("parseInline(item, ", kotlin,
+                      "Android stopped rendering release items as markup; the asterisks are back on the card")
+        self.assertIn("parseInline(release.title, ", kotlin,
+                      "Android stopped rendering the release title as markup")
+
+
+# Android's seeded Today tiles, as the keys iOS stores them under: Android holds a `KeyMetric` raw where
+# iOS holds the shared catalog key (`KeyMetric.catalogKey()` is the same translation in Kotlin), and the two
+# measures that are not a KeyMetric carry the catalog key on both sides.
+FIRST_SET_ANDROID = {
+    "KeyMetric.HRV.raw": "hrv",
+    "KeyMetric.RESTING_HR.raw": "rhr",
+    "KeyMetric.STEPS.raw": "steps",
+    "KeyMetric.WEIGHT.raw": "weight",
+    "TodayWidget.SLEEP_KEY": "sleep_total_min",
+    "TodayWidget.STRESS_KEY": "stress",
+}
 
 # iOS `TodayDashboardStyle` (Strand/Data/TodayDashboardStyle.swift): offered under Settings > Dashboard style.
 STYLE_ANDROID = {"classic": '"classic"', "liquid": '"liquid"', "trends": '"trends"'}

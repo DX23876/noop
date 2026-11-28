@@ -27,11 +27,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.noop.core.CoreTile
+import com.noop.R
 import com.noop.ui.KeyMetric
+import com.noop.ui.StressBand
 
 /**
  * Fork (DX23876), Forge parity 2026-11: a Today tile drawn as iOS's `TodayMetricTile` in the new design draws it: the
@@ -133,6 +136,20 @@ internal fun KeyMetric.catalogKey(): String = when (this) {
     KeyMetric.CALORIES -> "active_kcal"
     else -> raw
 }
+
+/**
+ * Stress as the word a tile shows, from the ONE band the Stress screen itself reads ([StressBand.forScore]).
+ *
+ * "2,2" alone said nothing without the scale beside it, so every surface prints the word. The thresholds are
+ * the screen's, not a second copy beside them: a tile and the page it opens must not be able to call one
+ * afternoon Medium and High.
+ */
+@Composable
+internal fun stressWord(score: Double): String = stringResource(when (StressBand.forScore(score)) {
+    StressBand.Low -> R.string.forge_vt_low
+    StressBand.Medium -> R.string.forge_vt_medium
+    StressBand.High -> R.string.forge_vt_high
+})
 
 /** The change and its tone for a tile's values, from the shared core. Null while it loads or without a week. */
 @Composable

@@ -290,6 +290,12 @@ public enum AnalysisRecipe {
     // computed id). "Enough?" reads them for the WHO weekly minutes. Its own number because AI-38 has shipped:
     // the testing build of 2026-11-28 (`a4aa0ab71`) carries it. The full rebuild scores every day again, which
     // writes the four series for the whole history; no stored input is rewritten.
+    // AI-39 also stages a night from heart rate when the NIGHT has no motion (written 2026-11-17 for #2890,
+    // merged 2026-11-28): the gate used to count gravity across the whole 54-hour read window, so a strap
+    // whose history offload stalled kept rows from the day before yesterday in the window while the night
+    // itself had none, and every following night scored as nothing at all (`SleepStager.nightMotionRows`).
+    // Nights that scored blank for that reason gain a heart-rate-staged night on the rebuild; a night with
+    // motion of its own is untouched. It rides on AI-39, which is in no release or testing build yet.
     public static let currentVersion = 39
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy

@@ -328,6 +328,74 @@ final class DailyAnalysisSmokeTests: XCTestCase {
         XCTAssertEqual(recipe, target)
     }
 
+    // MARK: - The night with no motion of its own (#2890)
+
+    /// A night that scored as nothing at all although it had heart rate all the way through, because the
+    /// motion gate counted the 54-hour read WINDOW instead of the night (#2890, reported 2026-11-17).
+    ///
+    /// The shape is the one in the report, and it is not particular to any firmware: gravity reaches the
+    /// store only through the history offload, so a strap whose offload stalls keeps the motion it
+    /// delivered earlier — here the day before yesterday, inside the window's 30-hour lookback — while
+    /// every night after it has none. The old gate saw those rows, decided there was motion, and the
+    /// heart-rate-only fallback that exists for exactly this night never ran.
+    func testANightWithMotionOnlyInTheLookbackIsStagedFromHeartRate() async throws {
+        let store = try await WhoopStore.inMemory()
+        let services = StoreServices(reader: StoreReader(store: store, activeDeviceId: "my-whoop",
+                                                         registeredWhoopIds: []))
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.startOfDay(for: Date()))!
+        let start = Int(yesterday.timeIntervalSince1970)
+        // Heart rate right through: asleep from 23:00 the evening before until 07:00, awake either side.
+        let hr = stride(from: start - 10 * 3_600, to: start + 16 * 3_600, by: 60).map {
+            HRSample(ts: $0, bpm: $0 >= start - 3_600 && $0 < start + 7 * 3_600 ? 50 : 70)
+        }
+        // Motion ONLY in the stale part of the window: 30 to 20 hours before the day, nothing in its night.
+        let gravity = stride(from: start - 30 * 3_600, to: start - 20 * 3_600, by: 60).map {
+            GravitySample(ts: $0, x: 0, y: 0, z: 1)
+        }
+        try await store.insert(Streams(hr: hr, gravity: gravity), deviceId: "my-whoop")
+
+        let host = Host()
+        host.traces = [.sleep]
+        let engine = DailyAnalysis(services: services, profile: Profile(), deviceId: "my-whoop", host: host,
+                                   messages: { "\($0)" })
+        await engine.analyzeRecent(maxDays: 2, force: true, allowDayReuse: false)
+
+        let day = StoreReader.localDayKey(yesterday)
+        let gate = try XCTUnwrap(host.lines.first { $0.hasPrefix("[sleep] hr-only gate day=\(day) ") },
+                                 "the gate never ran for this night: \(host.lines)")
+        XCTAssertTrue(gate.contains("attempted=true"), gate)
+        XCTAssertTrue(gate.contains("grav=0 "), "the night has no motion of its own: \(gate)")
+        XCTAssertFalse(gate.contains("windowGrav=0 "), "the window does hold the stale rows: \(gate)")
+        let stored = try await store.dailyMetrics(deviceId: "my-whoop-noop", from: day, to: day).first
+        XCTAssertGreaterThan(try XCTUnwrap(stored?.totalSleepMin), 0,
+                             "the night is staged from heart rate instead of being lost")
+    }
+
+    /// The gate still holds where it should: an ordinary night WITH motion goes the motion way, and the
+    /// heart-rate fallback is not offered a night the detector can stage itself.
+    func testANightWithItsOwnMotionDoesNotReachTheFallback() async throws {
+        let store = try await WhoopStore.inMemory()
+        let services = StoreServices(reader: StoreReader(store: store, activeDeviceId: "my-whoop",
+                                                         registeredWhoopIds: []))
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.startOfDay(for: Date()))!
+        let start = Int(yesterday.timeIntervalSince1970)
+        let hr = stride(from: start - 10 * 3_600, to: start + 16 * 3_600, by: 60).map {
+            HRSample(ts: $0, bpm: $0 >= start - 3_600 && $0 < start + 7 * 3_600 ? 50 : 70)
+        }
+        let gravity = hr.map { GravitySample(ts: $0.ts, x: 0, y: 0, z: 1) }
+        try await store.insert(Streams(hr: hr, gravity: gravity), deviceId: "my-whoop")
+
+        let host = Host()
+        host.traces = [.sleep]
+        let engine = DailyAnalysis(services: services, profile: Profile(), deviceId: "my-whoop", host: host,
+                                   messages: { "\($0)" })
+        await engine.analyzeRecent(maxDays: 2, force: true, allowDayReuse: false)
+
+        let day = StoreReader.localDayKey(yesterday)
+        XCTAssertNil(host.lines.first { $0.hasPrefix("[sleep] hr-only gate day=\(day) ") },
+                     "a night with its own motion never reaches this gate")
+    }
+
     // MARK: - Effort's workout time (#2438)
 
     /// Yesterday as the smoke tests above build it (a night at 50 bpm after a day at 70), then a still day at

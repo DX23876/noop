@@ -111,4 +111,54 @@ final class AlarmReadbackTests: XCTestCase {
     func testStaleHasItsOwnSuffix() {
         XCTAssertEqual(AlarmReadback.suffix(.staleReadback), "  (readback predates this arm — not comparable)")
     }
+
+    // MARK: - "I have no alarm stored" (#2893)
+
+    /// The plainest refusal a strap can give, and until #2893 the one the streak never counted: the strap
+    /// was asked what it has armed and answered nothing at all.
+    func testTheStrapReportingNoAlarmIsARefusal() {
+        let verdict = AlarmReadback.noAlarmVerdict(sentDeviceId: "whoop-a", reportedDeviceId: "whoop-a",
+                                                   sentAt: armedAt, reportedAt: armedAt + 1)
+        XCTAssertEqual(verdict, .reportsNoAlarm)
+        XCTAssertTrue(AlarmReadback.countsAsRejection(verdict))
+        XCTAssertFalse(AlarmReadback.clearsRejectionStreak(verdict))
+        XCTAssertEqual(AlarmReadback.suffix(.reportsNoAlarm), "  ⚠️ strap reports NO alarm stored")
+    }
+
+    /// It passes the same three guards as every other readback, in the same order. An answer that cannot
+    /// be tied to an arm of ours blames a strap for something we never asked it, which is the #1635
+    /// lesson; none of these counts.
+    func testAnUnattributableNoAlarmAnswerCountsForNothing() {
+        for verdict in [
+            AlarmReadback.noAlarmVerdict(sentDeviceId: nil, reportedDeviceId: "whoop-a"),
+            AlarmReadback.noAlarmVerdict(sentDeviceId: "whoop-a", reportedDeviceId: ""),
+            AlarmReadback.noAlarmVerdict(sentDeviceId: "whoop-a", reportedDeviceId: "whoop-b",
+                                         sentAt: armedAt, reportedAt: armedAt + 1),
+            AlarmReadback.noAlarmVerdict(sentDeviceId: "whoop-a", reportedDeviceId: "whoop-a",
+                                         sentAt: armedAt, reportedAt: armedAt - 60),
+        ] {
+            XCTAssertFalse(AlarmReadback.countsAsRejection(verdict), "\(verdict)")
+            XCTAssertFalse(AlarmReadback.clearsRejectionStreak(verdict), "\(verdict)")
+        }
+        XCTAssertEqual(AlarmReadback.noAlarmVerdict(sentDeviceId: "whoop-a", reportedDeviceId: "whoop-b"),
+                       .differentStrap)
+        XCTAssertEqual(AlarmReadback.noAlarmVerdict(sentDeviceId: "whoop-a", reportedDeviceId: "whoop-a",
+                                                    sentAt: armedAt, reportedAt: armedAt - 60), .staleReadback)
+    }
+
+    /// An install with no arrival stamps judges as before here too: staleness is not guessed, so a strap
+    /// that says it kept nothing is still believed.
+    func testNoAlarmWithoutArrivalStampsStillCounts() {
+        XCTAssertEqual(AlarmReadback.noAlarmVerdict(sentDeviceId: "whoop-a", reportedDeviceId: "whoop-a"),
+                       .reportsNoAlarm)
+    }
+
+    /// The timed verdict is unchanged by the new branch: a sentinel epoch is NOT routed through it, so
+    /// nothing starts reading "the strap stored 1970" where it used to read "the strap stored nothing".
+    func testTheTimedVerdictIsUntouched() {
+        XCTAssertEqual(AlarmReadback.verdict(sentEpoch: sent, reportedEpoch: sent,
+                                             sentDeviceId: "whoop-a", reportedDeviceId: "whoop-a"), .matches)
+        XCTAssertEqual(AlarmReadback.verdict(sentEpoch: sent, reportedEpoch: 0,
+                                             sentDeviceId: "whoop-a", reportedDeviceId: "whoop-a"), .mismatch)
+    }
 }

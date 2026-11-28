@@ -5,18 +5,6 @@
       "The most common cause is the ring was not fully reset in the Oura app, or the Oura "
     ],
     [
-      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
-      "Last backup: ${DateUtils.getRelativeTimeSpanString(lastMs)}"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
-      "No folder chosen yet. Pick one your cloud app already syncs, or any local folder."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/BackupSyncScreen.kt",
-      "Saving to: ${folderLabel(it)}"
-    ],
-    [
       "android/app/src/main/java/com/noop/ui/BreatheScreen.kt",
       "%.1f br/min"
     ],
@@ -46,30 +34,6 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "Bring your own API key. It is stored encrypted on this device and only used to "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "Fetching…"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "Paste your ${provider.displayName} key"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "Point the coach at any OpenAI-compatible server: a local model (Ollama, LM "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "Private by default: only your question and a short metrics summary are sent, "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
-      "The coach talks only to the server URL you set. Point it at a local model to "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
       "coachBreath"
     ],
     [
@@ -79,14 +43,6 @@
     [
       "android/app/src/main/java/com/noop/ui/CoachScreen.kt",
       "dot$i"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
-      "Each line min-max normalized within ${range.phrase}"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
-      "Each line min-max normalized · sparse series widened past ${range.phrase}"
     ],
     [
       "android/app/src/main/java/com/noop/ui/CompareScreen.kt",
@@ -122,55 +78,11 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "$displayHr bpm"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
       "${detail.format(it)} ${detail.unit}"
     ],
     [
       "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "${kotlin.math.abs(delta)} ${yearWord(delta)} ${if (younger) \"younger\" else \"older\"}"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Awaiting strap"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Estimated from R-R interval"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Live heart rate over time, $displayHr beats per minute, zone $zone"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Live heart rate over time, no data"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
       "SOLID"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Streaming live"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Sync now. A sync is already in progress."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Sync now. Connect your strap first."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "Sync now. Pulls your strap's stored history immediately, without waiting "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/HealthScreen.kt",
-      "about your age"
     ],
     [
       "android/app/src/main/java/com/noop/ui/HrvSnapshotScreen.kt",
@@ -201,52 +113,12 @@
       " $it"
     ],
     [
-      "android/app/src/main/java/com/noop/ui/JournalLog.kt",
-      "Answers are about the night and day leading into this morning, the "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/JournalLog.kt",
-      "Delete"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/JournalLog.kt",
-      "Hide"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/JournalLog.kt",
-      "Logging ahead for tomorrow: today's activities inform tomorrow's "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/JournalLog.kt",
-      "Rename, regroup, or remove an item to tidy your list. Renaming keeps the "
-    ],
-    [
       "android/app/src/main/java/com/noop/ui/LabBookScreen.kt",
       "$n reading${if (n == 1) \"\" else \"s\"} line up so far, not enough to read a trend yet "
     ],
     [
       "android/app/src/main/java/com/noop/ui/LabBookScreen.kt",
       "No overlap yet between this marker and ${signal.title.lowercase()}. Log a few more readings "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
-      "Recent intervals: "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
-      "Strap buzzes when you climb into Zone 5 (≥ $zone5Bpm bpm). Manage it in Automations → Haptic coaching."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
-      "Syncing your strap history…"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
-      "Syncing your strap history… ${live.syncChunksThisSession} chunks pulled"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/LiveScreen.kt",
-      "Turn on HR-zone coaching in Automations for a wrist buzz when you reach Zone 5 (≥ $zone5Bpm bpm)."
     ],
     [
       "android/app/src/main/java/com/noop/ui/MindSection.kt",
@@ -269,14 +141,6 @@
       "Feature"
     ],
     [
-      "android/app/src/main/java/com/noop/ui/NotificationsSettingsScreen.kt",
-      "Buzzes your wrist"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/NotificationsSettingsScreen.kt",
-      "Off"
-    ],
-    [
       "android/app/src/main/java/com/noop/ui/PipBar.kt",
       "$label: $valueText"
     ],
@@ -286,63 +150,11 @@
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Auto · ${profile.hrMaxAuto} bpm (Tanaka)"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Background image"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Blood Oxygen: strap estimate"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Fill"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Fit"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Let the background show through every card. Tune how much just below."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Manual override"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Needs the full encrypted bond: close the official WHOOP app and pair the strap to NOOP first (a live-HR-only link can't carry the unlock)."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Put the strap on first. The deep stream is on-wrist only."
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
       "Scores today's hour-by-hour stress timeline against YOUR own cross-day baseline "
     ],
     [
       "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Stress: personal daytime baseline"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Stretch"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
       "Surfaces your strap's nightly SpO₂ estimate in the Blood Oxygen tile when no "
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Tile"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/SettingsScreen.kt",
-      "Wear the strap, tap once, then let it sync and share your strap log."
     ],
     [
       "android/app/src/main/java/com/noop/ui/SmartAlarmScreen.kt",
@@ -355,18 +167,6 @@
     [
       "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
       "%+.0f%%"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
-      "Auto"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
-      "fit from your phone"
-    ],
-    [
-      "android/app/src/main/java/com/noop/ui/StepsCalibrationScreen.kt",
-      "steps / motion unit"
     ],
     [
       "android/app/src/main/java/com/noop/ui/StressScreen.kt",

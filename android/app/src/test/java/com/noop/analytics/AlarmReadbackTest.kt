@@ -107,4 +107,37 @@ class AlarmReadbackTest {
         assertEquals("  (readback predates this arm — not comparable)",
                      AlarmReadback.suffix(Verdict.STALE_READBACK))
     }
+
+    // "I have no alarm stored" (#2893)
+
+    /** The plainest refusal a strap can give, and until #2893 the one the streak never counted. */
+    @Test fun theStrapReportingNoAlarmIsARefusal() {
+        val verdict = AlarmReadback.noAlarmVerdict("whoop-a", "whoop-a", sentAt = 1_000L, reportedAt = 1_001L)
+        assertEquals(AlarmReadback.Verdict.REPORTS_NO_ALARM, verdict)
+        assertTrue(AlarmReadback.countsAsRejection(verdict))
+        assertFalse(AlarmReadback.clearsRejectionStreak(verdict))
+        assertEquals("  \u26a0\ufe0f strap reports NO alarm stored", AlarmReadback.suffix(verdict))
+    }
+
+    /** Same three guards as every other readback, same order: an answer that cannot be tied to an arm of
+     *  ours blames a strap for a question we never asked it. */
+    @Test fun anUnattributableNoAlarmAnswerCountsForNothing() {
+        listOf(
+            AlarmReadback.noAlarmVerdict(null, "whoop-a"),
+            AlarmReadback.noAlarmVerdict("whoop-a", " "),
+            AlarmReadback.noAlarmVerdict("whoop-a", "whoop-b", sentAt = 1_000L, reportedAt = 1_001L),
+            AlarmReadback.noAlarmVerdict("whoop-a", "whoop-a", sentAt = 1_000L, reportedAt = 900L),
+        ).forEach {
+            assertFalse(it.toString(), AlarmReadback.countsAsRejection(it))
+            assertFalse(it.toString(), AlarmReadback.clearsRejectionStreak(it))
+        }
+        assertEquals(AlarmReadback.Verdict.DIFFERENT_STRAP, AlarmReadback.noAlarmVerdict("whoop-a", "whoop-b"))
+        assertEquals(AlarmReadback.Verdict.STALE_READBACK,
+                     AlarmReadback.noAlarmVerdict("whoop-a", "whoop-a", sentAt = 1_000L, reportedAt = 900L))
+    }
+
+    /** An install with no arrival stamps judges as before: staleness is not guessed. */
+    @Test fun noAlarmWithoutArrivalStampsStillCounts() {
+        assertEquals(AlarmReadback.Verdict.REPORTS_NO_ALARM, AlarmReadback.noAlarmVerdict("whoop-a", "whoop-a"))
+    }
 }

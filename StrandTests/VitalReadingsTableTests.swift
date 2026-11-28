@@ -132,3 +132,114 @@ final class VitalReadingsTableTests: XCTestCase {
         XCTAssertEqual(rows.first?.value, "97 % %")
     }
 }
+
+/// A night read in minutes.
+///
+/// "526 min" is a true figure nobody reads as eight and three quarter hours, and it was reported from the
+/// Readings table under the sleep metrics (Discord, 2026-11-17). Everywhere else in the app a duration is
+/// already "8h 46m"; this is the one table that still printed the raw minutes.
+///
+/// Whether a metric IS a duration is the descriptor's answer, not the formatted string's: the Explorer
+/// hands this function a unit-bearing formatter and an empty unit (#1942), so sniffing "… min" off the
+/// output would be reading the label to find out what the number means.
+extension VitalReadingsTableTests {
+
+    private func minutes(_ values: [Double]) -> [VitalReading] {
+        values.enumerated().map { index, value in
+            VitalReading(day: String(format: "2026-01-%02d", index + 1), value: value,
+                         source: Repository.whoopSource)
+        }
+    }
+
+    private func rows(_ value: Double, unit: String, duration: Bool,
+                      format: @escaping (Double) -> String = { String(format: "%.0f", $0) }) -> [VitalReadingRow] {
+        vitalReadingRows(readings: minutes([value]), unit: unit, strapDeviceId: Repository.whoopSource,
+                         now: now, durationMinutes: duration, format: format)
+    }
+
+    func testAMinuteReadingPastAnHourReadsAsHoursAndMinutes() {
+        XCTAssertEqual(rows(526, unit: "min", duration: true).first?.value, "8h 46m")
+    }
+
+    /// The shape the screen actually uses: the formatter already says "526 min" and the unit is empty.
+    func testTheExplorersOwnShapeIsConvertedToo() {
+        let value = rows(526, unit: "", duration: true, format: { String(format: "%.0f min", $0) })
+        XCTAssertEqual(value.first?.value, "8h 46m")
+    }
+
+    func testUnderAnHourItStaysAsTheFormatterWroteIt() {
+        let value = rows(47, unit: "", duration: true, format: { String(format: "%.0f min", $0) })
+        XCTAssertEqual(value.first?.value, "47 min")
+    }
+
+    func testAnExactHourSaysBothParts() {
+        XCTAssertEqual(rows(60, unit: "min", duration: true).first?.value, "1h 0m")
+    }
+
+    /// Only a metric the descriptor calls a duration is rearranged. A percentage of 96 is not 1h 36m.
+    func testOtherMetricsAreUntouched() {
+        XCTAssertEqual(rows(96, unit: "%", duration: false).first?.value, "96 %")
+        XCTAssertEqual(rows(96, unit: "min", duration: false).first?.value, "96 min")
+    }
+}
+
+/// The screen-wide rule behind the table: ONE decision, so the headline, the chart's readout, the stat
+/// tiles and the table cannot spell the same night two ways (reported 2026-11-17).
+final class MetricDurationSpellingTests: XCTestCase {
+
+    func testAMinuteMetricPastAnHourIsSpelledOut() {
+        XCTAssertEqual(metricDurationSpelling(unit: "min", value: 443), "7h 23m")
+        XCTAssertEqual(metricDurationSpelling(unit: "min", value: 526), "8h 46m")
+    }
+
+    func testTheHourItselfCounts() {
+        XCTAssertEqual(metricDurationSpelling(unit: "min", value: 60), "1h 0m")
+    }
+
+    /// Under the hour the metric's own formatter keeps the value, so the rule answers nothing.
+    func testUnderAnHourItDeclines() {
+        XCTAssertNil(metricDurationSpelling(unit: "min", value: 59))
+        XCTAssertNil(metricDurationSpelling(unit: "min", value: 0))
+    }
+
+    /// Everything that is not counted in minutes is left alone — 96 % is not an hour and a half.
+    func testOnlyMinutesAreTreatedAsALength() {
+        XCTAssertNil(metricDurationSpelling(unit: "%", value: 96))
+        XCTAssertNil(metricDurationSpelling(unit: "bpm", value: 142))
+        XCTAssertNil(metricDurationSpelling(unit: "", value: 443))
+    }
+}
+
+/// The share each row carries for its hairline: one projection, so a bar can never belong to another
+/// row's figure.
+final class VitalReadingShareTests: XCTestCase {
+
+    private func rows(_ values: [Double]) -> [VitalReadingRow] {
+        let readings = values.enumerated().map { index, value in
+            VitalReading(day: String(format: "2026-01-%02d", index + 1), value: value,
+                         source: Repository.whoopSource)
+        }
+        return vitalReadingRows(readings: readings, unit: "", strapDeviceId: Repository.whoopSource,
+                                format: { String(format: "%.0f", $0) })
+    }
+
+    /// Newest first, so the LAST reading is the first row — and the lowest of the window sits at 0, the
+    /// highest at 1, whatever order they arrived in.
+    func testTheLowestIsEmptyAndTheHighestIsFull() {
+        let out = rows([400, 500, 450])
+        XCTAssertEqual(out.map(\.value), ["450", "500", "400"])
+        XCTAssertEqual(out[0].share, 0.5, accuracy: 0.0001)
+        XCTAssertEqual(out[1].share, 1.0, accuracy: 0.0001)
+        XCTAssertEqual(out[2].share, 0.0, accuracy: 0.0001)
+    }
+
+    /// A window where nothing moved has no position to state, so every row draws the bare track rather
+    /// than a full bar that would read as a high.
+    func testAFlatWindowStatesNothing() {
+        XCTAssertEqual(rows([420, 420, 420]).map(\.share), [0, 0, 0])
+    }
+
+    func testOneReadingIsFlatToo() {
+        XCTAssertEqual(rows([443]).first?.share, 0)
+    }
+}

@@ -891,6 +891,14 @@ enum DemoScreens {
         case "overviewdashboard": return AnyView(OverviewDashboardView())
         case "trends":   return AnyView(TrendsView())
         case "sleep":    return AnyView(SleepView())
+        // The NEW design's Sleep page, which `sleep` does not reach: that route renders the full Sleep
+        // screen in whatever skin is on, and the Forge page is a different view. Without this the nap
+        // card added for #49 could not be captured on the page most wearers see.
+        case "forgesleep": return AnyView(ForgeSleepView(onProfile: {}))
+        // The new design's Today, which `today` does not reach: that route renders the classic screen.
+        // Needed to put the two platforms' Today pages side by side, which is how the nap defects on
+        // Android were found at all.
+        case "forgetoday": return AnyView(DemoForgeTodayHost())
         case "live":     return AnyView(LiveView())
         case "stress":   return AnyView(StressView())
         case "workouts": return AnyView(WorkoutsView())
@@ -906,6 +914,13 @@ enum DemoScreens {
         case "health":   return AnyView(HealthView())
         case "insights": return AnyView(InsightsView())
         case "explore":  return AnyView(MetricExplorerView())
+        // One metric's detail page on its own: "metric-<key>", e.g. metric-sleep_total_min. The explorer
+        // reaches that page by a push, which this harness has no shell for, so the readings table and the
+        // correlation list were the one part of the explorer no screenshot could reach.
+        case let route where route.hasPrefix("metric-"):
+            let key = String(route.dropFirst("metric-".count))
+            guard let metric = MetricCatalog.all.first(where: { $0.key.lowercased() == key }) else { return nil }
+            return AnyView(NavigationStack { MetricDetailView(metric: metric) })
         case "compare":  return AnyView(CompareView())
         case "settings": return AnyView(SettingsView())
         // Analysis migration required: no. This DEBUG-only route only makes the existing filtered
@@ -952,6 +967,16 @@ enum DemoScreens {
 private struct DemoStartWorkoutHost: View {
     @EnvironmentObject private var session: ActiveSessionController
     var body: some View { StartWorkoutSheet(session: session) }
+}
+
+/// DEBUG-only host so `--demo-screen forgetoday` can render the new design's Today with the app's own
+/// model and coach, which it takes as parameters rather than from the environment.
+private struct DemoForgeTodayHost: View {
+    @EnvironmentObject private var model: AppModel
+    var body: some View {
+        ForgeTodayView(coach: model.coach, model: model, onProfile: {}, onLog: {}, onWorkout: {},
+                       onCoach: {}, onSleep: {}, onCoachSettings: {}, onAsk: { _ in })
+    }
 }
 
 /// DEBUG-only host so `--demo-screen library` can render the exercise library.

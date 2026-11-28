@@ -4,10 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -143,21 +145,64 @@ internal fun VitalCorrelationsCard(metricTitle: String, rows: List<CoreMetricDet
     }
 }
 
+/**
+ * Name and figure on one line, the strength on its own beneath them across the whole row.
+ *
+ * A tube 64dp wide squeezed between the two columns could not tell +0.98 from +0.87, and it always grew
+ * rightwards, so the sign lived in the colour alone. Drawn either side of a zero line over the row's full
+ * width the sign is in the SHAPE, read before any colour, every row shares the one scale (−1 to +1), and
+ * a long title ("Herzfrequenzvariabilität") gets the room it needs instead of breaking over four lines.
+ * Swift twin: `MetricDetailView.correlationRowView` / `correlationBar`.
+ */
 @Composable
 private fun CorrelationRow(row: CoreMetricDetail.Correlation) {
     val base = if (row.r >= 0) Palette.statusPositive else Palette.statusCritical
     val color = base.copy(alpha = (0.55 + 0.45 * minOf(abs(row.r), 1.0)).toFloat())
     val title = catalogTitle(row.title)
     val strength = (if (row.r >= 0) "+" else "−") + String.format(Locale.getDefault(), "%.2f", abs(row.r))
-    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp).semantics(mergeDescendants = true) {},
-        verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
-            Text(title, style = NoopType.body, color = Palette.textPrimary)
-            Text(stringResource(R.string.forge_md_days_together, catalogCategory(row.category), row.n),
-                 style = NoopType.footnote, color = Palette.textTertiary)
+    Column(Modifier.fillMaxWidth().padding(vertical = 10.dp).semantics(mergeDescendants = true) {},
+           verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text(title, style = NoopType.body, color = Palette.textPrimary)
+                Text(stringResource(R.string.forge_md_days_together, catalogCategory(row.category), row.n),
+                     style = NoopType.footnote, color = Palette.textTertiary)
+            }
+            Text(strength, style = NoopType.bodyNumber, color = color, textAlign = TextAlign.End)
         }
-        LiquidTube(frac = minOf(abs(row.r), 1.0), tint = color, height = 8.dp, animated = false, modifier = Modifier.width(64.dp))
-        Text(strength, style = NoopType.bodyNumber, color = color, textAlign = TextAlign.End, modifier = Modifier.width(56.dp))
+        CorrelationBar(r = row.r, tint = color)
+    }
+}
+
+/** The track, the zero tick and the arm. The tick stands proud of the track on purpose: without it a
+ *  short positive arm reads as a left-aligned bar with a gap, and the diverging shape is lost. */
+@Composable
+private fun CorrelationBar(r: Double, tint: androidx.compose.ui.graphics.Color) {
+    BoxWithConstraints(Modifier.fillMaxWidth().height(9.dp)) {
+        val half = maxWidth / 2
+        val arm = (half * minOf(abs(r), 1.0).toFloat()).coerceAtLeast(2.dp)
+        Box(
+            Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth()
+                .height(3.dp)
+                .background(Palette.hairline, CircleShape),
+        )
+        Box(
+            Modifier
+                .align(Alignment.Center)
+                .offset(x = if (r < 0) -arm / 2 else arm / 2)
+                .width(arm)
+                .height(5.dp)
+                .background(tint, CircleShape),
+        )
+        Box(
+            Modifier
+                .align(Alignment.Center)
+                .width(1.dp)
+                .height(9.dp)
+                .background(Palette.textTertiary.copy(alpha = 0.55f)),
+        )
     }
 }
 

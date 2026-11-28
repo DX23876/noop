@@ -26,10 +26,15 @@ extension SleepStager {
         /// inside two seconds in one field log, and without the date they are an unattributable block:
         /// asked which band last night used, a reader can only count lines and hope the emission order
         /// matches the day order. The other funnel lines in this file already carry `day=`.
+        /// `grav` is the count the gate DECIDED on — the rows in this day's night — and `windowGrav` the
+        /// rows in the whole 54-hour read window. Both, because they differ precisely in the case this
+        /// gate was wrong about (#2890): a stalled history offload leaves motion in the window and none
+        /// in the night, and a line carrying only the window number would state a figure that no longer
+        /// explains the verdict beside it.
         public static func hrOnlyGateLine(day: String, attempted: Bool, reason: String,
-                                          gravRows: Int, storedNights: Int) -> String {
+                                          gravRows: Int, windowGravRows: Int, storedNights: Int) -> String {
             "[sleep] hr-only gate day=\(day) attempted=\(attempted) reason=\(reason) "
-                + "grav=\(gravRows) stored=\(storedNights)"
+                + "grav=\(gravRows) windowGrav=\(windowGravRows) stored=\(storedNights)"
         }
 
         /// The HR-only spine's own funnel line (#1801). Byte-identical twin of the Kotlin

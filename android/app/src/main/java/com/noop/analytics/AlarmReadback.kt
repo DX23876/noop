@@ -45,7 +45,33 @@ object AlarmReadback {
         /** The readback on hand is OLDER than the arm it is being compared against, so it answered an
          *  EARLIER arm. Same strap, but not the same question, and nothing can be concluded. */
         STALE_READBACK,
+        /** Same strap, same arm, and the strap answers that it has NO alarm stored at all (the epoch
+         *  field decodes to 0). The plainest refusal a strap can give. It has its own value because
+         *  there is no reported time to compare: routing the sentinel through the timed verdict would
+         *  make it a 1970 MISMATCH, which reads as a strap that stored the wrong moment rather than one
+         *  that stored nothing. */
+        REPORTS_NO_ALARM,
     }
+
+    /** Whether this pair can be compared at all, and why not when it cannot. ONE place, because both
+     *  entry points have to ask the same three questions in the same order. */
+    private fun unusable(sentDeviceId: String?, reportedDeviceId: String?,
+                         sentAt: Long, reportedAt: Long): Verdict? {
+        if (sentDeviceId.isNullOrBlank() || reportedDeviceId.isNullOrBlank()) return Verdict.UNATTRIBUTED
+        if (sentDeviceId != reportedDeviceId) return Verdict.DIFFERENT_STRAP
+        if (sentAt > 0L && reportedAt > 0L && reportedAt < sentAt) return Verdict.STALE_READBACK
+        return null
+    }
+
+    /**
+     * The verdict for a strap that answered the readback with its "nothing stored" sentinel (#2893).
+     *
+     * Same guards as every other readback: without attribution, from another strap, or older than the arm
+     * it would be judging, it concludes nothing. A diagnosis may only assert what it can attribute.
+     */
+    fun noAlarmVerdict(sentDeviceId: String?, reportedDeviceId: String?,
+                       sentAt: Long = 0L, reportedAt: Long = 0L): Verdict =
+        unusable(sentDeviceId, reportedDeviceId, sentAt, reportedAt) ?: Verdict.REPORTS_NO_ALARM
 
     /**
      * [sentAt] and [reportedAt] are WALL-CLOCK arrival stamps for the two halves, in whatever unit this
@@ -67,11 +93,9 @@ object AlarmReadback {
         sentAt: Long = 0L,
         reportedAt: Long = 0L,
     ): Verdict {
-        if (sentDeviceId.isNullOrBlank() || reportedDeviceId.isNullOrBlank()) return Verdict.UNATTRIBUTED
-        if (sentDeviceId != reportedDeviceId) return Verdict.DIFFERENT_STRAP
-        // Ordered AFTER attribution on purpose: a cross-strap pair is unusable whether or not it is also
-        // stale, and naming the strap problem first sends the reader to the real one.
-        if (sentAt > 0L && reportedAt > 0L && reportedAt < sentAt) return Verdict.STALE_READBACK
+        // Ordered attribution first, then staleness: a cross-strap pair is unusable whether or not it is
+        // also stale, and naming the strap problem first sends the reader to the real one.
+        unusable(sentDeviceId, reportedDeviceId, sentAt, reportedAt)?.let { return it }
         return if (kotlin.math.abs(reportedEpoch - sentEpoch) > toleranceS) Verdict.MISMATCH else Verdict.MATCHES
     }
 
@@ -82,6 +106,7 @@ object AlarmReadback {
         Verdict.DIFFERENT_STRAP -> "  (readback is from a different strap — not comparable)"
         Verdict.UNATTRIBUTED -> "  (no strap recorded for one of these — not comparable)"
         Verdict.STALE_READBACK -> "  (readback predates this arm — not comparable)"
+        Verdict.REPORTS_NO_ALARM -> "  ⚠️ strap reports NO alarm stored"
     }
 
     /**
@@ -89,7 +114,8 @@ object AlarmReadback {
      * same-arm disagreement counts: an unattributed, cross-strap or stale reading must leave the streak
      * untouched rather than reset it, since none of the three is evidence either way.
      */
-    fun countsAsRejection(verdict: Verdict): Boolean = verdict == Verdict.MISMATCH
+    fun countsAsRejection(verdict: Verdict): Boolean =
+        verdict == Verdict.MISMATCH || verdict == Verdict.REPORTS_NO_ALARM
 
     /** Whether this verdict is evidence the strap DID accept, which clears the streak. */
     fun clearsRejectionStreak(verdict: Verdict): Boolean = verdict == Verdict.MATCHES

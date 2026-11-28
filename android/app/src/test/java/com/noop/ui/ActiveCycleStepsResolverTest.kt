@@ -2,17 +2,11 @@ package com.noop.ui
 
 import com.noop.data.DailyMetric
 import com.noop.data.MetricSeriesRow
-import com.noop.analytics.DayCycleMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ActiveCycleStepsResolverTest {
-    @Test fun allLiveAdditiveMetricsResolveTheSameConfiguredStart() {
-        assertEquals(1234L, activeDayCycleStart(DayCycleMode.SLEEP_ONSET, 1234L, 2000L))
-        assertEquals(2000L, activeDayCycleStart(DayCycleMode.MIDNIGHT, 1234L, 2000L))
-        assertEquals(2000L, activeDayCycleStart(DayCycleMode.SLEEP_ONSET, null, 2000L))
-    }
     private fun day(key: String, steps: Int?) =
         DailyMetric(deviceId = "my-whoop-noop", day = key, steps = steps)
 

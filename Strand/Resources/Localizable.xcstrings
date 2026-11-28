@@ -22165,6 +22165,586 @@
         }
       }
     },
+    "Nap check" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nickerchen prüfen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Comprobar siestas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vérifier les siestes"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Controllo pisolini"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sprawdzanie drzemek"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verificar sestas"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Проверка дневного сна"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小睡检查"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "小睡檢查"
+          }
+        }
+      }
+    },
+    "After a sync NOOP can look for a daytime nap it might have missed and ask whether to keep it. It never adds one on its own." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach einem Abgleich kann NOOP nach einem übersehenen Nickerchen suchen und fragen, ob es bleiben soll. Von selbst trägt es keines ein."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tras una sincronización, NOOP puede buscar una siesta que se le haya pasado y preguntarte si la guarda. Nunca la añade por su cuenta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Après une synchronisation, NOOP peut chercher une sieste qu'il aurait manquée et vous demander s'il doit la garder. Il n'en ajoute jamais de lui-même."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dopo una sincronizzazione NOOP può cercare un pisolino che gli è sfuggito e chiederti se tenerlo. Non ne aggiunge mai uno da solo."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Po synchronizacji NOOP może poszukać pominiętej drzemki i zapytać, czy ją zachować. Nigdy nie dodaje jej samodzielnie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Após uma sincronização, o NOOP pode procurar uma sesta que lhe tenha escapado e perguntar se a guarda. Nunca adiciona nenhuma por si."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "После синхронизации NOOP может поискать пропущенный дневной сон и спросить, сохранить ли его. Сам он ничего не добавляет."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步后，NOOP 可以查找它可能漏掉的小睡，并询问是否保留。它绝不会自行添加。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步後，NOOP 可以尋找它可能漏掉的小睡，並詢問是否保留。它絕不會自行新增。"
+          }
+        }
+      }
+    },
+    "Look for naps after a sync" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nach einem Abgleich nach Nickerchen suchen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar siestas tras sincronizar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chercher des siestes après une synchronisation"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerca pisolini dopo una sincronizzazione"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Szukaj drzemek po synchronizacji"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Procurar sestas após sincronizar"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Искать дневной сон после синхронизации"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步后查找小睡"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步後尋找小睡"
+          }
+        }
+      }
+    },
+    "Off by default. A found nap waits here for your yes or no." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standardmäßig aus. Ein gefundenes Nickerchen wartet hier auf dein Ja oder Nein."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desactivado por defecto. Una siesta encontrada espera aquí tu sí o tu no."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactivé par défaut. Une sieste trouvée attend ici votre oui ou votre non."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disattivo per impostazione predefinita. Un pisolino trovato attende qui il tuo sì o no."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Domyślnie wyłączone. Znaleziona drzemka czeka tutaj na Twoje tak lub nie."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desativado por predefinição. Uma sesta encontrada espera aqui pelo seu sim ou não."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "По умолчанию выключено. Найденный дневной сон ждёт здесь вашего да или нет."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "默认关闭。找到的小睡会在这里等你回答是或否。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "預設關閉。找到的小睡會在這裡等你回答是或否。"
+          }
+        }
+      }
+    },
+    "Nothing waiting. A nap NOOP finds after a sync shows up here." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nichts offen. Ein Nickerchen, das NOOP nach einem Abgleich findet, erscheint hier."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nada pendiente. Una siesta que NOOP encuentre tras sincronizar aparecerá aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien en attente. Une sieste trouvée après une synchronisation apparaîtra ici."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nulla in attesa. Un pisolino trovato dopo una sincronizzazione compare qui."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nic nie czeka. Drzemka znaleziona po synchronizacji pojawi się tutaj."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nada pendente. Uma sesta encontrada após sincronizar aparece aqui."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ничего не ждёт. Дневной сон, найденный после синхронизации, появится здесь."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无待确认项。同步后找到的小睡会出现在这里。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暫無待確認項目。同步後找到的小睡會出現在這裡。"
+          }
+        }
+      }
+    },
+    "Keep this nap" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nickerchen behalten"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guardar esta siesta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Garder cette sieste"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tieni questo pisolino"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zachowaj tę drzemkę"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guardar esta sesta"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сохранить этот сон"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留这次小睡"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保留這次小睡"
+          }
+        }
+      }
+    },
+    "Not a nap" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Kein Nickerchen"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No fue una siesta"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas une sieste"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non era un pisolino"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To nie drzemka"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Não foi uma sesta"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это не сон"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不是小睡"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不是小睡"
+          }
+        }
+      }
+    },
+    "This is close enough to the night that it counts as part of it, not as a nap. Pick a time at least two hours after you woke." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das liegt so nah an der Nacht, dass es als Teil der Nacht zählt und nicht als Nickerchen. Wähle eine Zeit mindestens zwei Stunden nach dem Aufwachen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esto queda tan cerca de la noche que cuenta como parte de ella y no como siesta. Elige una hora al menos dos horas después de despertarte."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette plage est si proche de la nuit qu'elle compte comme une partie de la nuit et non comme une sieste. Choisis une heure au moins deux heures après le réveil."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "È così vicino alla notte che conta come parte della notte e non come pisolino. Scegli un orario almeno due ore dopo il risveglio."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To leży tak blisko nocy, że liczy się jako jej część, a nie jako drzemka. Wybierz godzinę co najmniej dwie godziny po przebudzeniu."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isto fica tão perto da noite que conta como parte dela e não como sesta. Escolha uma hora pelo menos duas horas após acordar."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это настолько близко к ночи, что считается её частью, а не дневным сном. Выберите время не раньше чем через два часа после пробуждения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这段时间离夜间睡眠太近，会算作夜间睡眠的一部分，而不是小睡。请选择醒来至少两小时之后的时间。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這段時間離夜間睡眠太近，會算作夜間睡眠的一部分，而不是小睡。請選擇醒來至少兩小時之後的時間。"
+          }
+        }
+      }
+    },
+    "This starts inside the night's sleep, so it corrects that night instead of adding a nap." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das beginnt noch im Nachtschlaf und korrigiert damit die Nacht statt ein Nickerchen anzulegen."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esto empieza dentro del sueño nocturno, así que corrige esa noche en lugar de añadir una siesta."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette plage commence pendant le sommeil de la nuit et corrige donc cette nuit au lieu d'ajouter une sieste."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inizia dentro il sonno notturno, quindi corregge quella notte invece di aggiungere un pisolino."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To zaczyna się w trakcie nocnego snu, więc poprawia tę noc, zamiast dodawać drzemkę."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Isto começa dentro do sono da noite, pelo que corrige essa noite em vez de adicionar uma sesta."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Это начинается внутри ночного сна, поэтому исправляет эту ночь, а не добавляет дневной сон."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这段时间开始于夜间睡眠之内，因此会修改那一晚，而不是新增小睡。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這段時間開始於夜間睡眠之內，因此會修改那一晚，而不是新增小睡。"
+          }
+        }
+      }
+    },
+    "No naps on this day. Add one if NOOP missed it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An diesem Tag kein Nickerchen. Trage eines ein, falls NOOP es übersehen hat."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ningún sueño diurno este día. Añade uno si NOOP no lo detectó."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune sieste ce jour-là. Ajoutez-en une si NOOP l'a manquée."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nessun pisolino in questo giorno. Aggiungilo se NOOP non l'ha rilevato."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Brak drzemek tego dnia. Dodaj ją, jeśli NOOP jej nie wykrył."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nenhuma sesta neste dia. Adicione uma se o NOOP não a detetou."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В этот день дневного сна нет. Добавьте его, если NOOP его не заметил."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这一天没有小睡。如果 NOOP 漏掉了，请手动添加。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這一天沒有小睡。如果 NOOP 漏掉了，請手動新增。"
+          }
+        }
+      }
+    },
     "No night recorded yet" : {
       "localizations" : {
         "de" : {
@@ -148067,6 +148647,71 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "變更"
+          }
+        }
+      }
+    },
+    "metric.stat.change" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Veränderung"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Variación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Variation"
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Variazione"
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zmiana"
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Variação"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Изменение"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "变化"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "變化"
           }
         }
       }
@@ -356778,7 +357423,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "kein früheres %@"
+            "value" : "%@ davor fehlt"
           }
         },
         "es" : {
@@ -363130,6 +363775,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "NOOP 手環"
+          }
+        }
+      }
+    },
+    "NOOP couldn't take a consistent copy of its database to back up (%@). A backup needs about as much free space as your data, so free some up and try again. Nothing was written." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP konnte keine zusammenhängende Kopie seiner Datenbank anlegen (%@). Eine Sicherung braucht ungefähr so viel freien Speicher wie Ihre Daten. Schaffen Sie etwas Platz und versuchen Sie es erneut. Es wurde nichts geschrieben."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP no pudo crear una copia coherente de su base de datos (%@). Una copia de seguridad necesita aproximadamente tanto espacio libre como tus datos. Libera espacio e inténtalo de nuevo. No se ha escrito nada."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP n'a pas pu créer une copie cohérente de sa base de données (%@). Une sauvegarde nécessite à peu près autant d'espace libre que vos données. Libérez de l'espace puis réessayez. Rien n'a été écrit."
+          }
+        },
+        "it" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP non è riuscito a creare una copia coerente del suo database (%@). Un backup richiede circa lo stesso spazio libero dei tuoi dati. Libera spazio e riprova. Non è stato scritto nulla."
+          }
+        },
+        "pl" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP nie mógł utworzyć spójnej kopii swojej bazy danych (%@). Kopia zapasowa potrzebuje mniej więcej tyle wolnego miejsca, ile zajmują Twoje dane. Zwolnij miejsce i spróbuj ponownie. Nic nie zostało zapisane."
+          }
+        },
+        "pt-PT" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "O NOOP não conseguiu criar uma cópia consistente da sua base de dados (%@). Uma cópia de segurança precisa de aproximadamente tanto espaço livre quanto os seus dados. Liberte espaço e tente novamente. Nada foi escrito."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP не удалось создать целостную копию своей базы данных (%@). Для резервной копии нужно примерно столько же свободного места, сколько занимают ваши данные. Освободите место и повторите попытку. Ничего не записано."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 无法创建其数据库的一致副本（%@）。备份所需的可用空间大约与您的数据一样多。请释放一些空间后重试。未写入任何内容。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NOOP 無法建立其資料庫的一致副本（%@）。備份所需的可用空間大約與您的資料一樣多。請釋出一些空間後重試。未寫入任何內容。"
           }
         }
       }
@@ -418638,7 +419341,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Lesungen"
+            "value" : "Messwerte"
           }
         },
         "es" : {
@@ -550489,7 +551192,7 @@
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "vs. vorherige %@"
+            "value" : "vs. %@ davor"
           }
         },
         "es" : {

@@ -756,7 +756,7 @@ struct InsightsView: View {
                                   value: snapshot.interventionMean.map { formatOutcome($0, as: snapshot.outcome) } ?? "—",
                                   caption: String(localized: "\(snapshot.interventionCount) logged days"),
                                   tint: StrandPalette.accent)
-                experimentMeasure("Change",
+                experimentMeasure(LocalizedStringKey("metric.stat.change"),
                                   value: formatExperimentDelta(snapshot.delta, outcome: snapshot.outcome),
                                   caption: snapshot.deltaCaption,
                                   tint: experimentDeltaColor(snapshot))

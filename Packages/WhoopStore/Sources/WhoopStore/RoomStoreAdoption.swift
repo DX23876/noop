@@ -120,7 +120,10 @@ extension RoomStoreAdoption {
             return report
         }
         if let pool = writer as? DatabasePool {
-            try? pool.writeWithoutTransaction { db in try db.checkpoint(.truncate) }
+            // Best effort by intent: the adoption itself is committed by now, and a WAL that stays large
+            // costs disk, not correctness. Discarding the answer is the decision, written down rather than
+            // left as a warning the next reader has to judge.
+            _ = try? pool.writeWithoutTransaction { db in try db.checkpoint(.truncate) }
         }
         return report
     }

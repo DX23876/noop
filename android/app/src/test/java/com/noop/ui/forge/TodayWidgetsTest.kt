@@ -42,6 +42,18 @@ class TodayWidgetsTest {
         assertEquals(list, TodayWidgets.move(list, "a", "x"))
     }
 
+    /**
+     * A seeded tile the gallery does not list could be removed and never put back: the wearer's only way to
+     * a measure tile is that list. Stress reached Today without it for exactly that reason, so this is the
+     * cheap half of the gate (the other half, that the seeded set still matches iOS, is in
+     * `Tools/test_android_ios_parity.py`, which can read the Swift).
+     */
+    @Test fun everySeededTileCanBeAddedBack() {
+        val seeded = TodayWidgets.firstSet.mapNotNull { it.key }
+        assertEquals(seeded, seeded.filter { it in TodayWidgets.measures })
+        assertEquals(seeded.size, seeded.toSet().size)
+    }
+
     @Test fun storedFormRoundTrips() {
         val list = listOf(m("a", span = 2), card("g"), TodayWidget("h", TodayWidget.Kind.LiveHeart, wide = true))
         assertEquals(list, TodayWidgets.decode(TodayWidgets.encode(list)))

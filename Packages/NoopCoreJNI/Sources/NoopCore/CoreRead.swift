@@ -175,11 +175,18 @@ public enum CoreRead {
         }.sorted { $0.startTs < $1.startTs }
     }
 
+    /// How far back a nap read looks BEYOND its own window: a day's blocks are grouped by the day they end
+    /// on, and the night they belong to starts the evening before. Without the look-back a window that
+    /// begins mid-day (the Sleep card asks from the night's wake) holds the nap but not the night it is a
+    /// nap beside — and a day with one block has a main night and no nap, so the card stayed empty for a
+    /// nap that was in the store (#49). The read is widened; what is RETURNED is still only the window's.
+    public static let napGroupingLookBackSeconds = 36 * 3_600
+
     /// The naps between `from` and `to` (unix seconds), oldest first: every day's blocks outside the main night
     /// `nights` picks, by the one rule the Apple timeline reads too (`SleepNight.naps`).
     public static func naps(from: Int, to: Int, reader: StoreReader,
                             offsetSec: Int = TimeZone.current.secondsFromGMT()) async -> [Nap] {
-        let sessions = await reader.allSleepSessions(from: from, to: to)
+        let sessions = await reader.allSleepSessions(from: from - napGroupingLookBackSeconds, to: to)
         let now = Int(Date().timeIntervalSince1970)
         let habitual = await reader.habitualMidsleepSec(from: now - 4000 * 86_400, to: now + 86_400,
                                                         offsetSec: offsetSec)
@@ -191,7 +198,10 @@ public enum CoreRead {
                     block: Night.Block(deviceId: $0.deviceId, startTs: $0.startTs, endTs: $0.endTs,
                                        effectiveStartTs: $0.effectiveStartTs, edited: $0.userEdited))
             }
-        }.sorted { $0.startTs < $1.startTs }
+        }
+        // Only the asked-for window is returned: the look-back is for GROUPING, not for the answer.
+        .filter { $0.endTs > from && $0.startTs < to }
+        .sorted { $0.startTs < $1.startTs }
     }
 
     public static func series(_ metric: Metric, from: String, to: String, reader: StoreReader) async -> [Point] {

@@ -228,20 +228,11 @@ fun JournalLogCard(
         NoopCard {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    when {
-                        editing ->
-                            "Rename, regroup, or remove an item to tidy your list. Renaming keeps the " +
-                                "original question behind the scenes, so a WHOOP import still lines up. " +
-                                "Custom items are deleted; built-in ones are hidden and can be restored below."
-                        dayOffset == -1L ->
-                            "Logging ahead for tomorrow: today's activities inform tomorrow's " +
-                                "recovery, just as yesterday's are reflected in today's. Tomorrow's " +
-                                "answers line up with tomorrow's morning."
-                        else ->
-                            "Answers are about the night and day leading into this morning, the " +
-                                "same attribution a WHOOP export uses, so logged and imported days " +
-                                "line up."
-                    },
+                    stringResource(when {
+                        editing -> R.string.journal_help_editing
+                        dayOffset == -1L -> R.string.journal_help_tomorrow
+                        else -> R.string.journal_help_default
+                    }),
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                 )
@@ -552,7 +543,7 @@ private fun JournalChip(label: String, selected: Boolean, onClick: () -> Unit) {
 private fun JournalRemoveButton(isCustom: Boolean, onClick: () -> Unit) {
     val shape = RoundedCornerShape(50)
     Text(
-        if (isCustom) "Delete" else "Hide",
+        stringResource(if (isCustom) R.string.workout_action_delete else R.string.forge_library_hide),
         style = NoopType.caption,
         color = Palette.statusCritical,
         modifier = Modifier

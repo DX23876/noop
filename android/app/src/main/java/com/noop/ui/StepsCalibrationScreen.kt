@@ -434,12 +434,13 @@ private fun ManualAdjustCard(
             )
             Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    if (manual > 0) String.format(Locale.US, "%.1f", manual) else "Auto",
+                    if (manual > 0) String.format(Locale.US, "%.1f", manual)
+                    else stringResource(R.string.steps_cal_auto),
                     style = NoopType.number(24f),
                     color = if (manual > 0) Palette.accent else Palette.textSecondary,
                 )
                 Text(
-                    if (manual > 0) "steps / motion unit" else "fit from your phone",
+                    stringResource(if (manual > 0) R.string.steps_cal_unit else R.string.steps_cal_fit),
                     style = NoopType.footnote,
                     color = Palette.textTertiary,
                     modifier = Modifier.padding(bottom = 4.dp),
@@ -447,7 +448,8 @@ private fun ManualAdjustCard(
             }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                 StepperField(
-                    value = if (manual > 0) String.format(Locale.US, "%.1f", manual) else "Auto",
+                    value = if (manual > 0) String.format(Locale.US, "%.1f", manual)
+                            else stringResource(R.string.steps_cal_auto),
                     accessibility = if (manual > 0) {
                         String.format(Locale.US, "Manual steps coefficient, %.1f steps per motion unit", manual)
                     } else {

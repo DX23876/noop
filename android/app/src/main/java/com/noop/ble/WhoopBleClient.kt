@@ -6759,7 +6759,10 @@ class WhoopBleClient(
             }
             send(CommandNumber.SET_ALARM_TIME, AlarmPayload.build(epochSec * 1000L))
             recordAlarmArm(epochSec)
-            log(if (_state.value.connected) "Alarm: armed 5/MG rev4 EXPERIMENTAL (epoch $epochSec)"
+            // "sent", not "armed": this line is written the instant the frame goes out and proves only
+            // that NOOP transmitted it. What the strap kept is the readback's to say. Twin of Apple's
+            // `BLEManager.armStrapAlarm` (#2893).
+            log(if (_state.value.connected) "Alarm: sent 5/MG rev4 EXPERIMENTAL (epoch $epochSec)"
                 else "Alarm: queued 5/MG rev4 EXPERIMENTAL (epoch $epochSec) — strap not connected")
             return
         }
@@ -6768,7 +6771,8 @@ class WhoopBleClient(
         recordAlarmArm(epochSec)
         // #34: only claim "armed" when the strap is connected (the send actually went out); otherwise it's
         // queued and re-sent on the next connect.
-        if (_state.value.connected) log("Alarm: armed (epoch $epochSec)")
+        // "sent", for the reason given at the 5/MG line above.
+        if (_state.value.connected) log("Alarm: sent (epoch $epochSec); the strap's own readback follows")
         else log("Alarm: queued (epoch $epochSec) — strap not connected; will send on next connect")
         // Arm READBACK (#401 close-out): ask the strap what it now has armed (GET_ALARM_TIME, cmd 67) so
         // the strap log carries armed + strap-reports + fired as one decidable sequence in any future

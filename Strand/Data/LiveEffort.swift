@@ -14,11 +14,13 @@ import StrandCore
 // chosen.
 //
 // The read lives here rather than being copied into each screen because its PARAMETERS are the part that
-// must not drift: the window (logical-day midnight → now), the profile's Effort HRmax (`MaxHeartRate`: override, measured, else Gellish), today's
-// resting HR with `StrainScorer.defaultRestingHR` as the fallback, the Puffin effort method and the
-// profile's sex are exactly what the daily pass will eventually persist. A screen that got any one of
-// them wrong would not fail — it would quietly show a different number for the same day, which is the
-// failure mode this whole file exists to close.
+// must not drift: the window (the day's own cycle, or the logical day's midnight where no cycle applies),
+// the profile's Effort HRmax (`MaxHeartRate`: override, measured, else Gellish), today's resting HR with
+// `StrainScorer.defaultRestingHR` as the fallback, the Puffin effort method and the profile's sex are
+// exactly what the daily pass will eventually persist. A screen that got any one of them wrong would not
+// fail — it would quietly show a different number for the same day, which is the failure mode this whole
+// file exists to close. The window was itself such a case: this file claimed it matched the pass while
+// the pass scored the day over its cycle, which is the default (#41).
 
 @MainActor
 enum LiveEffort {

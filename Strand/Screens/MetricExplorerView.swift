@@ -407,6 +407,11 @@ struct VitalReadingRow: Equatable {
     let time: String
     let value: String
     let source: String
+    /// Where this reading sits between the window's smallest and largest, 0 at the low and 1 at the high,
+    /// for the hairline under the row. Carried HERE rather than worked out beside the rows, so the bar and
+    /// the figure next to it come from one reading by construction and cannot end up a row apart. A window
+    /// whose readings are all equal has no position to state and answers 0, which draws the empty track.
+    var share: Double = 0
 }
 
 /// Project a vital's windowed `readings` into table rows, NEWEST FIRST — the same list (so the same count)
@@ -417,16 +422,48 @@ struct VitalReadingRow: Equatable {
 /// "-noop" sibling → "On-device", "apple-health" → "Apple Health", "health-connect" → "Health Connect").
 /// `strapDeviceId` is the active strap id the resolver needs. Byte-identical projection to Android's
 /// `vitalReadingRows`.
+/// `durationMinutes` says the reading IS a length of time counted in minutes, which the descriptor knows
+/// and the formatted string does not: the Explorer passes a unit-bearing formatter and an empty unit
+/// (#1942), so "526 min" would have to be read back to find out what it means. Past an hour such a
+/// reading is written the way the rest of the app writes a duration, "8h 46m", because nobody reads 526
+/// minutes as eight and three quarter hours (reported 2026-11-17).
 func vitalReadingRows(readings: [VitalReading], unit: String, strapDeviceId: String,
-                      now: Date = Date(), format: (Double) -> String) -> [VitalReadingRow] {
-    readings.reversed().map { reading in
-        let value = format(reading.value)
+                      now: Date = Date(), durationMinutes: Bool = false,
+                      format: (Double) -> String) -> [VitalReadingRow] {
+    let low = readings.map(\.value).min() ?? 0
+    let high = readings.map(\.value).max() ?? 0
+    return readings.reversed().map { reading in
+        let plain = format(reading.value)
+        let value = durationMinutes && reading.value >= 60
+            ? vitalReadingDurationText(reading.value)
+            : (unit.isEmpty ? plain : "\(plain) \(unit)")
         return VitalReadingRow(
             time: vitalReadingDateLabel(reading.day, now: now),
-            value: unit.isEmpty ? value : "\(value) \(unit)",
-            source: TodayView.provenanceDisplayLabel(rawSource: reading.source, deviceId: strapDeviceId)
+            value: value,
+            source: TodayView.provenanceDisplayLabel(rawSource: reading.source, deviceId: strapDeviceId),
+            share: high > low ? min(max((reading.value - low) / (high - low), 0), 1) : 0
         )
     }
+}
+
+/// A value written in hours and minutes when it IS a length of time counted in minutes and runs past the
+/// hour, and nil for everything else, which is left to the metric's own formatter.
+///
+/// One decision for a whole metric screen: the headline, the chart's readout and tooltip, the stat tiles,
+/// the readings table and the text handed to the coach all state the same night, so they go through this
+/// one rule rather than each carrying its own. A night was "443 min" in the headline above a table that
+/// read "7h 23m" (reported 2026-11-17). Below the hour there is nothing to convert, so a short nap stays
+/// in minutes.
+func metricDurationSpelling(unit: String, value: Double) -> String? {
+    guard unit == "min", value >= 60 else { return nil }
+    return vitalReadingDurationText(value)
+}
+
+/// Minutes as hours and minutes, in the app's own spelling (`NightDetailCard.durationText` and its
+/// siblings). Only used past the hour, so there is no minutes-only branch here.
+func vitalReadingDurationText(_ minutes: Double) -> String {
+    let total = Swift.max(0, Int(minutes.rounded()))
+    return String(localized: "\(total / 60)h \(total % 60)m")
 }
 
 /// Include the weekday so recovery readings can be matched to training days. UTC-fixed and localized;
@@ -1114,7 +1151,13 @@ struct MetricDetailView: View {
     }
     private func fmt(_ v: Double) -> String {
         if isStepsDetail { return MetricDetailSteps.valueLabel(v, resolution: .daily) }
+        if let spelled = durationSpelling(v) { return spelled }
         return metric.format(v, system: unitSystem, temperature: temperatureUnit, effortScale: effortScale)
+    }
+
+    /// This screen's single duration decision, bound to its own metric. See `metricDurationSpelling`.
+    private func durationSpelling(_ v: Double) -> String? {
+        metricDurationSpelling(unit: metric.unit, value: v)
     }
     /// True when the category overline would just echo the title (e.g. metric "Charge" in category
     /// "Charge") — the header suppresses the overline in that case so the same word isn't shown twice.
@@ -1929,6 +1972,13 @@ struct MetricDetailView: View {
             ? MetricDetailSteps.presentation(readings: series, range: effectiveRange).accessibilitySummary
             : nil
         let stepsResolution = MetricDetailSteps.resolution(for: effectiveRange)
+        // The scale speaks the page's own unit. Everything else here now says "7h 23m", which left the
+        // axis the only place still counting in minutes, and bare at that — "475" beside a headline in
+        // hours says nothing. Only when the WHOLE plotted range is past the hour, because a tick below it
+        // would read "0h 45m" and an axis that mixes the two spellings is worse than one that keeps to
+        // minutes. Same rule as the rest of the screen, so no third spelling can appear.
+        let plotted = valueRange(windowed.map(\.value))
+        let axisInHours = metric.unit == "min" && plotted.lowerBound >= 60
         return ChartCard(
             // The new design already states the title and the latest value once, above the chart.
             title: isStepsDetail || NoopVisualStyle.skin == .forge ? LocalizedStringKey("Historical trend") : LocalizedStringKey("\(metric.title)"),
@@ -1940,7 +1990,7 @@ struct MetricDetailView: View {
             TrendChart(
                 points: trendPoints(windowed),
                 gradient: metricGradient(metric),
-                valueRange: valueRange(windowed.map(\.value)),
+                valueRange: plotted,
                 showsArea: true,
                 // The chart-style setting, the same one `TrendsView` reads. This view had never consulted
                 // it, so a chosen `bar` drew a line here while the trend chart for the SAME metric drew
@@ -1965,6 +2015,7 @@ struct MetricDetailView: View {
                 // announces itself as the generic "Trend", which on a screen that is ENTIRELY about one
                 // metric is the one word that carries no information.
                 accessibilityLabel: stepsAccessibility ?? String(localized: "\(metric.title) trend"),
+                yAxisLabel: axisInHours ? { vitalReadingDurationText($0) } : nil,
                 yAxisStep: isStepsDetail ? 5000 : nil,
                 showsBarValues: isStepsDetail && (effectiveRange == .week || effectiveRange == .twoWeeks),
                 largeSelection: isStepsDetail
@@ -2045,7 +2096,10 @@ struct MetricDetailView: View {
                          accent: StrandPalette.textPrimary)
                 StatTile(label: "Max", value: fmt(s.max),
                          accent: StrandPalette.textPrimary)
-                StatTile(label: "Change", value: deltaText ?? "—",
+                // Keyed, not the word: "Change" here is the AMOUNT a value moved, while the same
+                // English word is the "Change" BUTTON on six other screens. One catalogue key
+                // cannot carry both, and the shared one put a German verb ("Ändern") under a figure.
+                StatTile(label: LocalizedStringKey("metric.stat.change"), value: deltaText ?? "—",
                          caption: deltaCaption, accent: StrandPalette.textPrimary,
                          delta: cmp.pctChange.map { "\($0 >= 0 ? "+" : "")\(String(format: "%.1f", $0))%" },
                          deltaColor: deltaColor)
@@ -2073,7 +2127,7 @@ struct MetricDetailView: View {
                      accent: StrandPalette.textPrimary)
             StatTile(label: "Latest", value: latestPoint.map { fmt($0.value) } ?? "—",
                      caption: latestCaption(windowed: windowed, effectiveRange: effectiveRange), accent: accent)
-            StatTile(label: "Change", value: deltaText ?? "—",
+            StatTile(label: LocalizedStringKey("metric.stat.change"), value: deltaText ?? "—",
                      caption: deltaCaption, accent: StrandPalette.textPrimary,
                      delta: cmp.pctChange.map { "\($0 >= 0 ? "+" : "")\(String(format: "%.1f", $0))%" },
                      deltaColor: deltaColor)
@@ -2216,6 +2270,9 @@ struct MetricDetailView: View {
         // "182.0 lb kg", "Δ0.5 °F °C", "12.5 /21 /100". The Android twin appends the same way and is
         // correct because every one of its call sites passes a UNIT-LESS closure; iOS has no unit-less
         // formatter that also converts, so the unit comes from `fmt` and the parameter stays empty.
+        // `durationMinutes` stays false here although these readings may well be durations: `fmt` already
+        // spells them (see `durationSpelling`), and the rule belongs in one place on this screen. The
+        // parameter is for callers whose formatter does not, which is why the projection keeps it.
         let rows = vitalReadingRows(readings: readings, unit: "",
                                     strapDeviceId: repo.deviceId, format: fmt)
         if !rows.isEmpty {
@@ -2235,18 +2292,19 @@ struct MetricDetailView: View {
                     .foregroundStyle(StrandPalette.textSecondary)
                     VStack(spacing: 0) {
                         ForEach(Array(rows.enumerated()), id: \.offset) { idx, row in
-                            HStack(spacing: 12) {
-                                Text(row.time)
-                                    .font(StrandFont.subhead)
-                                    .foregroundStyle(StrandPalette.textSecondary)
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                Text(row.value)
-                                    .font(StrandFont.number(15))
-                                    .foregroundStyle(StrandPalette.textPrimary)
-                                Text(row.source)
-                                    .font(StrandFont.footnote)
-                                    .foregroundStyle(readingSourceTint(row.source))
-                                    .frame(maxWidth: .infinity, alignment: .trailing)
+                            VStack(alignment: .leading, spacing: 5) {
+                                HStack(spacing: 12) {
+                                    Text(row.time)
+                                        .font(StrandFont.subhead)
+                                        .foregroundStyle(StrandPalette.textSecondary)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                    Text(row.value)
+                                        .font(StrandFont.number(15).monospacedDigit())
+                                        .foregroundStyle(StrandPalette.textPrimary)
+                                    readingSourceChip(row.source)
+                                        .frame(maxWidth: .infinity, alignment: .trailing)
+                                }
+                                readingShareBar(share: row.share)
                             }
                             .padding(.vertical, 8)
                             .accessibilityElement(children: .combine)
@@ -2258,6 +2316,38 @@ struct MetricDetailView: View {
                     }
                 }
             }
+        }
+    }
+
+    /// Where this reading sits in the window, as a hairline track with a filled head. Deliberately quiet:
+    /// it is a shape to read down the column, not a second chart. The share comes from the row itself
+    /// (`VitalReadingRow.share`), so the bar and the figure beside it are one reading's, not two.
+    @ViewBuilder
+    private func readingShareBar(share: Double) -> some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(StrandPalette.hairline).frame(height: 2)
+                Capsule()
+                    .fill(metricDomain(metric).color.opacity(0.55))
+                    .frame(width: max(2, geo.size.width * share), height: 2)
+            }
+            .frame(maxHeight: .infinity, alignment: .center)
+        }
+        .frame(height: 2)
+        .accessibilityHidden(true)
+    }
+
+    /// The source as a dot and a word rather than a coloured word: the colour then marks the source
+    /// without tinting the text, which kept three different hues of running prose in one column.
+    @ViewBuilder
+    private func readingSourceChip(_ label: String) -> some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(readingSourceTint(label))
+                .frame(width: 6, height: 6)
+            Text(label)
+                .font(StrandFont.footnote)
+                .foregroundStyle(StrandPalette.textSecondary)
         }
     }
 
@@ -2345,32 +2435,32 @@ struct MetricDetailView: View {
     @ViewBuilder
     private func correlationRowView(_ row: CorrRow) -> some View {
         let color = correlationColor(row.r)
-        HStack(spacing: 12) {
-            Image(systemName: row.metric.icon)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(StrandPalette.textSecondary)
-                .frame(width: 22)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(row.metric.title)
-                    .font(StrandFont.body)
-                    .foregroundStyle(StrandPalette.textPrimary)
-                Text("\(MetricCatalog.categoryDisplayName(row.metric.category)) · \(row.n) days together")
-                    .font(StrandFont.footnote)
-                    .foregroundStyle(StrandPalette.textTertiary)
-            }
-            Spacer(minLength: 8)
-            HStack(spacing: 10) {
-                // The strength bar as the signature liquid tube — filled to |r|, tinted by the
-                // correlation's sign (positive green / negative red), posed (static) so a list of them
-                // costs one cached frame each. Replaces the flat capsule with the liquid range-bar idiom.
-                LiquidTube(frac: min(abs(row.r), 1.0), tint: color, height: 8, animated: false)
-                    .frame(width: 64)
-                    .accessibilityHidden(true)
+        // Name and figure on one row, the bar on its own beneath it across the whole width. An 84pt bar
+        // squeezed between the two columns left a German title ("Herzfrequenzvariabilität") and its
+        // caption breaking over four lines, and the bar itself too short to tell +0.98 from +0.87. Given
+        // the row's width the lengths are comparable at a glance, which is the whole point of drawing
+        // them, and the text gets the room it needs. Same shape as the readings table below: a line of
+        // figures, then one quiet bar under it.
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 12) {
+                Image(systemName: row.metric.icon)
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(metricDomain(row.metric).color.opacity(0.9))
+                    .frame(width: 22)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(row.metric.title)
+                        .font(StrandFont.body)
+                        .foregroundStyle(StrandPalette.textPrimary)
+                    Text("\(MetricCatalog.categoryDisplayName(row.metric.category)) · \(row.n) days together")
+                        .font(StrandFont.footnote)
+                        .foregroundStyle(StrandPalette.textTertiary)
+                }
+                Spacer(minLength: 8)
                 Text("\(row.r >= 0 ? "+" : "−")\(String(format: "%.2f", abs(row.r)))")
-                    .font(StrandFont.number(15))
+                    .font(StrandFont.number(17).monospacedDigit())
                     .foregroundStyle(color)
-                    .frame(width: 52, alignment: .trailing)
             }
+            correlationBar(r: row.r, tint: color)
         }
         .padding(.vertical, 10)
         .accessibilityElement(children: .combine)
@@ -2381,8 +2471,39 @@ struct MetricDetailView: View {
 
     private func signed(_ delta: Double) -> String {
         // A difference between two readings: route through the delta formatter so a temperature Δ
-        // scales without the +32 offset.
-        (delta >= 0 ? "+" : "−") + metric.formatDelta(abs(delta), system: unitSystem, temperature: temperatureUnit, effortScale: effortScale)
+        // scales without the +32 offset. A difference in minutes is spelled like every other length of
+        // time on the screen, so an hour and a half of extra sleep is "+1h 30m", not "+90 min".
+        let magnitude = durationSpelling(abs(delta))
+            ?? metric.formatDelta(abs(delta), system: unitSystem, temperature: temperatureUnit, effortScale: effortScale)
+        return (delta >= 0 ? "+" : "−") + magnitude
+    }
+
+    /// One correlation drawn either side of a zero line: the sign is in the SHAPE, read before any
+    /// colour, and every row shares the one scale (−1 to +1), so the bars are lengths to compare rather
+    /// than each a length on its own. The zero tick stands proud of the track on purpose — without it a
+    /// short positive bar reads as a left-aligned bar with a gap, and the diverging shape is lost.
+    @ViewBuilder
+    private func correlationBar(r: Double, tint: Color) -> some View {
+        GeometryReader { geo in
+            let half = geo.size.width / 2
+            let length = max(2, half * min(abs(r), 1))
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(StrandPalette.hairline)
+                    .frame(height: 3)
+                Rectangle()
+                    .fill(StrandPalette.textTertiary.opacity(0.55))
+                    .frame(width: 1, height: 9)
+                    .offset(x: half)
+                Capsule()
+                    .fill(tint.opacity(0.85))
+                    .frame(width: length, height: 5)
+                    .offset(x: r < 0 ? half - length : half)
+            }
+            .frame(maxHeight: .infinity, alignment: .center)
+        }
+        .frame(height: 9)
+        .accessibilityHidden(true)
     }
 
     private func correlationColor(_ r: Double) -> Color {

@@ -2986,7 +2986,7 @@ public final class BLEManager: NSObject, ObservableObject {
                                              bankedRows: (backfiller?.sessionRowsPersisted ?? 0) > 0))
         // Inactivity reminder (#419): read-only hook on the natural offload completion (no cadence
         // change). Only on a true HISTORY_COMPLETE — a timeout/disconnect didn't bring a fresh window.
-        if reason == "HISTORY_COMPLETE" { maybeBuzzInactivity() }
+        if reason == "HISTORY_COMPLETE" { maybeBuzzInactivity(); maybeDetectNaps() }
         // Success-side summary (#150 forensics): we logged failures (decoded-to-0) but never successes,
         // so a strap log couldn't tell a banking strap from a broken one. Emit the per-session persistence
         // tally whenever anything actually landed — the win-rate signal a log previously lacked.
@@ -6255,8 +6255,13 @@ public final class BLEManager: NSObject, ObservableObject {
             recordAlarmArm(sentEpoch: Int(wakeMs / 1000))
             // #34: don't claim "armed" when the strap isn't connected (the send was dropped) — the arm
             // re-fires on the next connect.
+            // "sent", not "armed": this line is written the instant the frame goes out, which proves NOOP
+            // transmitted it and nothing about what the strap did with it. The readback says that
+            // (FrameRouter: matched, "NO alarm currently stored", or an unparseable answer), and a report
+            // where the two sat one under the other — "armed for Wed 07:28" above "strap reports NO alarm
+            // currently stored" — is what #2893 arrived as.
             log(commandChannelReady   // #613: reflect whether send() actually reached the strap, not just a non-nil uuid
-                ? "Alarm: armed 5/MG rev4 for \(localFmt.string(from: date)) — your local wake time"
+                ? "Alarm: sent 5/MG rev4 for \(localFmt.string(from: date)) — your local wake time; the strap's own readback follows"
                 : "Alarm: queued 5/MG rev4 for \(localFmt.string(from: date)) — strap not connected; will send on next connect")
             return
         }
@@ -6268,7 +6273,9 @@ public final class BLEManager: NSObject, ObservableObject {
         // #34: only claim "armed" when the strap is connected (the send actually went out); otherwise it's
         // queued and re-sent on the next connect.
         if commandChannelReady {   // #613: reflect whether send() actually reached the strap, not just a non-nil uuid
-            log("Alarm: armed for \(localFmt.string(from: date)) — your local wake time (sent as UTC epoch \(epochSec))")
+            // "sent", for the reason given at the 5/MG line above: what the strap kept is the readback's
+            // to say, not this line's.
+            log("Alarm: sent for \(localFmt.string(from: date)) — your local wake time (sent as UTC epoch \(epochSec)); the strap's own readback follows")
         } else {
             log("Alarm: queued for \(localFmt.string(from: date)) — strap not connected; will send on next connect")
         }
@@ -6430,6 +6437,38 @@ public final class BLEManager: NSObject, ObservableObject {
     /// Mirrors the async pattern of checkStrapLiveness: the gravity read only the Collector can do (it
     /// owns the concrete store) hops onto a @MainActor Task, then the gated buzz + state save run back on
     /// the main actor. Haptic firing can't be verified in the simulator — test on-device.
+    /// Short-nap detection over the window an offload just filled (#49; Apple twin of Android's
+    /// `maybeDetectNaps`).
+    ///
+    /// Read-only, on the same completion the inactivity nudge uses, so it adds no cadence of its own. It
+    /// NEVER writes a sleep session: a confident nap is queued as a question (`NapReviewStore`) and only
+    /// becomes a session when the wearer says yes, through the same `addManualNap` a hand-entered nap
+    /// takes. An inconclusive window queues nothing — this is the whole reason the path is shaped as an
+    /// offer rather than an assertion, since a still afternoon and a nap look alike from the wrist.
+    ///
+    /// Self-gated on the opt-in switch, so it is inert until it is asked for.
+    private func maybeDetectNaps() {
+        guard NapReviewPrefs.enabled() else { return }   // cheap gate before any store read
+        Task { @MainActor in
+            let nowSec = Int(Date().timeIntervalSince1970)
+            let from = nowSec - BLEManager.inactivityLookbackSeconds
+            let gravity = await collector?.recentGravity(from: from, to: nowSec) ?? []
+            guard !gravity.isEmpty else { return }
+            let hr = await collector?.recentHR(from: from, to: nowSec) ?? []
+            // The wearer's own sleeping heart rate, from the newest scored night. nil leaves the detector
+            // on motion alone at lower confidence; it never invents a band.
+            let restingHr = await collector?.latestRestingHR()
+            let highWater = NapReviewPrefs.highWaterOrSeed(now: nowSec)
+            let decision = NapDetector.evaluate(gravity: gravity, hr: hr, restingHr: restingHr,
+                                                config: NapReviewPrefs.config())
+            guard decision.verdict == .nap, let candidate = decision.candidate,
+                  candidate.end > highWater else { return }
+            NapReviewStore.enqueue(PendingNap(candidate), now: nowSec)
+            NapReviewPrefs.setHighWater(candidate.end)
+            log("Nap: a \(candidate.durationS / 60)-min window is waiting for your yes or no.")
+        }
+    }
+
     private func maybeBuzzInactivity() {
         guard InactivityPrefs.isEnabled() else { return }   // cheap pre-check before any DB read
         Task { @MainActor in

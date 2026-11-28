@@ -51,6 +51,43 @@ public enum StrandMotion {
         .easeInOut(duration: breathPeriod).repeatForever(autoreverses: true)
     }
 
+    /// The breath's position at a wall-clock instant: 0 at rest, 1 at full swell, and back, over two
+    /// `breathPeriod`s, eased like `breathe`'s own curve.
+    ///
+    /// It exists because `breathe` is a `repeatForever` animation, which has to be STARTED by a state
+    /// change and is lost when the view leaves the render tree. A pulse that reports live work — a strap
+    /// backfilling — then stops reporting it: switch to another tab and back and the dot sits still while
+    /// the sync runs on, which is what a wearer saw as "the bar is grey now" (fork issue #48). A function
+    /// of the clock cannot be in the wrong state: whatever is on screen draws the phase that the moment
+    /// has, started or not.
+    ///
+    /// The fork already learned this once, for the vitals-grid wiggle (decisions, 2026-07-24).
+    public static func breathPhase(at date: Date, period: Double = breathPeriod) -> Double {
+        guard period > 0 else { return 0 }
+        // Mapped into [0, 2) FIRST: a negative remainder mirrored without mapping sticks at full swell
+        // for half of every cycle before the reference instant, which a reader of a "function of the
+        // clock" would not expect of it.
+        var t = (date.timeIntervalSinceReferenceDate / period).truncatingRemainder(dividingBy: 2)
+        if t < 0 { t += 2 }
+        let clamped = max(0, min(1, t <= 1 ? t : 2 - t))
+        // Smoothstep: the same slow-in/slow-out shape `easeInOut` draws, as a plain function.
+        return clamped * clamped * (3 - 2 * clamped)
+    }
+
+    /// A sweep's position at a wall-clock instant: 0 to 1 over `period` and straight back to 0, the
+    /// shape of a `repeatForever(autoreverses: false)` ring, eased out like its curve.
+    ///
+    /// Same reason as `breathPhase`: a started animation can be lost, a function of the clock cannot.
+    /// The Today header's sync ring is drawn from this, so it keeps reporting an offload that is still
+    /// running after the wearer has been to another tab and back (fork issue #48).
+    public static func sweepPhase(at date: Date, period: Double) -> Double {
+        guard period > 0 else { return 0 }
+        let raw = (date.timeIntervalSinceReferenceDate / period).truncatingRemainder(dividingBy: 1)
+        let t = max(0, min(1, raw < 0 ? raw + 1 : raw))
+        // Ease out: quick at the start, settling at the end, as `.easeOut` draws it.
+        return 1 - (1 - t) * (1 - t) * (1 - t)
+    }
+
     /// Looping breathe animation, suppressed when Reduce Motion is on. Returns
     /// `nil` (no animation) when reduced so call sites collapse to the resting
     /// frame instead of an indefinite loop. Honours Apple's Reduce Motion HIG.
