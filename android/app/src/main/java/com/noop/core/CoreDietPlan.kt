@@ -25,6 +25,10 @@ object CoreDietPlan {
         val activeDays: Boolean? = null, val burnSource: String? = null, val recompDeficitPercent: Double? = null,
         val trainingWeekdays: List<Int>? = null, val dayShift: Double? = null, val experience: String? = null,
         val breakFromDay: String? = null,
+        // iOS 2026-11-27 (`DietBurnModelChange`): the strap energy model the plan last saw, the day it moved, the note.
+        val burnModelVersion: String? = null, val burnModelChangedDay: String? = null, val burnModelNoteKcal: Double? = null,
+        // iOS 2026-11-27: the day the way of eating last changed, which holds the scale's correction three weeks.
+        val formChangedDay: String? = null,
     ) {
         fun json(): String = JSONObject().apply {
             put("goal", goal); put("mode", mode); put("pacePercent", pacePercent); put("form", form)
@@ -37,6 +41,8 @@ object CoreDietPlan {
             activeDays?.let { put("activeDays", it) }; burnSource?.let { put("burnSource", it) }
             recompDeficitPercent?.let { put("recompDeficitPercent", it) }; trainingWeekdays?.let { put("trainingWeekdays", JSONArray(it)) }
             dayShift?.let { put("dayShift", it) }; experience?.let { put("experience", it) }; breakFromDay?.let { put("breakFromDay", it) }
+            burnModelVersion?.let { put("burnModelVersion", it) }; burnModelChangedDay?.let { put("burnModelChangedDay", it) }
+            burnModelNoteKcal?.let { put("burnModelNoteKcal", it) }; formChangedDay?.let { put("formChangedDay", it) }
         }.toString()
 
         companion object {
@@ -54,7 +60,9 @@ object CoreDietPlan {
                      if (o.has("activeDays") && !o.isNull("activeDays")) o.optBoolean("activeDays") else null,
                      o.optString("burnSource").ifEmpty { null }, num("recompDeficitPercent"),
                      o.optJSONArray("trainingWeekdays")?.let { a -> (0 until a.length()).map { a.optInt(it) } },
-                     num("dayShift"), o.optString("experience").ifEmpty { null }, o.optString("breakFromDay").ifEmpty { null })
+                     num("dayShift"), o.optString("experience").ifEmpty { null }, o.optString("breakFromDay").ifEmpty { null },
+                     o.optString("burnModelVersion").ifEmpty { null }, o.optString("burnModelChangedDay").ifEmpty { null },
+                     num("burnModelNoteKcal"), o.optString("formChangedDay").ifEmpty { null })
             }.getOrNull()
         }
     }
@@ -85,10 +93,33 @@ object CoreDietPlan {
     data class Suggestion(val form: String, val reason: String)
     data class Outcome(val changeKcal: Double, val hold: String?, val trendKgPerWeek: Double?, val plannedKgPerWeek: Double)
 
+    /** The stored plan as saved. A plain prefs read, safe on the main thread; the core's calls link it to the goal. */
     fun load(context: Context): Plan? = Plan.parse(NoopPrefs.of(context).getString(KEY, null))
 
+    /**
+     * The stored plan read through the weight goal: its target is the plan's goal weight (one goal weight,
+     * 2026-11-26). Blocking (it asks the core); call off the main thread.
+     */
+    fun loadLinked(context: Context): Plan? {
+        val raw = NoopPrefs.of(context).getString(KEY, null) ?: return null
+        val linked = if (SwiftCore.available) SwiftCore.call("weight.linkedPlan", JSONObject().put("plan", raw).toString()) else null
+        return Plan.parse(linked?.takeIf { it != "null" } ?: raw)
+    }
+
+    /** Stores the plan; a goal weight set here moves the weight goal, or creates one (`weight.adoptPlanGoal`). */
     fun save(context: Context, plan: Plan?) {
-        NoopPrefs.of(context).edit().apply { if (plan == null) remove(KEY) else putString(KEY, plan.json()) }.apply()
+        // A new way of eating (or addon) is dated, as iOS's `ForgeFoodModel.savePlan` does: water and glycogen shift
+        // for a few weeks after it, so the scale's correction holds still (`ScaleCorrectionUpdate.holding`).
+        val previous = load(context)
+        val dated = if (plan != null && previous != null && (previous.form != plan.form || previous.addon != plan.addon))
+            plan.copy(formChangedDay = java.time.LocalDate.now().toString()) else plan
+        NoopPrefs.of(context).edit().apply { if (dated == null) remove(KEY) else putString(KEY, dated.json()) }.apply()
+        if (dated != null && SwiftCore.available) {
+            val json = dated.json()
+            kotlin.concurrent.thread(name = "plan-goal-link", isDaemon = true) {
+                runCatching { SwiftCore.call("weight.adoptPlanGoal", JSONObject().put("plan", json).toString()) }
+            }
+        }
     }
 
     private fun base(person: Person, burnKcal: Double?, kcalPerKg: Double?) = JSONObject().apply {
@@ -200,8 +231,21 @@ object CoreDietPlan {
         return (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let { o -> Suggestion(o.optString("form"), o.optString("reason")) } }
     }
 
-    fun weekly(plan: Plan, person: Person, burnKcal: Double?, kcalPerKg: Double?): Outcome? {
-        val o = call("food.planWeekly", base(person, burnKcal, kcalPerKg).put("plan", plan.json())) ?: return null
+    /**
+     * iOS's `ForgeFoodModel.adoptBurnModel`: once the energy history is recomputed under the strap's current model,
+     * the plan moves to it (core `food.planAdoptBurnModel`, `DietBurnModelChange`). The plan to save, or null.
+     */
+    fun adoptBurnModel(context: Context, plan: Plan, everydayMeanKcal: Double?): Plan? {
+        val history = NoopPrefs.of(context).getString("energy.historyModelVersion", null) ?: return null
+        val args = JSONObject().put("plan", plan.json()).put("historyModelVersion", history)
+        everydayMeanKcal?.let { args.put("everydayMeanKcal", it) }
+        val raw = call("food.planAdoptBurnModel", args)?.optString("plan")?.ifEmpty { null } ?: return null
+        return Plan.parse(raw)
+    }
+
+    fun weekly(plan: Plan, person: Person, burnKcal: Double?, kcalPerKg: Double?, scaleCorrection: String = ""): Outcome? {
+        val o = call("food.planWeekly", base(person, burnKcal, kcalPerKg).put("plan", plan.json())
+            .put("scaleCorrection", scaleCorrection)) ?: return null
         return Outcome(o.optDouble("changeKcal"), o.optString("hold").ifEmpty { null }, o.num("trendKgPerWeek"), o.optDouble("plannedKgPerWeek"))
     }
 

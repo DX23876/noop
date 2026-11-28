@@ -54,6 +54,21 @@ public enum NutritionReads {
     public static let loggedKey = "nutrition_logged"
     public static let keys = [caloriesKey, proteinKey, carbsKey, fatKey, loggedKey]
 
+    /// What digesting each day the wearer marked as completely logged cost (`Digestion.kcal`), from that day's
+    /// energy and macronutrients. A day not marked is left out: half a log would price half the food.
+    public static func digestionByDay(store: WhoopStore, from: String, to: String) async -> [String: Double] {
+        let complete = (try? await store.foodCompleteDays(from: from, to: to)) ?? []
+        guard !complete.isEmpty else { return [:] }
+        let days = await nutritionByDay(store: store, from: from, to: to)
+        var out: [String: Double] = [:]
+        for day in complete {
+            let n = days[day]
+            out[day] = Digestion.kcal(caloriesKcal: n?.calories, proteinG: n?.proteinG, carbsG: n?.carbsG,
+                                      fatG: n?.fatG) ?? 0
+        }
+        return out
+    }
+
     /// Resolve nutrition per field. A deliberate manual correction wins only the field it contains; its absent
     /// macros continue to use the imported values instead of being erased.
     /// `fields` limits the read to the keys the caller needs, which is all a single-measure read wants:
@@ -142,27 +157,34 @@ public enum NutritionReads {
     }
 
     /// The balance estimate over the logged intake and the weigh-ins, up to yesterday.
+    /// The energy page's food-and-weight figure, from the one scale estimate (`ScaleBurn`, owner decision
+    /// 2026-11-27, Q20): the days marked as completely logged and the weigh-ins without a water mark over eight
+    /// weeks, at what a kilogram is worth for this body (`kcalPerKg`, `EnergyDensityResolver`). Kept in the shape the
+    /// energy page and the coach already read; nil while the scale cannot say enough yet.
     public static func adaptiveEstimate(reader: StoreReader, asOf: Date = Date(),
-                                        healthSourceNames: [String: String] = [:]) async -> AdaptiveExpenditureEstimate? {
-        let calendar = Calendar.current
-        let cutoff = calendar.startOfDay(for: asOf)
-        guard let firstDate = calendar.date(byAdding: .day, value: -(AdaptiveExpenditureEngine.maximumWindowDays + 1), to: cutoff),
-              let yesterday = calendar.date(byAdding: .day, value: -1, to: cutoff) else { return nil }
-        let from = StoreReader.localDayKey(firstDate)
-        let to = StoreReader.localDayKey(yesterday)
-        let intake = await nutritionByDay(store: reader.store, from: from, to: to, healthSourceNames: healthSourceNames)
-            .compactMapValues(\.calories)
+                                        healthSourceNames: [String: String] = [:],
+                                        kcalPerKg: Double = DietTargets.defaultKcalPerKg) async -> AdaptiveExpenditureEstimate? {
+        let today = StoreReader.localDayKey(asOf)
+        let from = WeightSeries.date(forDay: today)
+            .flatMap { Calendar.current.date(byAdding: .day, value: -ScaleBurn.windowDays, to: $0) }
+            .map(StoreReader.localDayKey) ?? today
+        let complete = (try? await reader.store.foodCompleteDays(from: from, to: today)) ?? []
+        let intake = await nutritionByDay(store: reader.store, from: from, to: today, healthSourceNames: healthSourceNames)
+            .compactMapValues(\.calories).filter { complete.contains($0.key) }
         guard !intake.isEmpty else { return nil }
-        let weights = await WeightSeries.series(reader: reader,
-            from: StoreReader.localDayKey(asOf.addingTimeInterval(-Double(AdaptiveExpenditureEngine.maximumWindowDays + 2) * 86_400)),
-            to: StoreReader.localDayKey(asOf))
-        var byDay: [String: (calories: Double?, weight: Double?)] = [:]
-        for (day, kcal) in intake where day >= from && day <= to { byDay[day, default: (nil, nil)].calories = kcal }
-        for point in weights where point.day >= from && point.day <= to { byDay[point.day, default: (nil, nil)].weight = point.value }
-        let inputs = byDay.compactMap { day, values -> AdaptiveExpenditureDay? in
-            guard let date = WeightSeries.date(forDay: day) else { return nil }
-            return .init(date: date, caloriesIn: values.calories, weightKg: values.weight)
-        }
-        return AdaptiveExpenditureEngine.estimate(days: inputs, asOf: asOf, calendar: calendar)
+        let series = await WeightSeries.series(reader: reader, from: from, to: today)
+        let entries = (try? await reader.store.bodyWeights(deviceId: WhoopStore.noopWeightSourceId, from: from, to: today)) ?? []
+        let marked = Set(entries.filter { $0.waterMark != nil }.map(\.day))
+        let weighIns = series.filter { !marked.contains($0.day) }.map { (day: $0.day, kg: $0.value) }
+        guard case .estimate(let e) = ScaleBurn.estimate(completeIntake: intake, weighIns: weighIns, strapByDay: [:],
+                                                         today: today, kcalPerKg: kcalPerKg) else { return nil }
+        let eaten = intake.values.reduce(0, +) / Double(intake.count)
+        let half = 1.96 * e.errorKcal
+        return AdaptiveExpenditureEstimate(
+            estimatedDailyKcal: e.burnKcal, lowerBoundKcal: max(0, e.burnKcal - half), upperBoundKcal: e.burnKcal + half,
+            averageCaloriesIn: eaten, weightChangeKgPerDay: e.trendKgPerWeek / 7, intakeDays: e.completeDays,
+            weightReadings: e.weighIns, windowDays: ScaleBurn.windowDays,
+            intakeCoverage: Double(e.completeDays) / Double(ScaleBurn.windowDays),
+            confidence: e.relativeError <= 0.05 ? .high : .moderate)
     }
 }

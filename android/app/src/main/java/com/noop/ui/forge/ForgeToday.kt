@@ -164,6 +164,14 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
     var dayPicker by remember { mutableStateOf(false) }
     var editingWidgets by remember { mutableStateOf(false) }
     val more = rememberMoreNavigator()
+    // A weight widget's tap opens the weight page here, once (`WeightNavigation`).
+    val openWeight by com.noop.widget.WeightNavigation.open.collectAsState()
+    LaunchedEffect(openWeight) {
+        if (openWeight) {
+            com.noop.widget.WeightNavigation.open.value = false
+            more.push(MoreRoute.Dest(MoreDest.Weight))
+        }
+    }
     val selectTab = LocalForgeTabSelect.current
     val openMore = LocalForgeOpenMore.current
     val openSettings = LocalForgeOpenSettings.current
@@ -209,7 +217,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                     androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia.ImageOnly))
                 // Logging is for what already happened; a live session starts from the Training tab.
                 ForgeLogChoice.Workout -> addingWorkout = true
-                ForgeLogChoice.Weight -> more.push(MoreRoute.Dest(MoreDest.Body))
+                ForgeLogChoice.Weight -> more.push(MoreRoute.Dest(MoreDest.Weight))
                 ForgeLogChoice.Status -> settingStatus = true
                 ForgeLogChoice.Journal -> more.push(MoreRoute.Dest(MoreDest.Journal))
                 ForgeLogChoice.Drink -> more.push(MoreRoute.Dest(MoreDest.Hydration))
@@ -430,7 +438,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
                 TodayHintCard(viewModel, today.toString(), onCharge = { hintCharge = true },
                               onGoals = { more.push(MoreRoute.Dest(MoreDest.Goals)) },
                               onPlan = { selectTab(ForgeTab.Coach) },
-                              onWeight = { more.push(MoreRoute.Dest(MoreDest.Body)) })
+                              onWeight = { more.push(MoreRoute.Dest(MoreDest.Weight)) })
                 if (hintCharge) ChargeBreakdownHost(viewModel, onDismiss = { hintCharge = false })
             }
             if (shown == today) ForgeMorningSuggestion(fetching = viewModel.live.collectAsState().value.backfilling)
@@ -442,6 +450,7 @@ fun ForgeTodayScreen(padding: PaddingValues, width: ForgeWidth, viewModel: AppVi
             if (shown == today && timelineFirst) ForgeTodayTimeline(viewModel, onSleep = { selectTab(ForgeTab.Sleep) })
             ForgeTodayWidgetArea(model, viewModel, width, editing = editingWidgets, onEditing = { editingWidgets = it },
                                  onOpenTrainingLoad = { more.push(MoreRoute.Dest(MoreDest.TrainingLoad)) },
+                                 onOpenWeight = { more.push(MoreRoute.Dest(MoreDest.Weight)) },
                                  onOpenSleep = { selectTab(ForgeTab.Sleep) },
                                  onOpenAlarms = { more.push(MoreRoute.Dest(MoreDest.Alarms)) },
                                  onOpenTraining = { selectTab(ForgeTab.Training) },

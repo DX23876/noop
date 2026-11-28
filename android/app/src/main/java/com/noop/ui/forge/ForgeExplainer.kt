@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -63,6 +64,17 @@ internal fun ExplainerInfoButton(title: Int, text: Int, picture: @Composable () 
              tint = Forge.colors.textSecondary, modifier = Modifier.size(20.dp))
     }
     if (open) ExplainerSheet(stringResource(title), stringResource(text), onDismiss = { open = false }, picture = picture)
+}
+
+/** The same with a text worked out for the day (the everyday share names what digestion cost on it). */
+@Composable
+internal fun ExplainerInfoButton(title: Int, text: String, picture: @Composable () -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    IconButton(onClick = { open = true }) {
+        Icon(Icons.Outlined.Info, contentDescription = stringResource(R.string.forge_ex_what_this_means),
+             tint = Forge.colors.textSecondary, modifier = Modifier.size(20.dp))
+    }
+    if (open) ExplainerSheet(stringResource(title), text, onDismiss = { open = false }, picture = picture)
 }
 
 /** iOS `ExplainerSheet`: the picture, its title and its text, with Done. */
@@ -144,6 +156,31 @@ internal fun ExplainerEnergyBars() {
             }
             EnergyRow(R.string.forge_ex_eaten) {
                 Box(Modifier.fillMaxWidth(0.86f).fillMaxHeight().background(c.text, CircleShape))
+            }
+        }
+    }
+}
+
+/** iOS `ExplainerEverydayBars`: lying, sitting and standing as multiples of the resting burn. */
+@Composable
+internal fun ExplainerEverydayBars() {
+    val resting = ForgeTokens.StrandPalette.energyResting.resolve()
+    val everyday = ForgeTokens.StrandPalette.energyEveryday.resolve()
+    val rows = listOf(R.string.forge_ex_lying to 1.0, R.string.forge_ex_sitting to 1.35, R.string.forge_ex_standing to 1.6)
+    ExplainerPanel(everyday, 160.dp) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            rows.forEach { (name, multiple) ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(name), style = Forge.type.caption.copy(fontWeight = FontWeight.SemiBold),
+                         color = Forge.colors.text, modifier = Modifier.width(76.dp))
+                    Row(Modifier.weight(1f).height(22.dp), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Box(Modifier.weight((1.0 / 1.7).toFloat()).fillMaxHeight().background(resting, CircleShape))
+                        if (multiple > 1) {
+                            Box(Modifier.weight(((multiple - 1) / 1.7).toFloat()).fillMaxHeight().background(everyday, CircleShape))
+                        }
+                        Spacer(Modifier.weight(((1.7 - multiple) / 1.7).toFloat().coerceAtLeast(0.001f)))
+                    }
+                }
             }
         }
     }

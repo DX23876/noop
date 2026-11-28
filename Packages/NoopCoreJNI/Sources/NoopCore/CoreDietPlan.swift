@@ -140,7 +140,13 @@ enum CoreDietPlan {
         return (DietAdvice.suggestions(inputs, dismissed: dismissed), proteinMean)
     }
 
-    static func run(_ op: String, args: [String: Any], store: WhoopStore, reader: StoreReader) async -> String {
+    static func run(_ op: String, args incoming: [String: Any], store: WhoopStore, reader: StoreReader) async -> String {
+        // One goal weight (owner, 2026-11-26): the plan the host stored reads the weight goal's target.
+        var args = incoming
+        if let plan = DietPlan.decode(args["plan"] as? String),
+           let encoded = await CoreWeight.linkedPlan(plan, store: store).encoded() {
+            args["plan"] = encoded
+        }
         func double(_ k: String) -> Double? { (args[k] as? NSNumber)?.doubleValue }
         let sex = (args["sex"] as? String ?? "").lowercased()
         let person = DietPerson(weightKg: double("weightKg") ?? 80, heightCm: double("heightCm").flatMap { $0 > 0 ? $0 : nil },
@@ -282,21 +288,37 @@ enum CoreDietPlan {
             let s = DietSuggest.top(entries: entries, keep: keep, likesRules: args["likesRules"] as? Bool ?? false,
                                     strength: args["strength"] as? Bool ?? false, mode: mode)
             return CoreRead.json(["suggestions": s])
+        case "food.planAdoptBurnModel":
+            // iOS's `ForgeFoodModel.adoptBurnModel`: once the energy history is recomputed under the strap's
+            // current model, the plan moves to it (`DietBurnModelChange`). The plan to save, or null.
+            guard let plan = DietPlan.decode(args["plan"] as? String),
+                  args["historyModelVersion"] as? String == WhoopDailyEnergyEstimate.modelVersion,
+                  let adopted = DietBurnModelChange.adopt(plan, current: WhoopDailyEnergyEstimate.modelVersion,
+                                                          everydayMeanKcal: double("everydayMeanKcal"), today: today),
+                  let raw = adopted.encoded() else { return "null" }
+            return CoreRead.json(["plan": raw])
         case "food.planWeekly":
             guard let plan = DietPlan.decode(args["plan"] as? String) else { return "null" }
             let result = DietTargets.resolve(plan, person: person, burnKcal: burn, kcalPerKg: kcalPerKg)
             let from = Calendar.current.date(byAdding: .day, value: -21, to: Date()).map(StoreReader.localDayKey) ?? today
-            let weights = await WeightSeries.series(reader: reader, from: from, to: today).map { (day: $0.day, kg: $0.value) }
+            // A day with a water-marked weigh-in is left out, as the scale's burn leaves it out (Q31).
+            let marked = await WeightSeries.waterMarkedDays(store: reader.store, from: from, to: today)
+            let weights = await WeightSeries.series(reader: reader, from: from, to: today)
+                .filter { !marked.contains($0.day) }.map { (day: $0.day, kg: $0.value) }
             let weekStart = Calendar.current.date(byAdding: .day, value: -6, to: Date()).map(StoreReader.localDayKey) ?? today
             let logged = Set(((try? await store.foodLogEntries(from: weekStart, to: today)) ?? []).map(\.day)).count
             let outcome = DietAdjust.weekly(plan: plan, result: result, weighIns: weights, loggedDays: logged, today: today,
-                                            kcalPerKg: kcalPerKg ?? DietTargets.defaultKcalPerKg)
+                                            kcalPerKg: kcalPerKg ?? DietTargets.defaultKcalPerKg,
+                                            scaleCorrectionActive: BurnCorrection.decode(args["scaleCorrection"] as? String)
+                                                .status == .active)
             return CoreRead.json(outcome)
         case "food.planProgress":
             // The way to the goal weight (`DietProgress`), as the plan page and Today's diet goal card show it: the
             // goal weight as planned, the smoothed weight trend, and for recomposition body fat and the waist.
             guard let plan = DietPlan.decode(args["plan"] as? String), !plan.hideNumbers else { return "null" }
             let from = Calendar.current.date(byAdding: .day, value: -120, to: Date()).map(StoreReader.localDayKey) ?? today
+            // The real weight, water marks included, as iOS's progress reads it: only the weekly look and the scale's
+            // burn leave marked days out (Q31).
             let weights = await WeightSeries.series(reader: reader, from: from, to: today).map { (day: $0.day, kg: $0.value) }
             var bodyFat: [(day: String, value: Double)] = []
             var waist: [(day: String, value: Double)] = []

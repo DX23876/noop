@@ -25,6 +25,21 @@ final class FoodGoalStateTests: XCTestCase {
         XCTAssertEqual(FoodGoalState.floorKcal(basalKcal: nil, male: nil), 1_500, "unknown sex takes the stricter floor")
     }
 
+    /// Q29: a plan's rest day below the basal rate. Keeping to it counts; far under it still does not.
+    func testTheFloorFollowsAGoalBelowTheBasalRate() {
+        let floor = FoodGoalState.floorKcal(basalKcal: 2_900, male: true, goalKcal: 2_700)
+        XCTAssertEqual(floor, 2_700 * 0.85, accuracy: 0.001)
+        let goals = FoodGoalState.Goals(kcal: 2_700, proteinG: nil, carbCapG: nil, floorKcal: floor)
+        XCTAssertTrue(FoodGoalState.day(kcal: 2_700, proteinG: 0, carbsG: 0, goals: goals).kept, "the plan's own goal")
+        XCTAssertTrue(FoodGoalState.day(kcal: 2_400, proteinG: 0, carbsG: 0, goals: goals).kept, "inside its band")
+        XCTAssertEqual(FoodGoalState.day(kcal: 2_200, proteinG: 0, carbsG: 0, goals: goals).energy, .belowFloor)
+        XCTAssertEqual(FoodGoalState.week(dailyKcal: Array(repeating: 2_650, count: 7), goals: goals)?.energy, .inRange)
+        // A goal above the basal rate leaves the basal floor as it was, and the fixed part always holds.
+        XCTAssertEqual(FoodGoalState.floorKcal(basalKcal: 1_850, male: true, goalKcal: 2_600), 1_850)
+        XCTAssertEqual(FoodGoalState.floorKcal(basalKcal: 1_400, male: false, goalKcal: 1_250), 1_200)
+        XCTAssertEqual(FoodGoalState.floorKcal(basalKcal: 1_800, male: true, goalKcal: 1_300), 1_500)
+    }
+
     func testProteinAndTheKetoCapBelongToKept() {
         let keto = FoodGoalState.Goals(kcal: 2_000, proteinG: 150, carbCapG: 25, floorKcal: 1_500)
         XCTAssertTrue(FoodGoalState.day(kcal: 2_000, proteinG: 140, carbsG: 20, goals: keto).kept)

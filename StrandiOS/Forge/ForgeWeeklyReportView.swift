@@ -22,6 +22,8 @@ struct ForgeWeeklyReportView: View {
 
     @State private var restByDay: [String: Double] = [:]
     @State private var workouts: [WorkoutRow] = []
+    /// The weight page's own snapshot, for the week's change on the trend (owner, 2026-11-26).
+    @State private var weight: WeightTracker.Snapshot?
 
     private var calendar: Calendar {
         var cal = Calendar.current
@@ -72,6 +74,11 @@ struct ForgeWeeklyReportView: View {
             let series = await repo.exploreSeries(key: "sleep_performance", source: Repository.whoopSource, days: 21)
             restByDay = Dictionary(series.map { ($0.day, $0.value) }, uniquingKeysWith: { _, last in last })
             workouts = await repo.workoutRows(days: 9, reconcileHrCap: 0)
+            if let store = await repo.storeHandle() {
+                weight = await WeightTrackerPreparation.snapshot(
+                    store: store, reader: repo.storeReader(store), goals: CoachGoalStore.shared,
+                    prefs: GoalPreferences.standard, plan: DietPlan.decode(UserDefaults.standard.string(forKey: DietPlan.storageKey)))
+            }
         }
     }
 
@@ -208,6 +215,14 @@ struct ForgeWeeklyReportView: View {
                                       let d = Int((asleep - $0).rounded())
                                       return String(localized: "\(d >= 0 ? "+" : "−")\(abs(d)) min vs last week")
                                   })
+                }
+                if let weight, let change = weight.changes.first(where: { $0.days == 7 })?.kg {
+                    NavigationLink(value: TabRoute.weight) {
+                        highlightTile(String(localized: "Weight"), "scalemass.fill", .pink,
+                                      value: UnitFormatter.massFromKilograms(weight.trendKg, system: Self.units),
+                                      unit: nil, detail: String(localized: "\(Self.signedKg(change)) on the trend this week"))
+                    }
+                    .buttonStyle(.plain)
                 }
                 if let steps = week.mean(\.steps) {
                     highlightTile(String(localized: "Steps"), "shoeprints.fill", ForgeColor.chargeInk,
@@ -347,6 +362,16 @@ struct ForgeWeeklyReportView: View {
         f.dateFormat = "yyyy-MM-dd"
         return f
     }()
+
+    private static var units: UnitSystem {
+        UnitSystem(rawValue: UserDefaults.standard.string(forKey: UnitPrefs.systemKey) ?? "") ?? .metric
+    }
+
+    /// A weekly change in the wearer's unit, always signed.
+    private static func signedKg(_ kg: Double) -> String {
+        let text = UnitFormatter.massFromKilograms(abs(kg), system: units)
+        return kg > 0.05 ? "+" + text : kg < -0.05 ? "−" + text : text
+    }
 
     private static func parse(_ key: String?) -> Date? { key.flatMap { parser.date(from: $0) } }
 }

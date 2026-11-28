@@ -7,6 +7,7 @@ import androidx.health.connect.client.records.RespiratoryRateRecord
 import androidx.health.connect.client.records.RestingHeartRateRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.Vo2MaxRecord
+import androidx.health.connect.client.records.WeightRecord
 import com.noop.core.SwiftCore
 import org.json.JSONArray
 import org.json.JSONObject
@@ -56,6 +57,7 @@ internal object HealthExportLedger {
         is RespiratoryRateRecord -> "resp|${record.time.epochSecond}|${record.zoneOffset?.totalSeconds}|${record.rate}"
         is Vo2MaxRecord -> "vo2max|${record.time.epochSecond}|${record.zoneOffset?.totalSeconds}|" +
             "${record.vo2MillilitersPerMinuteKilogram}|${record.measurementMethod}"
+        is WeightRecord -> "weight|${record.time.epochSecond}|${record.zoneOffset?.totalSeconds}|${record.weight.inKilograms}"
         is SleepSessionRecord -> "sleep|${record.startTime.epochSecond}|${record.startZoneOffset?.totalSeconds}|" +
             "${record.endTime.epochSecond}|${record.endZoneOffset?.totalSeconds}|" +
             record.stages.joinToString(";") { "${it.startTime.epochSecond},${it.endTime.epochSecond},${it.stage}" }

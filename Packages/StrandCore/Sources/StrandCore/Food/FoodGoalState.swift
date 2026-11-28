@@ -7,7 +7,8 @@ import Foundation
 ///
 /// The burn behind an energy goal is an estimate, often 10 to 20 % off, so a day is generous (±15 %) and what is
 /// rewarded is mostly the seven-day mean in range. A day below the floor never counts as kept, so eating too
-/// little is never rewarded; a larger deficit is never better than one in range.
+/// little is never rewarded; a larger deficit is never better than one in range. The floor follows the wearer's
+/// own goal (owner, 2026-11-27, Q29): where a plan's day lies below the basal rate, the day's own band still counts.
 public enum FoodGoalState {
     public enum Energy: String, Equatable, Sendable, Codable {
         case inRange, over, under
@@ -47,9 +48,14 @@ public enum FoodGoalState {
     public static let proteinMetShare = 0.9
     /// A week's mean needs this many logged days.
     public static let weekMinimumDays = 5
-    /// The floor's fixed part: 1,500 kcal for men, 1,200 for women, the stricter 1,500 when the sex is unknown.
-    public static func floorKcal(basalKcal: Double?, male: Bool?) -> Double {
-        max(basalKcal ?? 0, male == false ? 1_200 : 1_500)
+    /// The floor: the basal rate, but never inside the band of the day's own goal (`goalKcal`, Q29), so a plan whose
+    /// rest day lies below the basal rate is not marked as too little for keeping to it. Never below the fixed part:
+    /// 1,500 kcal for men, 1,200 for women, the stricter 1,500 when the sex is unknown.
+    public static func floorKcal(basalKcal: Double?, male: Bool?, goalKcal: Double? = nil) -> Double {
+        let fixed: Double = male == false ? 1_200 : 1_500
+        var basal = basalKcal ?? 0
+        if let goalKcal, goalKcal.isFinite, goalKcal > 0 { basal = min(basal, goalKcal * (1 - dayTolerance)) }
+        return max(basal, fixed)
     }
 
     public static func day(kcal: Double, proteinG: Double, carbsG: Double, goals: Goals) -> Day {

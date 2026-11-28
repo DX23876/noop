@@ -127,6 +127,10 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
     var summary by remember { mutableStateOf<CoreFood.Day?>(null) }
     // The diet plan (decision 2026-11-09) outranks the base goals; its figures come from the core.
     var dietPlan by remember { mutableStateOf(CoreDietPlan.load(context)) }
+    // The plan as the weight goal names its goal weight, read off the main thread (one goal weight, 2026-11-26).
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { CoreDietPlan.loadLinked(context) }?.let { dietPlan = it }
+    }
     var planResolved by remember { mutableStateOf<CoreDietPlan.Resolved?>(null) }
     var planWeek by remember { mutableStateOf<CoreDietPlan.Outcome?>(null) }
     var planWeekApplied by remember { mutableStateOf(false) }
@@ -192,11 +196,19 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
             energyPlan = plan
             burnedByDay = plan?.burnedByDay ?: emptyMap()
             planInputs = planInputs(plan)
+            // The plan moves to the strap's current energy model once its history is recomputed (iOS
+            // `adoptBurnModel`): Forge's old adjustments start from zero and the page says once what changed.
+            CoreDietPlan.load(context)?.let { current ->
+                CoreDietPlan.adoptBurnModel(context, current, plan?.everydayMeanKcal)?.let { adopted ->
+                    CoreDietPlan.save(context, adopted); dietPlan = adopted
+                }
+            }
             // Once a day: the weekly look at the plan. Simple mode with Forge steering applies the change (with undo).
             CoreDietPlan.load(context)?.let { current ->
                 val today = LocalDate.now().toString()
                 if (current.lastAdjustedDay != today) {
-                    val outcome = CoreDietPlan.weekly(current, dietPerson(context), planInputs.first, planInputs.second)
+                    val outcome = CoreDietPlan.weekly(current, dietPerson(context), planInputs.first, planInputs.second,
+                                                      CoreEnergyPlan.scaleCorrection(context))
                     planWeek = outcome
                     if (outcome != null && outcome.hold == null && current.mode == "simple" && current.steering == "coached") {
                         val next = current.copy(adjustmentKcal = current.adjustmentKcal + outcome.changeKcal, lastAdjustedDay = today)
@@ -250,7 +262,8 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
             val today = LocalDate.now()
             week = CoreFood.week(day.toString(), today.toString(), false, profile.sex)
             quality = com.noop.core.CoreFoodNotes.quality(day.toString(), today.toString(), profile.sex, profile.age, profile.weightKg,
-                                                          profile.heightCm, dietPlan?.form, goals?.kcal, goals?.proteinG)
+                                                          profile.heightCm, dietPlan?.form, goals?.kcal, goals?.proteinG,
+                                                          CoreEnergyPlan.formulaLog(context), CoreEnergyPlan.measuredBasal(context))
             keptMeals = com.noop.core.CoreFoodNotes.meals()
             favouriteFoods = CoreFood.favourites()
             favouriteMotifs = com.noop.core.CoreFoodNotes.motifs(favouriteFoods)
@@ -468,6 +481,12 @@ internal fun ForgeFoodPage(onBack: () -> Unit, onOpenBody: () -> Unit = {}, asTa
             }
             FoodDayJump(day) { day = it }
             DietPlanLine(dietPlan, planResolved) { if (dietPlan == null) planning = true else showPlan = true }
+            dietPlan?.let { p ->
+                DietBurnModelNote(p) {
+                    val next = p.copy(burnModelNoteKcal = null)
+                    CoreDietPlan.save(context, next); dietPlan = next
+                }
+            }
             FoodHero(day, summary?.totals ?: emptyMap(), goals, burnedByDay[day.toString()], onDay = { day = it })
             planDay?.let { FoodPlanDayLines(it) }
             if (sentence.isNotEmpty()) FoodSentence(sentence)

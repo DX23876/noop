@@ -40,6 +40,8 @@ struct ForgeEnergyView: View {
     @State private var scrolledPast = false
     @State private var showDayPicker = false
     @State private var pickerDate = Date()
+    /// The scale's look at the strap (`Repository.readScale`), read once the page has painted.
+    @State private var scale: ScaleCorrectionUpdate.Snapshot?
 
     enum Series: Hashable { case burned, eaten, balance }
 
@@ -88,6 +90,10 @@ struct ForgeEnergyView: View {
                         }
                     }
                     parts(summary)
+                    if let scale { ForgeScaleCard(snapshot: scale) { action in
+                        repo.scaleAction(action)
+                        Task { await reloadAfterScale() }
+                    } }
                     curve(summary)
                 } else {
                     emptyCard
@@ -104,7 +110,7 @@ struct ForgeEnergyView: View {
             ToolbarItem(placement: .primaryAction) {
                 ExplainerInfoButton(
                     title: String(localized: "Burned and eaten"),
-                    text: String(localized: "Burned is what your body uses at rest plus what activity adds. Eaten is what you logged. The balance between them is best read over a week, not a single day.")) {
+                    text: String(localized: "Burned is what your body uses at rest, what sitting, standing and digesting add, and what activity adds. Eaten is what you logged. The balance between them is best read over a week, not a single day.")) {
                         ExplainerEnergyBars()
                     }
             }
@@ -202,7 +208,8 @@ struct ForgeEnergyView: View {
     private func hero(_ s: DailyEnergySummary) -> some View {
         let card = EnergyHeroCard(summary: s, breakdown: breakdown, eatenKcal: eaten)
         return VStack(spacing: 16) {
-            ForgeEnergyRing(resting: s.basalBurnedSoFar, active: s.activeBurnedSoFar, total: s.totalBurnedSoFar,
+            ForgeEnergyRing(resting: s.basalBurnedSoFar, everyday: s.everydayBurnedSoFar,
+                            active: s.activeBurnedSoFar, total: s.totalBurnedSoFar,
                             usual: usualTotal, totalText: Self.plainTotal(s), selectedDay: selectedDay)
                 .frame(width: 200, height: 200)
                 .padding(.top, 4)
@@ -226,6 +233,16 @@ struct ForgeEnergyView: View {
                     Text("By tonight about \(kcal(range.lowerBound)) to \(kcal(range.upperBound)) kcal")
                 } icon: { Image(systemName: "moon.stars") }
                     .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            if let likely = EnergyRange.likely(s, isToday: isToday) {
+                Label {
+                    Text(verbatim: likely.narrowedByScale
+                         ? String(localized: "Likely \(kcal(likely.low)) to \(kcal(likely.high)) kcal, narrowed by your scale")
+                         : String(localized: "Likely \(kcal(likely.low)) to \(kcal(likely.high)) kcal: no wearable knows a single body more closely"))
+                } icon: { Image(systemName: "arrow.left.and.right") }
+                    .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             if let note = card.qualityNote {
@@ -260,6 +277,10 @@ struct ForgeEnergyView: View {
     private func figures(_ s: DailyEnergySummary) -> some View {
         HStack(alignment: .top, spacing: 8) {
             figure(StrandPalette.forgeEnergyResting, String(localized: "Resting"), s.basalBurnedSoFar)
+            // A strap day's everyday share; an Apple day has none to show (its own model splits the day).
+            if let everyday = s.everydayBurnedSoFar, everyday > 0 {
+                figure(StrandPalette.forgeEnergyEveryday, String(localized: "Everyday"), everyday)
+            }
             figure(StrandPalette.forgeEnergyActive, String(localized: "Active"), s.activeBurnedSoFar)
             // Eaten only on a day with logged meals: a dash every day reads as a missing figure.
             if let eaten { figure(ForgeColor.charge, String(localized: "Eaten"), eaten) }
@@ -292,6 +313,16 @@ struct ForgeEnergyView: View {
                 partRow(symbol: "bed.double.fill", tint: StrandPalette.forgeEnergyResting, title: String(localized: "Basal burn"),
                         value: s.basalBurnedSoFar ?? s.estimatedBMR24h, share: s.basalBurnedSoFar.map { $0 / total })
                 ForgeRowDivider()
+                if let everyday = s.everydayBurnedSoFar, everyday > 0 {
+                    partRow(symbol: "chair.lounge.fill", tint: StrandPalette.forgeEnergyEveryday,
+                            title: String(localized: "Everyday"), value: everyday, share: everyday / total,
+                            info: AnyView(ExplainerInfoButton(
+                                title: String(localized: "Everyday"),
+                                text: String(localized: "Sitting, standing and small things cost more than lying in bed. Awake time without steps or training counts a little above your resting burn. Sleep stays at your resting burn. Digesting food adds about a tenth of the day.") + digestionLine(s)) {
+                                    ExplainerEverydayBars()
+                                }))
+                    ForgeRowDivider()
+                }
                 partRow(symbol: "figure.walk", tint: StrandPalette.forgeEnergyMovement, title: String(localized: "Daily movement"),
                         value: breakdown.movementKcal, share: breakdown.movementKcal / total)
                 ForgeRowDivider()
@@ -302,13 +333,24 @@ struct ForgeEnergyView: View {
         }
     }
 
-    private func partRow(symbol: String, tint: Color, title: String, value: Double?, share: Double?) -> some View {
+    /// What digestion cost on the day, from the food when the day was marked as fully logged (`Digestion`).
+    private func digestionLine(_ s: DailyEnergySummary) -> String {
+        guard let digestion = s.digestionBurnedSoFar, digestion > 0 else { return "" }
+        let kcal = Int(digestion.rounded())
+        return "\n\n" + (s.digestionFromLog
+            ? String(localized: "Digesting this day: \(kcal) kcal, from what you logged.")
+            : String(localized: "Digesting this day: about \(kcal) kcal, a tenth of the day. A day marked as fully logged counts your own food."))
+    }
+
+    private func partRow(symbol: String, tint: Color, title: String, value: Double?, share: Double?,
+                         info: AnyView? = nil) -> some View {
         HStack(spacing: 12) {
             Image(systemName: symbol).font(.system(.footnote, weight: .semibold)).foregroundStyle(tint)
                 .frame(width: 32, height: 32).background(Circle().fill(tint.opacity(ForgeOpacity.wash)))
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(title).font(.system(.subheadline, weight: .semibold)).foregroundStyle(ForgeColor.text)
+                    if let info { info.frame(width: 28, height: 20) }
                     Spacer(minLength: 8)
                     Text(value.map(kcal) ?? "–").font(ForgeFont.figure(17)).foregroundStyle(ForgeColor.text)
                         .monospacedDigit()
@@ -378,6 +420,10 @@ struct ForgeEnergyView: View {
                 guard let total = s.totalBurnedSoFar, total > 0 else { continue }
                 if let rest = s.basalBurnedSoFar, let active = s.activeBurnedSoFar, rest + active > 0 {
                     out.append(.init(id: s.day + "r", date: date, part: "resting", value: rest, color: StrandPalette.forgeEnergyResting))
+                    if let everyday = s.everydayBurnedSoFar, everyday > 0 {
+                        out.append(.init(id: s.day + "e", date: date, part: "everyday", value: everyday,
+                                         color: StrandPalette.forgeEnergyEveryday))
+                    }
                     out.append(.init(id: s.day + "a", date: date, part: "active", value: active, color: StrandPalette.forgeEnergyActive))
                 } else {
                     // A summary without the split is one block rather than an invented share.
@@ -528,6 +574,13 @@ struct ForgeEnergyView: View {
 
     // MARK: - Loading (as `EnergyDetailView`)
 
+    /// After an answer to the scale: the days again with or without the correction, and the card's new state.
+    private func reloadAfterScale() async {
+        let analyticsProfile = Repository.analyticsProfile(profile)
+        summaries = await repo.energySummaries(days: Self.historyDays, profile: analyticsProfile)
+        scale = await repo.readScale(profile: analyticsProfile)
+    }
+
     private func loadIfNeeded() async {
         guard !loaded else { return }
         let analyticsProfile = Repository.analyticsProfile(profile)
@@ -541,6 +594,7 @@ struct ForgeEnergyView: View {
         await repo.refreshWhoopEnergyModel(days: 1, profile: analyticsProfile)
         summaries = await repo.energySummaries(days: Self.historyDays, profile: analyticsProfile)
         refreshingToday = false
+        scale = await repo.readScale(profile: analyticsProfile)
         if isToday { await loadDay() }
     }
 
@@ -582,6 +636,8 @@ struct ForgeEnergyView: View {
 /// usual fills the ring; the page says the gap in words under it. Draws in when it comes into view and again per day.
 struct ForgeEnergyRing: View {
     let resting: Double?
+    /// Everyday burn between resting and active; nil or zero draws the two-part ring as before.
+    var everyday: Double? = nil
     let active: Double?
     let total: Double?
     let usual: Double?
@@ -602,6 +658,10 @@ struct ForgeEnergyRing: View {
         if let resting, let active, resting + active > 0 { return resting / scale }
         return total / scale
     }
+    private var everydayFraction: Double {
+        guard let resting, let active, resting + active > 0, let everyday, everyday > 0 else { return 0 }
+        return everyday / scale
+    }
     private var activeFraction: Double {
         guard let resting, let active, resting + active > 0 else { return 0 }
         return active / scale
@@ -613,13 +673,17 @@ struct ForgeEnergyRing: View {
             // A soft glow under the arcs, as the score rings carry one.
             Group {
                 arc(from: 0, to: restFraction, color: StrandPalette.forgeEnergyResting)
-                arc(from: restFraction, to: restFraction + activeFraction, color: StrandPalette.forgeEnergyActive)
+                arc(from: restFraction, to: restFraction + everydayFraction, color: StrandPalette.forgeEnergyEveryday)
+                arc(from: restFraction + everydayFraction, to: restFraction + everydayFraction + activeFraction,
+                    color: StrandPalette.forgeEnergyActive)
             }
             .blur(radius: compact ? 5 : 9)
             .opacity(colorScheme == .dark ? 0.6 : 0.35)
             .accessibilityHidden(true)
             arc(from: 0, to: restFraction, color: StrandPalette.forgeEnergyResting)
-            arc(from: restFraction, to: restFraction + activeFraction, color: StrandPalette.forgeEnergyActive)
+            arc(from: restFraction, to: restFraction + everydayFraction, color: StrandPalette.forgeEnergyEveryday)
+            arc(from: restFraction + everydayFraction, to: restFraction + everydayFraction + activeFraction,
+                color: StrandPalette.forgeEnergyActive)
             if total == nil, compact {
                 // The tile says it in a sentence beside the ring; the ring holds only the flame.
                 Image(systemName: "flame.fill").font(.system(size: 26))
@@ -662,6 +726,83 @@ struct ForgeEnergyRing: View {
             .trim(from: drawn ? min(from, 1) : 0, to: drawn ? min(to, 1) : 0)
             .stroke(color, style: StrokeStyle(lineWidth: line, lineCap: .round))
             .rotationEffect(.degrees(-90))
+    }
+}
+
+/// The scale against the strap (owner decisions 2026-11-27, Q10, Q33): its proposal with both figures, the
+/// correction in use with a way to switch it off, or what the scale still needs.
+struct ForgeScaleCard: View {
+    let snapshot: ScaleCorrectionUpdate.Snapshot
+    let act: (Repository.ScaleAction) -> Void
+
+    private func kcal(_ value: Double) -> String {
+        Int(value.rounded()).formatted(.number.locale(AppLanguage.activeLocale))
+    }
+
+    private var percent: String {
+        let p = Int(((snapshot.factor - 1) * 100).rounded())
+        return (p > 0 ? "+" : p < 0 ? "−" : "") + "\(abs(p)) %"
+    }
+
+    /// The early look's direction in words, as the core decided it (`ScaleCorrectionUpdate.earlyWords`), never a
+    /// figure to act on.
+    static func earlyLook(direction: String, percent: Int) -> String {
+        switch direction {
+        case "more": String(localized: "First look: your scale reads about \(percent) % more than the strap. Sure only after six weeks.")
+        case "less": String(localized: "First look: your scale reads about \(percent) % less than the strap. Sure only after six weeks.")
+        default: String(localized: "First look: your scale and the strap agree so far. Sure only after six weeks.")
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            ForgeSectionTitle(title: "Your scale")
+            VStack(alignment: .leading, spacing: 10) {
+                switch snapshot.status {
+                case "proposed":
+                    if let scaleKcal = snapshot.scaleKcal, let strapKcal = snapshot.strapKcal {
+                        Text("Your scale says \(kcal(scaleKcal)) kcal a day, the strap \(kcal(strapKcal)). Adjust the strap to your scale?")
+                            .font(.body).foregroundStyle(ForgeColor.text).fixedSize(horizontal: false, vertical: true)
+                    }
+                    HStack {
+                        Button("Adjust") { act(.accept) }.buttonStyle(.borderedProminent).tint(ForgeColor.accent)
+                        Button("Not now") { act(.decline) }.buttonStyle(.bordered)
+                    }
+                case "active":
+                    let since = snapshot.sinceDay.flatMap(WeightSeries.date(forDay:))?
+                        .formatted(date: .abbreviated, time: .omitted) ?? ""
+                    Text("Adjusted to your scale since \(since): \(percent).")
+                        .font(.body).foregroundStyle(ForgeColor.text).fixedSize(horizontal: false, vertical: true)
+                    if snapshot.holding {
+                        Text("Paused for a few weeks: something just changed your water balance.")
+                            .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                    }
+                    Button("Switch off") { act(.off) }.buttonStyle(.bordered)
+                case "off":
+                    Text("Off. Days show what the strap measured.")
+                        .font(.body).foregroundStyle(ForgeColor.text)
+                    Button("Switch on again") { act(.on) }.buttonStyle(.bordered)
+                default:
+                    Group {
+                        if snapshot.holding {
+                            Text("Paused for a few weeks: something just changed your water balance.")
+                        } else if snapshot.tooUncertain {
+                            Text("Your weigh-ins still swing too much for a reliable figure.")
+                        } else {
+                            Text("Your scale can check the strap after six weeks: \(snapshot.completeDays) of 21 fully logged days, \(snapshot.weighIns) of 10 weigh-ins.")
+                        }
+                    }
+                    .font(.body).foregroundStyle(ForgeColor.secondary).fixedSize(horizontal: false, vertical: true)
+                    if let direction = snapshot.earlyDirection, !snapshot.holding, !snapshot.tooUncertain {
+                        Text(Self.earlyLook(direction: direction, percent: snapshot.earlyPercent ?? 0))
+                            .font(ForgeFont.caption).foregroundStyle(ForgeColor.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .forgeCard(radius: ForgeRadius.card, padding: 16)
+        }
     }
 }
 

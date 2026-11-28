@@ -17,7 +17,7 @@ extension ForgeFoodModel {
     func goals(for day: String) -> FoodGoalState.Goals? {
         guard let kcal = calories(for: day)?.kcal else { return nil }
         return .init(kcal: kcal, proteinG: macroGoals(for: day)?.proteinG, carbCapG: plan?.form.carbCapG,
-                     floorKcal: FoodGoalState.floorKcal(basalKcal: basalKcal, male: male))
+                     floorKcal: FoodGoalState.floorKcal(basalKcal: basalKcal, male: male, goalKcal: kcal))
     }
 
     func loadQuality(store: WhoopStore) async {

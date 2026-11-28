@@ -19,6 +19,11 @@ public enum EnergySummaryPreparation {
         public var adaptivePrior: Double?
         public var appleCoverageByDay: [String: Int]
         public var stride: StepLengthTimeline
+        /// The scale's correction of the strap's burn (`BurnCorrection`), applied from the day it was agreed.
+        public var scaleCorrection: BurnCorrection = BurnCorrection()
+        /// What digesting each completely logged day cost (`NutritionReads.digestionByDay`); every other day
+        /// takes the standard tenth.
+        public var digestionByDay: [String: Double] = [:]
 
         public init(appleByDay: [String: AppleDaily], strapByDay: [String: DailyMetric],
                     derivedByDay: [String: WhoopDailyEnergyRow], strapActiveByDay: [String: Double],
@@ -78,6 +83,24 @@ public enum EnergySummaryPreparation {
             // Priced with THIS day's body mass and resting heart rate: both belong to the day rather
             // than to today, the same reason the weight above is resolved causally. The engine reads
             // them only on a day nothing measured, so the decision stays in one place.
+            // The everyday share at the basal rate this day is shown with, from the awake still seconds the
+            // model stored; and today only, what the awake hours left outside the usual sleep window are still
+            // expected to bring, for the forecast.
+            let everydayKcal = derived.flatMap { row in
+                Calories.bmrKcalPerDay(profile: dayProfile).map {
+                    WhoopEnergyModel.everydayKcal(basalPerSecond: $0 / 86_400, seconds: Double(row.everydaySeconds))
+                }
+            }
+            var everydayRemaining: Double?
+            if day == todayKey, let derived, let start = derived.sleepWindowStartMinute,
+               let end = derived.sleepWindowEndMinute, let bmr = Calories.bmrKcalPerDay(profile: dayProfile),
+               let dayStart = WeightSeries.date(forDay: day),
+               let dayEnd = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: dayStart)) {
+                let awake = UsualSleepWindow(startMinute: start, endMinute: end).awakeSeconds(
+                    from: Int(now.timeIntervalSince1970), to: Int(dayEnd.timeIntervalSince1970), calendar: calendar)
+                everydayRemaining = WhoopEnergyModel.everydayKcal(basalPerSecond: bmr / 86_400,
+                                                                  seconds: Double(awake))
+            }
             let sessions = (sessionsByDay[day] ?? []).compactMap {
                 activityContribution($0, profile: dayProfile, hrMax: hrMax,
                                           restingHR: strap?.restingHr.map(Double.init),
@@ -92,6 +115,11 @@ public enum EnergySummaryPreparation {
                 strapCoverageSeconds: strapEnergy?.seconds,
                 // Only for a current-generation day: its hourly rows and its buckets are one pass.
                 strapActiveKcal: derived.map { _ in strapActiveByDay[day] ?? 0 },
+                strapEverydayKcal: everydayKcal,
+                strapEverydayRemainingKcal: everydayRemaining,
+                scaleCorrectionFactor: source.scaleCorrection.factor(on: day),
+                scaleCorrectionCoversBasal: source.scaleCorrection.appliesToBasal,
+                loggedDigestionKcal: source.digestionByDay[day],
                 strapCalibrationFactor: calibrationFactor,
                 strapUncertaintyFraction: derived?.uncertaintyFraction,
                 calibrationStatus: source.calibrationStatus,

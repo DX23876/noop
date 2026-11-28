@@ -113,6 +113,28 @@ final class WeightSeriesMergeTests: XCTestCase {
         XCTAssertNil(WeightSeries.date(forDay: "2026-08"))
     }
 
+    /// A water mark (Q23) rides with its weigh-in into the history list, and the days that carry one are the days
+    /// the scale's burn and the plan's weekly look leave out (Q31).
+    func testAWaterMarkRidesWithItsWeighInAndNamesItsDay() async throws {
+        var marked = row(id: "a", day: "2026-11-20", takenAt: 1_795_132_800, kg: 201.2)
+        marked.waterMark = .period
+        let plain = row(id: "b", day: "2026-11-21", takenAt: 1_795_219_200, kg: 200.4)
+        let entries = WeightSeries.mergeEntries(manual: [marked, plain], appleHealth: [])
+        XCTAssertEqual(entries.first { $0.id == "a" }?.waterMark, .period)
+        XCTAssertNil(entries.first { $0.id == "b" }?.waterMark)
+
+        let store = try await WhoopStore.inMemory()
+        var stored = marked
+        stored.deviceId = WhoopStore.noopWeightSourceId
+        var other = plain
+        other.deviceId = WhoopStore.noopWeightSourceId
+        _ = try await store.upsertBodyWeights([stored, other])
+        let days = await WeightSeries.waterMarkedDays(store: store, from: "2026-11-01", to: "2026-11-30")
+        XCTAssertEqual(days, ["2026-11-20"])
+        let back = try await store.bodyWeights(deviceId: WhoopStore.noopWeightSourceId)
+        XCTAssertEqual(back.first { $0.id == "a" }?.waterMark, .period, "the mark survives the store")
+    }
+
     // MARK: - Helper
 
     private func row(id: String, day: String, takenAt: Int, kg: Double,

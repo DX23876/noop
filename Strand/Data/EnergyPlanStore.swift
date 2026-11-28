@@ -19,6 +19,8 @@ enum EnergyPlanStore {
     // MARK: - Keys
 
     static let formulaLogKey = "energy.bmrFormulaLog"
+    static let measuredRateKey = "energy.measuredBMR"
+    static let scaleCorrectionKey = "energy.scaleCorrection"
     static let activityLevelKey = "energy.activityLevel"
     static let goalKey = "energy.goal"
     static let targetRateKey = "energy.targetKgPerWeek"
@@ -50,6 +52,21 @@ enum EnergyPlanStore {
     static func switchFormula(to formula: BasalFormula, effectiveFrom day: String) {
         let next = formulaLog.appending(formula, effectiveFrom: day)
         UserDefaults.standard.set(next.encodedJSON(), forKey: formulaLogKey)
+    }
+
+    /// A measured resting rate the wearer entered (`MeasuredRestingRate`), for the `measured` formula.
+    static var measuredRate: MeasuredRestingRate? {
+        get { MeasuredRestingRate.decode(UserDefaults.standard.string(forKey: measuredRateKey)) }
+        set {
+            if let newValue { UserDefaults.standard.set(newValue.encodedJSON(), forKey: measuredRateKey) }
+            else { UserDefaults.standard.removeObject(forKey: measuredRateKey) }
+        }
+    }
+
+    /// The scale's correction of the strap's burn (`BurnCorrection`), the same JSON on both platforms.
+    static var scaleCorrection: BurnCorrection {
+        get { BurnCorrection.decode(UserDefaults.standard.string(forKey: scaleCorrectionKey)) }
+        set { UserDefaults.standard.set(newValue.encodedJSON(), forKey: scaleCorrectionKey) }
     }
 
     // MARK: - Planning inputs

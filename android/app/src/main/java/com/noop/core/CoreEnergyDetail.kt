@@ -15,6 +15,12 @@ object CoreEnergyDetail {
         val day: String, val total: Double?, val active: Double?, val basal: Double?, val bmr24h: Double?,
         val projectedLow: Double?, val projectedHigh: Double?, val projected: Double? = null, val source: String, val sourceLabel: String,
         val confidence: String, val confidenceLabel: String, val compactLine: String?,
+        /** Everyday burn (awake still time above lying basal), a strap day only; inside [total], not [active]. */
+        val everyday: Double? = null,
+        /** The part of [everyday] digestion cost, and whether it came from a fully logged day's own food. */
+        val digestion: Double? = null, val digestionFromLog: Boolean = false,
+        /** A finished day's likely range (`EnergyRange.likely`), narrowed once the scale corrects the strap. */
+        val likelyLow: Double? = null, val likelyHigh: Double? = null, val likelyByScale: Boolean = false,
     )
     data class Point(val start: Double, val duration: Double, val kcalPerMinute: Double)
     data class Band(val start: Double, val end: Double, val sport: String)
@@ -58,7 +64,8 @@ object CoreEnergyDetail {
         fun summary(s: JSONObject) = Summary(
             s.getString("day"), s.dbl("total"), s.dbl("active"), s.dbl("basal"), s.dbl("bmr24h"), s.dbl("projectedLow"),
             s.dbl("projectedHigh"), s.dbl("projected"), s.optString("source"), s.optString("sourceLabel"), s.optString("confidence"),
-            s.optString("confidenceLabel"), s.str("compactLine"))
+            s.optString("confidenceLabel"), s.str("compactLine"), s.dbl("everyday"), s.dbl("digestion"),
+            s.optBoolean("digestionFromLog"), s.dbl("likelyLow"), s.dbl("likelyHigh"), s.optBoolean("likelyByScale"))
         fun points(a: JSONArray?) = a.objects().map { Point(it.getDouble("start"), it.getDouble("duration"), it.getDouble("kcalPerMinute")) }
         return Detail(
             today = o.getString("today"), day = o.getString("day"), summaries = o.optJSONArray("summaries").objects().map(::summary),

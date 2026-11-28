@@ -8,6 +8,8 @@ public struct WidgetEnergySnapshot: Codable, Equatable {
     public var totalKcal: Int?
     public var activeKcal: Int?
     public var basalKcal: Int?
+    /// Everyday burn (sitting, standing, small things above resting). Optional so older snapshots decode.
+    public var everydayKcal: Int?
     public var projectedKcal: Int?
     public var source: String
     public var confidence: String
@@ -20,8 +22,9 @@ public struct WidgetEnergySnapshot: Codable, Equatable {
     public init(day: String, totalKcal: Int?, activeKcal: Int?, basalKcal: Int?,
                 projectedKcal: Int?, source: String, confidence: String,
                 rawWhoopKcal: Int? = nil, uncertaintyPercent: Int? = nil,
-                calibrationFactorPermille: Int? = nil, asOf: Date) {
+                calibrationFactorPermille: Int? = nil, asOf: Date, everydayKcal: Int? = nil) {
         self.day = day
+        self.everydayKcal = everydayKcal
         self.totalKcal = totalKcal
         self.activeKcal = activeKcal
         self.basalKcal = basalKcal
@@ -269,7 +272,8 @@ public struct WidgetSnapshot: Codable, Equatable {
             // `asOf` is freshness metadata, not a reason to rebuild an otherwise identical widget.
             // It advances only when one of the values the Energy widget renders changes.
             return a.day != b.day || a.totalKcal != b.totalKcal || a.activeKcal != b.activeKcal
-                || a.basalKcal != b.basalKcal || a.projectedKcal != b.projectedKcal
+                || a.basalKcal != b.basalKcal || a.everydayKcal != b.everydayKcal
+                || a.projectedKcal != b.projectedKcal
                 || a.source != b.source || a.confidence != b.confidence
                 || a.rawWhoopKcal != b.rawWhoopKcal
                 || a.uncertaintyPercent != b.uncertaintyPercent

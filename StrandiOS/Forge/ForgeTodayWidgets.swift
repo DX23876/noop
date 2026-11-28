@@ -1104,7 +1104,7 @@ struct ForgeMeasureWidget: View {
         // Thirty points, which for a measure written weekly is thirty weeks: the window is counted in
         // readings, as Android counts it, so the two phones draw the same stretch of history.
         let series = Array(values.suffix(30))
-        NavigationLink(value: TabRoute.metricSourced(key: m?.key ?? key, source: m?.source ?? source ?? Repository.whoopSource)) {
+        NavigationLink(value: route(m)) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Image(systemName: m?.icon ?? "chart.xyaxis.line")
@@ -1207,7 +1207,7 @@ struct ForgeMeasureWidget: View {
     static var fahrenheit: Bool { ForgeToday.readerTemperatureUnit == .fahrenheit }
 
     @ViewBuilder private func tileBody(_ m: MetricDescriptor?) -> some View {
-        NavigationLink(value: TabRoute.metricSourced(key: m?.key ?? key, source: m?.source ?? source ?? Repository.whoopSource)) {
+        NavigationLink(value: route(m)) {
             ForgeTodayTile(label: Self.shortTitle(key) ?? m?.title ?? key, symbol: m?.icon ?? "chart.xyaxis.line",
                            value: leadFigure(m),
                            unit: leadUnit(m),
@@ -1225,8 +1225,21 @@ struct ForgeMeasureWidget: View {
 
     /// What the tile says under its figure over two columns: the measure's own fact first, and the
     /// usual-and-range line for the measures whose fact is not built yet, so nothing loses what it said.
+    /// Weight opens its own page (trend, forecast, dates, reports); every other measure opens its explorer.
+    private func route(_ m: MetricDescriptor?) -> TabRoute {
+        key == "weight" ? .weight
+            : .metricSourced(key: m?.key ?? key, source: m?.source ?? source ?? Repository.whoopSource)
+    }
+
     private func caption(_ m: MetricDescriptor?) -> String? {
         guard detailed else { return nil }
+        // Weight says what lies ahead over two columns (owner, 2026-11-26): the next date with its expected weight,
+        // else the trend's weekly change, both worded by the weight page from its one snapshot. Not on the small
+        // tile: there it sat beside the week's change chip, cut short, a second weekly figure next to the first.
+        if key == "weight", let w = WeightWidgetSnapshot.load() {
+            if let e = w.events.first { return "\(e.name): \(e.expected ?? "—") \(w.unit)" }
+            if let rate = w.rateLine { return rate }
+        }
         if key == "stress" {
             // What two columns add for stress (owner's table): the word alone says what today is, the
             // share says how it got there.
@@ -1731,13 +1744,16 @@ struct ForgeEnergyWidget: View {
         }
     }
 
-    /// "Resting 1.620 · Active 480", from the same summary the full card draws its ring from.
+    /// "Resting 1.620 · Everyday 480 · Active 480", from the same summary the full card draws its ring from.
     static func partsLine(_ summary: DailyEnergySummary?) -> String? {
         guard let summary, let resting = summary.basalBurnedSoFar, let active = summary.activeBurnedSoFar
         else { return nil }
-        let r = String(localized: "Resting") + " " + String(Int(resting.rounded()))
-        let a = String(localized: "Active") + " " + String(Int(active.rounded()))
-        return r + " · " + a
+        var parts = [String(localized: "Resting") + " " + String(Int(resting.rounded()))]
+        if let everyday = summary.everydayBurnedSoFar, everyday > 0 {
+            parts.append(String(localized: "Everyday") + " " + String(Int(everyday.rounded())))
+        }
+        parts.append(String(localized: "Active") + " " + String(Int(active.rounded())))
+        return parts.joined(separator: " · ")
     }
 
     @ViewBuilder private var full: some View {
@@ -1761,7 +1777,8 @@ struct ForgeEnergyWidget: View {
                     }
                 } else if let summary {
                     HStack(spacing: 16) {
-                        ForgeEnergyRing(resting: summary.basalBurnedSoFar, active: summary.activeBurnedSoFar,
+                        ForgeEnergyRing(resting: summary.basalBurnedSoFar, everyday: summary.everydayBurnedSoFar,
+                                        active: summary.activeBurnedSoFar,
                                         total: summary.totalBurnedSoFar, usual: usual,
                                         totalText: ForgeEnergyView.plainTotal(summary), selectedDay: summary.day, compact: true)
                             .frame(width: 104, height: 104)
@@ -1773,6 +1790,9 @@ struct ForgeEnergyWidget: View {
                                     .fixedSize(horizontal: false, vertical: true)
                             } else {
                                 figure(StrandPalette.forgeEnergyResting, String(localized: "Resting"), summary.basalBurnedSoFar)
+                                if let everyday = summary.everydayBurnedSoFar, everyday > 0 {
+                                    figure(StrandPalette.forgeEnergyEveryday, String(localized: "Everyday"), everyday)
+                                }
                                 figure(StrandPalette.forgeEnergyActive, String(localized: "Active"), summary.activeBurnedSoFar)
                             }
                             if let eaten { figure(ForgeColor.charge, String(localized: "Eaten"), eaten) }

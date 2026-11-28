@@ -99,7 +99,7 @@ internal fun windowedSpark(points: List<Pair<String, Double>>, cutoff: String, m
 
 /** One tile's figures: the value, its unit, the change against the week before and where a tap goes. */
 internal class KeyTile(val value: String?, val unit: String?, val delta: String? = null, val opens: CoreRead.Metric? = null,
-                      val opensEnergy: Boolean = false)
+                      val opensEnergy: Boolean = false, val opensWeight: Boolean = false)
 
 /**
  * Fork (DX23876), Android parity: Key Metrics after the Liquid `keyMetricsSection`. The tiles are the editor's
@@ -127,6 +127,7 @@ internal fun ForgeKeyMetrics(model: TodayModel?, revision: Int, onEdit: () -> Un
 
     var open by remember { mutableStateOf<CoreRead.Metric?>(null) }
     var energyOpen by remember { mutableStateOf(false) }
+    var weightOpen by remember { mutableStateOf(false) }
     val noData = stringResource(R.string.forge_no_data)
     Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.gap)) {
         val editLabel = stringResource(R.string.forge_lay_edit_key_metrics)
@@ -154,6 +155,8 @@ internal fun ForgeKeyMetrics(model: TodayModel?, revision: Int, onEdit: () -> Un
             val tap = when {
                 t.opens != null -> Modifier.clickable { open = t.opens }
                 t.opensEnergy && t.value != null -> Modifier.clickable { energyOpen = true }
+                // Weight opens its own page (trend, forecast, dates, reports), as on iOS.
+                t.opensWeight -> Modifier.clickable { weightOpen = true }
                 else -> Modifier
             }
             MetricTile(metric.icon, tint, metric.tileLabel(), t.value, t.unit, noData, modifier.then(tap), t.delta,
@@ -168,6 +171,11 @@ internal fun ForgeKeyMetrics(model: TodayModel?, revision: Int, onEdit: () -> Un
         if (spansLast) Tile(ordered.last(), Modifier.fillMaxWidth())
     }
     ForgeMetricDetail(open) { open = null }
+    if (weightOpen) {
+        ForgeOverlayPage(onDismiss = { weightOpen = false }) {
+            ForgeSceneBackdrop(ForgeBackdrop.Sky) { ForgeWeightPage(onBack = { weightOpen = false }) }
+        }
+    }
     if (energyOpen) {
         ForgeOverlayPage(onDismiss = { energyOpen = false }) {
             ForgeSceneBackdrop(ForgeBackdrop.Sky) { ForgeEnergyDetailPage(onBack = { energyOpen = false }) }
@@ -270,7 +278,7 @@ internal fun rememberKeyTiles(model: TodayModel?, metrics: Collection<KeyMetric>
                                              deltaText(day?.respRate, base[CoreRead.Metric.RespRate], 1), CoreRead.Metric.RespRate)
             KeyMetric.STEPS -> KeyTile(day?.steps?.let { whole.format(it.toLong()) }, null, opens = CoreRead.Metric.Steps)
             KeyMetric.WEIGHT -> KeyTile(weightKg?.let { "%.1f".format(if (units == UnitSystem.IMPERIAL) UnitFormatter.kgToPounds(it) else it) },
-                                        UnitFormatter.massUnit(units))
+                                        UnitFormatter.massUnit(units), opensWeight = true)
             KeyMetric.CALORIES -> KeyTile(energyTotal?.let { whole.format(kotlin.math.round(it).toLong()) }, "kcal", opensEnergy = true)
             // The wrist temperature where the night measured one, the ±baseline move where it did not, and
             // the wearer's own choice of which to try first (`SkinTempDisplay.leadReading`, #1844/#1846) —

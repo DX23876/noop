@@ -78,7 +78,80 @@ internal fun ForgeEnergyPlanPage(onBack: () -> Unit, onDetail: () -> Unit = {}) 
         })
         TargetCard(p) { rate -> change { CoreEnergyPlan.setTargetKgPerWeek(context, rate) } }
         ActivityCard(p) { level -> change { CoreEnergyPlan.setActivity(context, level) } }
-        FormulaCard(p) { formula -> change { CoreEnergyPlan.switchFormula(context, formula) } }
+        var enteringMeasured by remember { mutableStateOf(false) }
+        FormulaCard(p, onMeasured = { enteringMeasured = true }) { formula -> change { CoreEnergyPlan.switchFormula(context, formula) } }
+        if (enteringMeasured) {
+            MeasuredBasalDialog(p, onDismiss = { enteringMeasured = false }) { json ->
+                enteringMeasured = false
+                change {
+                    CoreEnergyPlan.setMeasuredBasal(context, json)
+                    if (p.currentFormula != "measured") CoreEnergyPlan.switchFormula(context, "measured")
+                }
+            }
+        }
+    }
+}
+
+/**
+ * iOS `FormulaSwitchSheet.measuredEntry`: a measured resting rate and its day, kept as its ratio to Mifflin–St Jeor
+ * (core `energy.measuredBasal`) and applied to the whole history; a value more than 40 % from the equation is asked
+ * about once.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun MeasuredBasalDialog(p: CoreEnergyPlan.Plan, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    val context = LocalContext.current
+    var text by remember { mutableStateOf(p.measuredBasalKcal?.roundToInt()?.toString() ?: "") }
+    var day by remember { mutableStateOf(p.measuredBasalDay?.let { runCatching { java.time.LocalDate.parse(it) }.getOrNull() } ?: java.time.LocalDate.now()) }
+    var pickingDay by remember { mutableStateOf(false) }
+    var farRate by remember { mutableStateOf<String?>(null) }
+    val kcal = text.trim().replace(',', '.').toDoubleOrNull()
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.forge_energy_rmr_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(ForgeMetrics.space2)) {
+                OutlinedTextField(text, { text = it.filter { c -> c.isDigit() } }, singleLine = true,
+                                  label = { Text(stringResource(R.string.forge_energy_rmr_kcal)) },
+                                  keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number))
+                androidx.compose.material3.TextButton(onClick = { pickingDay = true }) {
+                    Text(stringResource(R.string.forge_energy_rmr_day, day.format(java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM))))
+                }
+                Text(stringResource(R.string.forge_energy_rmr_explain), style = Forge.type.caption, color = Forge.colors.textSecondary)
+            }
+        },
+        confirmButton = {
+            androidx.compose.material3.TextButton(enabled = kcal != null, onClick = {
+                val value = kcal ?: return@TextButton
+                val rate = CoreEnergyPlan.measuredRate(context, value, day.toString()) ?: return@TextButton
+                if (rate.second) onSave(rate.first) else farRate = rate.first
+            }) { Text(stringResource(R.string.forge_energy_rmr_save)) }
+        },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = onDismiss) { Text(stringResource(R.string.forge_energy_rmr_cancel)) } },
+    )
+    if (pickingDay) {
+        val today = java.time.LocalDate.now()
+        val state = androidx.compose.material3.rememberDatePickerState(
+            initialSelectedDateMillis = day.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
+            selectableDates = object : androidx.compose.material3.SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long) =
+                    utcTimeMillis <= today.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+            })
+        androidx.compose.material3.DatePickerDialog(onDismissRequest = { pickingDay = false }, confirmButton = {
+            androidx.compose.material3.TextButton(onClick = {
+                state.selectedDateMillis?.let { day = java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneOffset.UTC).toLocalDate() }
+                pickingDay = false
+            }) { Text(stringResource(R.string.forge_energy_rmr_save)) }
+        }) { androidx.compose.material3.DatePicker(state) }
+    }
+    farRate?.let { json ->
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { farRate = null },
+            title = { Text(stringResource(R.string.forge_energy_rmr_far_title)) },
+            text = { Text(stringResource(R.string.forge_energy_rmr_far_text)) },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = { farRate = null; onSave(json) }) { Text(stringResource(R.string.forge_energy_rmr_use)) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { farRate = null }) { Text(stringResource(R.string.forge_energy_rmr_check)) } },
+        )
     }
 }
 
@@ -196,25 +269,40 @@ private fun ActivityCard(p: CoreEnergyPlan.Plan, onLevel: (String) -> Unit) {
 }
 
 @Composable
-private fun FormulaCard(p: CoreEnergyPlan.Plan, onFormula: (String) -> Unit) {
+private fun FormulaCard(p: CoreEnergyPlan.Plan, onMeasured: () -> Unit, onFormula: (String) -> Unit) {
     ForgeTitledCard(title = stringResource(R.string.forge_energy_basal_formula), blurb = null) {
         p.formulas.forEachIndexed { i, f ->
             val name = when (f.formula) {
                 "revisedHarrisBenedict" -> stringResource(R.string.forge_energy_rhb)
                 "katchMcArdle" -> stringResource(R.string.forge_energy_katch)
+                "measured" -> stringResource(R.string.forge_energy_rmr)
                 else -> "Mifflin–St Jeor"
             }
-            val detail = if (!f.available) stringResource(R.string.forge_energy_needs_bodyfat)
-                         else f.basalKcal?.let { stringResource(R.string.forge_energy_kcal_day, it.roundToInt()) }
-            Choice(name, detail, selected = p.currentFormula == f.formula, enabled = f.available) { onFormula(f.formula) }
+            if (f.formula == "measured") {
+                val shown = p.measuredBasalDay?.let { d ->
+                    runCatching { java.time.LocalDate.parse(d).format(java.time.format.DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM)) }.getOrDefault(d)
+                }
+                val detail = when {
+                    shown == null -> stringResource(R.string.forge_energy_rmr_none)
+                    p.measuredBasalOld -> stringResource(R.string.forge_energy_rmr_old, shown)
+                    else -> stringResource(R.string.forge_energy_rmr_on, shown)
+                }
+                // Entered again while in use, so the row stays tappable when chosen.
+                Choice(name, detail, selected = p.currentFormula == f.formula, enabled = true, alwaysTappable = true) { onMeasured() }
+            } else {
+                val detail = if (!f.available) stringResource(R.string.forge_energy_needs_bodyfat)
+                             else f.basalKcal?.let { stringResource(R.string.forge_energy_kcal_day, it.roundToInt()) }
+                Choice(name, detail, selected = p.currentFormula == f.formula, enabled = f.available) { onFormula(f.formula) }
+            }
             if (i < p.formulas.lastIndex) RowDivider()
         }
     }
 }
 
 @Composable
-private fun Choice(title: String, detail: String? = null, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
-    Row(Modifier.fillMaxWidth().clickable(enabled = enabled && !selected, role = Role.RadioButton, onClick = onClick)
+private fun Choice(title: String, detail: String? = null, selected: Boolean, enabled: Boolean,
+                   alwaysTappable: Boolean = false, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().clickable(enabled = enabled && (alwaysTappable || !selected), role = Role.RadioButton, onClick = onClick)
             .padding(vertical = ForgeMetrics.space2), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(title, style = Forge.type.body, color = if (enabled) Forge.colors.text else Forge.colors.textTertiary)

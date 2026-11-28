@@ -279,6 +279,11 @@ public enum AnalysisRecipe {
     // AI-38 also carries the evening sofa rule (2026-11-28, DX23876/noop#60, `SleepStager` H9): a still evening
     // block that a longer night follows within three hours is held to the morning-stillness bar, so the rebuild
     // detects every night again without the sofa naps; a night the wearer edited or deleted stays as it was.
+    // AI-38 also carries the body mass each day is priced at (2026-11-27): `CausalWeightResolver` decays its
+    // ten-day EWMA per calendar day instead of per weigh-in, so a reading after weeks without one is taken
+    // almost whole instead of moving the value by 18 % (the owner was priced at 208.7 kg for six weeks after
+    // weighing 205.6). The full rebuild prices every day's `activeKcalEst` and detected workouts again with
+    // that weight; no weigh-in is rewritten, and daily weigh-ins resolve exactly as before.
     public static let currentVersion = 38
 
     /// The first recipe whose migration is the full rebuild. A store below it may still owe the legacy

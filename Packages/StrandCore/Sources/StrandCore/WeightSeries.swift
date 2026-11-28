@@ -60,12 +60,16 @@ public struct WeightEntry: Equatable, Identifiable, Sendable {
     /// Precise instant, when the source records one. Apple's daily cell does not.
     public let takenAt: Date?
     public let note: String?
+    /// A water mark the wearer set on the weigh-in (`BodyWeightRow.WaterMark`, Q23); nil for an imported day.
+    public let waterMark: BodyWeightRow.WaterMark?
 
     /// Whether this row can be edited or deleted in NOOP. False for Apple-imported days: the
     /// measurement lives in Health, and pretending to delete it here would delete nothing.
     public var isEditable: Bool { source == .manual }
 
-    public init(id: String, day: String, value: Double, source: WeightSource, takenAt: Date?, note: String?) {
+    public init(id: String, day: String, value: Double, source: WeightSource, takenAt: Date?, note: String?,
+                waterMark: BodyWeightRow.WaterMark? = nil) {
+        self.waterMark = waterMark
         self.id = id; self.day = day; self.value = value; self.source = source; self.takenAt = takenAt
         self.note = note
     }
@@ -104,6 +108,13 @@ public enum WeightSeries {
         return byDay.values.sorted { $0.day < $1.day }
     }
 
+    /// The days with a water-marked weigh-in (Q23, Q31): the scale's burn and the diet plan's weekly look both
+    /// leave them out, because the water moved rather than the tissue.
+    public static func waterMarkedDays(store: WhoopStore, from: String, to: String) async -> Set<String> {
+        let rows = (try? await store.bodyWeights(deviceId: WhoopStore.noopWeightSourceId, from: from, to: to)) ?? []
+        return Set(rows.filter { $0.waterMark != nil }.map(\.day))
+    }
+
     /// Merge into the history LIST, which is finer-grained than the daily series: every NOOP weigh-in
     /// is its own row (several on one day are all shown, each with its instant), while Apple
     /// contributes one row per day it covers and none for a day NOOP already has a weigh-in on —
@@ -116,7 +127,7 @@ public enum WeightSeries {
         var out: [WeightEntry] = manual.map { row in
             WeightEntry(id: row.id, day: row.day, value: row.weightKg, source: .manual,
                         takenAt: Date(timeIntervalSince1970: TimeInterval(row.takenAt)),
-                        note: row.note)
+                        note: row.note, waterMark: row.waterMark)
         }
         out += appleHealth
             .filter { !daysWithManual.contains($0.day) }

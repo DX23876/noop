@@ -26,6 +26,8 @@ object HealthConnectLedger {
      *  (`noop-<metric>-<day>`) need no ledger: a day never changes its own key. */
     const val SLEEP_PREFIX = "noop-sleep-"
     const val WORKOUT_PREFIX = "noop-workout-"
+    /** NOOP's own weigh-ins (2026-11-26), keyed by the instant they were taken. */
+    const val WEIGHT_PREFIX = "noop-weight-"
 
     /**
      * PER STRAP, and that is load-bearing rather than tidy.

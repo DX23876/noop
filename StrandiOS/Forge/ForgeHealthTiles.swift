@@ -110,7 +110,9 @@ struct ForgeHealthMeasureTile: View {
 
     var body: some View {
         let m = metric ?? ForgeWidgetMeasures.descriptor(key, source)
-        NavigationLink(value: TabRoute.metricSourced(key: m?.key ?? key, source: m?.source ?? source)) {
+        // Weight has its own page (trend, forecast, dates, reports); every other measure opens its explorer.
+        NavigationLink(value: key == "weight" ? TabRoute.weight
+                                              : TabRoute.metricSourced(key: m?.key ?? key, source: m?.source ?? source)) {
             ForgeMetricTile(label: label,
                             value: key == "stress"
                                 ? values.last.map { ForgeMeasureWidget.stressWord($0) }

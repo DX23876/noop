@@ -64,7 +64,7 @@ import java.util.Locale
  * and the two reminders. The shared core resolves the readings, comparisons and estimate.
  */
 @Composable
-internal fun ForgeBodyPage(onBack: () -> Unit) {
+internal fun ForgeBodyPage(onBack: () -> Unit, onOpenWeight: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var body by remember { mutableStateOf<CoreBody.Snapshot?>(null) }
@@ -113,6 +113,10 @@ internal fun ForgeBodyPage(onBack: () -> Unit) {
             return@SettingsColumn
         }
         BodyTodayCard(b)
+        // Weight has its own page now (trend, forecast, dates, reports); the Body page links to it.
+        TextButton(onClick = onOpenWeight) {
+            Text(stringResource(R.string.wt_open_page), color = WEIGHT_TINT.resolve(), style = Forge.type.subhead)
+        }
         BodyMeasureButton { measuring = true }
         BodyDevelopmentCard(b, window) { window = it }
         BodyFatCard(b)

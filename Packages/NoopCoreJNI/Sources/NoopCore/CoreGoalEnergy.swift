@@ -18,9 +18,12 @@ enum CoreGoalEnergy {
            [weight.doubleValue, height.doubleValue, age.doubleValue, maxHR.doubleValue].allSatisfy({ $0.isFinite && $0 > 0 }) {
             let formula = BmrFormulaLog.decode(args["formulaLog"] as? String ?? "").current
             settings.energyProfile = UserProfile(weightKg: weight.doubleValue, heightCm: height.doubleValue,
-                age: age.doubleValue, sex: sex, maxHR: maxHR.doubleValue, basalFormula: formula)
+                age: age.doubleValue, sex: sex, maxHR: maxHR.doubleValue, basalFormula: formula,
+                measuredBasalFactor: MeasuredRestingRate.decode(args["measuredBasal"] as? String)?.factor)
         }
         settings.energyCalibrationEnabled = args["energyCalibration"] as? Bool ?? false
+        settings.measuredBasal = MeasuredRestingRate.decode(args["measuredBasal"] as? String)
+        settings.scaleCorrection = BurnCorrection.decode(args["scaleCorrection"] as? String)
         settings.hydrationEnabled = args["hydrationEnabled"] as? Bool ?? false
         if let json = args["journalCatalog"] as? String,
            let items = try? JSONDecoder().decode([JournalCatalogItem].self, from: Data(json.utf8)) {

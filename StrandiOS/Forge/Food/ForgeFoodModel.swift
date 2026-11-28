@@ -138,7 +138,9 @@ final class ForgeFoodModel {
     // MARK: Diet plan (decision 2026-11-09)
 
     /// The wearer's diet plan, nil until they made one in the planner.
-    private(set) var plan: DietPlan? = DietPlan.decode(UserDefaults.standard.string(forKey: DietPlan.storageKey))
+    /// Read through the weight goal (one goal weight, 2026-11-26): its target is the plan's goal weight.
+    private(set) var plan: DietPlan? = WeightTrackerPreparation.planWithGoalWeight(
+        DietPlan.decode(UserDefaults.standard.string(forKey: DietPlan.storageKey)), goals: CoachGoalStore.shared)
     private(set) var planResult: DietTargets.Result?
     /// This week's look at the plan: a change Forge made (simple mode, with undo) or proposes (advanced mode).
     private(set) var planWeek: DietAdjust.Outcome?
@@ -190,6 +192,8 @@ final class ForgeFoodModel {
     }
 
     private func resolvePlan() {
+        // The weight goal may have moved since the plan was read.
+        plan = WeightTrackerPreparation.planWithGoalWeight(plan, goals: CoachGoalStore.shared)
         resultByPhase = [:]
         goalReachedDay = plan.flatMap { p in
             DietProgram.goalReachedDay(plan: p, goalWeightKg: person.flatMap { DietTargets.plannedGoalWeight(p, person: $0) },
@@ -209,14 +213,45 @@ final class ForgeFoodModel {
                                     dietBreakEveryWeeks: DietProgram.dietBreakEveryWeeks(plan))
     }
 
+    /// The plan moves to the strap's current energy model once its history has been recomputed under it
+    /// (`DietBurnModelChange`): Forge's old adjustments start from zero and the Food page says once what changed.
+    /// Before the recompute the burn mean still mixes model generations, so the plan waits.
+    private func adoptBurnModel() {
+        let current = WhoopDailyEnergyEstimate.modelVersion
+        guard let existing = plan,
+              UserDefaults.standard.string(forKey: Repository.energyHistoryModelKey) == current,
+              let adopted = DietBurnModelChange.adopt(existing, current: current,
+                                                      everydayMeanKcal: energy.burn.everydayMeanKcal,
+                                                      today: Repository.localDayKey(.now)),
+              let raw = adopted.encoded() else { return }
+        UserDefaults.standard.set(raw, forKey: DietPlan.storageKey)
+        plan = adopted
+    }
+
+    /// The note about the burn model is read.
+    func dismissBurnModelNote() {
+        guard var current = plan, current.burnModelNoteKcal != nil else { return }
+        current.burnModelNoteKcal = nil
+        savePlan(current)
+    }
+
     /// Saves a plan from the planner or the plan page and recomputes every goal from it.
     func savePlan(_ next: DietPlan?) {
+        // A new way of eating is dated: water and glycogen shift for a few weeks after it, so the scale's
+        // correction holds still (`ScaleCorrectionUpdate.holding`).
+        var next = next
+        if var dated = next, let previous = plan, previous.form != dated.form || previous.addon != dated.addon {
+            dated.formChangedDay = Repository.localDayKey(.now)
+            next = dated
+        }
         if let next, let raw = next.encoded() {
             UserDefaults.standard.set(raw, forKey: DietPlan.storageKey)
         } else {
             UserDefaults.standard.removeObject(forKey: DietPlan.storageKey)
         }
-        plan = next
+        // A goal weight set in the planner is the weight goal's target from now on.
+        WeightTrackerPreparation.adoptPlanGoal(next, goals: CoachGoalStore.shared)
+        plan = WeightTrackerPreparation.planWithGoalWeight(next, goals: CoachGoalStore.shared)
         planWeek = nil
         resolvePlan()
     }
@@ -227,11 +262,16 @@ final class ForgeFoodModel {
         guard var current = plan, let planResult else { return }
         let today = Repository.localDayKey(.now)
         guard current.lastAdjustedDay != today else { return }
-        let weights = await repo.weightDailyValues(days: 21).map { (day: $0.day, kg: $0.value) }
+        // A day with a water-marked weigh-in is left out, as the scale's burn leaves it out (Q31).
+        let marked = await WeightSeries.waterMarkedDays(store: store, from: Repository.localDayKey(
+            Calendar.current.date(byAdding: .day, value: -21, to: .now) ?? .now), to: today)
+        let weights = await repo.weightDailyValues(days: 21).filter { !marked.contains($0.day) }
+            .map { (day: $0.day, kg: $0.value) }
         guard let weekStart = Calendar.current.date(byAdding: .day, value: -6, to: .now) else { return }
         let logged = Set(((try? await store.foodLogEntries(from: Repository.localDayKey(weekStart), to: today)) ?? []).map(\.day)).count
         let outcome = DietAdjust.weekly(plan: current, result: planResult, weighIns: weights, loggedDays: logged,
-                                        today: today, kcalPerKg: kcalPerKg ?? DietTargets.defaultKcalPerKg, phase: phase(for: today))
+                                        today: today, kcalPerKg: kcalPerKg ?? DietTargets.defaultKcalPerKg, phase: phase(for: today),
+                                        scaleCorrectionActive: EnergyPlanStore.scaleCorrection.status == .active)
         planWeek = outcome
         planWeekApplied = false
         guard outcome.hold == nil else { return }
@@ -296,7 +336,8 @@ final class ForgeFoodModel {
                             age: profile.age > 0 ? Int(profile.age) : nil,
                             male: profile.sex.lowercased() == "male" ? true : profile.sex.lowercased() == "female" ? false : nil)
         strapBurnKcal = energy.burn.measuredMeanKcal ?? energy.burn.allDaysMeanKcal ?? energy.formulaTdee(profile: profile)
-        kcalPerKg = energy.observedKcalPerKg
+        adoptBurnModel()
+        kcalPerKg = energy.energyDensityKcalPerKg
         burnedByDay = energy.burnedByDay
         await loadBody(repo: repo)
         await loadTracker(repo: repo, store: store)

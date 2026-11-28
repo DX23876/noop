@@ -445,6 +445,10 @@ public enum CoreCall {
         case "provider.accept":
             return ok((try? await CoreExerciseProvider.shared.accept(store: store, requested: string("token"),
                 ids: args["ids"] as? [String] ?? [])) ?? false)
+        case "weight.snapshot", "weight.saveSettings", "weight.saveEvent", "weight.deleteEvent", "weight.adoptPlanGoal",
+             "weight.nextReminder", "weight.weighedToday", "weight.linkedPlan",
+             "weight.updateWeight":
+            return await CoreWeight.run(op, args, store: store, reader: reader) ?? #"{"error":"unknown"}"#
         case "goals.snapshot", "goals.setup":
             let settings = CoreGoalEnergy.settings(args)
             do {
@@ -554,12 +558,33 @@ public enum CoreCall {
         case "body.logWeight":
             guard let kg = (args["kg"] as? NSNumber)?.doubleValue else { return #"{"error":"invalid"}"# }
             let epoch = (args["takenAt"] as? NSNumber)?.doubleValue ?? Date().timeIntervalSince1970
-            return ok(await CoreBody.logWeight(store: store, kg: kg, at: Date(timeIntervalSince1970: epoch), note: args["note"] as? String))
+            return ok(await CoreBody.logWeight(store: store, kg: kg, at: Date(timeIntervalSince1970: epoch), note: args["note"] as? String,
+                                               waterMark: (args["waterMark"] as? String).flatMap(BodyWeightRow.WaterMark.init(rawValue:))))
         case "health.planExports": return await CoreHealthExport.plan(store: store, args: args)
         case "health.commitExports": return await CoreHealthExport.commit(store: store, args: args)
         case "health.invalidateExports": return await CoreHealthExport.invalidate(store: store, args: args)
         case "body.deleteWeight":
             return ok(await CoreBody.deleteWeight(store: store, id: string("id")))
+        case "energy.scale":
+            // The scale's look at the strap (`ScaleCorrectionUpdate`): the evaluated state to store, and what to show.
+            let settings = CoreGoalEnergy.settings(args)
+            guard let result = await CoreEnergyPlan.scale(reader: reader, settings: settings,
+                                                          plan: DietPlan.decode(string("plan"))) else { return "null" }
+            let snapshot = (try? JSONEncoder().encode(result.snapshot)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+            return #"{"state":"# + CoreRead.json(result.state.encodedJSON()) + #","snapshot":"# + snapshot + "}"
+        case "energy.scaleAction":
+            // The wearer's answer to the scale: accept, decline, off or on (`BurnCorrection`).
+            let state = BurnCorrection.decode(string("state"))
+            let today = StoreReader.localDayKey(Date())
+            let next: BurnCorrection
+            switch string("action") {
+            case "accept": next = state.accepted(today: today)
+            case "decline": next = state.declined(today: today)
+            case "off": next = state.turnedOff()
+            case "on": next = state.turnedOn()
+            default: return #"{"error":"invalid"}"#
+            }
+            return CoreRead.json(["state": next.encodedJSON()])
         case "energy.plan":
             let settings = CoreGoalEnergy.settings(args)
             return CoreRead.json(await CoreEnergyPlan.plan(reader: reader, settings: settings,
@@ -704,6 +729,17 @@ public enum CoreCall {
         case "energy.detail":
             return CoreRead.json(await CoreEnergyDetail.read(reader: reader, settings: CoreGoalEnergy.settings(args),
                                                              day: string("day"), comparison: string("comparison")))
+        case "energy.measuredBasal":
+            // iOS `EnergyPlanModel.measuredRate`: a measured resting rate for the body on its day, kept as its ratio
+            // to Mifflin–St Jeor (`MeasuredRestingRate`), with whether it is within 40 % of the equation.
+            guard let kcal = (args["kcalPerDay"] as? NSNumber)?.doubleValue,
+                  let weight = (args["weightKg"] as? NSNumber)?.doubleValue,
+                  let height = (args["heightCm"] as? NSNumber)?.doubleValue,
+                  let age = (args["age"] as? NSNumber)?.doubleValue,
+                  let rate = MeasuredRestingRate.make(kcalPerDay: kcal, day: string("day"), weightKg: weight,
+                                                      heightCm: height, age: age, sex: string("sex"))
+            else { return #"{"error":"invalid"}"# }
+            return CoreRead.json(["rate": rate.encodedJSON(), "plausible": rate.isPlausible ? "true" : "false"])
         case "energy.switchFormula":
             // Append-only, as `EnergyPlanStore.switchFormula` does on Apple: the switch applies from today.
             guard let formula = BasalFormula(rawValue: string("formula")) else { return #"{"error":"invalid"}"# }

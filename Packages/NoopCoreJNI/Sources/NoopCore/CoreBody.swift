@@ -85,17 +85,19 @@ enum CoreBody {
     }
 
     /// A weigh-in on NOOP's own weight lane, as Apple's `logWeight` writes it; the store re-projects the day.
-    static func logWeight(store: WhoopStore, kg: Double, at: Date, note: String?) async -> Bool {
-        await weighIn(store: store, kg: kg, at: at, note: note, source: "manual") != nil
+    static func logWeight(store: WhoopStore, kg: Double, at: Date, note: String?,
+                          waterMark: BodyWeightRow.WaterMark? = nil) async -> Bool {
+        await weighIn(store: store, kg: kg, at: at, note: note, source: "manual", waterMark: waterMark) != nil
     }
 
     /// The stored row of a weigh-in on NOOP's own weight lane, or nil when it was not written. `source` is the row's
     /// token (`WeightSource.storageToken` for the coach's).
-    static func weighIn(store: WhoopStore, kg: Double, at: Date, note: String?, source: String) async -> BodyWeightRow? {
+    static func weighIn(store: WhoopStore, kg: Double, at: Date, note: String?, source: String,
+                        waterMark: BodyWeightRow.WaterMark? = nil) async -> BodyWeightRow? {
         guard kg > 0, kg.isFinite else { return nil }
         let row = BodyWeightRow(id: UUID().uuidString, deviceId: WhoopStore.noopWeightSourceId,
                                 day: StoreReader.localDayKey(at), takenAt: Int(at.timeIntervalSince1970), weightKg: kg,
-                                source: source, note: note?.isEmpty == true ? nil : note)
+                                source: source, note: note?.isEmpty == true ? nil : note, waterMark: waterMark)
         return (try? await store.upsertBodyWeights([row])) != nil ? row : nil
     }
 

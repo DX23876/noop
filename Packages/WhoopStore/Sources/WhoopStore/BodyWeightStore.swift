@@ -44,6 +44,13 @@ public struct BodyWeightRow: Equatable, Codable, Sendable {
     public var weightKg: Double
     public var source: String
     public var note: String?
+    /// Something that moves the body's water rather than its tissue (owner decision 2026-11-27, Q23): the scale's
+    /// burn leaves the weigh-in out, and "creatine started" holds its correction four weeks.
+    public var waterMark: WaterMark?
+
+    public enum WaterMark: String, Equatable, Sendable, Codable, CaseIterable {
+        case creatineStarted, creatineStopped, period, saltyOrParty, newMedicine
+    }
 
     public init(
         id: String,
@@ -52,8 +59,10 @@ public struct BodyWeightRow: Equatable, Codable, Sendable {
         takenAt: Int,
         weightKg: Double,
         source: String,
-        note: String? = nil
+        note: String? = nil,
+        waterMark: WaterMark? = nil
     ) {
+        self.waterMark = waterMark
         self.id = id
         self.deviceId = deviceId
         self.day = day
@@ -72,7 +81,8 @@ public struct BodyWeightRow: Equatable, Codable, Sendable {
             takenAt: row["takenAt"],
             weightKg: row["weightKg"],
             source: row["source"],
-            note: row["note"]
+            note: row["note"],
+            waterMark: (row["waterMark"] as String?).flatMap(WaterMark.init(rawValue:))
         )
     }
 }
@@ -112,13 +122,15 @@ extension WhoopStore {
                 // the caller minted a fresh id.
                 try db.execute(sql: """
                     INSERT INTO bodyWeightEntry
-                        (id, deviceId, day, takenAt, weightKg, source, note)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                        (id, deviceId, day, takenAt, weightKg, source, note, waterMark)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     ON CONFLICT(deviceId, takenAt, source) DO UPDATE SET
                         day = excluded.day,
                         weightKg = excluded.weightKg,
-                        note = excluded.note
-                    """, arguments: [r.id, r.deviceId, r.day, r.takenAt, r.weightKg, r.source, r.note])
+                        note = excluded.note,
+                        waterMark = excluded.waterMark
+                    """, arguments: [r.id, r.deviceId, r.day, r.takenAt, r.weightKg, r.source, r.note,
+                                      r.waterMark?.rawValue])
                 written += db.changesCount
                 touched.insert(DayCell(deviceId: r.deviceId, day: r.day))
             }

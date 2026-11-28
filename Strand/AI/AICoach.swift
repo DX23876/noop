@@ -2275,8 +2275,21 @@ final class AICoachEngine: ObservableObject {
         var lines = ["ENERGY (today, \(summary.day)):"]
         lines.append("BMR_ESTIMATE_24H: \(kcal(summary.estimatedBMR24h)) (modelled from profile, whole day)")
         lines.append("BASAL_SO_FAR: \(kcal(summary.basalBurnedSoFar))")
+        if let everyday = summary.everydayBurnedSoFar {
+            lines.append("EVERYDAY_SO_FAR: \(kcal(everyday)) (awake still time above lying basal: sitting, standing, small things, plus digestion; part of the total, not activity)")
+        }
+        if let digestion = summary.digestionBurnedSoFar {
+            lines.append("DIGESTION_SO_FAR: \(kcal(digestion)) (inside EVERYDAY_SO_FAR; \(summary.digestionFromLog ? "from the food the user logged, day marked complete" : "standard tenth of the day, the day was not marked as fully logged"))")
+        }
         lines.append("ACTIVE_SO_FAR: \(kcal(summary.activeBurnedSoFar))")
         lines.append("TOTAL_SO_FAR: \(kcal(summary.totalBurnedSoFar))")
+        if let range = summary.projectedRangeKcal {
+            lines.append("LIKELY_BY_TONIGHT: \(kcal(range.lowerBound)) to \(kcal(range.upperBound)) (the forecast's honest width; say a range, not one figure)")
+        }
+        if let factor = summary.scaleCorrectionFactor {
+            // The same corrected figure the Energy page shows (owner decision 2026-11-27, Q18).
+            lines.append("SCALE_CORRECTION: x\(String(format: "%.2f", factor)) (the user agreed to adjust the strap to their scale; TOTAL_SO_FAR includes it; before it: \(kcal(summary.totalBeforeScaleKcal)))")
+        }
         if let raw = summary.rawWhoopTotalKcal {
             lines.append("RAW_WHOOP_MODEL: \(kcal(raw)) before calibration and missing-basal top-up")
         }

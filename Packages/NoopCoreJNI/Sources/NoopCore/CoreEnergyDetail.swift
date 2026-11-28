@@ -32,10 +32,18 @@ enum CoreEnergyDetail {
     struct Summary: Encodable {
         var day: String
         var total: Double?, active: Double?, basal: Double?, bmr24h: Double?
+        /// Everyday burn (awake still time above lying basal), a strap day only; inside `total`, not `active`.
+        var everyday: Double?
         var projectedLow: Double?, projectedHigh: Double?, projected: Double?
         var source: String, sourceLabel: String
         var confidence: String, confidenceLabel: String
         var compactLine: String?
+        /// The part of `everyday` digestion cost (`Digestion`), and whether it came from a fully logged day's food.
+        var digestion: Double?
+        var digestionFromLog: Bool = false
+        /// A finished day's likely range (`EnergyRange.likely`), narrowed once the scale corrects the strap.
+        var likelyLow: Double?, likelyHigh: Double?
+        var likelyByScale: Bool = false
     }
     struct Point: Encodable { var start: Double, duration: Double, kcalPerMinute: Double }
     struct Band: Encodable { var start: Double, end: Double, sport: String }
@@ -98,10 +106,21 @@ enum CoreEnergyDetail {
     }
 
     static func summary(_ s: DailyEnergySummary) -> Summary {
+        var out = plainSummary(s)
+        // The engine's own today (a forecast status only today carries), not a second reading of the clock.
+        let likely = EnergyRange.likely(s, isToday: s.forecastStatus != .unavailable)
+        out.likelyLow = likely?.low
+        out.likelyHigh = likely?.high
+        out.likelyByScale = likely?.narrowedByScale ?? false
+        return out
+    }
+
+    private static func plainSummary(_ s: DailyEnergySummary) -> Summary {
         Summary(day: s.day, total: s.totalBurnedSoFar, active: s.activeBurnedSoFar, basal: s.basalBurnedSoFar,
-                bmr24h: s.estimatedBMR24h, projectedLow: s.projectedRangeKcal?.lowerBound,
+                bmr24h: s.estimatedBMR24h, everyday: s.everydayBurnedSoFar, projectedLow: s.projectedRangeKcal?.lowerBound,
                 projectedHigh: s.projectedRangeKcal?.upperBound, projected: s.projectedTotalBurn, source: s.source.rawValue, sourceLabel: sourceLabel(s.source),
-                confidence: "\(s.confidence)", confidenceLabel: confidenceLabel(s.confidence), compactLine: compactLine(s))
+                confidence: "\(s.confidence)", confidenceLabel: confidenceLabel(s.confidence), compactLine: compactLine(s),
+                digestion: s.digestionBurnedSoFar, digestionFromLog: s.digestionFromLog)
     }
 
     /// `EnergyProvenance.sourceLabel`.

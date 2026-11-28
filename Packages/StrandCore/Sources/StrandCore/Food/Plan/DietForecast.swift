@@ -67,11 +67,14 @@ public enum DietForecast {
 
 /// Forge's weekly look at the plan (decision 2026-11-09): it compares the pace the plan set with what the smoothed
 /// weight trend really did and moves the calories by at most 150 kcal. It holds still, and says why, when the week
-/// cannot be trusted: too few logged days, too few weigh-ins, the first two weeks of a plan (water weight), or a
-/// week since the last change has not passed.
+/// cannot be trusted: too few logged days, too few weigh-ins, the first two weeks of a plan (water weight), the
+/// first two weeks after the strap's energy model changed under the plan (`DietBurnModelChange`), or a week
+/// since the last change has not passed.
 public enum DietAdjust {
     public enum Hold: String, Sendable, Codable {
-        case manualSteering, tooEarly, notAWeekYet, fewLoggedDays, fewWeighIns, onPlan, dietBreak
+        case manualSteering, tooEarly, notAWeekYet, fewLoggedDays, fewWeighIns, onPlan, dietBreak, burnModelChanged
+        /// The burn itself follows the scale (`BurnCorrection`), so the plan does not adjust on top of it (Q31).
+        case scaleCorrection
     }
 
     public struct Outcome: Equatable, Sendable, Codable {
@@ -90,14 +93,17 @@ public enum DietAdjust {
     /// `weighIns` are (day, kg) of the last 21 days; `loggedDays` counts days with a food log in the last 7.
     public static func weekly(plan: DietPlan, result: DietTargets.Result, weighIns: [(day: String, kg: Double)],
                               loggedDays: Int, today: String, kcalPerKg: Double = DietTargets.defaultKcalPerKg,
-                              phase: DietProgram.Phase = .main) -> Outcome {
+                              phase: DietProgram.Phase = .main, scaleCorrectionActive: Bool = false) -> Outcome {
         let planned = result.paceKgPerWeek
         func hold(_ h: Hold, trend: Double? = nil) -> Outcome {
             Outcome(changeKcal: 0, hold: h, trendKgPerWeek: trend, plannedKgPerWeek: planned)
         }
         guard plan.steering != .manual else { return hold(.manualSteering) }
+        guard !scaleCorrectionActive else { return hold(.scaleCorrection) }
         // A break week eats the burn on purpose; judging its trend against the deficit would cut calories wrongly.
         guard phase != .dietBreak else { return hold(.dietBreak) }
+        // The goal just moved with a new burn model; the weeks before it say nothing about the new goal.
+        guard !DietBurnModelChange.holds(plan, today: today) else { return hold(.burnModelChanged) }
         guard let todayDate = WeightSeries.date(forDay: today), let start = WeightSeries.date(forDay: plan.startDay),
               todayDate.timeIntervalSince(start) >= 14 * 86_400 else { return hold(.tooEarly) }
         if let last = plan.lastAdjustedDay.flatMap(WeightSeries.date(forDay:)), todayDate.timeIntervalSince(last) < 7 * 86_400 {

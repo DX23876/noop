@@ -101,6 +101,19 @@ public struct DailyEnergySummary: Equatable, Sendable {
     public let basalBurnedSoFar: Double?
     /// Energy above resting that a wearable recorded. Nil without one.
     public let activeBurnedSoFar: Double?
+    /// What awake still time cost above lying basal (`WhoopEnergyModel.awakeStillFactor`): sitting, standing
+    /// and small things, and what digesting the day's food cost (`digestionBurnedSoFar`, inside this share).
+    /// A strap day only; nil on an Apple day, whose own model has no such share to show.
+    /// Inside `totalBurnedSoFar`, never inside `activeBurnedSoFar`.
+    public let everydayBurnedSoFar: Double?
+    /// The part of `everydayBurnedSoFar` that digestion cost (`Digestion`), and whether it came from a completely
+    /// logged day's own food rather than the standard tenth. Nil where the everyday share is.
+    public let digestionBurnedSoFar: Double?
+    public let digestionFromLog: Bool
+    /// The scale's correction this day is shown with (`BurnCorrection`), and the total before it, which the
+    /// scale is compared with so the correction never feeds on itself. Nil without a correction.
+    public let scaleCorrectionFactor: Double?
+    public let totalBeforeScaleKcal: Double?
     /// How much of `activeBurnedSoFar` came from logged sessions, and whether any of it was modelled
     /// rather than recorded. Nil when no session contributed — which is every measured day, since a
     /// measured day's sessions are already inside the measurement.
@@ -146,11 +159,19 @@ public struct DailyEnergySummary: Equatable, Sendable {
                 appliedCalibrationFactor: Double? = nil, source: EnergySource,
                 coverage: EnergyCoverage, confidence: ScoreConfidence,
                 calibrationStatus: EnergyCalibrationStatus = .off,
-                forecastStatus: EnergyForecastStatus = .unavailable) {
+                forecastStatus: EnergyForecastStatus = .unavailable,
+                everydayBurnedSoFar: Double? = nil, scaleCorrectionFactor: Double? = nil,
+                totalBeforeScaleKcal: Double? = nil, digestionBurnedSoFar: Double? = nil,
+                digestionFromLog: Bool = false) {
+        self.digestionBurnedSoFar = digestionBurnedSoFar
+        self.digestionFromLog = digestionFromLog
+        self.scaleCorrectionFactor = scaleCorrectionFactor
+        self.totalBeforeScaleKcal = totalBeforeScaleKcal
         self.day = day
         self.estimatedBMR24h = estimatedBMR24h
         self.basalBurnedSoFar = basalBurnedSoFar
         self.activeBurnedSoFar = activeBurnedSoFar
+        self.everydayBurnedSoFar = everydayBurnedSoFar
         self.loggedActivityKcal = loggedActivityKcal
         self.loggedActivityIsEstimated = loggedActivityIsEstimated
         self.totalBurnedSoFar = totalBurnedSoFar
@@ -293,6 +314,19 @@ public enum EnergyEngine {
         /// the active energy when the basal taken out is the basal the buckets were priced with, and a
         /// basal-formula change — or a day older than the model's recompute window — breaks that.
         public let strapActiveKcal: Double?
+        /// The strap model's everyday allowance for the day (`WhoopDailyEnergyRow.everydayKcal`): awake still
+        /// time above lying basal, for its buckets and for unrepresented awake time. Never calibrated.
+        public let strapEverydayKcal: Double?
+        /// Today only: the allowance the rest of the day is still expected to add, from the awake time left
+        /// outside the usual sleep window. Feeds the forecast, never the burn so far.
+        public let strapEverydayRemainingKcal: Double?
+        /// The scale's correction for this strap day (`BurnCorrection.factor(on:)`), and whether it covers basal
+        /// (no measured resting rate). Applied after the Watch calibration; never to an Apple day.
+        public let scaleCorrectionFactor: Double?
+        public let scaleCorrectionCoversBasal: Bool
+        /// What digesting the day's food cost (`Digestion.kcal`), only for a day marked as completely logged.
+        /// Nil takes the standard tenth of the day.
+        public let loggedDigestionKcal: Double?
         /// Optional, user-enabled Apple Watch reference calibration. Values outside the deliberately
         /// narrow 0.8...1.2 range are ignored, and the factor is never applied to Apple-only days.
         public let strapCalibrationFactor: Double?
@@ -319,6 +353,10 @@ public enum EnergyEngine {
                     appleCoverageSeconds: Int? = nil,
                     strapTotalKcal: Double? = nil, strapCoverageSeconds: Int? = nil,
                     strapActiveKcal: Double? = nil,
+                    strapEverydayKcal: Double? = nil,
+                    strapEverydayRemainingKcal: Double? = nil,
+                    scaleCorrectionFactor: Double? = nil, scaleCorrectionCoversBasal: Bool = true,
+                    loggedDigestionKcal: Double? = nil,
                     strapCalibrationFactor: Double? = nil,
                     strapUncertaintyFraction: Double? = nil,
                     calibrationStatus: EnergyCalibrationStatus = .off,
@@ -334,6 +372,11 @@ public enum EnergyEngine {
             self.strapTotalKcal = strapTotalKcal
             self.strapCoverageSeconds = strapCoverageSeconds
             self.strapActiveKcal = strapActiveKcal
+            self.strapEverydayKcal = strapEverydayKcal
+            self.strapEverydayRemainingKcal = strapEverydayRemainingKcal
+            self.scaleCorrectionFactor = scaleCorrectionFactor
+            self.scaleCorrectionCoversBasal = scaleCorrectionCoversBasal
+            self.loggedDigestionKcal = loggedDigestionKcal
             self.strapCalibrationFactor = strapCalibrationFactor
             self.strapUncertaintyFraction = strapUncertaintyFraction
             self.calibrationStatus = calibrationStatus
@@ -388,8 +431,10 @@ public enum EnergyEngine {
         // The adaptive food/weight estimate remains a separate retrospective comparison. It must not
         // silently rewrite today's wearable forecast.
         _ = adaptivePriorKcal
-        let projected = projectedBurn(result: result, bmr24h: bmr24h,
-                                      context: context, shape: shape)
+        let projected = projectedBurn(result: result, bmr24h: bmr24h, context: context, shape: shape,
+                                      everydayRemaining: result.everyday == nil
+                                          ? 0 : clean.strapEverydayRemainingKcal ?? 0,
+                                      coversBasal: clean.scaleCorrectionCoversBasal)
         let uncertainty = clean.strapTotalKcal == nil ? nil : clean.strapUncertaintyFraction
 
         return DailyEnergySummary(
@@ -413,7 +458,12 @@ public enum EnergyEngine {
             coverage: coverage,
             confidence: confidence(source: result.source, coverage: coverage),
             calibrationStatus: clean.calibrationStatus,
-            forecastStatus: context.isToday ? (shape == nil ? .learning : .available) : .unavailable
+            forecastStatus: context.isToday ? (shape == nil ? .learning : .available) : .unavailable,
+            everydayBurnedSoFar: result.everyday,
+            scaleCorrectionFactor: result.scaleFactor,
+            totalBeforeScaleKcal: result.totalBeforeScale,
+            digestionBurnedSoFar: result.digestion,
+            digestionFromLog: result.digestionFromLog
         )
     }
 
@@ -427,6 +477,13 @@ public enum EnergyEngine {
     private struct BurnResult {
         let basal: Double?
         let active: Double?
+        var everyday: Double?
+        var digestion: Double?
+        var digestionFromLog = false
+        /// The digestion share the rest of today is still expected to bring (zero on a logged day).
+        var digestionShareRemaining = 0.0
+        var scaleFactor: Double?
+        var totalBeforeScale: Double?
         let total: Double?
         let source: EnergySource
         let appliedCalibrationFactor: Double?
@@ -479,12 +536,37 @@ public enum EnergyEngine {
             // so applying it to `strap` — which still contains WHOOP's own basal estimate for the
             // observed window — would scale a metabolic constant by a factor that was never fitted
             // against it. `rawActive` isolates the part the fit actually describes.
-            let rawActive = inputs.strapActiveKcal ?? max(0, strap - observedBasal)
-            let active = rawActive * (factor ?? 1)
-            let basalElapsedValue = bmr24h * elapsed
-            return BurnResult(basal: basalElapsedValue, active: active,
-                              total: basalElapsedValue + active, source: .strapWornTime,
-                              appliedCalibrationFactor: factor, rawWhoopTotalKcal: strap)
+            // The everyday allowance is its own share: inside `strap` for the buckets, plus the awake time
+            // the buckets did not represent. It is never calibrated — the Watch counts sitting as hardly
+            // active, so a factor fitted on active energy says nothing about it.
+            var everyday = inputs.strapEverydayKcal ?? 0
+            let rawActive = inputs.strapActiveKcal ?? max(0, strap - observedBasal - everyday)
+            var active = rawActive * (factor ?? 1)
+            var basalElapsedValue = bmr24h * elapsed
+            // Digestion (`Digestion`): a logged day's own food, else a tenth of the day. It joins the everyday share.
+            var digestion = inputs.loggedDigestionKcal
+                ?? (basalElapsedValue + everyday + active) * Digestion.standardShareOfRest
+            everyday += digestion
+            // The scale's correction (`BurnCorrection`): the whole day without a measured resting rate, everything
+            // but basal with one. The total before it is kept for the scale to compare against.
+            let before = basalElapsedValue + everyday + active
+            let scale = inputs.scaleCorrectionFactor
+            if let scale {
+                if inputs.scaleCorrectionCoversBasal { basalElapsedValue *= scale }
+                everyday *= scale
+                digestion *= scale
+                active *= scale
+            }
+            var result = BurnResult(basal: basalElapsedValue, active: active,
+                                    total: basalElapsedValue + everyday + active, source: .strapWornTime,
+                                    appliedCalibrationFactor: factor, rawWhoopTotalKcal: strap)
+            result.everyday = everyday
+            result.digestion = digestion
+            result.digestionFromLog = inputs.loggedDigestionKcal != nil
+            result.digestionShareRemaining = inputs.loggedDigestionKcal == nil ? Digestion.standardShareOfRest : 0
+            result.scaleFactor = scale
+            result.totalBeforeScale = scale == nil ? nil : before
+            return result
         }
 
         // 2. Apple-only day. Both halves measured, nothing modelled. This path remains available for
@@ -645,7 +727,8 @@ public enum EnergyEngine {
     /// Nil when nothing has been measured or the day has barely started (before ~10% elapsed the rate
     /// is too noisy to extrapolate from, and a wild morning figure reads as a malfunction).
     private static func projectedBurn(result: BurnResult, bmr24h: Double?,
-                                      context: DayContext, shape: ActivityShape?) -> Double? {
+                                      context: DayContext, shape: ActivityShape?,
+                                      everydayRemaining: Double = 0, coversBasal: Bool = true) -> Double? {
         guard context.isToday, let total = result.total, total > 0 else { return nil }
         let elapsed = context.elapsedFraction
         guard elapsed >= 0.10 else { return nil }
@@ -661,7 +744,12 @@ public enum EnergyEngine {
         if elapsed >= 0.25, expectedDaily > 0, expected.toNow >= expectedDaily * 0.20 {
             adjustment = min(1.5, max(0.5, active / max(1, expected.toNow)))
         }
-        return total + bmr24h * (1 - elapsed) + expected.remaining * adjustment
+        // The rest of the day as the part so far was priced: digestion on top of it, the scale's correction over it.
+        let basalLeft = bmr24h * (1 - elapsed)
+        let otherLeft = max(0, everydayRemaining) + expected.remaining * adjustment
+        let digestionLeft = (basalLeft + otherLeft) * result.digestionShareRemaining
+        let scale = result.scaleFactor ?? 1
+        return total + basalLeft * (coversBasal ? scale : 1) + (otherLeft + digestionLeft) * scale
     }
 
     /// The forecast as an interval rather than a point.
@@ -752,6 +840,15 @@ public enum EnergyEngine {
                          strapTotalKcal: strapKcal(inputs.strapTotalKcal),
                          strapCoverageSeconds: covered,
                          strapActiveKcal: kcal(inputs.strapActiveKcal),
+                         strapEverydayKcal: kcal(inputs.strapEverydayKcal),
+                         strapEverydayRemainingKcal: kcal(inputs.strapEverydayRemainingKcal),
+                         scaleCorrectionFactor: inputs.scaleCorrectionFactor.flatMap {
+                             $0.isFinite && (0.5...1.5).contains($0) ? $0 : nil
+                         },
+                         scaleCorrectionCoversBasal: inputs.scaleCorrectionCoversBasal,
+                         loggedDigestionKcal: inputs.loggedDigestionKcal.flatMap {
+                             $0.isFinite && (0...3_000).contains($0) ? $0 : nil
+                         },
                          strapCalibrationFactor: factor,
                          strapUncertaintyFraction: uncertainty,
                          calibrationStatus: calibrationStatus,

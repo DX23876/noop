@@ -425,7 +425,8 @@ class FoodReminderWorker(context: Context, parameters: WorkerParameters) : Corou
             // The look back runs on the day after, so it reads "yesterday" as the core's today.
             val yesterday = today.minusDays(1).toString()
             val recap = CoreFoodNotes.recap(yesterday, profile.sex, profile.age, profile.weightKg, profile.heightCm, plan?.form,
-                                            goals?.kcal, goals?.proteinG) ?: return
+                                            goals?.kcal, goals?.proteinG, com.noop.core.CoreEnergyPlan.formulaLog(context),
+                                            com.noop.core.CoreEnergyPlan.measuredBasal(context)) ?: return
             val score = recap.score ?: return
             title = when (recap.kind) {
                 "week" -> l.getString(R.string.food_recap_week_title, noteText(score))

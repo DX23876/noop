@@ -158,6 +158,9 @@ struct NOOPEnergyWidgetView: View {
     private var composition: some View {
         VStack(alignment: .leading, spacing: 4) {
             stat("Active", energy?.activeKcal)
+            if let everyday = energy?.everydayKcal, everyday > 0 {
+                stat("Everyday", everyday, approximate: true)
+            }
             stat("Basal", energy?.basalKcal,
                  approximate: energy?.source != "appleSplit")
         }

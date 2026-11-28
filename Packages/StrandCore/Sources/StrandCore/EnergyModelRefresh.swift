@@ -133,6 +133,10 @@ public enum EnergyModelRefresh {
         }
         let maximumHR = profile.maxHR ?? MaxHeartRate.resolve(override: nil, age: profile.age).bpm
         let sleepIntervals = await sleepIntervals(reader: reader, from: from, to: to)
+        // The nights each day's usual sleep window is resolved from: the window's own lookback before the
+        // refresh window, so the first day of it reads as many nights as the last.
+        let windowNights = await self.sleepIntervals(
+            reader: reader, from: from - (UsualSleepWindow.nightsConsidered + 2) * 86_400, to: to)
         let offWristIntervals = await offWristIntervals(reader: reader, from: from, to: to)
         let workoutIntervals = await workoutIntervals(reader: reader, from: from, to: to,
                                                       dismissedDetectedSpans: given.dismissedDetectedSpans)
@@ -176,6 +180,10 @@ public enum EnergyModelRefresh {
             let weightSource: WhoopDailyEnergyRow.WeightSource
             let inputs: [WhoopEnergyBucket]
             let restingHR: Double?
+            /// The usual sleep window the day was priced against, and the day's awake seconds no bucket
+            /// represented (outside detected sleep and that window), which take the everyday allowance too.
+            let sleepWindow: UsualSleepWindow
+            let unrepresentedAwakeSeconds: Int
         }
         var prepared: [PreparedDay] = []
         var evidence: [DailyActivityEvidence] = []
@@ -219,6 +227,8 @@ public enum EnergyModelRefresh {
             // unique key, which rolled back every multi-day refresh.
             let bucketStarts = Set(hrByStart.keys).union(movement.keys)
                 .filter { $0 >= dayFrom && $0 < dayTo }.sorted()
+            // Nights that ended by the day's end: the day's own morning counts, its evening does not.
+            let sleepWindow = UsualSleepWindow.resolve(nights: windowNights, endingBy: dayTo, calendar: calendar)
             let inputs = bucketStarts.compactMap { start -> WhoopEnergyBucket? in
                 let wallSeconds = min(300, dayTo - start)
                 guard wallSeconds > 0 else { return nil }
@@ -237,9 +247,13 @@ public enum EnergyModelRefresh {
                     isSleep: Self.contains(midpoint, in: sleepIntervals),
                     isOffWrist: Self.contains(midpoint, in: offWristIntervals),
                     hasMovementCoverage: move?.covered == true,
-                    movementSeconds: move?.movementSeconds ?? 0)
+                    movementSeconds: move?.movementSeconds ?? 0,
+                    inUsualSleepWindow: sleepWindow.contains(midpoint, calendar: calendar))
             }
             for input in inputs { bucketInputs[input.start] = input }
+            let unrepresentedAwake = Self.unrepresentedAwakeSeconds(
+                from: dayFrom, to: dayTo, represented: Set(inputs.map(\.start)),
+                sleep: sleepIntervals, window: sleepWindow, calendar: calendar)
             let priorResting = given.dailyRows.filter { $0.day < day }.compactMap(\.restingHr)
                 .suffix(14).map(Double.init).sorted()
             let restingHR = priorResting.isEmpty ? nil : priorResting[priorResting.count / 2]
@@ -249,7 +263,8 @@ public enum EnergyModelRefresh {
             evidence.append(DailyActivityEvidence(day: day, aerobicSeconds: unpriced.aerobicSeconds,
                                                   hadLightActivity: unpriced.hadLightActivity))
             prepared.append(PreparedDay(day: day, profile: dayProfile, weightSource: weightSource,
-                                        inputs: inputs, restingHR: restingHR))
+                                        inputs: inputs, restingHR: restingHR, sleepWindow: sleepWindow,
+                                        unrepresentedAwakeSeconds: unrepresentedAwake))
         }
 
         // Evidence for the four weeks before the window, from this generation's stored days; older
@@ -316,16 +331,21 @@ public enum EnergyModelRefresh {
                 aerobicSeconds: estimate.aerobicSeconds, hadLightActivity: estimate.hadLightActivity,
                 peakMET: ceiling?.peakMET, peakMETSource: ceiling?.source.rawValue,
                 peakMETSourceDay: ceiling?.sourceDay, measuredVO2max: ceiling?.measuredVO2max,
-                measuredWeightKg: ceiling?.measuredWeightKg, activityLevel: ceiling?.activityLevel?.rawValue)
+                measuredWeightKg: ceiling?.measuredWeightKg, activityLevel: ceiling?.activityLevel?.rawValue,
+                // Seconds, priced when the day is shown, at the basal rate it is shown with.
+                everydaySeconds: estimate.everydaySeconds + entry.unrepresentedAwakeSeconds,
+                sleepWindowStartMinute: entry.sleepWindow.startMinute,
+                sleepWindowEndMinute: entry.sleepWindow.endMinute)
             let storedBuckets = estimate.buckets.compactMap { bucket -> WhoopEnergyBucketRow? in
                 guard let input = bucketInputs[bucket.start] else { return nil }
                 return .init(day: day, bucketStart: bucket.start,
                              durationSeconds: input.durationSeconds,
-                             basalKcal: max(0, bucket.kcal - bucket.activeKcal),
+                             basalKcal: max(0, bucket.kcal - bucket.activeKcal - bucket.everydayKcal),
                              activeKcal: bucket.activeKcal,
                              context: bucket.context.rawValue,
                              evidence: bucket.evidence.rawValue,
-                             uncertaintyFraction: bucket.uncertaintyFraction)
+                             uncertaintyFraction: bucket.uncertaintyFraction,
+                             everydayKcal: bucket.everydayKcal)
             }
             pendingWindow.append(.init(daily: row, activeKcalByHour: activeByHour,
                                        buckets: storedBuckets))
@@ -562,6 +582,27 @@ public enum EnergyModelRefresh {
              onFoot: EnergyWorkoutKind.isOnFoot(sport: $0.sport),
              tableMET: ActivityMETCatalog.met(forSport: $0.sport))
         }
+    }
+
+    /// Wall-clock seconds of `[from, to)` that no bucket represents and that lie outside detected sleep and
+    /// the usual sleep window: awake time without data, such as the strap off for a shower or charging.
+    /// Walked in the model's five-minute slots, each judged at its midpoint as a bucket is.
+    static func unrepresentedAwakeSeconds(from: Int, to: Int, represented: Set<Int>,
+                                          sleep: [(start: Int, end: Int)], window: UsualSleepWindow,
+                                          calendar: Calendar) -> Int {
+        let slot = WhoopEnergyModel.defaultBucketSeconds
+        var seconds = 0
+        var start = from
+        while start < to {
+            let length = min(slot, to - start)
+            let midpoint = start + length / 2
+            if !represented.contains(start), !contains(midpoint, in: sleep),
+               !window.contains(midpoint, calendar: calendar) {
+                seconds += length
+            }
+            start += slot
+        }
+        return seconds
     }
 
     static func contains(_ timestamp: Int,

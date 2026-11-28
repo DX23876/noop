@@ -92,6 +92,13 @@ extension Repository {
     @discardableResult
     func logWeight(kg: Double, at: Date = Date(), note: String? = nil,
                    source: WeightSource = .manual) async -> BodyWeightRow? {
+        await logWeight(kg: kg, at: at, note: note, source: source, waterMark: nil)
+    }
+
+    /// The same with a water mark (Q23), from the weight page's sheet.
+    @discardableResult
+    func logWeight(kg: Double, at: Date, note: String?, source: WeightSource,
+                   waterMark: BodyWeightRow.WaterMark?) async -> BodyWeightRow? {
         guard kg > 0, let store = await storeHandle() else { return nil }
         let row = BodyWeightRow(id: UUID().uuidString,
                                 deviceId: WhoopStore.noopWeightSourceId,
@@ -99,7 +106,8 @@ extension Repository {
                                 takenAt: Int(at.timeIntervalSince1970),
                                 weightKg: kg,
                                 source: source.storageToken,
-                                note: note?.isEmpty == true ? nil : note)
+                                note: note?.isEmpty == true ? nil : note,
+                                waterMark: waterMark)
         guard (try? await store.upsertBodyWeights([row])) != nil else { return nil }
         await refresh()
         // The energy model resolves body mass per day from this series, so the stored days from this
@@ -139,7 +147,8 @@ extension Repository {
     /// day, so BOTH the old and the new day are re-projected — otherwise the old day keeps a value
     /// no measurement backs any more.
     @discardableResult
-    func updateWeight(id: String, kg: Double, at: Date, note: String?) async -> Bool {
+    func updateWeight(id: String, kg: Double, at: Date, note: String?,
+                      waterMark: BodyWeightRow.WaterMark? = nil) async -> Bool {
         guard kg > 0, let store = await storeHandle() else { return false }
         let existing = (try? await store.bodyWeights(deviceId: WhoopStore.noopWeightSourceId))?
             .first { $0.id == id }
@@ -153,7 +162,8 @@ extension Repository {
                                 takenAt: Int(at.timeIntervalSince1970),
                                 weightKg: kg,
                                 source: existing.source,
-                                note: note?.isEmpty == true ? nil : note)
+                                note: note?.isEmpty == true ? nil : note,
+                                waterMark: waterMark)
         guard (try? await store.upsertBodyWeights([row])) != nil else { return false }
         await refresh()
         scheduleEnergyRefresh(coveringStart: min(existing.takenAt, row.takenAt))

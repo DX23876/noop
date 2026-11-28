@@ -21,12 +21,21 @@ struct FormulaSwitchSheet: View {
     let onSwitched: () async -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @State private var measuredText = ""
+    @State private var measuredDay = Date()
+    @State private var confirmFar = false
+
+    private var measured: MeasuredRestingRate? {
+        let value = Double(measuredText.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: "."))
+        return value.flatMap { model.measuredRate(kcalPerDay: $0, on: Repository.localDayKey(measuredDay), profile: profile) }
+    }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: NoopMetrics.gap) {
-                    if let delta = model.switchDelta(to: target, profile: profile) {
+                    if target.needsMeasurement { measuredEntry }
+                    if !target.needsMeasurement, let delta = model.switchDelta(to: target, profile: profile) {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(delta >= 0
                                  ? String(localized: "Your basal rate rises by \(Int(delta.rounded())) kcal a day")
@@ -67,11 +76,61 @@ struct FormulaSwitchSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Change") {
-                        EnergyPlanStore.switchFormula(to: target, effectiveFrom: model.today)
-                        Task { await onSwitched(); dismiss() }
+                        if target.needsMeasurement, let measured, !measured.isPlausible {
+                            confirmFar = true
+                        } else {
+                            apply()
+                        }
                     }
+                    .disabled(target.needsMeasurement && measured == nil)
                 }
             }
+            .alert("Is this value right?", isPresented: $confirmFar) {
+                Button("Use it") { apply() }
+                Button("Check again", role: .cancel) {}
+            } message: {
+                Text("It is more than 40 % away from what the formula expects for your body. A typing mistake is likely, but a measurement can be this far off.")
+            }
+        }
+        .onAppear {
+            if let stored = EnergyPlanStore.measuredRate {
+                measuredText = String(Int(stored.kcalPerDay.rounded()))
+                measuredDay = WeightSeries.date(forDay: stored.day) ?? Date()
+            }
+        }
+    }
+
+    private func apply() {
+        if target.needsMeasurement {
+            guard let measured else { return }
+            EnergyPlanStore.measuredRate = measured
+        }
+        if target != model.currentFormula {
+            EnergyPlanStore.switchFormula(to: target, effectiveFrom: model.today)
+        }
+        Task { await onSwitched(); dismiss() }
+    }
+
+    /// The measured value and its day. Kept as its ratio to Mifflin–St Jeor for the body that day, so it
+    /// follows the weight afterwards, and applied to the whole history like every formula choice.
+    @ViewBuilder private var measuredEntry: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Your measured resting rate")
+                .font(StrandFont.headline).foregroundStyle(StrandPalette.textPrimary)
+            HStack {
+                Text("kcal a day").font(StrandFont.subhead).foregroundStyle(StrandPalette.textSecondary)
+                Spacer()
+                TextField("kcal", text: $measuredText)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 110)
+                #if os(iOS)
+                    .keyboardType(.numberPad)
+                #endif
+            }
+            DatePicker("Measured on", selection: $measuredDay, in: ...Date(), displayedComponents: .date)
+            Text("A measurement at rest, for example by a sports doctor or a nutrition clinic. Equations can miss a single body by several hundred kcal, a measurement does not. NOOP keeps how far it is from Mifflin–St Jeor and lets that follow your weight. It applies to your whole history, like every formula choice.")
+                .font(StrandFont.caption).foregroundStyle(StrandPalette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 

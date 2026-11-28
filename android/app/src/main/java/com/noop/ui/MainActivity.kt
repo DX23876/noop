@@ -79,11 +79,19 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         com.noop.notif.SessionRatingNavigation.accept(intent)
+        com.noop.widget.WeightNavigation.accept(intent)
+    }
+
+    /** The weight widgets follow the app to the front, as iOS's do (`WeightWidgets.refresh`). */
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch(Dispatchers.IO) { runCatching { com.noop.widget.WeightWidgets.refresh(applicationContext) } }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         com.noop.notif.SessionRatingNavigation.accept(intent)
+        com.noop.widget.WeightNavigation.accept(intent)
         WindowCompat.setDecorFitsSystemWindows(window, false)
         // NOTE: `crash` stays RAW here on purpose. acknowledge() fingerprints what it is given, and
         // pendingCrash() fingerprints the stored file — hand it redacted text and the two hashes never
@@ -911,6 +919,13 @@ object NoopPrefs {
 
     fun setHcVo2MaxAsked(context: Context, asked: Boolean) {
         of(context).edit().putBoolean(KEY_HC_VO2MAX_ASKED, asked).apply()
+    }
+
+    /** Whether the one-shot ask for writing weigh-ins to Health Connect (2026-11-26) has been made. */
+    const val KEY_HC_WEIGHT_ASKED = "noop.hcWeightAsked"
+    fun hcWeightAsked(context: Context): Boolean = of(context).getBoolean(KEY_HC_WEIGHT_ASKED, false)
+    fun setHcWeightAsked(context: Context, asked: Boolean) {
+        of(context).edit().putBoolean(KEY_HC_WEIGHT_ASKED, asked).apply()
     }
 
     /** Like [hcVo2MaxAsked], for the GPS route permission: asked once, a decline is respected. */

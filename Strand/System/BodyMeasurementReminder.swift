@@ -1,5 +1,7 @@
 import Foundation
 @preconcurrency import UserNotifications
+import StrandAnalytics
+import StrandCore
 
 /// Measurement reminders — a weekly tape reminder and an optional daily weigh-in one.
 ///
@@ -27,6 +29,10 @@ enum BodyMeasurementReminder {
         static let weeklyMinutes = "body.reminder.weekly.minutes"   // minutes since midnight
         static let dailyEnabled = "body.reminder.daily.enabled"
         static let dailyMinutes = "body.reminder.daily.minutes"
+        /// The weekdays the weigh-in reminder comes on (1 = Sunday ... 7 = Saturday); absent = every day.
+        static let dailyWeekdays = "body.reminder.daily.weekdays"
+        /// The last day a weigh-in was logged in NOOP, so that day's reminder stays quiet.
+        static let lastWeighInDay = "body.reminder.daily.lastWeighInDay"
     }
 
     enum Outcome { case scheduled, denied, off }
@@ -53,7 +59,23 @@ enum BodyMeasurementReminder {
         set { UserDefaults.standard.set(clampMinute(newValue), forKey: K.dailyMinutes) }
     }
 
+    /// The weekdays the weigh-in reminder comes on, 1 = Sunday ... 7 = Saturday; empty means every day.
+    static var dailyWeekdays: Set<Int> {
+        get { Set((UserDefaults.standard.array(forKey: K.dailyWeekdays) as? [Int] ?? []).filter { (1...7).contains($0) }) }
+        set { UserDefaults.standard.set(newValue.sorted(), forKey: K.dailyWeekdays) }
+    }
+
+    /// A weigh-in was logged on `day`: that day's reminder is taken back (owner, 2026-11-26), and the next ones armed.
+    static func noteWeighIn(day: String) {
+        UserDefaults.standard.set(day, forKey: K.lastWeighInDay)
+        refresh()
+    }
+
     private static func clampMinute(_ value: Int) -> Int { min(max(value, 0), 24 * 60 - 1) }
+
+    /// How many weigh-in reminders are armed ahead. Each is a single date, so a day with a weigh-in can be
+    /// skipped; opening the app re-arms the rolling window.
+    private static let dailyAhead = 14
 
     // MARK: - Enabling
 
@@ -64,7 +86,8 @@ enum BodyMeasurementReminder {
         guard on else {
             UserDefaults.standard.set(false, forKey: key)
             UNUserNotificationCenter.current().removePendingNotificationRequests(
-                withIdentifiers: [daily ? dailyRequestId : weeklyRequestId])
+                withIdentifiers: daily ? [dailyRequestId] + (0..<dailyAhead).map { "\(dailyRequestId)-\($0)" }
+                                       : [weeklyRequestId])
             completion?(.off)
             return
         }
@@ -102,7 +125,8 @@ enum BodyMeasurementReminder {
 
     private static func schedule() {
         let center = UNUserNotificationCenter.current()
-        center.removePendingNotificationRequests(withIdentifiers: [weeklyRequestId, dailyRequestId])
+        center.removePendingNotificationRequests(withIdentifiers: [weeklyRequestId, dailyRequestId]
+                                                 + (0..<dailyAhead).map { "\(dailyRequestId)-\($0)" })
 
         if weeklyEnabled {
             let content = UNMutableNotificationContent()
@@ -123,12 +147,17 @@ enum BodyMeasurementReminder {
             content.title = String(localized: "Weigh-in")
             content.body = String(localized: "Before breakfast, after the bathroom. Day-to-day noise is normal — the trend is what moves.")
             content.sound = .default
-            var components = DateComponents()
-            components.hour = dailyMinutes / 60
-            components.minute = dailyMinutes % 60
-            center.add(UNNotificationRequest(
-                identifier: dailyRequestId, content: content,
-                trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: true)))
+            // Single dates rather than one repeating trigger: a repeating one cannot skip the day that already
+            // has a weigh-in, nor the weekdays left out.
+            let weighed = UserDefaults.standard.string(forKey: K.lastWeighInDay).map { Set([$0]) } ?? []
+            let times = WeightTracker.reminderTimes(after: Date(), minutes: dailyMinutes, weekdays: dailyWeekdays,
+                                                    weighedInDays: weighed, count: dailyAhead)
+            for (i, time) in times.enumerated() {
+                let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: time)
+                center.add(UNNotificationRequest(
+                    identifier: "\(dailyRequestId)-\(i)", content: content,
+                    trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false)))
+            }
         }
     }
 }
